@@ -3,7 +3,7 @@ from __future__ import annotations
 from fractions import Fraction
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Response
+from fastapi import FastAPI, HTTPException, Response, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -17,6 +17,7 @@ from app.generators.cps import generate_cps
 from app.generators.euler_fokker import generate_euler_fokker
 from app.generators.series import harmonic_series, subharmonic_series
 from app.graphs.harmonic import build_johnson_graph, shortest_path, random_walk, weighted_walk
+from app.jobs import RenderJobs
 from app.models import (
     CPSRequest,
     BassRequest,
@@ -44,6 +45,7 @@ from app.tuning.ratios import parse_ratio, ratio_text
 
 app = FastAPI(title="Pure Intonation Workbench API", version="0.1.0")
 STATIC_DIR = Path(__file__).parent / "static"
+render_jobs = RenderJobs()
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000", "http://localhost:5173"],
@@ -71,6 +73,18 @@ def pitch_payload(ratios: list[Fraction]) -> dict[str, object]:
             for ratio in ratios
         ],
     }
+
+
+def render_request(request: RenderRequest) -> bytes:
+    return render_wav(
+        [NoteEvent(parse_ratio(event.ratio), event.start_seconds, event.duration_seconds, event.velocity) for event in request.events],
+        request.base_frequency,
+        request.waveform,
+        Envelope(request.attack_seconds, request.decay_seconds, request.sustain_level, request.release_seconds),
+        request.sample_rate,
+        request.delay_seconds,
+        request.reverb_amount,
+    )
 
 
 @app.get("/health")
@@ -300,18 +314,59 @@ def rhythm_humanize(request: HumanizeRequest) -> dict[str, object]:
 def render_audio(request: RenderRequest) -> Response:
     """Offline-render rational notes to a downloadable WAV stream."""
     try:
-        audio = render_wav(
-            [NoteEvent(parse_ratio(event.ratio), event.start_seconds, event.duration_seconds, event.velocity) for event in request.events],
-            request.base_frequency,
-            request.waveform,
-            Envelope(request.attack_seconds, request.decay_seconds, request.sustain_level, request.release_seconds),
-            request.sample_rate,
-            request.delay_seconds,
-            request.reverb_amount,
-        )
+        audio = render_request(request)
         return Response(audio, media_type="audio/wav", headers={"Content-Disposition": "attachment; filename=composition.wav"})
     except (ValueError, ZeroDivisionError) as error:
         raise HTTPException(status_code=422, detail=str(error)) from error
+
+
+@app.post("/api/render/jobs", status_code=202)
+def create_render_job(request: RenderRequest) -> dict[str, str]:
+    """Queue a WAV render and return a job identifier immediately."""
+    return {"job_id": render_jobs.submit(lambda: render_request(request)), "status": "queued"}
+
+
+@app.get("/api/render/jobs/{job_id}")
+def get_render_job(job_id: str) -> dict[str, str]:
+    """Report queued, running, completed, or failed offline rendering state."""
+    job = render_jobs.get(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="render job not found")
+    payload = {"job_id": job_id, "status": job.status}
+    if job.error:
+        payload["error"] = job.error
+    return payload
+
+
+@app.get("/api/render/jobs/{job_id}/audio")
+def get_rendered_audio(job_id: str) -> Response:
+    """Download the completed WAV for an async rendering job."""
+    job = render_jobs.get(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="render job not found")
+    if job.status != "completed" or job.audio is None:
+        raise HTTPException(status_code=409, detail=f"render job is {job.status}")
+    return Response(job.audio, media_type="audio/wav", headers={"Content-Disposition": "attachment; filename=composition.wav"})
+
+
+@app.websocket("/api/ws/transport")
+async def transport(websocket: WebSocket) -> None:
+    """WebSocket transport for play, pause, stop, and live-improvise commands."""
+    await websocket.accept()
+    state = "stopped"
+    try:
+        while True:
+            message = await websocket.receive_json()
+            command = message.get("command")
+            if command in {"play", "pause", "stop"}:
+                state = {"play": "playing", "pause": "paused", "stop": "stopped"}[command]
+                await websocket.send_json({"type": "transport", "state": state})
+            elif command == "improvise":
+                await websocket.send_json({"type": "improvise", "state": state, "seed": message.get("seed", 0)})
+            else:
+                await websocket.send_json({"type": "error", "message": "unknown transport command"})
+    except WebSocketDisconnect:
+        return
 
 
 @app.post("/api/export/midi")

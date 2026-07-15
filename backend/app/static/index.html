@@ -40,7 +40,7 @@
       </section>
 
       <section class="panel visualizer">
-        <div class="section-heading"><h2>Pitch circle</h2><span id="scale-name">CPS(4,2)</span></div>
+        <div class="section-heading"><h2 id="visual-title">Pitch circle</h2><span id="scale-name">CPS(4,2)</span><button id="graph-toggle" class="quiet" title="Graph view">Graph</button></div>
         <canvas id="circle" width="720" height="720" aria-label="音程の円周表示"></canvas>
         <p class="hint">点をクリックして発音。PCキーボードは <kbd>A</kbd> から順に使えます。</p>
         <div class="legend" aria-label="調和度の凡例"><span class="selected">発音中</span><span class="strong">強い調和</span><span class="close">近い調和</span><span class="distant">遠い関係</span></div>
@@ -69,6 +69,10 @@
       <section class="panel pitches">
         <div class="section-heading"><h2>Intervals</h2><button id="scala" class="quiet">Scala を保存</button></div>
         <div class="table-wrap"><table><thead><tr><th>Key</th><th>Ratio</th><th>Cents</th><th>Monzo</th><th></th></tr></thead><tbody id="pitches"></tbody></table></div>
+      </section>
+      <section class="panel timeline">
+        <div class="section-heading"><h2>Timeline</h2><button id="record" class="quiet" title="Record performance">Record</button></div>
+        <div id="timeline-events" class="timeline-events" aria-live="polite"></div>
       </section>
     </main>
     <template id="key-template"><button class="key"><span class="key-name"></span><span class="ratio"></span></button></template>
