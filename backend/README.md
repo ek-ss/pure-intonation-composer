@@ -22,6 +22,7 @@ Open `http://127.0.0.1:8000/docs` for the interactive API documentation.
 - `POST /api/analyze-ratio` — cents and sparse prime-exponent monzo
 - `POST /api/harmonic-graph` — CPS Johnson graph and deterministic traversals
 - `POST /api/compose/harmony` — deterministic, connected CPS chord progressions
+- `POST /api/compose/voice-leading` — compact, non-crossing rational voicings
 - `POST /api/export/scala` — Scala `.scl` content
 
 ## Example
@@ -50,4 +51,14 @@ always returns the same progression.
 
 ```json
 {"factors":[1,3,5,7],"choose":2,"length":8,"seed":42,"metric":"harmonic"}
+```
+
+## Voice leading example
+
+`POST /api/compose/voice-leading` arranges equal-size chord sequences inside a
+cent-based register. It minimizes movement while enforcing a per-voice leap
+limit and non-crossing voice order.
+
+```json
+{"chords":[["1/1","5/4","3/2"],["9/8","4/3","5/3"]],"max_leap_cents":300}
 ```

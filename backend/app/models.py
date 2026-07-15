@@ -83,3 +83,19 @@ class HarmonyRequest(BaseModel):
         if len(set(values)) != len(values):
             raise ValueError("factors must be unique")
         return values
+
+
+class VoiceLeadingRequest(BaseModel):
+    chords: list[list[str]] = Field(min_length=1, max_length=128)
+    max_leap_cents: float = Field(default=700, gt=0, le=2400)
+    register_low_cents: float = Field(default=0, ge=-4800, le=9600)
+    register_high_cents: float = Field(default=2400, ge=-4800, le=9600)
+
+    @field_validator("chords")
+    @classmethod
+    def chords_must_have_a_bounded_voice_count(cls, values: list[list[str]]) -> list[list[str]]:
+        if any(not 1 <= len(chord) <= 8 for chord in values):
+            raise ValueError("each chord must contain between 1 and 8 voices")
+        if len({len(chord) for chord in values}) != 1:
+            raise ValueError("all chords must contain the same number of voices")
+        return values

@@ -9,6 +9,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.composition.harmony import generate_harmony
+from app.composition.voice_leading import voice_lead
 from app.generators.cps import generate_cps
 from app.generators.euler_fokker import generate_euler_fokker
 from app.generators.series import harmonic_series, subharmonic_series
@@ -21,6 +22,7 @@ from app.models import (
     RatioRequest,
     ScalaRequest,
     SeriesRequest,
+    VoiceLeadingRequest,
 )
 from app.exporters.scala import scala_text
 from app.tuning.analysis import cents, monzo
@@ -150,6 +152,35 @@ def compose_harmony(request: HarmonyRequest) -> dict[str, object]:
             ],
         }
     except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+
+@app.post("/api/compose/voice-leading")
+def compose_voice_leading(request: VoiceLeadingRequest) -> dict[str, object]:
+    """Optimize a chord sequence for compact, non-crossing voice movement."""
+    try:
+        chords = [[parse_ratio(value) for value in chord] for chord in request.chords]
+        progression = voice_lead(
+            chords,
+            request.max_leap_cents,
+            request.register_low_cents,
+            request.register_high_cents,
+        )
+        return {
+            "voice_count": len(progression.chords[0]),
+            "chords": [
+                [
+                    {
+                        "ratio": ratio_text(ratio),
+                        "cents": round(cents(ratio), 5),
+                        "leap_cents": round(leap, 5),
+                    }
+                    for ratio, leap in zip(chord, chord_leaps)
+                ]
+                for chord, chord_leaps in zip(progression.chords, progression.leap_cents)
+            ],
+        }
+    except (ValueError, ZeroDivisionError) as error:
         raise HTTPException(status_code=422, detail=str(error)) from error
 
 
