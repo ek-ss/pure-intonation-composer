@@ -25,6 +25,9 @@ Open `http://127.0.0.1:8000/docs` for the interactive API documentation.
 - `POST /api/compose/voice-leading` — compact, non-crossing rational voicings
 - `POST /api/compose/bass` — continuous root, fifth, and mirror bass lines
 - `POST /api/compose/melody` — independent contour-controlled melodic voices
+- `POST /api/rhythm/euclidean` — even pulse distribution
+- `POST /api/rhythm/state-graph` — binary Hamming-distance-one transitions
+- `POST /api/rhythm/phase-shift` and `/api/rhythm/humanize` — layered timing tools
 - `POST /api/export/scala` — Scala `.scl` content
 
 ## Example

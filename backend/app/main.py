@@ -22,12 +22,17 @@ from app.models import (
     EulerFokkerRequest,
     HarmonicGraphRequest,
     HarmonyRequest,
+    HumanizeRequest,
     RatioRequest,
     ScalaRequest,
     SeriesRequest,
     VoiceLeadingRequest,
     MelodyRequest,
+    EuclideanRhythmRequest,
+    PhaseShiftRequest,
+    RhythmStateGraphRequest,
 )
+from app.rhythm.engine import euclidean_rhythm, humanize, phase_shift, state_transition_graph
 from app.exporters.scala import scala_text
 from app.tuning.analysis import cents, monzo
 from app.tuning.ratios import parse_ratio, ratio_text
@@ -239,6 +244,50 @@ def compose_melody(request: MelodyRequest) -> dict[str, object]:
             ],
         }
     except (ValueError, ZeroDivisionError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+
+@app.post("/api/rhythm/euclidean")
+def rhythm_euclidean(request: EuclideanRhythmRequest) -> dict[str, object]:
+    """Generate an evenly distributed Euclidean rhythm."""
+    try:
+        pattern = euclidean_rhythm(request.steps, request.pulses, request.rotation)
+        return {"pattern": pattern, "steps": request.steps, "pulses": sum(pattern)}
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+
+@app.post("/api/rhythm/state-graph")
+def rhythm_state_graph(request: RhythmStateGraphRequest) -> dict[str, object]:
+    """Return the binary rhythm state graph with Hamming-distance-one edges."""
+    try:
+        return state_transition_graph(request.steps)
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+
+@app.post("/api/rhythm/phase-shift")
+def rhythm_phase_shift(request: PhaseShiftRequest) -> dict[str, object]:
+    """Synchronize independently cycling rhythmic layers on one timeline."""
+    try:
+        return {"patterns": phase_shift(request.patterns, request.length, request.phases)}
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+
+@app.post("/api/rhythm/humanize")
+def rhythm_humanize(request: HumanizeRequest) -> dict[str, object]:
+    """Apply seed-reproducible timing and velocity variation to a rhythm."""
+    try:
+        hits = humanize(
+            request.pattern,
+            request.seed,
+            request.timing_amount_ms,
+            request.velocity_amount,
+            request.base_velocity,
+        )
+        return {"seed": request.seed, "hits": [hit.__dict__ for hit in hits]}
+    except ValueError as error:
         raise HTTPException(status_code=422, detail=str(error)) from error
 
 

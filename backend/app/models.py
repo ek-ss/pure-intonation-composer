@@ -118,3 +118,27 @@ class MelodyRequest(BaseModel):
     register_low_cents: float = Field(default=600, ge=-4800, le=9600)
     register_high_cents: float = Field(default=2400, ge=-4800, le=9600)
     phrase_memory: int = Field(default=3, ge=0, le=64)
+
+
+class EuclideanRhythmRequest(BaseModel):
+    steps: int = Field(ge=1, le=256)
+    pulses: int = Field(ge=0, le=256)
+    rotation: int = 0
+
+
+class RhythmStateGraphRequest(BaseModel):
+    steps: int = Field(ge=1, le=12)
+
+
+class PhaseShiftRequest(BaseModel):
+    patterns: list[list[int]] = Field(min_length=1, max_length=16)
+    length: int = Field(ge=1, le=4096)
+    phases: list[int] | None = None
+
+
+class HumanizeRequest(BaseModel):
+    pattern: list[int] = Field(min_length=1, max_length=1024)
+    seed: int = 0
+    timing_amount_ms: float = Field(default=12, ge=0, le=100)
+    velocity_amount: int = Field(default=10, ge=0, le=127)
+    base_velocity: int = Field(default=100, ge=1, le=127)
