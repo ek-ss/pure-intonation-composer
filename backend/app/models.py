@@ -99,3 +99,22 @@ class VoiceLeadingRequest(BaseModel):
         if len({len(chord) for chord in values}) != 1:
             raise ValueError("all chords must contain the same number of voices")
         return values
+
+
+class BassRequest(BaseModel):
+    chords: list[list[str]] = Field(min_length=1, max_length=128)
+    strategy: Literal["mirror", "root", "fifth", "hybrid"] = "hybrid"
+    max_leap_cents: float = Field(default=900, gt=0, le=2400)
+    register_low_cents: float = Field(default=-2400, ge=-4800, le=9600)
+    register_high_cents: float = Field(default=0, ge=-4800, le=9600)
+
+
+class MelodyRequest(BaseModel):
+    chords: list[list[str]] = Field(min_length=1, max_length=256)
+    voice_count: int = Field(default=1, ge=1, le=8)
+    seed: int = 0
+    contour: Literal["ascending", "descending", "arch", "free"] = "arch"
+    max_leap_cents: float = Field(default=700, gt=0, le=2400)
+    register_low_cents: float = Field(default=600, ge=-4800, le=9600)
+    register_high_cents: float = Field(default=2400, ge=-4800, le=9600)
+    phrase_memory: int = Field(default=3, ge=0, le=64)

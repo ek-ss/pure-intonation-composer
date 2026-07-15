@@ -9,6 +9,8 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.composition.harmony import generate_harmony
+from app.composition.bass import generate_bass
+from app.composition.melody import generate_melody
 from app.composition.voice_leading import voice_lead
 from app.generators.cps import generate_cps
 from app.generators.euler_fokker import generate_euler_fokker
@@ -16,6 +18,7 @@ from app.generators.series import harmonic_series, subharmonic_series
 from app.graphs.harmonic import build_johnson_graph, shortest_path, random_walk, weighted_walk
 from app.models import (
     CPSRequest,
+    BassRequest,
     EulerFokkerRequest,
     HarmonicGraphRequest,
     HarmonyRequest,
@@ -23,6 +26,7 @@ from app.models import (
     ScalaRequest,
     SeriesRequest,
     VoiceLeadingRequest,
+    MelodyRequest,
 )
 from app.exporters.scala import scala_text
 from app.tuning.analysis import cents, monzo
@@ -178,6 +182,60 @@ def compose_voice_leading(request: VoiceLeadingRequest) -> dict[str, object]:
                     for ratio, leap in zip(chord, chord_leaps)
                 ]
                 for chord, chord_leaps in zip(progression.chords, progression.leap_cents)
+            ],
+        }
+    except (ValueError, ZeroDivisionError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+
+@app.post("/api/compose/bass")
+def compose_bass(request: BassRequest) -> dict[str, object]:
+    """Generate a continuous bass line using roots, fifths, and mirrored ratios."""
+    try:
+        bass = generate_bass(
+            [[parse_ratio(value) for value in chord] for chord in request.chords],
+            request.strategy,
+            request.max_leap_cents,
+            request.register_low_cents,
+            request.register_high_cents,
+        )
+        return {
+            "notes": [
+                {
+                    "ratio": ratio_text(note),
+                    "cents": round(cents(note), 5),
+                    "leap_cents": round(leap, 5),
+                    "strategy": strategy,
+                }
+                for note, leap, strategy in zip(bass.notes, bass.leap_cents, bass.strategies)
+            ]
+        }
+    except (ValueError, ZeroDivisionError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+
+@app.post("/api/compose/melody")
+def compose_melody(request: MelodyRequest) -> dict[str, object]:
+    """Generate independent, repeatable melodic voices from rational chord tones."""
+    try:
+        melody = generate_melody(
+            [[parse_ratio(value) for value in chord] for chord in request.chords],
+            request.voice_count,
+            request.seed,
+            request.contour,
+            request.max_leap_cents,
+            request.register_low_cents,
+            request.register_high_cents,
+            request.phrase_memory,
+        )
+        return {
+            "seed": request.seed,
+            "voices": [
+                [
+                    {"ratio": ratio_text(note), "cents": round(cents(note), 5)}
+                    for note in voice
+                ]
+                for voice in melody.voices
             ],
         }
     except (ValueError, ZeroDivisionError) as error:
