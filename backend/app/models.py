@@ -142,3 +142,41 @@ class HumanizeRequest(BaseModel):
     timing_amount_ms: float = Field(default=12, ge=0, le=100)
     velocity_amount: int = Field(default=10, ge=0, le=127)
     base_velocity: int = Field(default=100, ge=1, le=127)
+
+
+class RenderEventRequest(BaseModel):
+    ratio: str = Field(pattern=r"^\d+/\d+$")
+    start_seconds: float = Field(ge=0, le=120)
+    duration_seconds: float = Field(gt=0, le=120)
+    velocity: int = Field(default=100, ge=1, le=127)
+
+
+class RenderRequest(BaseModel):
+    events: list[RenderEventRequest] = Field(max_length=256)
+    base_frequency: float = Field(default=220, ge=20, le=2000)
+    waveform: Literal["sine", "saw", "square", "triangle", "additive"] = "sine"
+    attack_seconds: float = Field(default=0.02, gt=0, le=10)
+    decay_seconds: float = Field(default=0.14, gt=0, le=10)
+    sustain_level: float = Field(default=0.65, ge=0, le=1)
+    release_seconds: float = Field(default=0.28, gt=0, le=10)
+    sample_rate: int = Field(default=22_050, ge=8000, le=96_000)
+    delay_seconds: float = Field(default=0, ge=0, le=5)
+    reverb_amount: float = Field(default=0, ge=0, le=1)
+
+
+class MidiNoteRequest(BaseModel):
+    ratio: str = Field(pattern=r"^\d+/\d+$")
+    start_beats: float = Field(ge=0, le=10_000)
+    duration_beats: float = Field(gt=0, le=10_000)
+    velocity: int = Field(default=100, ge=1, le=127)
+
+
+class MidiRequest(BaseModel):
+    notes: list[MidiNoteRequest] = Field(max_length=4096)
+    base_frequency: float = Field(default=220, ge=20, le=2000)
+    ticks_per_beat: int = Field(default=480, ge=24, le=960)
+
+
+class JsonExportRequest(BaseModel):
+    name: str = Field(default="Pure Intonation Composition", min_length=1, max_length=80)
+    composition: dict[str, object]

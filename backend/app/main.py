@@ -8,6 +8,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.audio.render import Envelope, NoteEvent, render_wav
 from app.composition.harmony import generate_harmony
 from app.composition.bass import generate_bass
 from app.composition.melody import generate_melody
@@ -23,6 +24,8 @@ from app.models import (
     HarmonicGraphRequest,
     HarmonyRequest,
     HumanizeRequest,
+    JsonExportRequest,
+    MidiRequest,
     RatioRequest,
     ScalaRequest,
     SeriesRequest,
@@ -31,7 +34,9 @@ from app.models import (
     EuclideanRhythmRequest,
     PhaseShiftRequest,
     RhythmStateGraphRequest,
+    RenderRequest,
 )
+from app.exporters.midi import MidiNote, midi_bytes
 from app.rhythm.engine import euclidean_rhythm, humanize, phase_shift, state_transition_graph
 from app.exporters.scala import scala_text
 from app.tuning.analysis import cents, monzo
@@ -289,6 +294,44 @@ def rhythm_humanize(request: HumanizeRequest) -> dict[str, object]:
         return {"seed": request.seed, "hits": [hit.__dict__ for hit in hits]}
     except ValueError as error:
         raise HTTPException(status_code=422, detail=str(error)) from error
+
+
+@app.post("/api/render/wav")
+def render_audio(request: RenderRequest) -> Response:
+    """Offline-render rational notes to a downloadable WAV stream."""
+    try:
+        audio = render_wav(
+            [NoteEvent(parse_ratio(event.ratio), event.start_seconds, event.duration_seconds, event.velocity) for event in request.events],
+            request.base_frequency,
+            request.waveform,
+            Envelope(request.attack_seconds, request.decay_seconds, request.sustain_level, request.release_seconds),
+            request.sample_rate,
+            request.delay_seconds,
+            request.reverb_amount,
+        )
+        return Response(audio, media_type="audio/wav", headers={"Content-Disposition": "attachment; filename=composition.wav"})
+    except (ValueError, ZeroDivisionError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+
+@app.post("/api/export/midi")
+def export_midi(request: MidiRequest) -> Response:
+    """Export rational notes as a standard MIDI type-0 file."""
+    try:
+        data = midi_bytes(
+            [MidiNote(parse_ratio(note.ratio), note.start_beats, note.duration_beats, note.velocity) for note in request.notes],
+            request.base_frequency,
+            request.ticks_per_beat,
+        )
+        return Response(data, media_type="audio/midi", headers={"Content-Disposition": "attachment; filename=composition.mid"})
+    except (ValueError, ZeroDivisionError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+
+@app.post("/api/export/json")
+def export_json(request: JsonExportRequest) -> dict[str, object]:
+    """Export a composition payload as structured JSON data."""
+    return {"name": request.name, "composition": request.composition}
 
 
 @app.post("/api/export/scala")

@@ -28,6 +28,8 @@ Open `http://127.0.0.1:8000/docs` for the interactive API documentation.
 - `POST /api/rhythm/euclidean` — even pulse distribution
 - `POST /api/rhythm/state-graph` — binary Hamming-distance-one transitions
 - `POST /api/rhythm/phase-shift` and `/api/rhythm/humanize` — layered timing tools
+- `POST /api/render/wav` — offline WAV render with oscillator, ADSR, and effects
+- `POST /api/export/midi`, `/api/export/scala`, and `/api/export/json` — composition export
 - `POST /api/export/scala` — Scala `.scl` content
 
 ## Example
