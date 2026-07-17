@@ -3,7 +3,6 @@ from __future__ import annotations
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from threading import Lock
-from typing import Callable
 from uuid import uuid4
 
 
@@ -22,7 +21,7 @@ class RenderJobs:
         self._lock = Lock()
         self._executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="render")
 
-    def submit(self, work: Callable[[], bytes]) -> str:
+    def submit(self, work: callable) -> str:
         job_id = str(uuid4())
         with self._lock:
             self._jobs[job_id] = RenderJob()
@@ -33,7 +32,7 @@ class RenderJobs:
         with self._lock:
             return self._jobs.get(job_id)
 
-    def _run(self, job_id: str, work: Callable[[], bytes]) -> None:
+    def _run(self, job_id: str, work: callable) -> None:
         with self._lock:
             self._jobs[job_id].status = "running"
         try:

@@ -4,6 +4,16 @@
 
 Version: 0.1
 
+## Implementation Status
+
+The P1-P10 scope is implemented on the `develop` branch. The project includes
+the mathematical core, harmonic graph, composition/rhythm engines, offline
+WAV rendering, MIDI/Scala/JSON export, FastAPI and async jobs, the browser
+workbench with graph/timeline/recorder controls, WebSocket transport, package
+metadata, examples, and automated tests. Performance tuning and installer
+distribution remain release-operations work and should be measured for each
+target platform before a production release.
+
 ---
 
 # 1. Purpose

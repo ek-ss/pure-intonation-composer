@@ -44,7 +44,7 @@ def build_johnson_graph(factors: list[int], choose: int) -> HarmonicGraph:
     nodes = tuple(
         HarmonicNode(subset, reduce_to_octave(_product(subset))) for subset in subsets
     )
-    adjacency: list[list[int]] = [[] for _ in nodes]
+    adjacency = [[] for _ in nodes]
     edges: list[tuple[int, int]] = []
     for left, right in combinations(range(len(nodes)), 2):
         if len(set(nodes[left].factors).intersection(nodes[right].factors)) == choose - 1:
@@ -63,15 +63,14 @@ def shortest_path(graph: HarmonicGraph, start: int, end: int) -> list[int]:
     _validate_index(graph, start)
     _validate_index(graph, end)
     queue = deque([start])
-    previous: dict[int, int | None] = {start: None}
+    previous = {start: None}
     while queue:
         node = queue.popleft()
         if node == end:
             path: list[int] = []
-            cursor: int | None = node
-            while cursor is not None:
-                path.append(cursor)
-                cursor = previous[cursor]
+            while node is not None:
+                path.append(node)
+                node = previous[node]
             return list(reversed(path))
         for neighbor in graph.adjacency[node]:
             if neighbor not in previous:

@@ -121,7 +121,7 @@ def analyze_ratio(request: RatioRequest) -> dict[str, object]:
         ratio = parse_ratio(request.ratio)
     except (ValueError, ZeroDivisionError) as error:
         raise HTTPException(status_code=422, detail="ratio must be a positive fraction") from error
-    return {"ratio": ratio_text(ratio), "cents": round(cents(ratio), 5), "monzo": monzo(ratio)}
+    return pitch_payload([ratio])["pitches"][0]
 
 
 @app.post("/api/harmonic-graph")

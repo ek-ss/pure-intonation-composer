@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Pure Intonation Workbench</title>
+    <link rel="stylesheet" href="/static/style.css">
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">RATIONAL TUNING LAB</p>
+        <h1>Pure Intonation Workbench</h1>
+      </div>
+      <a href="/docs" target="_blank" rel="noreferrer">API docs ↗</a>
+    </header>
+
+    <main>
+      <section class="panel controls">
+        <div class="section-heading"><h2>Generator</h2><span id="status" role="status">Ready</span></div>
+        <label>生成方法
+          <select id="generator">
+            <option value="cps">Combination Product Set</option>
+            <option value="euler">Euler–Fokker genus</option>
+            <option value="harmonic">Harmonic series</option>
+            <option value="subharmonic">Subharmonic series</option>
+          </select>
+        </label>
+        <label id="factor-field">因子（カンマ区切り）
+          <input id="factors" value="1, 3, 5, 7" inputmode="numeric">
+        </label>
+        <label id="choose-field">組合せの数 <span id="choose-value">2</span>
+          <input id="choose" type="range" min="1" max="4" value="2">
+        </label>
+        <label id="count-field" hidden>倍音数
+          <input id="count" type="number" min="1" max="128" value="16">
+        </label>
+        <label class="check"><input id="octave" type="checkbox" checked> 1オクターブ内に正規化</label>
+        <button id="generate" class="primary">音階を生成</button>
+      </section>
+
+      <section class="panel visualizer">
+        <div class="section-heading"><h2 id="visual-title">Pitch circle</h2><span id="scale-name">CPS(4,2)</span><button id="graph-toggle" class="quiet" title="Graph view">Graph</button></div>
+        <canvas id="circle" width="720" height="720" aria-label="音程の円周表示"></canvas>
+        <p class="hint">点をクリックして発音。PCキーボードは <kbd>A</kbd> から順に使えます。</p>
+        <div class="legend" aria-label="調和度の凡例"><span class="selected">発音中</span><span class="strong">強い調和</span><span class="close">近い調和</span><span class="distant">遠い関係</span></div>
+      </section>
+
+      <aside class="panel sound">
+        <div class="section-heading"><h2>Sound</h2><button id="stop" class="quiet">Stop all</button></div>
+        <label>基音 <output id="base-output">220 Hz</output>
+          <input id="base-frequency" type="range" min="110" max="440" value="220">
+        </label>
+        <label>波形
+          <select id="waveform">
+            <option value="sine">Sine</option>
+            <option value="triangle">Triangle</option>
+            <option value="sawtooth">Sawtooth</option>
+            <option value="square">Square</option>
+          </select>
+        </label>
+        <label>Attack <output id="attack-output">20 ms</output><input id="attack" type="range" min="5" max="500" value="20"></label>
+        <label>Decay <output id="decay-output">140 ms</output><input id="decay" type="range" min="10" max="1000" value="140"></label>
+        <label>Sustain <output id="sustain-output">65%</output><input id="sustain" type="range" min="5" max="100" value="65"></label>
+        <label>Release <output id="release-output">280 ms</output><input id="release" type="range" min="20" max="1500" value="280"></label>
+        <div class="keyboard" id="keyboard" aria-label="演奏キーボード"></div>
+      </aside>
+
+      <section class="panel pitches">
+        <div class="section-heading"><h2>Intervals</h2><button id="scala" class="quiet">Scala を保存</button></div>
+        <div class="table-wrap"><table><thead><tr><th>Key</th><th>Ratio</th><th>Cents</th><th>Monzo</th><th></th></tr></thead><tbody id="pitches"></tbody></table></div>
+      </section>
+      <section class="panel timeline">
+        <div class="section-heading"><h2>Timeline</h2><button id="record" class="quiet" title="Record performance">Record</button></div>
+        <div id="timeline-events" class="timeline-events" aria-live="polite"></div>
+      </section>
+    </main>
+    <template id="key-template"><button class="key"><span class="key-name"></span><span class="ratio"></span></button></template>
+    <script src="/static/app.js"></script>
+  </body>
+</html>
