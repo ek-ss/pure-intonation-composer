@@ -1,534 +1,363 @@
-# REST API Specification
+# REST API Reference
 
 **Project:** Pure Intonation Composer
 
-Version: 0.1
+Version: 0.1 (implemented API)
 
 ---
 
 # 1. Overview
 
-This document defines the public REST API.
+This document describes the API as implemented by `backend/app/main.py`.
+The original design specification targeted `/api/v1`; the current
+implementation serves unversioned `/api/*` routes. Versioning,
+authentication, presets, and project storage remain planned work.
 
-All endpoints return JSON unless otherwise specified.
+All endpoints accept and return JSON unless otherwise specified.
+Errors return the FastAPI standard shape:
 
-The API follows REST principles while exposing musical operations rather than database entities.
-
-Base URL
-
+```json
+{ "detail": "ratio must be a positive fraction" }
 ```
-/api/v1
-```
+
+Interactive documentation (Swagger UI) is available at `/docs` and
+ReDoc at `/redoc` when the server is running.
+
+Base URL: `http://127.0.0.1:8000`
 
 ---
 
-# 2. Common Response
+# 2. Meta
 
-Success
-
-```json
-{
-  "success": true,
-  "data": {}
-}
-```
-
-Error
+## GET /health
 
 ```json
-{
-  "success": false,
-  "error": {
-    "code": "INVALID_RATIO",
-    "message": "Denominator must be positive."
-  }
-}
+{ "status": "ok" }
 ```
+
+## GET /
+
+Serves the browser workbench (`app/static/index.html`).
 
 ---
 
-# 3. Scale API
+# 3. Scale Generators
 
-## POST /scale/cps
+All scale endpoints return the same payload:
+
+```json
+{
+  "count": 6,
+  "pitches": [
+    { "ratio": "3/2", "cents": 701.955, "monzo": { "2": -1, "3": 1 } }
+  ]
+}
+```
+
+## POST /api/cps
 
 Generate a Combination Product Set.
 
-Request
-
 ```json
 {
-  "numbers":[1,3,5,7,9,11],
-  "k":3,
-  "harmonic":true,
-  "normalize":true
+  "factors": [1, 3, 5, 7],
+  "choose": 2,
+  "kind": "harmonic",
+  "octave_reduce": true
 }
 ```
 
-Response
+- `factors`: 1–16 unique positive integers
+- `choose`: 1–16, combination size
+- `kind`: `"harmonic"` or `"subharmonic"`
+
+## POST /api/euler-fokker
+
+```json
+{ "factors": [3, 5, 7], "octave_reduce": true }
+```
+
+Factors must be integers greater than one.
+
+## POST /api/harmonic-series · POST /api/subharmonic-series
+
+```json
+{ "count": 16, "octave_reduce": true }
+```
+
+## POST /api/analyze-ratio
+
+```json
+{ "ratio": "15/8" }
+```
+
+Returns `{ "ratio", "cents", "monzo" }` for one ratio.
+
+---
+
+# 4. Harmonic Graph
+
+## POST /api/harmonic-graph
+
+Build the CPS Johnson graph and optionally traverse it.
 
 ```json
 {
-  "ratios":[...]
+  "factors": [1, 3, 5, 7],
+  "choose": 2,
+  "operation": "weighted_walk",
+  "start": 0,
+  "end": null,
+  "steps": 12,
+  "seed": 42,
+  "metric": "harmonic"
 }
 ```
 
----
+- `operation`: `"graph"` | `"shortest_path"` | `"random_walk"` | `"weighted_walk"`
+- `metric`: `"harmonic"` | `"monzo"` | `"cent"` (weighted walk only)
+- `end` is required for `shortest_path`
 
-## POST /scale/euler
-
-Generate an Euler–Fokker genus.
-
-Request
+Response:
 
 ```json
 {
-  "max3":3,
-  "max5":2,
-  "max7":1
+  "node_count": 6,
+  "edge_count": 15,
+  "nodes": [{ "index": 0, "factors": [1, 3], "ratio": "3/2" }],
+  "edges": [{ "source": 0, "target": 1 }],
+  "walk": [0, 3, 0, 2]
 }
 ```
 
----
-
-## POST /scale/import
-
-Import Scala file.
+`walk` appears only when a traversal operation is requested.
+All traversals are deterministic for a given seed.
 
 ---
 
-## GET /scale/{id}
+# 5. Composition
 
-Load saved scale.
+## POST /api/compose/harmony
 
----
+Generate a seeded, connected CPS harmony progression.
 
-# 4. Graph API
+```json
+{ "factors": [1, 3, 5, 7], "choose": 2, "length": 8, "seed": 42, "metric": "harmonic" }
+```
 
-## POST /graph/build
-
-Create Johnson graph.
-
-Request
+Response:
 
 ```json
 {
-  "scale_id":"..."
+  "length": 8,
+  "seed": 42,
+  "metric": "harmonic",
+  "chords": [
+    { "node": 0, "factors": [1, 3], "ratio": "3/2", "transition_score": null }
+  ]
 }
 ```
 
-Response
+`transition_score` is `null` for the first chord.
+
+## POST /api/compose/voice-leading
+
+Optimize a chord sequence for compact, non-crossing voice movement.
+
+```json
+{ "chords": [["1/1", "5/4", "3/2"]], "max_leap_cents": 700, "register_low_cents": 0, "register_high_cents": 2400 }
+```
+
+All chords must have the same number of voices (1–8).
+
+## POST /api/compose/bass
+
+```json
+{ "chords": [["1/1", "5/4", "3/2"]], "strategy": "hybrid", "max_leap_cents": 900 }
+```
+
+- `strategy`: `"mirror"` | `"root"` | `"fifth"` | `"hybrid"`
+- Default register: −2400…0 cents below the base frequency
+
+Response: `notes[]` with `ratio`, `cents`, `leap_cents`, `strategy`.
+
+## POST /api/compose/melody
+
+```json
+{ "chords": [["1/1", "5/4", "3/2"]], "voice_count": 1, "seed": 42, "contour": "arch", "phrase_memory": 3 }
+```
+
+- `contour`: `"ascending"` | `"descending"` | `"arch"` | `"free"`
+
+Response: `voices[]`, one per voice, each a list of `{ "ratio", "cents" }`.
+
+---
+
+# 6. Rhythm
+
+## POST /api/rhythm/euclidean
+
+```json
+{ "steps": 13, "pulses": 5, "rotation": 2 }
+```
+
+Response: `{ "pattern": [1, 0, ...], "steps": 13, "pulses": 5 }`.
+
+## POST /api/rhythm/state-graph
+
+```json
+{ "steps": 4 }
+```
+
+Binary rhythm state graph; edges connect patterns with Hamming distance
+one. `steps` ≤ 12.
+
+## POST /api/rhythm/phase-shift
+
+```json
+{ "patterns": [[1, 0, 0], [1, 0, 1, 0]], "length": 12, "phases": [0, 1] }
+```
+
+Expands independent cycles into one shared timeline.
+
+## POST /api/rhythm/humanize
+
+```json
+{ "pattern": [1, 0, 1, 0], "seed": 42, "timing_amount_ms": 12, "velocity_amount": 10, "base_velocity": 100 }
+```
+
+Response: `hits[]` for active steps with `step`, `timing_offset_ms`,
+`velocity`. Deterministic for a given seed.
+
+---
+
+# 7. Audio Rendering
+
+## POST /api/render/wav
+
+Synchronous render; returns the WAV file directly (`audio/wav`).
 
 ```json
 {
-  "nodes":120,
-  "edges":360
+  "events": [{ "ratio": "3/2", "start_seconds": 0, "duration_seconds": 1, "velocity": 100 }],
+  "base_frequency": 220,
+  "waveform": "sine",
+  "attack_seconds": 0.02,
+  "decay_seconds": 0.14,
+  "sustain_level": 0.65,
+  "release_seconds": 0.28,
+  "sample_rate": 22050,
+  "delay_seconds": 0,
+  "reverb_amount": 0
 }
 ```
 
+- `waveform`: `"sine"` | `"saw"` | `"square"` | `"triangle"` | `"additive"`
+
+## POST /api/render/jobs
+
+Async render. Same body as `/api/render/wav`; returns `202`:
+
+```json
+{ "job_id": "f8d7ec1c-…", "status": "queued" }
+```
+
+## GET /api/render/jobs/{job_id}
+
+```json
+{ "job_id": "…", "status": "queued|running|completed|failed" }
+```
+
+## GET /api/render/jobs/{job_id}/audio
+
+Returns the finished WAV (`audio/wav`); `409` while the job is not
+completed, `404` for unknown jobs.
+
 ---
 
-## GET /graph/{id}
+# 8. Export
 
-Return graph.
+## POST /api/export/midi
 
----
-
-## POST /graph/random-walk
-
-Request
+Pitched notes as a standard MIDI type-0 file (`audio/midi`).
 
 ```json
 {
-  "graph":"...",
-  "steps":128,
-  "seed":1234
+  "notes": [{ "ratio": "3/2", "start_beats": 0, "duration_beats": 1, "velocity": 100 }],
+  "base_frequency": 220,
+  "ticks_per_beat": 480
 }
 ```
 
-Response
+Ratios are quantized to the nearest 12-TET note number.
+
+## POST /api/export/rhythm/midi
+
+Binary rhythm pattern as GM percussion on channel 10 (`audio/midi`).
 
 ```json
 {
-  "path":[...]
+  "pattern": [1, 0, 1, 0],
+  "note": 36,
+  "velocity": 100,
+  "velocities": [100, 0, 60, 0],
+  "steps_per_beat": 4,
+  "ticks_per_beat": 480
 }
 ```
 
----
+- `note`: GM percussion note number (36 = kick, 38 = snare, 42 = closed hat)
+- `velocities`: optional per-step velocities; `0` falls back to `velocity`
+  (use `0` for inactive steps)
 
-## POST /graph/shortest-path
-
-Request
+## POST /api/export/scala
 
 ```json
-{
-  "source":"...",
-  "target":"..."
-}
+{ "name": "Pure Intonation Scale", "ratios": ["1/1", "9/8", "5/4"] }
 ```
 
----
+Returns a `.scl` Scala tuning file (`text/plain`).
 
-# 5. Harmony API
-
-## POST /harmony/generate
-
-Generate harmonic progression.
-
-Parameters
-
-* graph
-* strategy
-* randomness
-* density
-
----
-
-## POST /harmony/analyze
-
-Return
-
-* harmonic complexity
-* average movement
-* entropy
-* repeated states
-
----
-
-# 6. Bass API
-
-## POST /bass/generate
-
-Request
+## POST /api/export/json
 
 ```json
-{
-  "strategy":"mirror",
-  "progression":"..."
-}
+{ "name": "Pure Intonation Composition", "composition": { "…": "any structured payload" } }
 ```
 
-Strategies
-
-mirror
-
-root
-
-fifth
-
-walker
-
-hybrid
+Echoes the payload back as structured JSON for saving.
 
 ---
 
-# 7. Melody API
+# 9. Real-Time Transport
 
-## POST /melody/generate
+## WebSocket /api/ws/transport
 
-Parameters
-
-instrument
-
-register
-
-voice_count
-
-phrase_length
-
-seed
-
----
-
-# 8. Rhythm API
-
-## POST /rhythm/euclidean
-
-Generate Euclidean rhythm.
-
----
-
-## POST /rhythm/state-graph
-
-Generate drum graph.
-
----
-
-## POST /rhythm/phase
-
-Apply phase shifting.
-
----
-
-# 9. Drum API
-
-## POST /drums/generate
-
-Produces
-
-Kick
-
-Snare
-
-Hat
-
-Percussion
-
----
-
-## POST /drums/humanize
-
-Random timing
-
-Velocity
-
-Probability
-
----
-
-# 10. Form API
-
-## POST /form/generate
-
-Supported
-
-ABA
-
-ABACA
-
-Minimal
-
-Continuous
-
-Custom
-
----
-
-# 11. Composition API
-
-## POST /compose
-
-This endpoint generates an entire composition.
-
-Input
-
-Scale
-
-Harmony
-
-Bass
-
-Melody
-
-Rhythm
-
-Form
-
-Seed
-
-Output
-
-Composition ID
-
----
-
-## GET /composition/{id}
-
-Return full composition.
-
----
-
-# 12. Audio API
-
-## POST /render
-
-Starts rendering.
-
-Response
+Send JSON commands:
 
 ```json
-{
- "job":"..."
-}
+{ "command": "play" }
+{ "command": "pause" }
+{ "command": "stop" }
+{ "command": "improvise", "seed": 42 }
+```
+
+Responses:
+
+```json
+{ "type": "transport", "state": "playing" }
+{ "type": "improvise", "state": "playing", "seed": 42 }
+{ "type": "error", "message": "unknown transport command" }
 ```
 
 ---
 
-## GET /render/{job}
-
-Returns
-
-Queued
-
-Running
-
-Finished
-
-Failed
-
----
-
-## GET /render/{job}/wav
-
-Download WAV.
-
----
-
-## GET /render/{job}/midi
-
-Download MIDI.
-
----
-
-## GET /render/{job}/scala
-
-Download Scala tuning.
-
----
-
-# 13. Analysis API
-
-## POST /analysis/cent
-
-Cent calculations.
-
----
-
-## POST /analysis/monzo
-
-Monzo decomposition.
-
----
-
-## POST /analysis/harmonic-distance
-
-Return pairwise distances.
-
----
-
-## POST /analysis/statistics
-
-Returns
-
-Mean complexity
-
-Pitch histogram
-
-Register histogram
-
-Entropy
-
----
-
-# 14. Preset API
-
-Create
-
-Update
-
-Delete
-
-Instrument presets.
-
----
-
-# 15. Project API
-
-Save
-
-Load
-
-Duplicate
-
-Delete
-
-Projects.
-
----
-
-# 16. Job API
-
-Long-running operations are asynchronous.
-
-Status
-
-Queued
-
-Running
-
-Finished
-
-Failed
-
-Cancelled
-
-Progress
-
-0–100%
-
----
-
-# 17. Streaming API
-
-Optional Server-Sent Events.
-
-```
-GET /events
-```
-
-Streams
-
-Render progress
-
-Playback position
-
-Graph updates
-
----
-
-# 18. Authentication
-
-Version 0.1
-
-None
-
-Future
-
-JWT
-
-OAuth
-
----
-
-# 19. Versioning
-
-All endpoints include
-
-```
-/api/v1
-```
-
-Future breaking changes require
-
-```
-/api/v2
-```
-
----
-
-# 20. OpenAPI
-
-FastAPI automatically generates
-
-```
-/docs
-```
-
-Swagger UI
-
-and
-
-```
-/redoc
-```
-
-ReDoc documentation.
+# 10. Planned (Not Yet Implemented)
+
+From the original specification, still open:
+
+- `/api/v1` route versioning
+- Authentication (JWT/OAuth)
+- Instrument presets and project persistence
+- Form generator, full `/compose` one-shot endpoint
+- Server-Sent Events (`/events`)
+- Scala file import

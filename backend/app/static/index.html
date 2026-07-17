@@ -188,6 +188,13 @@
               <button id="rhythm-play">▶ 再生</button>
               <button id="rhythm-stop" class="quiet">停止</button>
             </div>
+            <label>ドラム音 (GM ノート番号)
+              <input id="rhythm-note" type="number" min="0" max="127" value="36">
+            </label>
+            <div class="button-row">
+              <button id="rhythm-export-midi">MIDI</button>
+              <button id="rhythm-export-json">JSON</button>
+            </div>
           </div>
         </div>
         <div id="rhythm-grid" class="rhythm-grid" aria-live="polite"></div>

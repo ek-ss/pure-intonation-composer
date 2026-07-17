@@ -177,6 +177,36 @@ class MidiRequest(BaseModel):
     ticks_per_beat: int = Field(default=480, ge=24, le=960)
 
 
+class RhythmMidiRequest(BaseModel):
+    pattern: list[int] = Field(min_length=1, max_length=1024)
+    note: int = Field(default=36, ge=0, le=127)
+    velocity: int = Field(default=100, ge=1, le=127)
+    velocities: list[int] | None = None
+    steps_per_beat: int = Field(default=4, ge=1, le=16)
+    ticks_per_beat: int = Field(default=480, ge=24, le=960)
+
+    @field_validator("pattern")
+    @classmethod
+    def pattern_must_be_binary(cls, value: list[int]) -> list[int]:
+        if any(step not in {0, 1} for step in value):
+            raise ValueError("pattern must contain only zeros and ones")
+        return value
+
+    @field_validator("velocities")
+    @classmethod
+    def velocities_must_match_pattern(cls, values: list[int] | None) -> list[int] | None:
+        if values is not None and any(not 0 <= velocity <= 127 for velocity in values):
+            raise ValueError("velocities must be between 0 and 127")
+        return values
+
+    def velocities_for(self) -> list[int]:
+        if self.velocities is None:
+            return [self.velocity] * len(self.pattern)
+        if len(self.velocities) != len(self.pattern):
+            raise ValueError("velocities must match the pattern length")
+        return [velocity or self.velocity for velocity in self.velocities]
+
+
 class JsonExportRequest(BaseModel):
     name: str = Field(default="Pure Intonation Composition", min_length=1, max_length=80)
     composition: dict[str, object]

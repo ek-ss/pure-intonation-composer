@@ -36,8 +36,9 @@ from app.models import (
     PhaseShiftRequest,
     RhythmStateGraphRequest,
     RenderRequest,
+    RhythmMidiRequest,
 )
-from app.exporters.midi import MidiNote, midi_bytes
+from app.exporters.midi import MidiDrumHit, MidiNote, drum_midi_bytes, midi_bytes
 from app.rhythm.engine import euclidean_rhythm, humanize, phase_shift, state_transition_graph
 from app.exporters.scala import scala_text
 from app.tuning.analysis import cents, monzo
@@ -379,6 +380,22 @@ def export_midi(request: MidiRequest) -> Response:
             request.ticks_per_beat,
         )
         return Response(data, media_type="audio/midi", headers={"Content-Disposition": "attachment; filename=composition.mid"})
+    except (ValueError, ZeroDivisionError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+
+@app.post("/api/export/rhythm/midi")
+def export_rhythm_midi(request: RhythmMidiRequest) -> Response:
+    """Export a binary rhythm pattern as GM percussion MIDI (channel 10)."""
+    try:
+        velocities = request.velocities_for()
+        hits = [
+            MidiDrumHit(request.note, index / request.steps_per_beat, velocities[index])
+            for index, active in enumerate(request.pattern)
+            if active
+        ]
+        data = drum_midi_bytes(hits, request.ticks_per_beat)
+        return Response(data, media_type="audio/midi", headers={"Content-Disposition": "attachment; filename=rhythm.mid"})
     except (ValueError, ZeroDivisionError) as error:
         raise HTTPException(status_code=422, detail=str(error)) from error
 

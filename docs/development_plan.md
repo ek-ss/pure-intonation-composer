@@ -6,13 +6,34 @@ Version: 0.1
 
 ## Implementation Status
 
-The P1-P10 scope is implemented on the `develop` branch. The project includes
-the mathematical core, harmonic graph, composition/rhythm engines, offline
-WAV rendering, MIDI/Scala/JSON export, FastAPI and async jobs, the browser
-workbench with graph/timeline/recorder controls, WebSocket transport, package
-metadata, examples, and automated tests. Performance tuning and installer
-distribution remain release-operations work and should be measured for each
-target platform before a production release.
+Phases P1–P9 are implemented on the `develop` branch. Current status:
+
+| Phase | Goal                  | Status      |
+| ----- | --------------------- | ----------- |
+| P1    | Mathematical Core     | Done        |
+| P2    | Harmonic Graph        | Done        |
+| P3    | Composition Engine    | Done        |
+| P4    | Rhythm Engine         | Done        |
+| P5    | Audio Rendering       | Done        |
+| P6    | Export                | Done        |
+| P7    | REST API              | Done        |
+| P8    | Web UI                | Done        |
+| P9    | Real-time Performance | Done        |
+| P10   | Stable Release        | In progress |
+
+Recent additions beyond the original phase scope:
+
+* GM-percussion rhythm MIDI export (`POST /api/export/rhythm/midi`)
+* Force-directed graph viewer with shortest-path / random-walk /
+  weighted-walk visualization
+* Real-time-scaled timeline recorder with replay
+* Compose and rhythm workbench panels (harmony/bass/melody generation,
+  WAV render jobs, MIDI/JSON export)
+
+Performance tuning and installer distribution remain release-operations
+work and should be measured for each target platform before a production
+release. The test suite currently covers all endpoints and engines
+(31 tests); `ruff` and `mypy` are clean.
 
 ---
 

@@ -10,6 +10,12 @@ Version: 0.1
 
 This document defines the canonical data model used throughout the project.
 
+> **Status:** design specification. Ratios, scales, harmonic graphs, melody,
+> bass, rhythm patterns, and render settings are implemented. Presets,
+> effect chains, projects, and SQL storage are planned work. The REST API
+> exchanges a practical subset of these models — see [api.md](api.md) for
+> the exact wire shapes.
+
 Every module must exchange data using these models.
 
 The models are independent of

@@ -312,4 +312,22 @@ el("rhythm-generate").onclick = generateRhythm;
 el("humanize-run").onclick = humanizeRhythm;
 el("rhythm-play").onclick = playRhythm;
 el("rhythm-stop").onclick = () => { stopRhythm(); setRhythmStatus("", ""); };
+el("rhythm-export-midi").onclick = async () => {
+  try {
+    if (!rhythmState.pattern.length) throw new Error("先にリズムを生成してください。");
+    const velocities = rhythmState.pattern.map((_, index) => rhythmState.hits.find(hit => hit.step === index)?.velocity ?? 0);
+    const response = await fetch("/api/export/rhythm/midi", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ pattern: rhythmState.pattern, note: Number(el("rhythm-note").value), velocities }) });
+    if (!response.ok) throw new Error((await response.json()).detail || "MIDI エクスポートに失敗しました。");
+    download(await response.blob(), "rhythm.mid"); setRhythmStatus("MIDI を保存しました", "");
+  } catch (error) { setRhythmStatus(error.message, "error"); }
+};
+el("rhythm-export-json").onclick = async () => {
+  try {
+    if (!rhythmState.pattern.length) throw new Error("先にリズムを生成してください。");
+    const rhythm = { generator: "euclidean", steps: Number(el("rhythm-steps").value), pulses: Number(el("rhythm-pulses").value), rotation: Number(el("rhythm-rotation").value), pattern: rhythmState.pattern, seed: Number(el("humanize-seed").value), hits: rhythmState.hits };
+    const data = await postJson("/api/export/json", { name: "Euclidean Rhythm", composition: { rhythm } });
+    download(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }), "rhythm.json");
+    setRhythmStatus("JSON を保存しました", "");
+  } catch (error) { setRhythmStatus(error.message, "error"); }
+};
 generateRhythm();

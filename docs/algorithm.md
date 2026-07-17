@@ -10,6 +10,12 @@ Version: 0.1
 
 This document specifies the musical algorithms used by the Pure Intonation Composer.
 
+> **Status:** design specification. The CPS/Euler–Fokker generators, harmonic
+> graph, transition scoring, bass/melody/voice-leading engines, Euclidean
+> rhythm, state graphs, phase shifting, and humanization are implemented as
+> described. The form generator, texture density, spatialization, and
+> Markov/procedural rhythm generators are planned work.
+
 Unlike conventional DAWs or algorithmic composition systems based on equal temperament, this project defines music as motion through harmonic state spaces generated from integer frequency ratios.
 
 Every musical layer is represented as a state machine.
