@@ -140,6 +140,91 @@ Planned
 * Per-note retuning by dragging on the radial graph
 * MIDI-note table (128 notes with frequency and cents deviation)
 
+### G5.1 Composition Visualizer
+
+The Compose panel can generate harmony, bass, and melody, but its current
+horizontal chord list does not make the relationship between those layers
+legible over time. Add a linked **Composition Roll** as the primary
+composition visualization. It must use a cents-based vertical axis rather
+than MIDI-note rows, so that the actual sizes of pure intervals remain
+visible.
+
+#### Primary View: Composition Roll
+
+* **Horizontal axis:** chord step and musical time. The grid follows the
+  current tempo, with bar boundaries and a movable playhead.
+* **Vertical axis:** cents relative to the selected base frequency. Zooming
+  and panning must preserve the cents scale; octave guides appear every
+  1200 cents.
+* **Harmony layer:** each generated chord is a softly connected vertical
+  stack of ratio-labelled note chips. A translucent band spans its duration;
+  its color identifies the corresponding harmonic-graph node.
+* **Bass layer:** a heavier line below the chord stack joins successive bass
+  notes. The segment label shows the chosen strategy (`root`, `fifth`, or
+  `mirror`) and may expose its cent leap on hover.
+* **Melody layer:** each independent voice is a separately colored polyline
+  above or through the harmony, with note markers showing ratio and optional
+  cents. The same voice must retain its color throughout a piece.
+* **Voice-leading layer:** optionally draw faint connectors between adjacent
+  chord tones. Connector opacity represents movement size, making common
+  tones and large leaps immediately apparent without crowding the default
+  view.
+
+#### Linked Harmonic-Trajectory View
+
+Provide a compact companion view above the roll: the existing Johnson graph
+with only the generated harmony path emphasized. The active timeline step,
+the active graph node, the chord band, and the pitch-circle focus must stay
+synchronized. Selecting any one of them selects the same composition step in
+the other views.
+
+This two-view approach separates two questions which should not compete for
+the same space: **where the harmony travels** (graph trajectory) and **how
+the voices move** (composition roll).
+
+#### Controls and Interaction
+
+* Layer toggles: harmony, bass, each melody voice, and voice-leading.
+* Label modes: ratio, cents, monzo, or compact labels; ratio is the default.
+* Click a note to audition it; click a chord band to audition its complete
+  chord; drag the playhead or click the time ruler to seek during replay.
+* Hover/selection inspector: ratio, absolute cents, interval from the prior
+  note, graph node/factors, transition score, and bass strategy.
+* Zoom controls must be icon buttons; scroll/pinch zoom is centered on the
+  pointer. A reset-view command returns to the full composition extent.
+* On narrow screens, retain the time axis but show one selected layer at a
+  time; the harmonic trajectory remains as a compact strip above it.
+
+#### Data and Rendering Contract
+
+The client should derive a normalized `CompositionViewModel` from the existing
+`composeState`: chord index/start/duration, harmonic-node id and factors,
+all chord tones, bass note and strategy, melody voice/note, and transition or
+leap metadata. Rendering may use Canvas for performant paths and an HTML
+overlay for accessible labels/selection. Keep the view model serializable so
+the exact visualization can be restored from a JSON project export.
+
+#### Delivery Sequence
+
+1. Add the read-only composition roll with harmony, bass, melody, and a
+   playback playhead.
+2. Link selection to the harmonic graph and pitch circle; add layer and label
+   controls.
+3. Add voice-leading connectors, inspector, zoom/pan, and mobile layer mode.
+4. Persist view settings and selected step in project JSON; add screenshot and
+   interaction regression tests at desktop and mobile breakpoints.
+
+Acceptance criteria
+
+* A generated eight-step harmony with bass and two melody voices is readable
+  without opening the raw JSON response.
+* Selecting a timeline step highlights exactly one harmonic-graph node and
+  its chord band.
+* Common tones, voice crossings (if present), and leaps larger than the
+  configured limit can be visually identified.
+* Playback playhead remains aligned with the scheduled audio within one UI
+  frame, and the visualization remains usable on a narrow mobile viewport.
+
 ## G6. Scale Editor
 
 Entonal: add/remove notes, enter cents/ratios/EDO degrees/math
