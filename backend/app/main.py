@@ -17,6 +17,7 @@ from app.generators.cps import generate_cps
 from app.generators.euler_fokker import generate_euler_fokker
 from app.generators.series import harmonic_series, subharmonic_series
 from app.graphs.harmonic import build_johnson_graph, shortest_path, random_walk, weighted_walk
+from app.graphs.layout import reference_layered_grid_layout
 from app.jobs import RenderJobs
 from app.models import (
     CPSRequest,
@@ -42,7 +43,7 @@ from app.exporters.midi import MidiDrumHit, MidiNote, drum_midi_bytes, midi_byte
 from app.rhythm.engine import euclidean_rhythm, humanize, phase_shift, state_transition_graph
 from app.exporters.scala import scala_text
 from app.tuning.analysis import cents, monzo
-from app.tuning.ratios import parse_ratio, ratio_text
+from app.tuning.ratios import parse_ratio, ratio_text, reduce_to_octave
 
 app = FastAPI(title="Pure Intonation Workbench API", version="0.1.0")
 STATIC_DIR = Path(__file__).parent / "static"
@@ -134,11 +135,23 @@ def harmonic_graph(request: HarmonicGraphRequest) -> dict[str, object]:
             "node_count": len(graph.nodes),
             "edge_count": len(graph.edges),
             "nodes": [
-                {"index": index, "factors": node.factors, "ratio": ratio_text(node.ratio)}
+                {"index": index, "factors": node.factors, "ratio": ratio_text(node.ratio), "sub_ratio": ratio_text(reduce_to_octave(2 / node.ratio))}
                 for index, node in enumerate(graph.nodes)
             ],
             "edges": [{"source": left, "target": right} for left, right in graph.edges],
         }
+        if request.layout == "reference_layered_grid":
+            layout = reference_layered_grid_layout(graph, request.reference or 0, sort_mode=request.sort_mode)
+            payload["layout"] = {
+                "kind": "reference_layered_grid",
+                "reference": layout.reference,
+                "sort_mode": layout.sort_mode,
+                "positions": [{"x": x, "y": y} for x, y in layout.positions],
+                "shared_counts": list(layout.shared_counts),
+                "distances": list(layout.distances),
+                "layers": [{"shared": shared, "distance": max(layout.distances) - shared, "nodes": list(members)} for shared, members in layout.layers],
+                "edge_directions": list(layout.edge_directions),
+            }
         if request.operation == "shortest_path":
             if request.end is None:
                 raise ValueError("end is required for shortest_path")

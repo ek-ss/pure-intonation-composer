@@ -1,5 +1,5 @@
 const el = id => document.getElementById(id);
-const state = { pitches: [], active: new Map(), context: null, focus: null, graph: null, showGraph: false, recording: false, recorded: [], walk: null, layout: null };
+const state = { pitches: [], active: new Map(), context: null, focus: null, graph: null, showGraph: false, recording: false, recorded: [], walk: null, layout: null, gridLayout: null, reference: 0 };
 const keyboardKeys = "ASDFGHJKL;QWERTYUIOPZXCVBNM".split("");
 
 function setStatus(text, kind = "") { const status = el("status"); status.textContent = text; status.className = kind; }
@@ -23,7 +23,7 @@ async function generate() {
     if (type === "harmonic" || type === "subharmonic") { endpoint = `/api/${type}-series`; body = { count:Number(el("count").value), octave_reduce:octaveReduce }; name = type === "harmonic" ? "Harmonic series" : "Subharmonic series"; }
     setStatus("Generating…", "loading"); const response = await fetch(endpoint, { method:"POST", headers:{"content-type":"application/json"}, body:JSON.stringify(body) });
     const data = await response.json(); if (!response.ok) throw new Error(data.detail || "生成に失敗しました。");
-    state.pitches = data.pitches; state.focus = null; state.graph = null; state.showGraph = false; state.walk = null; state.layout = null; el("graph-toggle").hidden = type !== "cps";
+    state.pitches = data.pitches; state.focus = null; state.graph = null; state.showGraph = false; state.walk = null; state.layout = null; state.gridLayout = null; state.reference = 0; el("graph-toggle").hidden = type !== "cps";
     if(type === "cps") { const graphResponse = await fetch("/api/harmonic-graph", {method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({factors:body.factors,choose:body.choose})}); state.graph = await graphResponse.json(); }
     el("walk-controls").hidden = true;
     el("scale-name").textContent = `${name} · ${data.count} intervals`; render(); setStatus(`${data.count} intervals`, "");
@@ -71,7 +71,15 @@ function graphLayout(graph, size) {
   }
   state.layout = points; return points;
 }
+function nearestGraphNode(points, event) {
+  const canvas = el("circle"), size = canvas.width, rect = canvas.getBoundingClientRect();
+  const x = (event.clientX - rect.left) * size / rect.width, y = (event.clientY - rect.top) * size / rect.height;
+  return points.reduce((best, point, index) => Math.hypot(point.x - x, point.y - y) < best.distance ? { index, distance: Math.hypot(point.x - x, point.y - y) } : best, { index: -1, distance: Infinity });
+}
+function playGraphNode(nodes, index) { const pitch = state.pitches.findIndex(item => item.ratio === nodes[index]?.ratio); if (pitch >= 0) play(pitch); }
 function renderGraph(ctx, size) {
+  el("circle").ondblclick = null;
+  if (state.gridLayout) { renderGrid(ctx, size); return; }
   const nodes = state.graph.nodes, points = graphLayout(state.graph, size);
   ctx.clearRect(0, 0, size, size);
   ctx.strokeStyle = "#40506d"; ctx.lineWidth = 1;
@@ -86,11 +94,49 @@ function renderGraph(ctx, size) {
     if (onPath) { ctx.fillStyle = "#ffd47e"; ctx.font = "bold 11px system-ui"; ctx.fillText(`#${order.get(index) + 1}`, point.x, point.y - 15); }
     ctx.fillStyle = "#aeb9d0"; ctx.font = "12px system-ui"; ctx.fillText(nodes[index].ratio, point.x, point.y + 26);
   });
-  el("circle").onclick = event => {
-    const rect = el("circle").getBoundingClientRect(), x = (event.clientX - rect.left) * size / rect.width, y = (event.clientY - rect.top) * size / rect.height;
-    const nearest = points.reduce((best, point, index) => Math.hypot(point.x - x, point.y - y) < best.distance ? { index, distance: Math.hypot(point.x - x, point.y - y) } : best, { index: -1, distance: Infinity });
-    const pitch = state.pitches.findIndex(item => item.ratio === nodes[nearest.index]?.ratio);
-    if (nearest.distance < 28 && pitch >= 0) play(pitch);
+  el("circle").onclick = event => { const nearest = nearestGraphNode(points, event); if (nearest.distance < 28) playGraphNode(nodes, nearest.index); };
+}
+async function loadGridLayout() {
+  try {
+    const data = await postJson("/api/harmonic-graph", { factors: parseFactors(), choose: Number(el("choose").value), layout: "reference_layered_grid", reference: state.reference, sort_mode: el("grid-sort").value });
+    if (!data.layout) throw new Error("サーバーがレイアウトを返しませんでした。サーバーを再起動してください。");
+    state.graph = data; state.gridLayout = data.layout; state.reference = data.layout.reference; state.layout = null;
+    renderCircle();
+  } catch (error) { setStatus(error.message, "error"); }
+}
+function renderGrid(ctx, size) {
+  const layout = state.gridLayout, nodes = state.graph.nodes, mid = size / 2;
+  ctx.clearRect(0, 0, size, size);
+  const maxX = Math.max(...layout.positions.map(p => Math.abs(p.x)), 1), maxY = Math.max(...layout.positions.map(p => p.y), 1);
+  const scale = Math.min((size / 2 - 90) / maxX, (size / 2 - 60) / maxY);
+  const points = layout.positions.map(p => ({ x: mid + p.x * scale, y: mid - (p.y - maxY / 2) * scale }));
+  const directionColor = { inward: "#83b7ff", outward: "#40506d", lateral: "#56617d" };
+  state.graph.edges.forEach((edge, i) => {
+    ctx.globalAlpha = .55; ctx.strokeStyle = directionColor[layout.edge_directions[i]] || "#40506d"; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(points[edge.source].x, points[edge.source].y); ctx.lineTo(points[edge.target].x, points[edge.target].y); ctx.stroke();
+  });
+  ctx.globalAlpha = 1;
+  ctx.textAlign = "left"; ctx.font = "11px system-ui"; ctx.fillStyle = "#aeb9d0";
+  layout.layers.forEach(layer => ctx.fillText(`Shared ${layer.shared} · Distance ${layer.distance}`, 8, points[layer.nodes[0]].y + 4));
+  const walk = state.walk, order = new Map();
+  if (walk) walk.forEach((node, i) => { if (!order.has(node)) order.set(node, i); });
+  if (walk && walk.length > 1) { ctx.strokeStyle = "#ffd47e"; ctx.lineWidth = 3; ctx.globalAlpha = .85; ctx.beginPath(); walk.forEach((node, i) => { const p = points[node]; i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y); }); ctx.stroke(); ctx.globalAlpha = 1; }
+  const sub = el("ratio-mode").value === "subharmonic";
+  points.forEach((point, index) => {
+    const isReference = index === layout.reference, onPath = order.has(index);
+    ctx.fillStyle = onPath || isReference ? "#ffd47e" : "#98e7ca";
+    ctx.beginPath(); ctx.arc(point.x, point.y, isReference ? 15 : onPath ? 13 : 9, 0, Math.PI * 2); ctx.fill();
+    if (isReference) { ctx.strokeStyle = "#fff4cf"; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(point.x, point.y, 20, 0, Math.PI * 2); ctx.stroke(); }
+    ctx.fillStyle = "#10131c"; ctx.font = "bold 10px system-ui"; ctx.textAlign = "center"; ctx.fillText(String(index + 1), point.x, point.y + 4);
+    if (onPath) { ctx.fillStyle = "#ffd47e"; ctx.font = "bold 11px system-ui"; ctx.fillText(`#${order.get(index) + 1}`, point.x, point.y - 26); }
+    ctx.fillStyle = "#aeb9d0"; ctx.font = "11px system-ui";
+    ctx.fillText(`{${nodes[index].factors.join(",")}}`, point.x, point.y + 26);
+    ctx.fillText(sub ? nodes[index].sub_ratio : nodes[index].ratio, point.x, point.y + 40);
+  });
+  el("circle").onclick = event => { const nearest = nearestGraphNode(points, event); if (nearest.distance < 28) playGraphNode(nodes, nearest.index); };
+  el("circle").ondblclick = event => {
+    const nearest = nearestGraphNode(points, event);
+    if (nearest.distance < 28 && nearest.index !== state.reference) { state.reference = nearest.index; loadGridLayout(); }
   };
 }
 function monzoText(monzo) { return Object.entries(monzo).map(([p,e])=>`${p}:${e}`).join(" ") || "0"; }
@@ -117,6 +163,13 @@ el("scala").onclick=async()=>{ if(!state.pitches.length)return; const response=a
 el("graph-toggle").onclick=()=>{if(!state.graph)return;state.showGraph=!state.showGraph;el("visual-title").textContent=state.showGraph?"Harmonic graph":"Pitch circle";el("graph-toggle").textContent=state.showGraph?"Circle":"Graph";el("walk-controls").hidden=!state.showGraph;syncWalkControls();renderCircle();};
 function syncWalkControls(){const op=el("walk-operation").value;el("walk-end").hidden=op!=="shortest_path";el("walk-metric").hidden=op!=="weighted_walk";el("walk-steps").hidden=op==="shortest_path";el("walk-seed").hidden=op==="shortest_path";}
 el("walk-operation").onchange=syncWalkControls;
+el("graph-layout").onchange=()=>{
+  const layered=el("graph-layout").value==="layered";
+  el("grid-sort").hidden=!layered; el("grid-hint").hidden=!layered;
+  if(layered){loadGridLayout();}else{state.gridLayout=null;renderCircle();}
+};
+el("grid-sort").onchange=()=>{if(el("graph-layout").value==="layered")loadGridLayout();};
+el("ratio-mode").onchange=()=>renderCircle();
 el("walk-run").onclick=async()=>{
   if(!state.graph) return;
   try{

@@ -56,6 +56,9 @@ class HarmonicGraphRequest(BaseModel):
     steps: int = Field(default=8, ge=0, le=10_000)
     seed: int = 0
     metric: Literal["harmonic", "monzo", "cent"] = "harmonic"
+    layout: Literal["reference_layered_grid"] | None = None
+    reference: int | None = Field(default=None, ge=0)
+    sort_mode: Literal["lexicographic", "product", "pitch"] = "lexicographic"
 
     @field_validator("factors")
     @classmethod

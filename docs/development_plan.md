@@ -6,26 +6,15 @@ Version: 0.1
 
 ## Implementation Status
 
-Phases P1–P9 are implemented on the `develop` branch. Current status:
-
-| Phase | Goal                  | Status      |
-| ----- | --------------------- | ----------- |
-| P1    | Mathematical Core     | Done        |
-| P2    | Harmonic Graph        | Done        |
-| P3    | Composition Engine    | Done        |
-| P4    | Rhythm Engine         | Done        |
-| P5    | Audio Rendering       | Done        |
-| P6    | Export                | Done        |
-| P7    | REST API              | Done        |
-| P8    | Web UI                | Done        |
-| P9    | Real-time Performance | Done        |
-| P10   | Stable Release        | In progress |
+Phases P1–P9 are implemented on the `develop` branch; P10 (stable
+release) is in progress. Work is now tracked by the Entonal-style
+functional groups in section 3.
 
 Recent additions beyond the original phase scope:
 
 * GM-percussion rhythm MIDI export (`POST /api/export/rhythm/midi`)
-* Force-directed graph viewer with shortest-path / random-walk /
-  weighted-walk visualization
+* Reference-node layered grid graph layout (`docs/visualization.md`)
+  alongside the force-directed graph viewer, with walk visualization
 * Real-time-scaled timeline recorder with replay
 * Compose and rhythm workbench panels (harmony/bass/melody generation,
   WAV render jobs, MIDI/JSON export)
@@ -33,7 +22,7 @@ Recent additions beyond the original phase scope:
 Performance tuning and installer distribution remain release-operations
 work and should be measured for each target platform before a production
 release. The test suite currently covers all endpoints and engines
-(31 tests); `ruff` and `mypy` are clean.
+(40 tests); `ruff` and `mypy` are clean.
 
 ---
 
@@ -59,403 +48,160 @@ No unfinished features should block subsequent phases.
 
 ---
 
-# 3. Milestones
+# 3. Functional Structure
 
-| Phase | Goal                  |
-| ----- | --------------------- |
-| P1    | Mathematical Core     |
-| P2    | Harmonic Graph        |
-| P3    | Composition Engine    |
-| P4    | Rhythm Engine         |
-| P5    | Audio Rendering       |
-| P6    | Export                |
-| P7    | REST API              |
-| P8    | Web UI                |
-| P9    | Real-time Performance |
-| P10   | Stable Release        |
+Feature development is organized by function groups mirroring the
+Entonal Studio manual (Rev 2.1), so the roadmap reads the same way a
+microtonal workstation is used: browser → input → retuning → sound →
+views → editing → global controls.
 
----
+## G1. Scale Browser and Import/Export
 
-# Phase 1 – Mathematical Core
+Entonal: scale Browser (Public/User tabs), Preset/XML/Scala import/export.
 
-## Issue 1
+Status
 
-Ratio class
+* Scala export — Done (`POST /api/export/scala`, workbench save button)
+* JSON export — Done (`POST /api/export/json`)
 
-Tasks
+Planned
 
-* implement Fraction wrapper
-* normalization
-* octave reduction
-* cent conversion
+* Scale browser panel (named, savable user scales)
+* Scala import
+* Preset files containing full workbench state
 
-Acceptance Criteria
+## G2. Input
 
-* ratios normalize into one octave
-* unit tests pass
+Entonal: MIDI/MPE input type, input pitch-bend range.
 
----
+Status
 
-## Issue 2
+* PC-keyboard and pointer input with per-note ratios — Done (workbench
+  keyboard, circle/graph clicking)
 
-Monzo
+Planned
 
-Tasks
+* MIDI input (WebMIDI) with configurable pitch-bend range
+* MPE input (Version 0.2)
 
-* prime decomposition
-* vector conversion
+## G3. Retuner / Output Routing
 
-Acceptance Criteria
+Entonal: retuner types MIDI, MPE, Multichannel, MTS-ESP Master.
 
-* known ratios produce expected monzos
+Status
 
----
+* Pitched MIDI export (nearest-note quantization) — Done
+* GM-percussion rhythm MIDI export — Done (`POST /api/export/rhythm/midi`)
 
-## Issue 3
+Planned
 
-CPS Generator
+* Pitch-bend-accurate MIDI retuning (per-note pitch bend instead of
+  nearest-note quantization)
+* MPE and multichannel output (Version 0.2)
+* MTS-ESP master (Version 0.2)
 
-Tasks
+## G4. Sound Engine
 
-* CPS(n,k)
-* Harmonic
-* Subharmonic
+Entonal: hosted plugins + SimpleSynth (wave shape, ADSR, tone, delay,
+volume, mix).
 
-Acceptance Criteria
+Status
 
-* CPS(6,3) generates 20 unique pitch classes
-* octave normalization works
+* Oscillators (sine/triangle/saw/square/additive) — Done
+* ADSR envelope — Done
+* Delay and reverb — Done
+* Offline WAV rendering with async jobs — Done
 
----
+Planned
 
-## Issue 4
+* FM and noise oscillators
+* Instrument presets (AudioPreset model)
 
-Euler–Fokker Generator
+## G5. Views
 
-Tasks
+Entonal: Info, Radial Graph, Table, Lattice, Mapping views.
 
-* arbitrary prime limits
-* exponent ranges
+Status
 
-Acceptance Criteria
+* Info (interval table with ratio/cents/monzo) — Done
+* Radial graph (pitch circle with harmony relations, click-to-play) — Done
+* Lattice/graph views (force-directed Johnson graph; reference-node
+  layered grid with walk visualization) — Done
+* Timeline view with recorder and replay — Done
 
-* generated ratios match analytical expectations
+Planned
 
----
+* Radial graph: relative-interval view between held notes
+* Radial graph: harmonic rings (5–64 harmonics), EDO snapping,
+  prime-limit snapping, force snap
+* MIDI-note table (128 notes with frequency and cents deviation)
 
-# Phase 2 – Harmonic Graph
+## G6. Scale Editor
 
-## Issue 5
+Entonal: add/remove notes, enter cents/ratios/EDO degrees/math
+expressions, repeating interval (octave, tritave, …).
 
-Johnson Graph
+Status
 
-Tasks
+* Generative scale sources (CPS, Euler–Fokker, harmonic/subharmonic
+  series) — Done
 
-* node generation
-* edge generation
+Planned
 
-Acceptance Criteria
+* Manual note add/remove with cents/ratio/EDO/expression entry
+* Custom repeating interval (non-2/1 normalization)
 
-* graph size matches combinatorial formula
-* connected graph
+## G7. Mapping Editor
 
----
+Entonal: root note/frequency, auto/custom mapping, notes-in-scale,
+black-keys switch, unmapped notes.
 
-## Issue 6
+Status
 
-Graph Algorithms
+* Base frequency control — Done (workbench sound panel)
 
-Tasks
+Planned
 
-* shortest path
-* weighted walk
-* random walk
+* Root note selection and learn
+* Custom key mapping with unmapped notes
+* Notes-in-scale forcing for 12-note keyboards
 
-Acceptance Criteria
+## G8. Global Controls and Real-Time
 
-* deterministic with fixed seed
+Entonal: undo/redo, scale quick-load, virtual keyboard, groups,
+MIDI note names.
 
----
+Status
 
-## Issue 7
+* WebSocket transport (play/pause/stop/improvise) — Done
+* Virtual performance keyboard — Done
 
-Distance Metrics
+Planned
 
-Tasks
-
-* harmonic distance
-* monzo distance
-* cent distance
-
-Acceptance Criteria
-
-* symmetric
-* zero on identical nodes
-
----
-
-# Phase 3 – Composition Engine
-
-## Issue 8
-
-Harmony Generator
-
-Tasks
-
-* graph traversal
-* transition scoring
-
-Acceptance Criteria
-
-* progression length configurable
-* no disconnected transitions
+* Undo/redo of scale and composition edits
+* Scale quick-load (previous/next)
+* MIDI note names for exported files
+* Project save/load with grouped state
 
 ---
 
-## Issue 9
-
-Voice Leading
-
-Tasks
-
-* common tone optimization
-* leap minimization
-
-Acceptance Criteria
-
-* no voice crossing
-* configurable leap limits
-
----
-
-## Issue 10
-
-Bass Generator
-
-Tasks
-
-* mirror ratios
-* continuity scoring
-* register optimization
-
-Acceptance Criteria
-
-* generated bass supports every chord
-* no impossible octave jumps
-
----
-
-## Issue 11
-
-Melody Generator
-
-Tasks
-
-* independent voices
-* phrase memory
-* contour control
-
-Acceptance Criteria
-
-* melody remains inside configured register
-
----
-
-# Phase 4 – Rhythm
-
-## Issue 12
-
-Euclidean Rhythm
-
-Acceptance Criteria
-
-* exact pulse distribution
-
----
-
-## Issue 13
-
-State Transition Graph
-
-Acceptance Criteria
-
-* Hamming distance one
-
----
-
-## Issue 14
-
-Phase Shift
-
-Acceptance Criteria
-
-* independent cycle lengths
-
----
-
-## Issue 15
-
-Humanization
-
-Acceptance Criteria
-
-* configurable timing
-* deterministic seed
-
----
-
-# Phase 5 – Audio
-
-## Issue 16
-
-Oscillators
-
-* sine
-* saw
-* square
-* triangle
-* additive
-
----
-
-## Issue 17
-
-Envelope
-
-ADSR
-
----
-
-## Issue 18
-
-Effects
-
-Delay
-
-Reverb
-
-Limiter
-
----
-
-## Issue 19
-
-Offline Rendering
-
-Acceptance Criteria
-
-* WAV export succeeds
-
----
-
-# Phase 6 – Export
-
-## Issue 20
-
-MIDI
-
----
-
-## Issue 21
-
-Scala
-
----
-
-## Issue 22
-
-JSON
-
----
-
-# Phase 7 – REST API
-
-## Issue 23
-
-FastAPI
-
-Acceptance Criteria
-
-* OpenAPI generated
-* Swagger works
-
----
-
-## Issue 24
-
-Async Rendering
-
-Acceptance Criteria
-
-* job queue functional
-
----
-
-# Phase 8 – Web UI
-
-## Issue 25
-
-Keyboard
-
----
-
-## Issue 26
-
-Graph Viewer
-
----
-
-## Issue 27
-
-Circle View
-
----
-
-## Issue 28
-
-Timeline
-
----
-
-## Issue 29
-
-Recorder
-
----
-
-# Phase 9 – Real-Time Performance
-
-## Issue 30
-
-WebSocket
-
----
-
-## Issue 31
-
-Transport
-
----
-
-## Issue 32
-
-Live Improvisation
-
----
-
-# Phase 10 – Stable Release
-
-Tasks
-
-Performance optimization
-
-Documentation
-
-Examples
-
-Packaging
-
-Installer
+# 4. Historical Milestones
+
+The original P1–P10 phasing was completed as follows; new work is
+tracked in the functional groups above.
+
+| Phase | Goal                  | Content                                    |
+| ----- | --------------------- | ------------------------------------------ |
+| P1    | Mathematical Core     | ratios, monzo, CPS, Euler–Fokker           |
+| P2    | Harmonic Graph        | Johnson graph, walks, distance metrics     |
+| P3    | Composition Engine    | harmony, voice leading, bass, melody       |
+| P4    | Rhythm Engine         | euclidean, state graph, phase, humanize    |
+| P5    | Audio Rendering       | oscillators, ADSR, effects, WAV            |
+| P6    | Export                | MIDI, rhythm MIDI, Scala, JSON             |
+| P7    | REST API              | FastAPI, OpenAPI, async jobs               |
+| P8    | Web UI                | keyboard, graph viewer, circle, timeline   |
+| P9    | Real-time Performance | WebSocket transport, improvisation         |
+| P10   | Stable Release        | performance tuning, packaging (ongoing)    |
 
 ---
 
