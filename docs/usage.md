@@ -184,22 +184,35 @@ API: `POST /api/compose/harmony`, `/api/compose/bass`,
 (`pitch_bend`), `/api/export/json`, `POST /api/render/jobs` +
 `GET /api/render/jobs/{id}` + `GET /api/render/jobs/{id}/audio`.
 
-## 2.8 Rhythm panel
+## 2.8 Rhythm panel (drum sequencer)
 
-* **Euclidean リズムを生成** — distribute P pulses over S steps with a
-  rotation; the grid shows on/off steps.
-* **ヒューマナイズ** — seeded timing (±ms) and velocity offsets; cell
-  opacity shows velocity.
-* **▶ 再生** — four cycles of the pattern as clicks (humanized offsets
-  applied); accents every 4th step.
-* **MIDI** — export the pattern as GM percussion (channel 10) at the
-  chosen note number (36 kick, 38 snare, 42 closed hat), preserving
-  humanized velocities.
-* **JSON** — export the pattern and hits.
+A coordinated four-layer drum sequencer (kick, snare, hat, perc),
+implementing `algorithm_rhythm.md`:
 
-API: `POST /api/rhythm/euclidean`, `/api/rhythm/humanize`,
+* Each row has its own **steps** and **pulses** (Euclidean base
+  pattern); unequal cycle lengths are supported. Click a cell to toggle
+  a hit manually.
+* **ドラムを生成** — sends the layers to the server, which optimizes
+  each non-kick layer's rotation for interlock (collision, complement,
+  density, cluster, similarity, syncopation scoring), assigns accent
+  velocities, and computes per-bar phase offsets (snare/hat/perc drift
+  over bars; kick stays anchored). The `rot N` badge shows the chosen
+  rotation.
+* Cells outlined in red **clash** — two or more layers hit together on
+  the shared analysis grid. Cell opacity shows accent velocity.
+* **▶ 再生 / 停止** — loop playback with per-layer timbres (kick,
+  snare, hat, perc sound distinct) and a moving playhead; phase offsets
+  are applied per bar as the loop progresses.
+* **MIDI** — one GM-percussion file (channel 10) with each layer on its
+  note (36/38/42/46), phase-expanded across all bars with velocities.
+* **JSON** — the full rhythm configuration and generated state.
+* The metrics line reports combined density, total collisions,
+  all-four collisions, and syncopation.
+
+API: `POST /api/drums/generate`, `/api/rhythm/optimize-rotations`,
+`/api/rhythm/analyze`, `/api/rhythm/euclidean`, `/api/rhythm/humanize`,
 `/api/rhythm/phase-shift`, `/api/rhythm/state-graph`,
-`/api/export/rhythm/midi`.
+`/api/export/rhythm/midi` (single-pattern or multi-layer mode).
 
 ## 2.9 Timeline (recorder)
 
@@ -262,5 +275,7 @@ space.
 
 ## 4.4 Build a rhythm track
 
-Generate E(5,13) rotated by 2 → humanize with a seed → audition with
-再生 → export MIDI as kick (note 36) → import into a DAW.
+Set steps/pulses per layer (e.g. kick 16/5, snare 16/3, hat 13/8,
+perc 17/6) → ドラムを生成 to optimize rotations and phase drift →
+audition with 再生, watching clashing cells → edit steps by hand if
+needed → export the full kit as one MIDI file for a DAW.

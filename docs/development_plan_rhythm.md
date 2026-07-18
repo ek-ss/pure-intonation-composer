@@ -80,7 +80,7 @@ Each milestone must produce a usable and testable rhythm-generation pipeline.
 ## R3. Layer Rotation Optimizer
 
 **Priority:** Must
-**Status:** Planned
+**Status:** Done
 
 ### Tasks
 
@@ -115,7 +115,7 @@ Each milestone must produce a usable and testable rhythm-generation pipeline.
 ## R4. Shared Analysis Grid
 
 **Priority:** Must
-**Status:** Planned
+**Status:** Done
 
 ### Tasks
 
@@ -147,7 +147,7 @@ Each milestone must produce a usable and testable rhythm-generation pipeline.
 ## R5. Rhythm Quality Metrics
 
 **Priority:** Must
-**Status:** Planned
+**Status:** Done
 
 ### Tasks
 
@@ -180,7 +180,7 @@ Each milestone must produce a usable and testable rhythm-generation pipeline.
 ## R6. Discrete Phase-Shift Engine
 
 **Priority:** Must
-**Status:** Planned
+**Status:** Done
 
 ### Tasks
 
@@ -276,7 +276,7 @@ Each milestone must produce a usable and testable rhythm-generation pipeline.
 ## R9. Velocity and Accent Generation
 
 **Priority:** Should
-**Status:** Partial or planned
+**Status:** Basic accent profiles done
 
 ### Tasks
 
@@ -371,7 +371,7 @@ Each milestone must produce a usable and testable rhythm-generation pipeline.
 ## R12. Rhythm Workbench UI
 
 **Priority:** Must
-**Status:** Partial
+**Status:** Done
 
 ### Tasks
 
@@ -407,7 +407,7 @@ Each milestone must produce a usable and testable rhythm-generation pipeline.
 ## R13. MIDI and JSON Export
 
 **Priority:** Must
-**Status:** GM-percussion MIDI export Done; extend metadata
+**Status:** GM-percussion MIDI and JSON export Done
 
 ### Tasks
 
@@ -472,7 +472,7 @@ Each milestone must produce a usable and testable rhythm-generation pipeline.
 ## R15. Rhythm REST API
 
 **Priority:** Must
-**Status:** Partial
+**Status:** Done
 
 ### Required Endpoints
 

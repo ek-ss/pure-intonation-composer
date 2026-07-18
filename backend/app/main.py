@@ -37,7 +37,10 @@ from app.models import (
     VoiceLeadingRequest,
     MelodyRequest,
     EuclideanRhythmRequest,
+    DrumGenerateRequest,
+    OptimizeRotationsRequest,
     PhaseShiftRequest,
+    RhythmAnalyzeRequest,
     RhythmStateGraphRequest,
     RenderRequest,
     RhythmMidiRequest,
@@ -45,6 +48,14 @@ from app.models import (
     ScalaImportRequest,
 )
 from app.exporters.midi import MidiDrumHit, MidiNote, drum_midi_bytes, microtonal_midi_bytes, midi_bytes
+from app.rhythm.drums import (
+    LayerSpec,
+    accent_velocities,
+    analysis_length,
+    analyze_layers,
+    optimize_rotations,
+    phase_offsets,
+)
 from app.rhythm.engine import euclidean_rhythm, humanize, phase_shift, state_transition_graph
 from app.exporters.scala import scala_text
 from app.exporters.scala_import import parse_scala
@@ -325,6 +336,86 @@ def rhythm_euclidean(request: EuclideanRhythmRequest) -> dict[str, object]:
         raise HTTPException(status_code=422, detail=str(error)) from error
 
 
+@app.post("/api/rhythm/optimize-rotations")
+def rhythm_optimize_rotations(request: OptimizeRotationsRequest) -> dict[str, object]:
+    """Optimize each layer's rotation sequentially against already-placed layers."""
+    try:
+        specs = [layer.to_spec() for layer in request.layers]
+        results = optimize_rotations(specs, request.max_analysis_steps)
+        return {
+            "analysis_length": analysis_length([spec.steps for spec in specs], request.max_analysis_steps),
+            "layers": [
+                {
+                    "name": result.name,
+                    "pattern": result.pattern,
+                    "rotation": result.rotation,
+                    "score": result.score,
+                    "breakdown": result.breakdown,
+                }
+                for result in results
+            ],
+        }
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+
+@app.post("/api/rhythm/analyze")
+def rhythm_analyze(request: RhythmAnalyzeRequest) -> dict[str, object]:
+    """Analyze binary rhythm layers on the shared analysis grid."""
+    try:
+        layers = {layer.name: layer.pattern for layer in request.layers}
+        if len(layers) != len(request.layers):
+            raise ValueError("layer names must be unique")
+        return analyze_layers(layers, request.max_analysis_steps)
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+
+@app.post("/api/drums/generate")
+def drums_generate(request: DrumGenerateRequest) -> dict[str, object]:
+    """Generate coordinated drum layers with rotations, phase offsets, and velocities."""
+    try:
+        specs = [layer.to_spec() for layer in request.layers]
+        if len({spec.name for spec in specs}) != len(specs):
+            raise ValueError("layer names must be unique")
+        if request.optimize:
+            rotations = [result.rotation for result in optimize_rotations(specs, request.max_analysis_steps)]
+        else:
+            rotations = [(spec.rotation or 0) % spec.steps for spec in specs]
+        layers: list[dict[str, object]] = []
+        patterns: dict[str, list[int]] = {}
+        for spec, rotation in zip(specs, rotations):
+            pattern = euclidean_rhythm(spec.steps, spec.pulses, rotation)
+            layers.append(
+                {
+                    "name": spec.name,
+                    "pattern": pattern,
+                    "rotation": rotation,
+                    "velocities": accent_velocities(pattern, spec.base_velocity),
+                    "phase_offsets": phase_offsets(
+                        LayerSpec(
+                            spec.name,
+                            spec.steps,
+                            spec.pulses,
+                            rotation,
+                            spec.phase_increment,
+                            spec.phase_update_bars,
+                            spec.base_velocity,
+                        ),
+                        request.bars,
+                    ),
+                }
+            )
+            patterns[spec.name] = pattern
+        return {
+            "bars": request.bars,
+            "layers": layers,
+            "metrics": analyze_layers(patterns, request.max_analysis_steps),
+        }
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+
 @app.post("/api/rhythm/state-graph")
 def rhythm_state_graph(request: RhythmStateGraphRequest) -> dict[str, object]:
     """Return the binary rhythm state graph with Hamming-distance-one edges."""
@@ -434,14 +525,36 @@ def export_midi(request: MidiRequest) -> Response:
 
 @app.post("/api/export/rhythm/midi")
 def export_rhythm_midi(request: RhythmMidiRequest) -> Response:
-    """Export a binary rhythm pattern as GM percussion MIDI (channel 10)."""
+    """Export binary rhythm patterns as GM percussion MIDI (channel 10)."""
     try:
-        velocities = request.velocities_for()
-        hits = [
-            MidiDrumHit(request.note, index / request.steps_per_beat, velocities[index])
-            for index, active in enumerate(request.pattern)
-            if active
-        ]
+        hits: list[MidiDrumHit] = []
+        if request.layers is not None:
+            for layer in request.layers:
+                velocities = layer.velocities_for()
+                hits.extend(
+                    MidiDrumHit(
+                        layer.note,
+                        (cycle * len(layer.pattern) + index) / request.steps_per_beat,
+                        velocities[index],
+                    )
+                    for cycle in range(request.cycles)
+                    for index, active in enumerate(layer.pattern)
+                    if active
+                )
+        else:
+            if request.pattern is None:
+                raise ValueError("pattern is required when layers are not provided")
+            velocities = request.velocities_for()
+            hits.extend(
+                MidiDrumHit(
+                    request.note,
+                    (cycle * len(request.pattern) + index) / request.steps_per_beat,
+                    velocities[index],
+                )
+                for cycle in range(request.cycles)
+                for index, active in enumerate(request.pattern)
+                if active
+            )
         data = drum_midi_bytes(hits, request.ticks_per_beat)
         return Response(data, media_type="audio/midi", headers={"Content-Disposition": "attachment; filename=rhythm.mid"})
     except (ValueError, ZeroDivisionError) as error:

@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
+
+from app.rhythm.drums import LayerSpec
 
 
 class CPSRequest(BaseModel):
@@ -202,18 +204,109 @@ class MidiRequest(BaseModel):
     pitch_bend_range_semitones: int = Field(default=2, ge=1, le=48)
 
 
-class RhythmMidiRequest(BaseModel):
+class DrumLayerRequest(BaseModel):
+    name: str = Field(min_length=1, max_length=32)
+    steps: int = Field(ge=1, le=64)
+    pulses: int = Field(ge=0, le=64)
+    rotation: int | None = None
+    phase_increment: int = 0
+    phase_update_bars: int = Field(default=4, ge=1, le=1024)
+    base_velocity: int = Field(default=100, ge=1, le=127)
+
+    @model_validator(mode="after")
+    def pulses_must_not_exceed_steps(self) -> DrumLayerRequest:
+        if self.pulses > self.steps:
+            raise ValueError("pulses must not exceed steps")
+        return self
+
+    def to_spec(self) -> LayerSpec:
+        return LayerSpec(
+            name=self.name,
+            steps=self.steps,
+            pulses=self.pulses,
+            rotation=self.rotation,
+            phase_increment=self.phase_increment,
+            phase_update_bars=self.phase_update_bars,
+            base_velocity=self.base_velocity,
+        )
+
+
+class OptimizeRotationsRequest(BaseModel):
+    layers: list[DrumLayerRequest] = Field(min_length=1, max_length=16)
+    max_analysis_steps: int = Field(default=512, ge=1, le=4096)
+
+
+class RhythmAnalyzeLayerRequest(BaseModel):
+    name: str = Field(min_length=1, max_length=32)
     pattern: list[int] = Field(min_length=1, max_length=1024)
-    note: int = Field(default=36, ge=0, le=127)
-    velocity: int = Field(default=100, ge=1, le=127)
-    velocities: list[int] | None = None
-    steps_per_beat: int = Field(default=4, ge=1, le=16)
-    ticks_per_beat: int = Field(default=480, ge=24, le=960)
 
     @field_validator("pattern")
     @classmethod
     def pattern_must_be_binary(cls, value: list[int]) -> list[int]:
         if any(step not in {0, 1} for step in value):
+            raise ValueError("pattern must contain only zeros and ones")
+        return value
+
+
+class RhythmAnalyzeRequest(BaseModel):
+    layers: list[RhythmAnalyzeLayerRequest] = Field(min_length=1, max_length=16)
+    max_analysis_steps: int = Field(default=512, ge=1, le=4096)
+
+
+class DrumGenerateRequest(BaseModel):
+    layers: list[DrumLayerRequest] = Field(min_length=1, max_length=16)
+    bars: int = Field(default=8, ge=1, le=128)
+    seed: int = 0
+    optimize: bool = True
+    max_analysis_steps: int = Field(default=512, ge=1, le=4096)
+
+
+def _resolve_velocities(pattern: list[int], velocity: int, velocities: list[int] | None) -> list[int]:
+    if velocities is None:
+        return [velocity] * len(pattern)
+    if len(velocities) != len(pattern):
+        raise ValueError("velocities must match the pattern length")
+    return [value or velocity for value in velocities]
+
+
+class RhythmMidiLayerRequest(BaseModel):
+    pattern: list[int] = Field(min_length=1, max_length=1024)
+    note: int = Field(default=36, ge=0, le=127)
+    velocity: int = Field(default=100, ge=1, le=127)
+    velocities: list[int] | None = None
+
+    @field_validator("pattern")
+    @classmethod
+    def pattern_must_be_binary(cls, value: list[int]) -> list[int]:
+        if any(step not in {0, 1} for step in value):
+            raise ValueError("pattern must contain only zeros and ones")
+        return value
+
+    @field_validator("velocities")
+    @classmethod
+    def velocities_must_be_valid(cls, values: list[int] | None) -> list[int] | None:
+        if values is not None and any(not 0 <= velocity <= 127 for velocity in values):
+            raise ValueError("velocities must be between 0 and 127")
+        return values
+
+    def velocities_for(self) -> list[int]:
+        return _resolve_velocities(self.pattern, self.velocity, self.velocities)
+
+
+class RhythmMidiRequest(BaseModel):
+    pattern: list[int] | None = Field(default=None, min_length=1, max_length=1024)
+    note: int = Field(default=36, ge=0, le=127)
+    velocity: int = Field(default=100, ge=1, le=127)
+    velocities: list[int] | None = None
+    steps_per_beat: int = Field(default=4, ge=1, le=16)
+    ticks_per_beat: int = Field(default=480, ge=24, le=960)
+    cycles: int = Field(default=1, ge=1, le=128)
+    layers: list[RhythmMidiLayerRequest] | None = Field(default=None, min_length=1, max_length=16)
+
+    @field_validator("pattern")
+    @classmethod
+    def pattern_must_be_binary(cls, value: list[int] | None) -> list[int] | None:
+        if value is not None and any(step not in {0, 1} for step in value):
             raise ValueError("pattern must contain only zeros and ones")
         return value
 
@@ -225,11 +318,9 @@ class RhythmMidiRequest(BaseModel):
         return values
 
     def velocities_for(self) -> list[int]:
-        if self.velocities is None:
-            return [self.velocity] * len(self.pattern)
-        if len(self.velocities) != len(self.pattern):
-            raise ValueError("velocities must match the pattern length")
-        return [velocity or self.velocity for velocity in self.velocities]
+        if self.pattern is None:
+            raise ValueError("pattern is required when layers are not provided")
+        return _resolve_velocities(self.pattern, self.velocity, self.velocities)
 
 
 class JsonExportRequest(BaseModel):

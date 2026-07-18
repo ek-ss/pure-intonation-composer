@@ -204,41 +204,23 @@
 
       <section class="panel rhythm">
         <div class="section-heading"><h2>Rhythm</h2><span id="rhythm-status" role="status"></span></div>
-        <div class="compose-grid">
-          <div>
-            <label>ステップ数
-              <input id="rhythm-steps" type="number" min="1" max="32" value="13">
-            </label>
-            <label>パルス数
-              <input id="rhythm-pulses" type="number" min="0" max="32" value="5">
-            </label>
-            <label>回転
-              <input id="rhythm-rotation" type="number" min="0" max="31" value="2">
-            </label>
-            <button id="rhythm-generate" class="primary">Euclidean リズムを生成</button>
-          </div>
-          <div>
-            <label>シード
-              <input id="humanize-seed" type="number" value="42">
-            </label>
-            <label>タイミング揺らぎ (ms)
-              <input id="humanize-timing" type="number" min="0" max="100" value="12">
-            </label>
-            <div class="button-row">
-              <button id="humanize-run">ヒューマナイズ</button>
-              <button id="rhythm-play">▶ 再生</button>
-              <button id="rhythm-stop" class="quiet">停止</button>
-            </div>
-            <label>ドラム音 (GM ノート番号)
-              <input id="rhythm-note" type="number" min="0" max="127" value="36">
-            </label>
-            <div class="button-row">
-              <button id="rhythm-export-midi">MIDI</button>
-              <button id="rhythm-export-json">JSON</button>
-            </div>
+        <div class="drum-controls">
+          <label>Bars
+            <input id="drum-bars" type="number" min="1" max="32" value="8">
+          </label>
+          <label>シード
+            <input id="drum-seed" type="number" value="42">
+          </label>
+          <div class="button-row">
+            <button id="drums-generate" class="primary">ドラムを生成</button>
+            <button id="drums-play">▶ 再生</button>
+            <button id="drums-stop" class="quiet">停止</button>
+            <button id="drums-export-midi">MIDI</button>
+            <button id="drums-export-json">JSON</button>
           </div>
         </div>
-        <div id="rhythm-grid" class="rhythm-grid" aria-live="polite"></div>
+        <div id="drum-layers" class="drum-layers"></div>
+        <p id="drum-metrics" class="hint"></p>
       </section>
     </main>
     <template id="key-template"><button class="key"><span class="key-name"></span><span class="ratio"></span></button></template>

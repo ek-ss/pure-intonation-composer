@@ -334,78 +334,6 @@ el("render-wav").onclick = async () => {
   } catch (error) { el("render-status").textContent = error.message; }
 };
 
-// ---- Rhythm: euclidean / humanize ----
-const rhythmState = { pattern: [], hits: [], scheduled: [] };
-function setRhythmStatus(text, kind = "") { const s = el("rhythm-status"); s.textContent = text; s.className = kind; }
-function renderRhythmGrid() {
-  const grid = el("rhythm-grid"); grid.innerHTML = "";
-  const velocity = new Map(rhythmState.hits.map(hit => [hit.step, hit.velocity]));
-  rhythmState.pattern.forEach((active, index) => {
-    const cell = document.createElement("div");
-    cell.className = `step${active ? " on" : ""}`;
-    cell.textContent = active ? (velocity.has(index) ? velocity.get(index) : "●") : index + 1;
-    if (velocity.has(index)) cell.style.opacity = .45 + .55 * velocity.get(index) / 127;
-    grid.append(cell);
-  });
-}
-async function generateRhythm() {
-  try {
-    setRhythmStatus("Generating…", "loading");
-    const data = await postJson("/api/rhythm/euclidean", { steps: Number(el("rhythm-steps").value), pulses: Number(el("rhythm-pulses").value), rotation: Number(el("rhythm-rotation").value) });
-    rhythmState.pattern = data.pattern; rhythmState.hits = [];
-    renderRhythmGrid(); setRhythmStatus(`${data.pulses}/${data.steps}`, "");
-  } catch (error) { setRhythmStatus(error.message, "error"); }
-}
-async function humanizeRhythm() {
-  try {
-    if (!rhythmState.pattern.length) throw new Error("先にリズムを生成してください。");
-    const data = await postJson("/api/rhythm/humanize", { pattern: rhythmState.pattern, seed: Number(el("humanize-seed").value), timing_amount_ms: Number(el("humanize-timing").value) });
-    rhythmState.hits = data.hits; renderRhythmGrid(); setRhythmStatus(`Humanized (seed ${data.seed})`, "");
-  } catch (error) { setRhythmStatus(error.message, "error"); }
-}
-function stopRhythm() { rhythmState.scheduled.forEach(osc => { try { osc.stop(); } catch { /* already stopped */ } }); rhythmState.scheduled = []; }
-function playRhythm() {
-  if (!rhythmState.pattern.length) { setRhythmStatus("先にリズムを生成してください。", "error"); return; }
-  stopRhythm();
-  const context = audioContext(), step = beatSeconds() / 2, now = context.currentTime + .1;
-  const hit = new Map(rhythmState.hits.map(h => [h.step, h]));
-  for (let cycle = 0; cycle < 4; cycle++) {
-    rhythmState.pattern.forEach((active, index) => {
-      if (!active) return;
-      const info = hit.get(index), start = now + (cycle * rhythmState.pattern.length + index) * step + (info ? info.timing_offset_ms / 1000 : 0);
-      const osc = context.createOscillator(), gain = context.createGain(), level = .3 * (info ? info.velocity : 100) / 127;
-      osc.type = "square"; osc.frequency.value = index % 4 === 0 ? 180 : 320;
-      gain.gain.setValueAtTime(level, start); gain.gain.exponentialRampToValueAtTime(.0001, start + .07);
-      osc.connect(gain).connect(context.destination); osc.start(start); osc.stop(start + .1);
-      rhythmState.scheduled.push(osc);
-    });
-  }
-  setRhythmStatus("Playing…", "loading");
-}
-el("rhythm-generate").onclick = generateRhythm;
-el("humanize-run").onclick = humanizeRhythm;
-el("rhythm-play").onclick = playRhythm;
-el("rhythm-stop").onclick = () => { stopRhythm(); setRhythmStatus("", ""); };
-el("rhythm-export-midi").onclick = async () => {
-  try {
-    if (!rhythmState.pattern.length) throw new Error("先にリズムを生成してください。");
-    const velocities = rhythmState.pattern.map((_, index) => rhythmState.hits.find(hit => hit.step === index)?.velocity ?? 0);
-    const response = await fetch("/api/export/rhythm/midi", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ pattern: rhythmState.pattern, note: Number(el("rhythm-note").value), velocities }) });
-    if (!response.ok) throw new Error((await response.json()).detail || "MIDI エクスポートに失敗しました。");
-    download(await response.blob(), "rhythm.mid"); setRhythmStatus("MIDI を保存しました", "");
-  } catch (error) { setRhythmStatus(error.message, "error"); }
-};
-el("rhythm-export-json").onclick = async () => {
-  try {
-    if (!rhythmState.pattern.length) throw new Error("先にリズムを生成してください。");
-    const rhythm = { generator: "euclidean", steps: Number(el("rhythm-steps").value), pulses: Number(el("rhythm-pulses").value), rotation: Number(el("rhythm-rotation").value), pattern: rhythmState.pattern, seed: Number(el("humanize-seed").value), hits: rhythmState.hits };
-    const data = await postJson("/api/export/json", { name: "Euclidean Rhythm", composition: { rhythm } });
-    download(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }), "rhythm.json");
-    setRhythmStatus("JSON を保存しました", "");
-  } catch (error) { setRhythmStatus(error.message, "error"); }
-};
-generateRhythm();
-
 // ---- Scale editor / snapping / harmonics ----
 function jsMonzo(ratio) {
   const [numerator, denominator] = ratioParts(ratio), map = {};
@@ -478,3 +406,153 @@ el("scala-file").onchange = async event => {
   } catch (error) { setScalesStatus(error.message, "error"); }
 };
 refreshScales();
+
+// ---- Drums: coordinated 4-layer sequencer (development_plan_rhythm.md R12) ----
+const DRUM_LAYER_DEFS = [
+  { name: "kick", steps: 16, pulses: 5, note: 36, color: "#ffd47e", phase_increment: 0, phase_update_bars: 4, base_velocity: 110 },
+  { name: "snare", steps: 16, pulses: 3, note: 38, color: "#ff9d9a", phase_increment: 1, phase_update_bars: 4, base_velocity: 100 },
+  { name: "hat", steps: 13, pulses: 8, note: 42, color: "#98e7ca", phase_increment: 1, phase_update_bars: 3, base_velocity: 80 },
+  { name: "perc", steps: 17, pulses: 6, note: 46, color: "#83b7ff", phase_increment: 2, phase_update_bars: 5, base_velocity: 90 },
+];
+const DRUM_STEPS_PER_BAR = 16;
+function setRhythmStatus(text, kind = "") { const s = el("rhythm-status"); s.textContent = text; s.className = kind; }
+const drumState = { layers: [], scheduled: [], playhead: null };
+function euclideanLocal(steps, pulses) { return Array.from({ length: steps }, (_, i) => (i * pulses) % steps < pulses && pulses > 0 ? 1 : 0); }
+function rotateRight(pattern, r) { const n = pattern.length, rot = ((r % n) + n) % n; return pattern.map((_, i) => pattern[(i - rot + n) % n]); }
+function drumLayers() { return drumState.layers; }
+function buildDrumUI() {
+  const box = el("drum-layers"); box.innerHTML = "";
+  drumState.layers = DRUM_LAYER_DEFS.map(def => ({ ...def, pattern: euclideanLocal(def.steps, def.pulses), rotation: 0, velocities: [], phase_offsets: [] }));
+  drumState.layers.forEach((layer, row) => {
+    const line = document.createElement("div"); line.className = "drum-row";
+    const head = document.createElement("div"); head.className = "drum-head";
+    head.innerHTML = `<span class="drum-name" style="color:${layer.color}">${layer.name}</span>`;
+    const steps = document.createElement("input"); steps.type = "number"; steps.min = 1; steps.max = 32; steps.value = layer.steps; steps.title = "ステップ数";
+    const pulses = document.createElement("input"); pulses.type = "number"; pulses.min = 0; pulses.max = 32; pulses.value = layer.pulses; pulses.title = "パルス数";
+    const badge = document.createElement("span"); badge.className = "drum-rot"; badge.id = `drum-rot-${layer.name}`;
+    steps.onchange = () => { layer.steps = Math.max(1, Math.min(32, Number(steps.value))); layer.pattern = euclideanLocal(layer.steps, Math.min(Number(pulses.value), layer.steps)); pulses.value = Math.min(Number(pulses.value), layer.steps); renderDrumRow(row); markCollisions(); };
+    pulses.onchange = () => { layer.pulses = Math.max(0, Math.min(layer.steps, Number(pulses.value))); layer.pattern = euclideanLocal(layer.steps, layer.pulses); renderDrumRow(row); markCollisions(); };
+    head.append(steps, pulses, badge);
+    const cells = document.createElement("div"); cells.className = "drum-cells"; cells.id = `drum-cells-${layer.name}`;
+    line.append(head, cells); box.append(line);
+    renderDrumRow(row);
+  });
+  markCollisions();
+}
+function renderDrumRow(row) {
+  const layer = drumState.layers[row], cells = el(`drum-cells-${layer.name}`);
+  cells.innerHTML = "";
+  layer.pattern.forEach((active, i) => {
+    const cell = document.createElement("div");
+    cell.className = `step${active ? " on" : ""}`; cell.style.setProperty("--layer-color", layer.color);
+    if (active && layer.velocities.length) cell.style.opacity = .45 + .55 * (layer.velocities[i] || layer.base_velocity) / 127;
+    cell.textContent = active ? "" : i + 1;
+    cell.onclick = () => { layer.pattern[i] = active ? 0 : 1; renderDrumRow(row); markCollisions(); };
+    cells.append(cell);
+  });
+  el(`drum-rot-${layer.name}`).textContent = `rot ${layer.rotation}`;
+}
+function markCollisions() {
+  const layers = drumState.layers; if (!layers.length) return;
+  const window = Math.min(layers.reduce((a, l) => lcm(a, l.steps), 1), 64);
+  const counts = Array.from({ length: window }, (_, t) => layers.reduce((n, l) => n + l.pattern[t % l.steps], 0));
+  layers.forEach((layer, row) => {
+    [...el(`drum-cells-${layer.name}`).children].forEach((cell, i) => {
+      let max = 0;
+      for (let t = i; t < window; t += layer.steps) max = Math.max(max, counts[t]);
+      cell.classList.toggle("clash", layer.pattern[i] === 1 && max >= 2);
+    });
+  });
+}
+function lcm(a, b) { return a / gcd(a, b) * b; }
+async function generateDrums() {
+  try {
+    setRhythmStatus("Generating…", "loading");
+    const bars = Number(el("drum-bars").value);
+    const data = await postJson("/api/drums/generate", {
+      bars, seed: Number(el("drum-seed").value),
+      layers: drumState.layers.map(l => ({ name: l.name, steps: l.steps, pulses: l.pulses, rotation: l.name === "kick" ? 0 : null, phase_increment: l.phase_increment, phase_update_bars: l.phase_update_bars, base_velocity: l.base_velocity })),
+    });
+    data.layers.forEach((result, row) => Object.assign(drumState.layers[row], { pattern: result.pattern, rotation: result.rotation, velocities: result.velocities, phase_offsets: result.phase_offsets }));
+    drumState.layers.forEach((_, row) => renderDrumRow(row)); markCollisions();
+    const m = data.metrics;
+    el("drum-metrics").textContent = `density ${m.combined_density.toFixed(2)} · collisions ${Object.values(m.pairwise_collisions).reduce((a, b) => a + b, 0)} · all-four ${m.four_layer_collisions} · syncopation ${m.syncopation.toFixed(2)}`;
+    setRhythmStatus(`${bars} bars`, "");
+  } catch (error) { setRhythmStatus(error.message, "error"); }
+}
+function drumHit(layer, time, velocity) {
+  const context = audioContext(), osc = context.createOscillator(), gain = context.createGain(), level = .4 * velocity / 127;
+  const settings = { kick: ["sine", 130, .14], snare: ["square", 190, .09], hat: ["square", 6000, .03], perc: ["triangle", 700, .06] }[layer.name];
+  osc.type = settings[0]; osc.frequency.setValueAtTime(settings[1], time);
+  if (layer.name === "kick") osc.frequency.exponentialRampToValueAtTime(45, time + settings[2]);
+  gain.gain.setValueAtTime(level, time); gain.gain.exponentialRampToValueAtTime(.0001, time + settings[2]);
+  osc.connect(gain).connect(context.destination); osc.start(time); osc.stop(time + settings[2] + .05);
+  drumState.scheduled.push(osc);
+}
+function stopDrums() {
+  drumState.scheduled.forEach(osc => { try { osc.stop(); } catch { /* already stopped */ } });
+  drumState.scheduled = [];
+  if (drumState.playhead) { clearInterval(drumState.playhead); drumState.playhead = null; }
+  document.querySelectorAll(".drum-cells .now").forEach(c => c.classList.remove("now"));
+  setRhythmStatus("", "");
+}
+function playDrums() {
+  if (!drumState.layers.length || !drumState.layers[0].phase_offsets.length) { setRhythmStatus("先にドラムを生成してください。", "error"); return; }
+  stopDrums();
+  const bars = Number(el("drum-bars").value), stepDur = beatSeconds() / 4, now = audioContext().currentTime + .1;
+  drumState.layers.forEach(layer => {
+    for (let bar = 0; bar < bars; bar++) {
+      const effective = rotateRight(layer.pattern, layer.phase_offsets[bar % layer.phase_offsets.length]);
+      for (let s = 0; s < DRUM_STEPS_PER_BAR; s++) {
+        const index = (bar * DRUM_STEPS_PER_BAR + s) % layer.steps;
+        if (effective[index]) drumHit(layer, now + (bar * DRUM_STEPS_PER_BAR + s) * stepDur, layer.velocities[index] || layer.base_velocity);
+      }
+    }
+  });
+  const started = performance.now();
+  drumState.playhead = setInterval(() => {
+    const step = Math.floor((performance.now() - started) / 1000 / stepDur);
+    if (step >= bars * DRUM_STEPS_PER_BAR) { stopDrums(); return; }
+    document.querySelectorAll(".drum-cells .now").forEach(c => c.classList.remove("now"));
+    drumState.layers.forEach(layer => {
+      const cells = el(`drum-cells-${layer.name}`).children, index = step % layer.steps;
+      if (cells[index]) cells[index].classList.add("now");
+    });
+  }, Math.max(30, stepDur * 1000 / 2));
+  setRhythmStatus("Playing…", "loading");
+}
+function drumTimelinePattern(layer, bars) {
+  const full = [], velocities = [];
+  for (let bar = 0; bar < bars; bar++) {
+    const effective = rotateRight(layer.pattern, layer.phase_offsets[bar % layer.phase_offsets.length]);
+    for (let s = 0; s < DRUM_STEPS_PER_BAR; s++) {
+      const index = (bar * DRUM_STEPS_PER_BAR + s) % layer.steps;
+      full.push(effective[index]); velocities.push(effective[index] ? layer.velocities[index] || layer.base_velocity : 0);
+    }
+  }
+  return { pattern: full, velocities };
+}
+el("drums-generate").onclick = generateDrums;
+el("drums-play").onclick = playDrums;
+el("drums-stop").onclick = stopDrums;
+el("drums-export-midi").onclick = async () => {
+  try {
+    if (!drumState.layers.length || !drumState.layers[0].phase_offsets.length) throw new Error("先にドラムを生成してください。");
+    const bars = Number(el("drum-bars").value);
+    const layers = drumState.layers.map(layer => ({ note: layer.note, ...drumTimelinePattern(layer, bars) }));
+    const response = await fetch("/api/export/rhythm/midi", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ layers, steps_per_beat: 4 }) });
+    if (!response.ok) throw new Error((await response.json()).detail || "MIDI エクスポートに失敗しました。");
+    download(await response.blob(), "drums.mid"); setRhythmStatus("MIDI を保存しました", "");
+  } catch (error) { setRhythmStatus(error.message, "error"); }
+};
+el("drums-export-json").onclick = async () => {
+  try {
+    if (!drumState.layers.length) throw new Error("先にドラムを生成してください。");
+    const bars = Number(el("drum-bars").value);
+    const rhythm = { generator: "coordinated-drums", bars, seed: Number(el("drum-seed").value), layers: drumState.layers.map(l => ({ name: l.name, steps: l.steps, pulses: l.pulses, pattern: l.pattern, rotation: l.rotation, note: l.note, velocities: l.velocities, phase_offsets: l.phase_offsets })) };
+    const data = await postJson("/api/export/json", { name: "Drum Composition", composition: { rhythm } });
+    download(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }), "drums.json");
+    setRhythmStatus("JSON を保存しました", "");
+  } catch (error) { setRhythmStatus(error.message, "error"); }
+};
+buildDrumUI();

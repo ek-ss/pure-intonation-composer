@@ -286,6 +286,61 @@ Expands independent cycles into one shared timeline.
 Response: `hits[]` for active steps with `step`, `timing_offset_ms`,
 `velocity`. Deterministic for a given seed.
 
+## POST /api/rhythm/optimize-rotations
+
+Choose each layer's rotation to maximize interlock (algorithm:
+`algorithm_rhythm.md`). Layers with `rotation: null` are optimized in
+placement order against already-placed layers; the kick normally stays
+fixed.
+
+```json
+{
+  "layers": [
+    { "name": "kick", "steps": 16, "pulses": 5, "rotation": 0 },
+    { "name": "snare", "steps": 16, "pulses": 3, "rotation": null },
+    { "name": "hat", "steps": 13, "pulses": 8, "rotation": null },
+    { "name": "perc", "steps": 17, "pulses": 6, "rotation": null }
+  ],
+  "max_analysis_steps": 512
+}
+```
+
+Response: `analysis_length` plus per-layer `pattern`, `rotation`,
+`score`, and a score `breakdown` (anchor, complement, collision,
+density, cluster, similarity, syncopation).
+
+## POST /api/rhythm/analyze
+
+```json
+{ "layers": [{ "name": "kick", "pattern": [1, 0, 0, 0] }], "max_analysis_steps": 512 }
+```
+
+Projects patterns onto the shared LCM grid (bounded) and returns
+per-layer and combined density, pairwise collision counts, four-layer
+collision count, pairwise Hamming similarity, average inter-onset
+interval, syncopation score, and cluster count.
+
+## POST /api/drums/generate
+
+One-shot coordinated drum generation: Euclidean base patterns, rotation
+optimization, accent velocities, and per-bar phase offsets.
+
+```json
+{
+  "layers": [
+    { "name": "kick", "steps": 16, "pulses": 5, "rotation": 0, "phase_increment": 0 },
+    { "name": "snare", "steps": 16, "pulses": 3, "rotation": null, "phase_increment": 1, "phase_update_bars": 4 }
+  ],
+  "bars": 8,
+  "seed": 42,
+  "optimize": true
+}
+```
+
+Response: per-layer `pattern`, `rotation`, `velocities`,
+`phase_offsets` (per bar), plus `metrics` (the analysis output).
+Identical seeds produce identical results.
+
 ---
 
 # 7. Audio Rendering
@@ -364,6 +419,7 @@ Binary rhythm pattern as GM percussion on channel 10 (`audio/midi`).
   "velocity": 100,
   "velocities": [100, 0, 60, 0],
   "steps_per_beat": 4,
+  "cycles": 1,
   "ticks_per_beat": 480
 }
 ```
@@ -371,6 +427,21 @@ Binary rhythm pattern as GM percussion on channel 10 (`audio/midi`).
 - `note`: GM percussion note number (36 = kick, 38 = snare, 42 = closed hat)
 - `velocities`: optional per-step velocities; `0` falls back to `velocity`
   (use `0` for inactive steps)
+- `cycles`: repeat the pattern N times
+
+Multi-layer mode exports several drum layers in one file (each on its
+own GM note):
+
+```json
+{
+  "layers": [
+    { "pattern": [1, 0, 0, 0], "note": 36 },
+    { "pattern": [0, 0, 1, 0], "note": 38, "velocities": [0, 0, 96, 0] }
+  ],
+  "cycles": 4,
+  "steps_per_beat": 4
+}
+```
 
 ## POST /api/export/scala
 
