@@ -63,11 +63,13 @@ Status
 
 * Scala export — Done (`POST /api/export/scala`, workbench save button)
 * JSON export — Done (`POST /api/export/json`)
+* Scale browser panel (named, savable user scales, load/delete) — Done
+  (in-memory store, `/api/scales*`)
+* Scala import — Done (`POST /api/scales/import`)
 
 Planned
 
-* Scale browser panel (named, savable user scales)
-* Scala import
+* Persistent (on-disk) scale storage
 * Preset files containing full workbench state
 
 ## G2. Input
@@ -92,11 +94,11 @@ Status
 
 * Pitched MIDI export (nearest-note quantization) — Done
 * GM-percussion rhythm MIDI export — Done (`POST /api/export/rhythm/midi`)
+* Pitch-bend-accurate MIDI retuning — Done (`pitch_bend` option on
+  `POST /api/export/midi`, one note per channel with 14-bit bend)
 
 Planned
 
-* Pitch-bend-accurate MIDI retuning (per-note pitch bend instead of
-  nearest-note quantization)
 * MPE and multichannel output (Version 0.2)
 * MTS-ESP master (Version 0.2)
 
@@ -125,15 +127,17 @@ Status
 
 * Info (interval table with ratio/cents/monzo) — Done
 * Radial graph (pitch circle with harmony relations, click-to-play) — Done
+* Radial graph harmonic guides (odd harmonics 5–64) — Done
+* Relative-interval display between two held notes — Done
+* EDO and prime-limit snapping of all scale notes — Done
+  (`POST /api/tuning/snap`)
 * Lattice/graph views (force-directed Johnson graph; reference-node
   layered grid with walk visualization) — Done
 * Timeline view with recorder and replay — Done
 
 Planned
 
-* Radial graph: relative-interval view between held notes
-* Radial graph: harmonic rings (5–64 harmonics), EDO snapping,
-  prime-limit snapping, force snap
+* Per-note retuning by dragging on the radial graph
 * MIDI-note table (128 notes with frequency and cents deviation)
 
 ## G6. Scale Editor
@@ -145,10 +149,11 @@ Status
 
 * Generative scale sources (CPS, Euler–Fokker, harmonic/subharmonic
   series) — Done
+* Manual note add/remove with cents/ratio/EDO-degree/math-expression
+  entry — Done (`POST /api/analyze-interval`, workbench add/remove)
 
 Planned
 
-* Manual note add/remove with cents/ratio/EDO/expression entry
 * Custom repeating interval (non-2/1 normalization)
 
 ## G7. Mapping Editor

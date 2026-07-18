@@ -40,6 +40,50 @@ def midi_bytes(notes: list[MidiNote], base_frequency: float = 220, ticks_per_bea
     return b"MThd\x00\x00\x00\x06\x00\x00\x00\x01" + ticks_per_beat.to_bytes(2, "big") + b"MTrk" + len(track).to_bytes(4, "big") + bytes(track)
 
 
+_MICROTONAL_CHANNELS = tuple(channel for channel in range(16) if channel != 9)
+
+
+def microtonal_midi_bytes(
+    notes: list[MidiNote],
+    base_frequency: float = 220,
+    ticks_per_beat: int = 480,
+    pitch_bend_range_semitones: int = 2,
+) -> bytes:
+    """Export rational pitches as pitch-bend retuned MIDI type-0 events.
+
+    Each note is placed on its own channel (round-robin over channels 1-16
+    skipping 10) with a pitch-bend event before the note-on so the sounding
+    pitch matches base_frequency * ratio exactly.
+    """
+    if not 20 <= base_frequency <= 2000 or not 24 <= ticks_per_beat <= 960:
+        raise ValueError("MIDI settings are invalid")
+    if not 1 <= pitch_bend_range_semitones <= 48:
+        raise ValueError("pitch bend range must be between 1 and 48 semitones")
+    events: list[tuple[int, bytes]] = [(0, b"\xff\x51\x03\x07\xa1\x20")]
+    for index, note in enumerate(notes):
+        if note.ratio <= 0 or note.start_beats < 0 or note.duration_beats <= 0 or not 1 <= note.velocity <= 127:
+            raise ValueError("MIDI note is invalid")
+        channel = _MICROTONAL_CHANNELS[index % len(_MICROTONAL_CHANNELS)]
+        semitones = 12 * log2(base_frequency * float(note.ratio) / 440)
+        bend = semitones - round(semitones)
+        number = max(0, min(127, 69 + round(semitones)))
+        value = max(0, min(16383, 8192 + round(bend / pitch_bend_range_semitones * 8192)))
+        on = round(note.start_beats * ticks_per_beat)
+        events.extend([
+            (on, bytes((0xE0 | channel, value & 0x7F, value >> 7))),
+            (on, bytes((0x90 | channel, number, note.velocity))),
+            (round((note.start_beats + note.duration_beats) * ticks_per_beat), bytes((0x80 | channel, number, 0))),
+        ])
+    events.sort(key=lambda item: (item[0], (item[1][0] & 0xF0) == 0x90))
+    previous, track = 0, bytearray()
+    for tick, data in events:
+        track.extend(_variable_length(tick - previous))
+        track.extend(data)
+        previous = tick
+    track.extend(b"\x00\xff\x2f\x00")
+    return b"MThd\x00\x00\x00\x06\x00\x00\x00\x01" + ticks_per_beat.to_bytes(2, "big") + b"MTrk" + len(track).to_bytes(4, "big") + bytes(track)
+
+
 def drum_midi_bytes(hits: list[MidiDrumHit], ticks_per_beat: int = 480) -> bytes:
     """Export drum hits as General MIDI percussion (channel 10) type-0 events."""
     if not 24 <= ticks_per_beat <= 960:

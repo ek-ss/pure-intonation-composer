@@ -42,9 +42,29 @@ class RatioRequest(BaseModel):
     ratio: str = Field(pattern=r"^\d+/\d+$")
 
 
+class IntervalRequest(BaseModel):
+    value: str = Field(min_length=1, max_length=200)
+
+
+class SnapRequest(BaseModel):
+    ratios: list[str] = Field(min_length=1, max_length=256)
+    mode: Literal["edo", "prime_limit"]
+    value: int = Field(ge=2, le=31)
+
+
 class ScalaRequest(BaseModel):
     name: str = Field(default="Pure Intonation Scale", min_length=1, max_length=80)
     ratios: list[str] = Field(min_length=1, max_length=256)
+
+
+class ScaleSaveRequest(BaseModel):
+    name: str = Field(min_length=1, max_length=80)
+    ratios: list[str] = Field(min_length=1, max_length=256)
+
+
+class ScalaImportRequest(BaseModel):
+    name: str = Field(min_length=1, max_length=80)
+    content: str = Field(min_length=1)
 
 
 class HarmonicGraphRequest(BaseModel):
@@ -178,6 +198,8 @@ class MidiRequest(BaseModel):
     notes: list[MidiNoteRequest] = Field(max_length=4096)
     base_frequency: float = Field(default=220, ge=20, le=2000)
     ticks_per_beat: int = Field(default=480, ge=24, le=960)
+    pitch_bend: bool = False
+    pitch_bend_range_semitones: int = Field(default=2, ge=1, le=48)
 
 
 class RhythmMidiRequest(BaseModel):

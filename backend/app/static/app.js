@@ -39,11 +39,32 @@ function renderCircle() {
   const canvas = el("circle"), ctx = canvas.getContext("2d"), size = canvas.width, mid = size / 2, radius = size * .36, focus = state.focus;
   if(state.showGraph && state.graph) { renderGraph(ctx, size); return; }
   ctx.clearRect(0,0,size,size); ctx.strokeStyle="#30394d"; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(mid,mid,radius,0,Math.PI*2); ctx.stroke();
+  if(el("harmonics-toggle").checked){
+    const count=Number(el("harmonics-count").value);
+    ctx.save(); ctx.setLineDash([4,4]);
+    for(let h=3;h<=count;h+=2){
+      const angle=((1200*Math.log2(h))%1200)/1200*Math.PI*2-Math.PI/2;
+      ctx.strokeStyle="#2c3550"; ctx.lineWidth=1;
+      ctx.beginPath(); ctx.moveTo(mid+Math.cos(angle)*radius*.55,mid+Math.sin(angle)*radius*.55); ctx.lineTo(mid+Math.cos(angle)*(radius+18),mid+Math.sin(angle)*(radius+18)); ctx.stroke();
+      ctx.fillStyle="#56617d"; ctx.font="10px system-ui"; ctx.textAlign="center";
+      ctx.fillText(`${h}/${2**Math.floor(Math.log2(h))}`,mid+Math.cos(angle)*(radius+46),mid+Math.sin(angle)*(radius+46)+3);
+    }
+    ctx.restore();
+  }
   const points=state.pitches.map(pitch=>circlePoint(pitch,mid,radius));
   points.forEach(point=>{ctx.strokeStyle="#40506d";ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(mid,mid);ctx.lineTo(point.x,point.y);ctx.stroke();});
   if(focus!==null){ const source=points[focus]; points.forEach((point,index)=>{if(index===focus)return;const relation=harmony(index);ctx.globalAlpha=.72;ctx.strokeStyle=relation.color;ctx.lineWidth=relation.level==="strong"?4:2;ctx.beginPath();ctx.moveTo(source.x,source.y);ctx.lineTo(point.x,point.y);ctx.stroke();});ctx.globalAlpha=1; }
   ctx.fillStyle="#aeb9d0"; ctx.font="15px system-ui"; ctx.textAlign="center"; ctx.fillText("1/1",mid,mid+5);
   state.pitches.forEach((pitch,index) => { const point=points[index], relation=harmony(index); const active=state.active.has(index); ctx.fillStyle=relation.color; ctx.beginPath(); ctx.arc(point.x,point.y,active?16:10,0,Math.PI*2); ctx.fill(); if(active){ctx.strokeStyle="#fff4cf";ctx.lineWidth=3;ctx.beginPath();ctx.arc(point.x,point.y,22,0,Math.PI*2);ctx.stroke();} ctx.fillStyle="#10131c";ctx.font="bold 10px system-ui";ctx.fillText(String(index+1),point.x,point.y+4);ctx.fillStyle=relation.color;ctx.font="13px system-ui";ctx.fillText(pitch.ratio,mid+Math.cos(point.angle)*(radius+31),point.y+Math.sin(point.angle)*31+4); });
+  if(state.active.size===2){
+    const [a,b]=[...state.active.keys()];
+    const [an,ad]=ratioParts(state.pitches[a].ratio), [bn,bd]=ratioParts(state.pitches[b].ratio);
+    let n=an*bd, d=ad*bn; const g=gcd(n,d); n/=g; d/=g;
+    while(n>=d*2) d*=2; while(n<d) n*=2;
+    ctx.strokeStyle="#ffd47e"; ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(points[a].x,points[a].y); ctx.lineTo(points[b].x,points[b].y); ctx.stroke();
+    ctx.fillStyle="#ffd47e"; ctx.font="bold 13px system-ui"; ctx.textAlign="center";
+    ctx.fillText(`${n}/${d}`, (points[a].x+points[b].x)/2, (points[a].y+points[b].y)/2-8);
+  }
   canvas.onclick = event => { const rect=canvas.getBoundingClientRect(), x=(event.clientX-rect.left)*size/rect.width, y=(event.clientY-rect.top)*size/rect.height; let nearest=-1, distance=Infinity; state.pitches.forEach((pitch,i)=>{const a=pitch.cents/1200*Math.PI*2-Math.PI/2, px=mid+Math.cos(a)*radius, py=mid+Math.sin(a)*radius, d=Math.hypot(px-x,py-y);if(d<distance){distance=d;nearest=i}}); if(distance<28) play(nearest); };
 }
 function graphLayout(graph, size) {
@@ -140,7 +161,7 @@ function renderGrid(ctx, size) {
   };
 }
 function monzoText(monzo) { return Object.entries(monzo).map(([p,e])=>`${p}:${e}`).join(" ") || "0"; }
-function renderPitches() { el("pitches").innerHTML = state.pitches.map((p,i)=>{const relation=harmony(i);return `<tr><td>${keyboardKeys[i]||"–"}</td><td><span class="relation-dot" style="color:${relation.color}"></span>${p.ratio}</td><td>${p.cents.toFixed(2)}</td><td class="monzo">${monzoText(p.monzo)}</td><td><button data-index="${i}">Play</button></td></tr>`}).join(""); el("pitches").querySelectorAll("button").forEach(button=>button.onclick=()=>play(Number(button.dataset.index))); }
+function renderPitches() { el("pitches").innerHTML = state.pitches.map((p,i)=>{const relation=harmony(i);return `<tr><td>${keyboardKeys[i]||"–"}</td><td><span class="relation-dot" style="color:${relation.color}"></span>${p.ratio}</td><td>${p.cents.toFixed(2)}</td><td class="monzo">${monzoText(p.monzo)}</td><td><button data-index="${i}">Play</button><button class="del" data-del="${i}" title="削除">×</button></td></tr>`}).join(""); el("pitches").querySelectorAll("button[data-index]").forEach(button=>button.onclick=()=>play(Number(button.dataset.index))); el("pitches").querySelectorAll("button[data-del]").forEach(button=>button.onclick=()=>{stopAll();state.pitches.splice(Number(button.dataset.del),1);state.focus=null;render();}); }
 function renderKeyboard() { const box=el("keyboard"); box.innerHTML=""; state.pitches.slice(0,16).forEach((pitch,i)=>{const node=el("key-template").content.cloneNode(true);const button=node.querySelector("button");button.querySelector(".key-name").textContent=keyboardKeys[i];button.querySelector(".ratio").textContent=pitch.ratio;button.onclick=()=>play(i);box.append(node)}); }
 function audioContext() { if (!state.context) state.context = new AudioContext(); return state.context; }
 function play(index) { const pitch=state.pitches[index]; if(!pitch) return; if(state.recording){state.recorded.push({ratio:pitch.ratio,time:performance.now()});renderTimeline();} stop(index); const context=audioContext(), osc=context.createOscillator(), gain=context.createGain(), now=context.currentTime, attack=Number(el("attack").value)/1000, decay=Number(el("decay").value)/1000, sustain=Number(el("sustain").value)/100; osc.type=el("waveform").value; osc.frequency.value=Number(el("base-frequency").value)*(Number(pitch.ratio.split("/")[0])/Number(pitch.ratio.split("/")[1])); gain.gain.setValueAtTime(.0001,now); gain.gain.exponentialRampToValueAtTime(.24,now+attack); gain.gain.exponentialRampToValueAtTime(Math.max(.001,.24*sustain),now+attack+decay); osc.connect(gain).connect(context.destination); osc.start(); state.active.set(index,{osc,gain}); state.focus=index; render(); }
@@ -280,7 +301,7 @@ el("export-midi").onclick = async () => {
     requireChords();
     const { step, events } = compositionEvents(), beat = beatSeconds();
     const notes = events.map(event => ({ ratio: event.ratio, start_beats: event.start_seconds / beat, duration_beats: event.duration_seconds / beat }));
-    const response = await fetch("/api/export/midi", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ notes, base_frequency: Number(el("base-frequency").value) }) });
+    const response = await fetch("/api/export/midi", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ notes, base_frequency: Number(el("base-frequency").value), pitch_bend: el("midi-pitch-bend").checked }) });
     if (!response.ok) throw new Error("MIDI エクスポートに失敗しました。");
     download(await response.blob(), "composition.mid"); setComposeStatus(`${notes.length} notes → MIDI`, "");
   } catch (error) { setComposeStatus(error.message, "error"); }
@@ -384,3 +405,76 @@ el("rhythm-export-json").onclick = async () => {
   } catch (error) { setRhythmStatus(error.message, "error"); }
 };
 generateRhythm();
+
+// ---- Scale editor / snapping / harmonics ----
+function jsMonzo(ratio) {
+  const [numerator, denominator] = ratioParts(ratio), map = {};
+  const factor = (value, sign) => { let number = value, divisor = 2; while (divisor * divisor <= number) { while (number % divisor === 0) { map[divisor] = (map[divisor] || 0) + sign; number /= divisor; } divisor += divisor === 2 ? 1 : 2; } if (number > 1) map[number] = (map[number] || 0) + sign; };
+  factor(numerator, 1); factor(denominator, -1); return map;
+}
+el("note-add").onclick = async () => {
+  const value = el("note-input").value.trim(); if (!value) return;
+  try {
+    const data = await postJson("/api/analyze-interval", { value });
+    state.pitches.push(data); state.pitches.sort((a, b) => a.cents - b.cents);
+    el("note-input").value = ""; render(); setStatus(`added ${data.ratio}`, "");
+  } catch (error) { setStatus(error.message, "error"); }
+};
+el("note-input").onkeydown = event => { if (event.key === "Enter") el("note-add").click(); };
+el("snap-all").onclick = async () => {
+  if (!state.pitches.length) return;
+  try {
+    const data = await postJson("/api/tuning/snap", { ratios: state.pitches.map(p => p.ratio), mode: el("snap-mode").value, value: Number(el("snap-value").value) });
+    state.pitches = data.pitches.map(p => ({ ratio: p.ratio, cents: p.cents, monzo: jsMonzo(p.ratio) }));
+    state.focus = null; render(); setStatus(`snapped ${data.pitches.length} intervals`, "");
+  } catch (error) { setStatus(error.message, "error"); }
+};
+el("harmonics-toggle").onchange = renderCircle;
+el("harmonics-count").onchange = () => { if (el("harmonics-toggle").checked) renderCircle(); };
+
+// ---- Scale browser ----
+function setScalesStatus(text, kind = "") { const s = el("scales-status"); s.textContent = text; s.className = kind; }
+function adoptPitches(pitches, name) {
+  stopAll();
+  state.pitches = pitches; state.focus = null; state.graph = null; state.gridLayout = null; state.showGraph = false; state.walk = null; state.layout = null;
+  el("scale-name").textContent = name; render();
+}
+async function refreshScales() {
+  try {
+    const list = await (await fetch("/api/scales")).json();
+    el("scale-list").innerHTML = "";
+    list.forEach(item => {
+      const row = document.createElement("div"); row.className = "scale-row";
+      const title = document.createElement("span"); title.className = "scale-title"; title.textContent = item.name;
+      const count = document.createElement("span"); count.className = "scale-count"; count.textContent = `${item.count} notes`;
+      const load = document.createElement("button"); load.className = "quiet"; load.textContent = "Load";
+      load.onclick = async () => {
+        try {
+          const data = await (await fetch(`/api/scales/${encodeURIComponent(item.name)}`)).json();
+          adoptPitches(data.pitches, `${item.name} · ${data.count} intervals`);
+        } catch (error) { setScalesStatus(error.message, "error"); }
+      };
+      const del = document.createElement("button"); del.className = "quiet del"; del.textContent = "×";
+      del.onclick = async () => { await fetch(`/api/scales/${encodeURIComponent(item.name)}`, { method: "DELETE" }); refreshScales(); };
+      row.append(title, count, load, del); el("scale-list").append(row);
+    });
+  } catch (error) { setScalesStatus(error.message, "error"); }
+}
+el("scale-save").onclick = async () => {
+  if (!state.pitches.length) { setScalesStatus("先に音階を生成してください。", "error"); return; }
+  try {
+    const data = await postJson("/api/scales", { name: el("scale-save-name").value, ratios: state.pitches.map(p => p.ratio) });
+    setScalesStatus(`saved "${data.name}"`, ""); refreshScales();
+  } catch (error) { setScalesStatus(error.message, "error"); }
+};
+el("scala-import").onclick = () => el("scala-file").click();
+el("scala-file").onchange = async event => {
+  const file = event.target.files[0]; event.target.value = "";
+  if (!file) return;
+  try {
+    const data = await postJson("/api/scales/import", { name: file.name.replace(/\.scl$/i, ""), content: await file.text() });
+    adoptPitches(data.pitches, `${data.name} · ${data.count} intervals`); refreshScales();
+    setScalesStatus(`imported "${data.name}"`, "");
+  } catch (error) { setScalesStatus(error.message, "error"); }
+};
+refreshScales();

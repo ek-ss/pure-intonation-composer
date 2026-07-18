@@ -37,10 +37,18 @@
         </label>
         <label class="check"><input id="octave" type="checkbox" checked> 1オクターブ内に正規化</label>
         <button id="generate" class="primary">音階を生成</button>
+        <div class="button-row snap-row">
+          <select id="snap-mode" title="スナップ方式">
+            <option value="edo">EDO</option>
+            <option value="prime_limit">Prime limit</option>
+          </select>
+          <input id="snap-value" type="number" min="2" max="31" value="12" title="分割数 / 素数リミット">
+          <button id="snap-all" class="quiet" title="全音をスナップ">Snap</button>
+        </div>
       </section>
 
       <section class="panel visualizer">
-        <div class="section-heading"><h2 id="visual-title">Pitch circle</h2><span id="scale-name">CPS(4,2)</span><button id="graph-toggle" class="quiet" title="Graph view">Graph</button></div>
+        <div class="section-heading"><h2 id="visual-title">Pitch circle</h2><span id="scale-name">CPS(4,2)</span><span class="heading-tools"><label class="check inline" title="倍音ガイド"><input id="harmonics-toggle" type="checkbox"> 倍音</label><input id="harmonics-count" type="number" min="5" max="64" value="16" title="倍音数"></span><button id="graph-toggle" class="quiet" title="Graph view">Graph</button></div>
         <div id="walk-controls" class="walk-controls" hidden>
           <select id="graph-layout" title="レイアウト">
             <option value="force">force-directed</option>
@@ -98,11 +106,29 @@
 
       <section class="panel pitches">
         <div class="section-heading"><h2>Intervals</h2><button id="scala" class="quiet">Scala を保存</button></div>
+        <div class="add-note"><input id="note-input" placeholder="5/4 · 748.2 · 5\12 · =2^(6/12)"><button id="note-add" class="quiet">追加</button></div>
         <div class="table-wrap"><table><thead><tr><th>Key</th><th>Ratio</th><th>Cents</th><th>Monzo</th><th></th></tr></thead><tbody id="pitches"></tbody></table></div>
       </section>
       <section class="panel timeline">
         <div class="section-heading"><h2>Timeline</h2><span id="timeline-length"></span><span class="button-row"><button id="timeline-play" class="quiet" title="Replay recording">▶</button><button id="timeline-clear" class="quiet" title="Clear recording">Clear</button><button id="record" class="quiet" title="Record performance">Record</button></span></div>
         <div id="timeline-events" class="timeline-events" aria-live="polite"></div>
+      </section>
+
+      <section class="panel scales">
+        <div class="section-heading"><h2>Scales</h2><span id="scales-status" role="status"></span></div>
+        <div class="compose-grid">
+          <div>
+            <label>名前
+              <input id="scale-save-name" value="My Scale">
+            </label>
+            <div class="button-row">
+              <button id="scale-save">現在の音階を保存</button>
+              <button id="scala-import">Scala をインポート</button>
+            </div>
+            <input id="scala-file" type="file" accept=".scl" hidden>
+          </div>
+          <div id="scale-list" class="scale-list" aria-live="polite"></div>
+        </div>
       </section>
 
       <section class="panel compose">
@@ -168,6 +194,7 @@
               <button id="export-json">JSON</button>
               <button id="render-wav">WAV レンダリング</button>
             </div>
+            <label class="check"><input id="midi-pitch-bend" type="checkbox"> ピッチベンドで正確な音程</label>
             <p id="render-status" class="hint"></p>
             <audio id="render-player" controls hidden></audio>
           </div>

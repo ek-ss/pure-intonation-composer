@@ -93,6 +93,63 @@ Factors must be integers greater than one.
 
 Returns `{ "ratio", "cents", "monzo" }` for one ratio.
 
+## POST /api/analyze-interval
+
+Parses a free-form interval expression and returns the same shape as
+`/api/analyze-ratio`.
+
+```json
+{ "value": "5\\12" }
+```
+
+Accepted forms: ratio (`5/4`), cents (`748.2`), EDO degree (`5\12`),
+decimal ratio (`1.33`), math expression (`=2^(6/12)`).
+
+## POST /api/tuning/snap
+
+Snap ratios to an EDO grid or to ratios within a prime limit.
+
+```json
+{ "ratios": ["3/2", "5/4"], "mode": "edo", "value": 12 }
+```
+
+- `mode`: `"edo"` | `"prime_limit"`
+- `value`: EDO divisions or prime limit (2–31)
+
+Response: `{ "pitches": [{ "original", "ratio", "cents" }] }`.
+
+---
+
+# 3b. Scale Store
+
+In-memory store for named scales (lost on server restart).
+
+## GET /api/scales
+
+```json
+[{ "name": "Eikosany", "count": 20 }]
+```
+
+## POST /api/scales
+
+Save or overwrite a named scale; returns a pitch payload.
+
+```json
+{ "name": "Eikosany", "ratios": ["1/1", "9/8", "5/4"] }
+```
+
+## POST /api/scales/import
+
+Import Scala `.scl` file content, save it, and return a pitch payload.
+
+```json
+{ "name": "my-scale", "content": "! my.scl\nMy scale\n3\n100.0\n3/2\n2/1" }
+```
+
+## GET /api/scales/{name} · DELETE /api/scales/{name}
+
+Return a scale (404 if missing) or delete it.
+
 ---
 
 # 4. Harmonic Graph
@@ -285,11 +342,16 @@ Pitched notes as a standard MIDI type-0 file (`audio/midi`).
 {
   "notes": [{ "ratio": "3/2", "start_beats": 0, "duration_beats": 1, "velocity": 100 }],
   "base_frequency": 220,
-  "ticks_per_beat": 480
+  "ticks_per_beat": 480,
+  "pitch_bend": false,
+  "pitch_bend_range_semitones": 2
 }
 ```
 
-Ratios are quantized to the nearest 12-TET note number.
+By default ratios are quantized to the nearest 12-TET note number. With
+`pitch_bend: true`, each note is placed on its own channel (skipping 10)
+with a 14-bit pitch-bend event, so the exported pitches are microtonally
+exact.
 
 ## POST /api/export/rhythm/midi
 

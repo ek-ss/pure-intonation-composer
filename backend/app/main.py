@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from fractions import Fraction
 from pathlib import Path
+from typing import cast
 
 from fastapi import FastAPI, HTTPException, Response, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
@@ -26,11 +27,13 @@ from app.models import (
     HarmonicGraphRequest,
     HarmonyRequest,
     HumanizeRequest,
+    IntervalRequest,
     JsonExportRequest,
     MidiRequest,
     RatioRequest,
     ScalaRequest,
     SeriesRequest,
+    SnapRequest,
     VoiceLeadingRequest,
     MelodyRequest,
     EuclideanRhythmRequest,
@@ -38,12 +41,17 @@ from app.models import (
     RhythmStateGraphRequest,
     RenderRequest,
     RhythmMidiRequest,
+    ScaleSaveRequest,
+    ScalaImportRequest,
 )
-from app.exporters.midi import MidiDrumHit, MidiNote, drum_midi_bytes, midi_bytes
+from app.exporters.midi import MidiDrumHit, MidiNote, drum_midi_bytes, microtonal_midi_bytes, midi_bytes
 from app.rhythm.engine import euclidean_rhythm, humanize, phase_shift, state_transition_graph
 from app.exporters.scala import scala_text
+from app.exporters.scala_import import parse_scala
+from app.scales import delete_scale, get_scale, list_scales, save_scale
 from app.tuning.analysis import cents, monzo
-from app.tuning.ratios import parse_ratio, ratio_text, reduce_to_octave
+from app.tuning.ratios import parse_interval, parse_ratio, ratio_text, reduce_to_octave
+from app.tuning.snap import snap_ratio
 
 app = FastAPI(title="Pure Intonation Workbench API", version="0.1.0")
 STATIC_DIR = Path(__file__).parent / "static"
@@ -124,6 +132,33 @@ def analyze_ratio(request: RatioRequest) -> dict[str, object]:
     except (ValueError, ZeroDivisionError) as error:
         raise HTTPException(status_code=422, detail="ratio must be a positive fraction") from error
     return {"ratio": ratio_text(ratio), "cents": round(cents(ratio), 5), "monzo": monzo(ratio)}
+
+
+@app.post("/api/analyze-interval")
+def analyze_interval(request: IntervalRequest) -> dict[str, object]:
+    """Analyze an interval expression (ratio, cents, EDO degree, decimal, or '=expr')."""
+    try:
+        ratio = parse_interval(request.value)
+    except (ValueError, ZeroDivisionError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    return {"ratio": ratio_text(ratio), "cents": round(cents(ratio), 5), "monzo": monzo(ratio)}
+
+
+@app.post("/api/tuning/snap")
+def tuning_snap(request: SnapRequest) -> dict[str, object]:
+    """Snap ratios to the nearest EDO step or prime-limit rational."""
+    try:
+        pitches = [
+            {
+                "original": ratio_text(ratio),
+                "ratio": ratio_text(snapped := snap_ratio(ratio, request.mode, request.value)),
+                "cents": round(cents(snapped), 5),
+            }
+            for ratio in (parse_ratio(value) for value in request.ratios)
+        ]
+    except (ValueError, ZeroDivisionError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    return {"pitches": pitches}
 
 
 @app.post("/api/harmonic-graph")
@@ -387,11 +422,11 @@ async def transport(websocket: WebSocket) -> None:
 def export_midi(request: MidiRequest) -> Response:
     """Export rational notes as a standard MIDI type-0 file."""
     try:
-        data = midi_bytes(
-            [MidiNote(parse_ratio(note.ratio), note.start_beats, note.duration_beats, note.velocity) for note in request.notes],
-            request.base_frequency,
-            request.ticks_per_beat,
-        )
+        notes = [MidiNote(parse_ratio(note.ratio), note.start_beats, note.duration_beats, note.velocity) for note in request.notes]
+        if request.pitch_bend:
+            data = microtonal_midi_bytes(notes, request.base_frequency, request.ticks_per_beat, request.pitch_bend_range_semitones)
+        else:
+            data = midi_bytes(notes, request.base_frequency, request.ticks_per_beat)
         return Response(data, media_type="audio/midi", headers={"Content-Disposition": "attachment; filename=composition.mid"})
     except (ValueError, ZeroDivisionError) as error:
         raise HTTPException(status_code=422, detail=str(error)) from error
@@ -426,6 +461,52 @@ def export_scala(request: ScalaRequest) -> Response:
     except (ValueError, ZeroDivisionError) as error:
         raise HTTPException(status_code=422, detail="ratios must be positive fractions") from error
     return Response(scala_text(request.name, ratios), media_type="text/plain")
+
+
+def scale_payload(name: str, ratios: list[Fraction]) -> dict[str, object]:
+    return {"name": name, **pitch_payload(ratios)}
+
+
+@app.get("/api/scales")
+def scales_list() -> list[dict[str, object]]:
+    """List stored scales in insertion order."""
+    return list_scales()
+
+
+@app.post("/api/scales")
+def scales_save(request: ScaleSaveRequest) -> dict[str, object]:
+    """Save or overwrite a named scale and return its pitch payload."""
+    try:
+        entry = save_scale(request.name, request.ratios)
+    except (ValueError, ZeroDivisionError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    return scale_payload(request.name, cast(list[Fraction], entry["ratios"]))
+
+
+@app.post("/api/scales/import")
+def scales_import(request: ScalaImportRequest) -> dict[str, object]:
+    """Import a Scala .scl file, store it, and return its pitch payload."""
+    try:
+        ratios = parse_scala(request.content)
+        save_scale(request.name, [ratio_text(ratio) for ratio in ratios])
+    except (ValueError, ZeroDivisionError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    return scale_payload(request.name, ratios)
+
+
+@app.get("/api/scales/{name}")
+def scales_get(name: str) -> dict[str, object]:
+    entry = get_scale(name)
+    if entry is None:
+        raise HTTPException(status_code=404, detail="scale not found")
+    return scale_payload(name, cast(list[Fraction], entry["ratios"]))
+
+
+@app.delete("/api/scales/{name}")
+def scales_delete(name: str) -> dict[str, object]:
+    if not delete_scale(name):
+        raise HTTPException(status_code=404, detail="scale not found")
+    return {"name": name, "deleted": True}
 
 
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
