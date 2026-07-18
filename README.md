@@ -71,15 +71,18 @@ backend/
     static/            Browser workbench (vanilla JS, no build step)
   tests/               pytest suite
 docs/
+  usage.md             User guide for the workbench and API
   algorithm.md         Musical algorithm design specification
   api.md               Implemented REST/WebSocket API reference
   data_model.md        Canonical data model specification
-  development_plan.md  Roadmap, phases, and current status
+  development_plan.md  Roadmap, functional groups, and current status
   examples.md          Copy-paste API usage examples
+  visualization.md     Graph layout specification
 ```
 
 ## Documentation
 
-See [docs/examples.md](docs/examples.md) for usage examples and
+Start with the [usage guide](docs/usage.md) for the workbench and API.
+See [docs/examples.md](docs/examples.md) for copy-paste commands and
 [docs/development_plan.md](docs/development_plan.md) for the roadmap and
 implementation status.
