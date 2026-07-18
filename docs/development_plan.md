@@ -154,8 +154,11 @@ Status
 * Stage 1 Composition Roll — Done: cents axis, octave guides, harmony stacks,
   bass and melody paths, layer toggles, chord selection, and playback playhead
   are available in the Compose workbench.
-* Graph-linked selection, voice-leading connectors, zoom/pan, mobile layer
-  mode, and project-view persistence remain planned.
+* Stage 2 linked stack display — Done: the generated harmonic path and active
+  node are highlighted in the Johnson graph; the active chord's ratio stack is
+  shown in both graph layouts and as an outer stack on the Pitch Circle.
+* Voice-leading connectors, zoom/pan, mobile layer mode, and project-view
+  persistence remain planned.
 
 #### Primary View: Composition Roll
 
@@ -217,7 +220,7 @@ the exact visualization can be restored from a JSON project export.
 1. Add the read-only composition roll with harmony, bass, melody, and a
    playback playhead. — Done
 2. Link selection to the harmonic graph and pitch circle; add layer and label
-   controls.
+   controls. — Done for harmony-path selection and ratio stacks
 3. Add voice-leading connectors, inspector, zoom/pan, and mobile layer mode.
 4. Persist view settings and selected step in project JSON; add screenshot and
    interaction regression tests at desktop and mobile breakpoints.

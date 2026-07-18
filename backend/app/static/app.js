@@ -1,5 +1,5 @@
 const el = id => document.getElementById(id);
-const state = { pitches: [], active: new Map(), context: null, focus: null, graph: null, showGraph: false, recording: false, recorded: [], walk: null, layout: null, gridLayout: null, reference: 0 };
+const state = { pitches: [], active: new Map(), context: null, focus: null, graph: null, showGraph: false, recording: false, recorded: [], walk: null, layout: null, gridLayout: null, reference: 0, compositionNode: null };
 const keyboardKeys = "ASDFGHJKL;QWERTYUIOPZXCVBNM".split("");
 
 function setStatus(text, kind = "") { const status = el("status"); status.textContent = text; status.className = kind; }
@@ -56,6 +56,7 @@ function renderCircle() {
   if(focus!==null){ const source=points[focus]; points.forEach((point,index)=>{if(index===focus)return;const relation=harmony(index);ctx.globalAlpha=.72;ctx.strokeStyle=relation.color;ctx.lineWidth=relation.level==="strong"?4:2;ctx.beginPath();ctx.moveTo(source.x,source.y);ctx.lineTo(point.x,point.y);ctx.stroke();});ctx.globalAlpha=1; }
   ctx.fillStyle="#aeb9d0"; ctx.font="15px system-ui"; ctx.textAlign="center"; ctx.fillText("1/1",mid,mid+5);
   state.pitches.forEach((pitch,index) => { const point=points[index], relation=harmony(index); const active=state.active.has(index); ctx.fillStyle=relation.color; ctx.beginPath(); ctx.arc(point.x,point.y,active?16:10,0,Math.PI*2); ctx.fill(); if(active){ctx.strokeStyle="#fff4cf";ctx.lineWidth=3;ctx.beginPath();ctx.arc(point.x,point.y,22,0,Math.PI*2);ctx.stroke();} ctx.fillStyle="#10131c";ctx.font="bold 10px system-ui";ctx.fillText(String(index+1),point.x,point.y+4);ctx.fillStyle=relation.color;ctx.font="13px system-ui";ctx.fillText(pitch.ratio,mid+Math.cos(point.angle)*(radius+31),point.y+Math.sin(point.angle)*31+4); });
+  renderHarmonyStackOnCircle(ctx, mid, radius);
   if(state.active.size===2){
     const [a,b]=[...state.active.keys()];
     const [an,ad]=ratioParts(state.pitches[a].ratio), [bn,bd]=ratioParts(state.pitches[b].ratio);
@@ -109,17 +110,20 @@ function renderGraph(ctx, size) {
   if (walk) walk.forEach((node, i) => { if (!order.has(node)) order.set(node, i); });
   if (walk && walk.length > 1) { ctx.strokeStyle = "#ffd47e"; ctx.lineWidth = 3; ctx.globalAlpha = .85; ctx.beginPath(); walk.forEach((node, i) => { const p = points[node]; i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y); }); ctx.stroke(); ctx.globalAlpha = 1; }
   points.forEach((point, index) => {
-    const onPath = order.has(index);
-    ctx.fillStyle = onPath ? "#ffd47e" : "#98e7ca"; ctx.beginPath(); ctx.arc(point.x, point.y, onPath ? 13 : 9, 0, Math.PI * 2); ctx.fill();
+    const onPath = order.has(index), current = index === state.compositionNode;
+    ctx.fillStyle = current ? "#ff9ab0" : onPath ? "#ffd47e" : "#98e7ca"; ctx.beginPath(); ctx.arc(point.x, point.y, current ? 16 : onPath ? 13 : 9, 0, Math.PI * 2); ctx.fill();
+    if (current) { ctx.strokeStyle = "#fff4cf"; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(point.x, point.y, 22, 0, Math.PI * 2); ctx.stroke(); }
     ctx.fillStyle = "#10131c"; ctx.font = "bold 10px system-ui"; ctx.textAlign = "center"; ctx.fillText(String(index + 1), point.x, point.y + 4);
     if (onPath) { ctx.fillStyle = "#ffd47e"; ctx.font = "bold 11px system-ui"; ctx.fillText(`#${order.get(index) + 1}`, point.x, point.y - 15); }
     ctx.fillStyle = "#aeb9d0"; ctx.font = "12px system-ui"; ctx.fillText(nodes[index].ratio, point.x, point.y + 26);
   });
-  el("circle").onclick = event => { const nearest = nearestGraphNode(points, event); if (nearest.distance < 28) playGraphNode(nodes, nearest.index); };
+  renderHarmonyStack(ctx, 18, 18);
+  el("circle").onclick = event => { const nearest = nearestGraphNode(points, event); if (nearest.distance < 28) { selectCompositionNode(nearest.index); playGraphNode(nodes, nearest.index); } };
 }
 async function loadGridLayout() {
   try {
-    const data = await postJson("/api/harmonic-graph", { factors: parseFactors(), choose: Number(el("choose").value), layout: "reference_layered_grid", reference: state.reference, sort_mode: el("grid-sort").value });
+    const input = composeState.graph === state.graph ? composeState.graphInput : { factors: parseFactors(), choose: Number(el("choose").value) };
+    const data = await postJson("/api/harmonic-graph", { ...input, layout: "reference_layered_grid", reference: state.reference, sort_mode: el("grid-sort").value });
     if (!data.layout) throw new Error("サーバーがレイアウトを返しませんでした。サーバーを再起動してください。");
     state.graph = data; state.gridLayout = data.layout; state.reference = data.layout.reference; state.layout = null;
     renderCircle();
@@ -144,9 +148,9 @@ function renderGrid(ctx, size) {
   if (walk && walk.length > 1) { ctx.strokeStyle = "#ffd47e"; ctx.lineWidth = 3; ctx.globalAlpha = .85; ctx.beginPath(); walk.forEach((node, i) => { const p = points[node]; i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y); }); ctx.stroke(); ctx.globalAlpha = 1; }
   const sub = el("ratio-mode").value === "subharmonic";
   points.forEach((point, index) => {
-    const isReference = index === layout.reference, onPath = order.has(index);
-    ctx.fillStyle = onPath || isReference ? "#ffd47e" : "#98e7ca";
-    ctx.beginPath(); ctx.arc(point.x, point.y, isReference ? 15 : onPath ? 13 : 9, 0, Math.PI * 2); ctx.fill();
+    const isReference = index === layout.reference, onPath = order.has(index), current = index === state.compositionNode;
+    ctx.fillStyle = current ? "#ff9ab0" : onPath || isReference ? "#ffd47e" : "#98e7ca";
+    ctx.beginPath(); ctx.arc(point.x, point.y, current ? 16 : isReference ? 15 : onPath ? 13 : 9, 0, Math.PI * 2); ctx.fill();
     if (isReference) { ctx.strokeStyle = "#fff4cf"; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(point.x, point.y, 20, 0, Math.PI * 2); ctx.stroke(); }
     ctx.fillStyle = "#10131c"; ctx.font = "bold 10px system-ui"; ctx.textAlign = "center"; ctx.fillText(String(index + 1), point.x, point.y + 4);
     if (onPath) { ctx.fillStyle = "#ffd47e"; ctx.font = "bold 11px system-ui"; ctx.fillText(`#${order.get(index) + 1}`, point.x, point.y - 26); }
@@ -154,7 +158,8 @@ function renderGrid(ctx, size) {
     ctx.fillText(`{${nodes[index].factors.join(",")}}`, point.x, point.y + 26);
     ctx.fillText(sub ? nodes[index].sub_ratio : nodes[index].ratio, point.x, point.y + 40);
   });
-  el("circle").onclick = event => { const nearest = nearestGraphNode(points, event); if (nearest.distance < 28) playGraphNode(nodes, nearest.index); };
+  renderHarmonyStack(ctx, 18, 18);
+  el("circle").onclick = event => { const nearest = nearestGraphNode(points, event); if (nearest.distance < 28) { selectCompositionNode(nearest.index); playGraphNode(nodes, nearest.index); } };
   el("circle").ondblclick = event => {
     const nearest = nearestGraphNode(points, event);
     if (nearest.distance < 28 && nearest.index !== state.reference) { state.reference = nearest.index; loadGridLayout(); }
@@ -213,7 +218,7 @@ el("timeline-play").onclick=()=>{
 syncGeneratorFields(); generate();
 
 // ---- Compose: harmony / bass / melody / export / render ----
-const composeState = { chords: [], bass: [], melody: [], scheduled: [], activeStep: null, playhead: null, playheadFrame: null };
+const composeState = { chords: [], bass: [], melody: [], scheduled: [], activeStep: null, playhead: null, playheadFrame: null, graph: null, graphInput: null };
 function setComposeStatus(text, kind = "") { const s = el("compose-status"); s.textContent = text; s.className = kind; }
 function ratioValue(ratio) { const [n, d] = ratio.split("/").map(Number); return n / d; }
 function ratioMul(ratio, factor) { const [n, d] = ratio.split("/").map(Number); let num = n * factor, den = d; const g = gcd(num, den); num /= g; den /= g; while (num >= den * 2) den *= 2; while (num < den) num *= 2; return `${num}/${den}`; }
@@ -238,10 +243,12 @@ function renderProgression() {
 }
 async function generateHarmony() {
   try {
-    const choose = Number(el("harmony-choose").value);
+    const choose = Number(el("harmony-choose").value), factors = parseFactors(el("harmony-factors").value);
     setComposeStatus("Generating…", "loading");
-    const data = await postJson("/api/compose/harmony", { factors: parseFactors(el("harmony-factors").value), choose, length: Number(el("harmony-length").value), seed: Number(el("harmony-seed").value), metric: el("harmony-metric").value });
+    const data = await postJson("/api/compose/harmony", { factors, choose, length: Number(el("harmony-length").value), seed: Number(el("harmony-seed").value), metric: el("harmony-metric").value });
+    const graph = await postJson("/api/harmonic-graph", { factors, choose });
     composeState.chords = data.chords; composeState.bass = []; composeState.melody = []; composeState.activeStep = 0;
+    composeState.graph = graph; composeState.graphInput = { factors, choose }; state.graph = graph; state.walk = data.chords.map(chord => chord.node); state.layout = null; state.gridLayout = null; state.compositionNode = data.chords[0]?.node ?? null; el("graph-toggle").hidden = false;
     el("composition-roll-panel").hidden = false; renderProgression(); renderCompositionRoll(); setComposeStatus(`${data.length} chords`, "");
   } catch (error) { setComposeStatus(error.message, "error"); }
 }
@@ -283,7 +290,24 @@ function playProgression() {
   setComposeStatus("Playing…", "loading");
 }
 function auditionChord(chord) { stopProgression(); const now = audioContext().currentTime + 0.05; chordTones(chord).forEach(r => scheduleTone(Number(el("base-frequency").value) * ratioValue(r), now, 1.2)); }
-function selectCompositionStep(index, audition = false) { if (!composeState.chords[index]) return; composeState.activeStep = index; if (audition) auditionChord(composeState.chords[index]); renderProgression(); renderCompositionRoll(); }
+function syncCompositionNode() { state.compositionNode = composeState.chords[composeState.activeStep]?.node ?? null; }
+function selectCompositionStep(index, audition = false) { if (!composeState.chords[index]) return; composeState.activeStep = index; syncCompositionNode(); if (audition) auditionChord(composeState.chords[index]); renderProgression(); renderCompositionRoll(); renderCircle(); }
+function selectCompositionNode(node) { const step = composeState.chords.findIndex(chord => chord.node === node); if (step >= 0) selectCompositionStep(step); }
+function renderHarmonyStack(ctx, left, top) {
+  const chord = composeState.chords[composeState.activeStep]; if (!chord) return;
+  const tones = chordTones(chord), width = 128, row = 17, height = 30 + tones.length * row;
+  ctx.fillStyle = "#10131ce6"; ctx.fillRect(left, top, width, height); ctx.strokeStyle = "#40506d"; ctx.strokeRect(left, top, width, height);
+  ctx.fillStyle = "#ffd47e"; ctx.font = "bold 11px system-ui"; ctx.textAlign = "left"; ctx.fillText(`Step ${composeState.activeStep + 1}`, left + 8, top + 14);
+  ctx.fillStyle = "#aeb9d0"; ctx.font = "10px system-ui"; ctx.fillText(`{${chord.factors.join(",")}}`, left + 8, top + 26);
+  tones.forEach((ratio, index) => { const y = top + 32 + index * row; ctx.fillStyle = "#98e7ca"; ctx.fillRect(left + 8, y, width - 16, 13); ctx.fillStyle = "#092118"; ctx.font = "10px system-ui"; ctx.textAlign = "center"; ctx.fillText(ratio, left + width / 2, y + 10); });
+}
+function renderHarmonyStackOnCircle(ctx, mid, radius) {
+  const chord = composeState.chords[composeState.activeStep]; if (!chord) return;
+  const points = chordTones(chord).map(ratio => { const angle = (centsForRatio(ratio) / 1200) * Math.PI * 2 - Math.PI / 2; return { ratio, x: mid + Math.cos(angle) * (radius + 16), y: mid + Math.sin(angle) * (radius + 16) }; });
+  ctx.strokeStyle = "#ffd47e"; ctx.lineWidth = 3; ctx.globalAlpha = .8; ctx.beginPath(); points.forEach((point, index) => index ? ctx.lineTo(point.x, point.y) : ctx.moveTo(point.x, point.y)); if (points.length > 2) ctx.closePath(); ctx.stroke(); ctx.globalAlpha = 1;
+  points.forEach(point => { ctx.fillStyle = "#ffd47e"; ctx.beginPath(); ctx.arc(point.x, point.y, 8, 0, Math.PI * 2); ctx.fill(); });
+  renderHarmonyStack(ctx, 18, 18);
+}
 function centsForRatio(ratio) { return 1200 * Math.log2(ratioValue(ratio)); }
 function compositionViewModel() {
   const notes = [];
@@ -306,7 +330,7 @@ function renderCompositionRoll() {
   if (composeState.playhead !== null) { const px = left + composeState.playhead * band; ctx.strokeStyle = "#fff4cf"; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(px, top); ctx.lineTo(px, height - bottom); ctx.stroke(); }
   const active = composeState.activeStep; const chord = composeState.chords[active]; const extra = composeState.bass[active] ? ` · bass ${composeState.bass[active].ratio}` : ""; el("roll-status").textContent = `${steps} steps`; el("roll-inspector").textContent = chord ? `Step ${active + 1}: ${chordTones(chord).join(" · ")}${extra}` : "";
 }
-function startCompositionPlayhead(startTime, stepSeconds) { stopCompositionPlayhead(); const context = audioContext(); const frame = () => { const position = (context.currentTime - startTime) / stepSeconds; if (position < 0) { composeState.playhead = 0; } else if (position <= composeState.chords.length) { composeState.playhead = position; composeState.activeStep = Math.min(composeState.chords.length - 1, Math.floor(position)); } else { stopCompositionPlayhead(); return; } renderCompositionRoll(); composeState.playheadFrame = requestAnimationFrame(frame); }; frame(); }
+function startCompositionPlayhead(startTime, stepSeconds) { stopCompositionPlayhead(); const context = audioContext(); const frame = () => { const position = (context.currentTime - startTime) / stepSeconds; if (position < 0) { composeState.playhead = 0; } else if (position <= composeState.chords.length) { composeState.playhead = position; composeState.activeStep = Math.min(composeState.chords.length - 1, Math.floor(position)); syncCompositionNode(); } else { stopCompositionPlayhead(); return; } renderCompositionRoll(); if (state.showGraph) renderCircle(); composeState.playheadFrame = requestAnimationFrame(frame); }; frame(); }
 function stopCompositionPlayhead() { if (composeState.playheadFrame) cancelAnimationFrame(composeState.playheadFrame); composeState.playheadFrame = null; composeState.playhead = null; if (composeState.chords.length) renderCompositionRoll(); }
 el("composition-roll").onclick = event => { if (!composeState.chords.length) return; const rect = event.currentTarget.getBoundingClientRect(), x = (event.clientX - rect.left) * event.currentTarget.width / rect.width, step = Math.max(0, Math.min(composeState.chords.length - 1, Math.floor((x - 68) / (event.currentTarget.width - 88) * composeState.chords.length))); selectCompositionStep(step, true); };
 [
