@@ -202,6 +202,20 @@
         <div id="progression" class="progression" aria-live="polite"></div>
       </section>
 
+      <section id="composition-roll-panel" class="panel composition-roll-panel" hidden>
+        <div class="section-heading">
+          <h2>Composition Roll</h2>
+          <span id="roll-status" role="status"></span>
+          <span class="roll-controls" aria-label="表示レイヤー">
+            <label class="check inline"><input id="roll-harmony" type="checkbox" checked> Harmony</label>
+            <label class="check inline"><input id="roll-bass" type="checkbox" checked> Bass</label>
+            <label class="check inline"><input id="roll-melody" type="checkbox" checked> Melody</label>
+          </span>
+        </div>
+        <canvas id="composition-roll" width="1400" height="560" aria-label="和声、ベース、旋律のcentsタイムライン"></canvas>
+        <p id="roll-inspector" class="hint" aria-live="polite"></p>
+      </section>
+
       <section class="panel rhythm">
         <div class="section-heading"><h2>Rhythm</h2><span id="rhythm-status" role="status"></span></div>
         <div class="drum-controls">

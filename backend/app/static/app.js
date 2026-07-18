@@ -213,7 +213,7 @@ el("timeline-play").onclick=()=>{
 syncGeneratorFields(); generate();
 
 // ---- Compose: harmony / bass / melody / export / render ----
-const composeState = { chords: [], bass: [], melody: [], scheduled: [] };
+const composeState = { chords: [], bass: [], melody: [], scheduled: [], activeStep: null, playhead: null, playheadFrame: null };
 function setComposeStatus(text, kind = "") { const s = el("compose-status"); s.textContent = text; s.className = kind; }
 function ratioValue(ratio) { const [n, d] = ratio.split("/").map(Number); return n / d; }
 function ratioMul(ratio, factor) { const [n, d] = ratio.split("/").map(Number); let num = n * factor, den = d; const g = gcd(num, den); num /= g; den /= g; while (num >= den * 2) den *= 2; while (num < den) num *= 2; return `${num}/${den}`; }
@@ -228,10 +228,11 @@ function renderProgression() {
   el("progression").innerHTML = "";
   composeState.chords.forEach((chord, index) => {
     const button = document.createElement("button");
+    button.className = index === composeState.activeStep ? "active" : "";
     const score = chord.transition_score === null ? "" : `Δ ${chord.transition_score.toFixed(2)}`;
     button.innerHTML = `<span class="chord-index">${index + 1}</span><span>${chord.ratio}</span><span class="chord-score">${score}</span>`;
     button.title = chordTones(chord).join("  ");
-    button.onclick = () => { stopProgression(); const now = audioContext().currentTime + 0.05; chordTones(chord).forEach(r => scheduleTone(Number(el("base-frequency").value) * ratioValue(r), now, 1.2)); };
+    button.onclick = () => selectCompositionStep(index, true);
     el("progression").append(button);
   });
 }
@@ -240,8 +241,8 @@ async function generateHarmony() {
     const choose = Number(el("harmony-choose").value);
     setComposeStatus("Generating…", "loading");
     const data = await postJson("/api/compose/harmony", { factors: parseFactors(el("harmony-factors").value), choose, length: Number(el("harmony-length").value), seed: Number(el("harmony-seed").value), metric: el("harmony-metric").value });
-    composeState.chords = data.chords; composeState.bass = []; composeState.melody = [];
-    renderProgression(); setComposeStatus(`${data.length} chords`, "");
+    composeState.chords = data.chords; composeState.bass = []; composeState.melody = []; composeState.activeStep = 0;
+    el("composition-roll-panel").hidden = false; renderProgression(); renderCompositionRoll(); setComposeStatus(`${data.length} chords`, "");
   } catch (error) { setComposeStatus(error.message, "error"); }
 }
 function requireChords() { if (!composeState.chords.length) throw new Error("先に和声進行を生成してください。"); }
@@ -249,14 +250,14 @@ async function generateBass() {
   try {
     requireChords(); setComposeStatus("Bass…", "loading");
     const data = await postJson("/api/compose/bass", { chords: composeState.chords.map(chordTones), strategy: el("bass-strategy").value });
-    composeState.bass = data.notes; setComposeStatus(`Bass: ${data.notes.length} notes`, "");
+    composeState.bass = data.notes; renderCompositionRoll(); setComposeStatus(`Bass: ${data.notes.length} notes`, "");
   } catch (error) { setComposeStatus(error.message, "error"); }
 }
 async function generateMelody() {
   try {
     requireChords(); setComposeStatus("Melody…", "loading");
     const data = await postJson("/api/compose/melody", { chords: composeState.chords.map(chordTones), voice_count: Number(el("melody-voices").value), seed: Number(el("harmony-seed").value), contour: el("melody-contour").value });
-    composeState.melody = data.voices; setComposeStatus(`Melody: ${data.voices.length} voices`, "");
+    composeState.melody = data.voices; renderCompositionRoll(); setComposeStatus(`Melody: ${data.voices.length} voices`, "");
   } catch (error) { setComposeStatus(error.message, "error"); }
 }
 function scheduleTone(frequency, start, duration, level = 0.2) {
@@ -266,7 +267,7 @@ function scheduleTone(frequency, start, duration, level = 0.2) {
   osc.connect(gain).connect(context.destination); osc.start(start); osc.stop(start + duration + .6);
   composeState.scheduled.push(osc);
 }
-function stopProgression() { composeState.scheduled.forEach(osc => { try { osc.stop(); } catch { /* already stopped */ } }); composeState.scheduled = []; }
+function stopProgression() { composeState.scheduled.forEach(osc => { try { osc.stop(); } catch { /* already stopped */ } }); composeState.scheduled = []; stopCompositionPlayhead(); }
 function beatSeconds() { return 60 / Number(el("tempo").value); }
 function playProgression() {
   if (!composeState.chords.length) { setComposeStatus("先に和声進行を生成してください。", "error"); return; }
@@ -278,8 +279,39 @@ function playProgression() {
     const bass = composeState.bass[index]; if (bass) scheduleTone(base * ratioValue(bass.ratio), start, step, .26);
     composeState.melody.forEach(voice => { const note = voice[index]; if (note) scheduleTone(base * 2 * ratioValue(note.ratio), start, step * .8, .13); });
   });
+  startCompositionPlayhead(now, step);
   setComposeStatus("Playing…", "loading");
 }
+function auditionChord(chord) { stopProgression(); const now = audioContext().currentTime + 0.05; chordTones(chord).forEach(r => scheduleTone(Number(el("base-frequency").value) * ratioValue(r), now, 1.2)); }
+function selectCompositionStep(index, audition = false) { if (!composeState.chords[index]) return; composeState.activeStep = index; if (audition) auditionChord(composeState.chords[index]); renderProgression(); renderCompositionRoll(); }
+function centsForRatio(ratio) { return 1200 * Math.log2(ratioValue(ratio)); }
+function compositionViewModel() {
+  const notes = [];
+  composeState.chords.forEach((chord, step) => chordTones(chord).forEach(ratio => notes.push({ layer:"harmony", step, ratio, cents:centsForRatio(ratio) })));
+  composeState.bass.forEach((note, step) => notes.push({ layer:"bass", step, ratio:note.ratio, cents:centsForRatio(note.ratio), strategy:note.strategy, leap:note.leap_cents }));
+  composeState.melody.forEach((voice, voiceIndex) => voice.forEach((note, step) => notes.push({ layer:"melody", voice:voiceIndex, step, ratio:note.ratio, cents:centsForRatio(note.ratio) })));
+  return notes;
+}
+function renderCompositionRoll() {
+  const canvas = el("composition-roll"); if (!canvas || !composeState.chords.length) return;
+  const ctx = canvas.getContext("2d"), width = canvas.width, height = canvas.height, left = 68, right = 20, top = 20, bottom = 40, steps = composeState.chords.length;
+  const notes = compositionViewModel(), values = notes.map(note => note.cents), low = Math.floor((Math.min(...values, 0) - 240) / 1200) * 1200, high = Math.ceil((Math.max(...values, 1200) + 240) / 1200) * 1200, range = Math.max(1200, high - low);
+  const x = step => left + (step + .5) * (width - left - right) / steps, y = cents => top + (high - cents) / range * (height - top - bottom), band = (width - left - right) / steps;
+  ctx.clearRect(0, 0, width, height); ctx.fillStyle = "#111622"; ctx.fillRect(0, 0, width, height);
+  for (let cent = low; cent <= high; cent += 1200) { const py = y(cent); ctx.strokeStyle = "#30394d"; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(left, py); ctx.lineTo(width - right, py); ctx.stroke(); ctx.fillStyle = "#aeb9d0"; ctx.font = "12px system-ui"; ctx.textAlign = "right"; ctx.fillText(`${cent}c`, left - 8, py + 4); }
+  composeState.chords.forEach((chord, step) => { const px = left + step * band; ctx.fillStyle = step === composeState.activeStep ? "#98e7ca22" : "#ffffff06"; ctx.fillRect(px, top, band, height - top - bottom); ctx.strokeStyle = "#30394d"; ctx.beginPath(); ctx.moveTo(px, top); ctx.lineTo(px, height - bottom); ctx.stroke(); ctx.fillStyle = "#aeb9d0"; ctx.textAlign = "center"; ctx.font = "12px system-ui"; ctx.fillText(String(step + 1), x(step), height - 15); });
+  if (el("roll-harmony").checked) composeState.chords.forEach((chord, step) => chordTones(chord).forEach(ratio => { const py = y(centsForRatio(ratio)); ctx.fillStyle = "#98e7ca"; ctx.fillRect(x(step) - 19, py - 8, 38, 16); ctx.fillStyle = "#092118"; ctx.font = "10px system-ui"; ctx.textAlign = "center"; ctx.fillText(ratio, x(step), py + 3); }));
+  if (el("roll-bass").checked && composeState.bass.length) { ctx.strokeStyle = "#ffd47e"; ctx.lineWidth = 5; ctx.beginPath(); composeState.bass.forEach((note, step) => step ? ctx.lineTo(x(step), y(centsForRatio(note.ratio))) : ctx.moveTo(x(step), y(centsForRatio(note.ratio)))); ctx.stroke(); composeState.bass.forEach((note, step) => { ctx.fillStyle = "#ffd47e"; ctx.beginPath(); ctx.arc(x(step), y(centsForRatio(note.ratio)), 7, 0, Math.PI * 2); ctx.fill(); }); }
+  if (el("roll-melody").checked) composeState.melody.forEach((voice, voiceIndex) => { const colors = ["#83b7ff", "#caa8ff", "#ff9ab0", "#f7c568"], color = colors[voiceIndex % colors.length]; ctx.strokeStyle = color; ctx.lineWidth = 3; ctx.beginPath(); voice.forEach((note, step) => step ? ctx.lineTo(x(step), y(centsForRatio(note.ratio))) : ctx.moveTo(x(step), y(centsForRatio(note.ratio)))); ctx.stroke(); voice.forEach((note, step) => { ctx.fillStyle = color; ctx.beginPath(); ctx.arc(x(step), y(centsForRatio(note.ratio)), 5, 0, Math.PI * 2); ctx.fill(); }); });
+  if (composeState.playhead !== null) { const px = left + composeState.playhead * band; ctx.strokeStyle = "#fff4cf"; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(px, top); ctx.lineTo(px, height - bottom); ctx.stroke(); }
+  const active = composeState.activeStep; const chord = composeState.chords[active]; const extra = composeState.bass[active] ? ` · bass ${composeState.bass[active].ratio}` : ""; el("roll-status").textContent = `${steps} steps`; el("roll-inspector").textContent = chord ? `Step ${active + 1}: ${chordTones(chord).join(" · ")}${extra}` : "";
+}
+function startCompositionPlayhead(startTime, stepSeconds) { stopCompositionPlayhead(); const context = audioContext(); const frame = () => { const position = (context.currentTime - startTime) / stepSeconds; if (position < 0) { composeState.playhead = 0; } else if (position <= composeState.chords.length) { composeState.playhead = position; composeState.activeStep = Math.min(composeState.chords.length - 1, Math.floor(position)); } else { stopCompositionPlayhead(); return; } renderCompositionRoll(); composeState.playheadFrame = requestAnimationFrame(frame); }; frame(); }
+function stopCompositionPlayhead() { if (composeState.playheadFrame) cancelAnimationFrame(composeState.playheadFrame); composeState.playheadFrame = null; composeState.playhead = null; if (composeState.chords.length) renderCompositionRoll(); }
+el("composition-roll").onclick = event => { if (!composeState.chords.length) return; const rect = event.currentTarget.getBoundingClientRect(), x = (event.clientX - rect.left) * event.currentTarget.width / rect.width, step = Math.max(0, Math.min(composeState.chords.length - 1, Math.floor((x - 68) / (event.currentTarget.width - 88) * composeState.chords.length))); selectCompositionStep(step, true); };
+[
+  "roll-harmony", "roll-bass", "roll-melody"
+].forEach(id => el(id).onchange = renderCompositionRoll);
 function compositionEvents() {
   const step = beatSeconds() * 2, events = [];
   composeState.chords.forEach((chord, index) => {

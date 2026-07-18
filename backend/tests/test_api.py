@@ -13,6 +13,7 @@ def test_root_landing_page() -> None:
     response = client.get("/")
     assert response.status_code == 200
     assert "Pure Intonation Workbench" in response.text
+    assert 'id="composition-roll"' in response.text
     assert client.get("/favicon.ico").status_code == 204
 
 
