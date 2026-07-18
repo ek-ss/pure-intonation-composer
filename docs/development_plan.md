@@ -149,6 +149,14 @@ composition visualization. It must use a cents-based vertical axis rather
 than MIDI-note rows, so that the actual sizes of pure intervals remain
 visible.
 
+Status
+
+* Stage 1 Composition Roll — Done: cents axis, octave guides, harmony stacks,
+  bass and melody paths, layer toggles, chord selection, and playback playhead
+  are available in the Compose workbench.
+* Graph-linked selection, voice-leading connectors, zoom/pan, mobile layer
+  mode, and project-view persistence remain planned.
+
 #### Primary View: Composition Roll
 
 * **Horizontal axis:** chord step and musical time. The grid follows the
@@ -207,7 +215,7 @@ the exact visualization can be restored from a JSON project export.
 #### Delivery Sequence
 
 1. Add the read-only composition roll with harmony, bass, melody, and a
-   playback playhead.
+   playback playhead. — Done
 2. Link selection to the harmonic graph and pitch circle; add layer and label
    controls.
 3. Add voice-leading connectors, inspector, zoom/pan, and mobile layer mode.
