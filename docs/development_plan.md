@@ -284,6 +284,305 @@ Planned
 * MIDI note names for exported files
 * Project save/load with grouped state
 
+## G9. Exponent-Lattice Harmony Laboratory
+
+This is a new experimental platform alongside CPS, not a CPS generator mode.
+It treats products of integer generators as points in an exponent lattice and
+represents a harmony by one root pitch plus an ordered sequence of exponent
+difference vectors.
+
+Status
+
+* Mathematical model and implementation plan — Defined below
+* Core, API, workbench, persistence, and composition integration — Planned
+
+### G9.1 Mathematical Model
+
+Let the ordered generator basis be
+
+```text
+A = (a1, a2, ..., ad),  aj ∈ Z, aj >= 2
+```
+
+and let an exponent coordinate be
+
+```text
+r = (n1, n2, ..., nd) ∈ Z^d.
+```
+
+The exact rational represented by the coordinate is
+
+```text
+Q_A(r) = product(aj ^ nj), j = 1..d.
+```
+
+Negative exponents are allowed, so `Q_A` must be calculated with exact
+fractions. Octave normalization is
+
+```text
+N(q) = 2^k q, with the unique k such that 1 <= N(q) < 2.
+```
+
+The generated scale for an exponent domain `D ⊂ Z^d` is
+
+```text
+S(A, D) = {N(Q_A(r)) | r ∈ D}.
+```
+
+The first implementation uses a finite rectangular domain defined by an
+inclusive minimum and maximum exponent for every generator. Arbitrary point
+sets and constrained domains may be added later.
+
+Generator coordinates and sounding pitch classes must remain separate.
+Composite or multiplicatively dependent generators can map distinct vectors
+to the same octave-normalized ratio. Define
+
+```text
+r ~ s iff N(Q_A(r)) = N(Q_A(s)).
+```
+
+The laboratory preserves every lattice coordinate while also assigning a
+shared pitch-class id to equivalent coordinates. Users can choose whether a
+view shows all coordinates or merges equivalent sounding pitches. The basis
+value `2` is allowed for analysis, but its exponent disappears after octave
+normalization and the UI must warn that it is an octave-only/null direction.
+
+### G9.2 Root-and-Difference Harmony Representation
+
+A harmony is stored as
+
+```text
+H = (rho, A, Delta)
+
+rho   : positive rational root pitch
+A     : ordered integer generator basis
+Delta : ordered list (Δr1, Δr2, ..., Δrp), Δri ∈ Z^d
+```
+
+The difference vectors are interpreted cumulatively:
+
+```text
+s0 = (0, ..., 0)
+si = sum(Δrj), j = 1..i
+tone_i = N(rho * Q_A(si)).
+```
+
+Therefore `tone_0 = N(rho)`, and the root plus the difference-vector list is
+sufficient to reconstruct the complete ordered harmony stack. Root-relative
+offsets `(s0, s1, ..., sp)` are derived data and should be returned by the API
+for inspection, but the canonical serialized form stores the differences.
+
+The order is musically meaningful even when the result is played as a
+simultaneous chord: it records the construction path, supports deterministic
+stack display, and permits rotation or reversal transforms. The UI must offer
+explicit ordering policies when converting an unordered pitch set:
+
+* user-entered order;
+* ascending cents;
+* nearest-neighbor lattice path;
+* generator-priority lexicographic order.
+
+Changing only `rho` transposes the same harmonic shape. Replacing a difference
+vector changes one local relation and propagates to all later cumulative
+tones. This distinction must be visible in both the editor and undo history.
+
+### G9.3 Canonical Data Models
+
+```text
+ExponentBasis
+  generators: tuple[int, ...]
+  labels: tuple[str, ...]
+  prime_matrix: matrix[int]       # generator prime decompositions
+  dependencies: list[vector[int]] # detected null/equivalent directions
+
+ExponentDomain
+  minimum: tuple[int, ...]
+  maximum: tuple[int, ...]
+  max_points: int
+
+ExponentPitch
+  vector: tuple[int, ...]
+  raw_ratio: Ratio
+  normalized_ratio: Ratio
+  octave_shift: int
+  cents: float
+  pitch_class_id: str
+
+DifferenceHarmony
+  root_ratio: Ratio
+  root_vector: tuple[int, ...] | null
+  basis: ExponentBasis
+  differences: tuple[tuple[int, ...], ...]
+  cumulative_offsets: derived tuple[tuple[int, ...], ...]
+  tones: derived tuple[ExponentPitch, ...]
+```
+
+All dimensions must match the basis length. JSON import rejects dimension
+mismatches, zero/negative generators, an empty basis, invalid roots, and a
+domain whose point count exceeds the configured limit.
+
+### G9.4 Algorithms and Metrics
+
+Core operations
+
+* exact exponent-product evaluation and octave normalization;
+* finite lattice enumeration with deterministic ordering;
+* collision grouping by normalized `Fraction`;
+* difference-to-cumulative and cumulative-to-difference round trips;
+* harmony reconstruction from root plus differences;
+* root transposition, path rotation, reversal, and sign inversion;
+* nearest lattice coordinate search for an imported rational pitch;
+* seeded walks using a configurable vocabulary of allowed difference vectors.
+
+Distance views
+
+* lattice distance: weighted `L1` or `L2` distance in exponent coordinates;
+* prime/monzo distance: transform coordinates through the basis prime matrix;
+* acoustic distance: absolute cents after octave normalization;
+* path cost: sum of local difference costs plus collision and large-leap
+  penalties.
+
+Lattice distance and acoustic distance must never be presented as equivalent.
+A short lattice move may wrap across the octave boundary, and a nontrivial
+null direction may produce zero acoustic distance.
+
+### G9.5 Experimental Workbench
+
+Add a separate **Exponent Lattice Lab** source next to, rather than inside,
+the CPS controls.
+
+Controls
+
+* ordered generator list `a,b,c,...` with optional labels;
+* per-generator minimum/maximum exponent;
+* root ratio and optional root lattice coordinate;
+* editable difference-vector rows with add, remove, reorder, and duplicate;
+* ordering and collision policies;
+* allowed-step vocabulary, progression length, and random seed;
+* audition, export, and "send harmony to Compose" commands.
+
+Views
+
+* scale table: vector, raw ratio, normalized ratio, octave shift, cents, and
+  collision group;
+* exponent lattice: selectable two-axis projection for dimensions `d > 2`,
+  with other coordinates filterable or encoded by color;
+* difference path: arrows labeled `Δri`, with the root and cumulative points
+  clearly distinguished;
+* Pitch Circle: sounding pitch classes, with collisions grouped and the active
+  harmony stack highlighted;
+* Composition Roll: root and reconstructed tones over time, with an optional
+  lane for each exponent coordinate;
+* inspector: lattice distance, monzo distance, cents distance, and exact
+  reconstruction formula for the selected relation.
+
+The first 2D projection must be deterministic and user-selected by generator
+axes. PCA or force-directed projections may be offered later, but must not be
+the only representation because they obscure the integer coordinates.
+
+### G9.6 Proposed API
+
+```text
+POST /api/exponent-lattice/scale
+  basis, exponent domain, collision policy
+  -> coordinates, pitch classes, collision groups, basis diagnostics
+
+POST /api/exponent-lattice/harmony
+  root, basis, ordered difference vectors
+  -> cumulative offsets, reconstructed tones, relation metrics
+
+POST /api/exponent-lattice/walk
+  root vector, allowed differences, length, seed, boundary policy
+  -> deterministic coordinate path and sounding pitches
+
+POST /api/exponent-lattice/analyze
+  basis and vectors or ratios
+  -> prime matrix, dependencies, lattice/monzo/cents distances
+```
+
+Existing CPS endpoints and models remain unchanged. Export endpoints accept
+the reconstructed rational tones through the existing Scala, MIDI, JSON, and
+WAV pathways.
+
+### G9.7 Delivery Plan
+
+EV1 — Exact mathematical core
+
+* Implement immutable basis, vector, domain, and pitch models.
+* Implement exact products, normalization, prime matrix, and dependency
+  diagnostics.
+* Add property tests for normalization and vector arithmetic.
+
+EV2 — Scale generation
+
+* Enumerate bounded exponent domains and group pitch collisions.
+* Add scale endpoint and table-oriented response.
+* Enforce initial limits: at most 8 generators, exponents `-16..16`, and
+  4096 enumerated coordinates per request.
+
+EV3 — Difference harmony
+
+* Implement cumulative reconstruction and inverse differencing.
+* Add root transposition and deterministic ordering conversion.
+* Add harmony endpoint and JSON serialization.
+
+EV4 — Walk and composition bridge
+
+* Implement allowed-difference walks with fixed seeds and boundary policies
+  (`stop`, `reflect`, `wrap`, `reject-and-resample`).
+* Send reconstructed harmony stacks to voice leading, bass, melody, playback,
+  and export without changing their existing contracts.
+
+EV5 — Experimental UI
+
+* Add basis/domain editor, difference-sequence editor, scale table, lattice
+  projection, difference arrows, Pitch Circle layer, and Composition Roll
+  coordinate lanes.
+* Keep the feature behind an `Experimental` label until EV1-EV6 acceptance
+  criteria pass.
+
+EV6 — Persistence and interoperability
+
+* Add versioned JSON project schema and migration field.
+* Store both generator coordinates and exact reconstructed ratios.
+* Export deduplicated pitch classes to Scala and ordered tones to MIDI/WAV.
+
+EV7 — Performance and documentation
+
+* Benchmark enumeration, collision grouping, and seeded walks.
+* Add worked examples such as bases `(3,5)`, `(3,5,7)`, and a deliberately
+  dependent basis `(3,9)`.
+* Document coordinate/pitch equivalence, generator `2`, negative exponents,
+  and conversion to monzos.
+
+### G9.8 Acceptance Criteria
+
+* Every generated ratio is exact and normalizes to `[1, 2)`.
+* The same basis, domain, difference list, root, and seed always reproduce the
+  same output.
+* Difference/cumulative conversion round-trips without loss.
+* Root plus differences reconstructs every displayed harmony tone exactly.
+* `(3,5)` with vector `(1,-1)` produces `3/5`, normalized to `6/5`.
+* Dependent bases report collisions without discarding their source vectors.
+* Lattice, monzo, and cents distances are exposed as distinct values.
+* Existing CPS generation, Compose, playback, and export tests remain green.
+* Desktop and mobile UI tests cover vector editing, collision display,
+  harmony audition, and JSON round-trip.
+
+### G9.9 Open Design Decisions
+
+Resolve these experimentally before promoting the laboratory to a stable
+scale source:
+
+* whether duplicate sounding pitches remain independently playable or only
+  independently inspectable;
+* whether the canonical harmony order should always be user-authored or may
+  default to a nearest-neighbor lattice path;
+* how generator dependencies should constrain editing, if at all;
+* whether boundary policies operate on exponent coordinates, sounding pitch
+  classes, or both;
+* how much coordinate metadata MIDI/Scala sidecar JSON should preserve.
+
 ---
 
 # 4. Historical Milestones
