@@ -15,6 +15,7 @@ from app.composition.bass import generate_bass
 from app.composition.melody import generate_melody
 from app.composition.rhythm import (
     CompositionClock,
+    RhythmGeneratorSettings,
     RhythmLayer,
     RhythmMapping,
     compile_rhythm,
@@ -425,6 +426,20 @@ def compose_rhythm_generate(request: ComposeRhythmGenerateRequest) -> dict[str, 
     """Generate seeded Compose-native rhythm and compile timed rational events."""
     try:
         chords, bass, melody = _composition_pitches(request)
+        target_settings = (
+            [
+                RhythmGeneratorSettings(
+                    generator.target,
+                    generator.strategy,
+                    generator.profile,
+                    generator.density,
+                    generator.syncopation,
+                )
+                for generator in request.generators
+            ]
+            if request.generators is not None
+            else None
+        )
         layers, mappings, durations, compiled = generate_compose_rhythm(
             _composition_clock(request),
             chords,
@@ -437,11 +452,34 @@ def compose_rhythm_generate(request: ComposeRhythmGenerateRequest) -> dict[str, 
             request.seed,
             request.targets,
             request.composition.transition_scores,
+            target_settings,
         )
         return {
             "strategy": request.strategy,
             "profile": request.profile,
             "seed": request.seed,
+            "generators": [
+                {
+                    "target": setting.target,
+                    "strategy": setting.strategy,
+                    "profile": setting.profile,
+                    "density": setting.density,
+                    "syncopation": setting.syncopation,
+                }
+                for setting in (
+                    target_settings
+                    or [
+                        RhythmGeneratorSettings(
+                            target,
+                            request.strategy,
+                            request.profile,
+                            request.density,
+                            request.syncopation,
+                        )
+                        for target in request.targets
+                    ]
+                )
+            ],
             "layers": [
                 {
                     "name": layer.name,

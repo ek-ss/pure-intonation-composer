@@ -19,12 +19,13 @@ Recent additions beyond the original phase scope:
 * Compose and rhythm workbench panels (harmony/bass/melody generation,
   WAV render jobs, MIDI/JSON export)
 * Compose Rhythm Orchestration with imported layer mapping, native rhythm
-  generation, event playback/export, and time-proportional Composition Roll
+  generation, independent Harmony/Bass/Melody generator settings, event
+  playback/export, and time-proportional Composition Roll
 
 Performance tuning and installer distribution remain release-operations
 work and should be measured for each target platform before a production
 release. The test suite currently covers all endpoints and engines
-(149 tests); `ruff` and `mypy` are clean.
+(152 tests); `ruff` and `mypy` are clean.
 
 ---
 
@@ -827,6 +828,11 @@ favors fewer, longer events.
 The output remains deterministic for the same seed and settings. Profiles
 such as `grounded`, `interlocking`, `sparse`, and `flowing` are parameter
 bundles, not separate algorithms.
+
+Harmony, Bass, and Melody expose independent strategy, profile, density, and
+syncopation settings. Bars, tempo, and the root seed remain properties of the
+shared composition clock; the Melody role settings expand to all generated
+melody voices with deterministic per-voice seed offsets. — Done
 
 #### C. Interlocking Onset Allocation
 

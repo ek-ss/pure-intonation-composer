@@ -20,7 +20,7 @@ exports MIDI, Scala, and JSON.
   ASD keyboard audition, and transfer of lattice harmony into Compose
 - **Rhythm engine** — Euclidean rhythms, Hamming-distance state graphs,
   phase shifting, seeded humanization, pitched-layer assignment, and
-  transition-aware/Semi-Markov/interlocking native Compose rhythms
+  per-role transition-aware/Semi-Markov/interlocking native Compose rhythms
 - **Audio** — offline WAV rendering (sine/triangle/saw/square/additive,
   ADSR, delay, reverb) with an async job queue
 - **Export** — MIDI (pitched and GM-percussion rhythm), Scala tuning files,

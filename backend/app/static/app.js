@@ -266,7 +266,7 @@ async function generateHarmony() {
     const graph = await postJson("/api/harmonic-graph", { factors, choose });
     composeState.chords = data.chords; composeState.bass = []; composeState.melody = []; composeState.rhythm = null; composeState.activeStep = 0; setComposeRhythmStatus("", "");
     composeState.graph = graph; composeState.graphInput = { factors, choose }; state.graph = graph; state.walk = data.chords.map(chord => chord.node); state.layout = null; state.gridLayout = null; state.compositionNode = data.chords[0]?.node ?? null; el("graph-toggle").hidden = false;
-    el("composition-roll-panel").hidden = false; renderProgression(); renderCompositionRoll(); setComposeStatus(`${data.length} chords`, "");
+    el("composition-roll-panel").hidden = false; syncNativeRhythmAvailability(); renderProgression(); renderCompositionRoll(); setComposeStatus(`${data.length} chords`, "");
   } catch (error) { setComposeStatus(error.message, "error"); }
 }
 function requireChords() { if (!composeState.chords.length) throw new Error("先に和声進行を生成してください。"); }
@@ -274,14 +274,14 @@ async function generateBass() {
   try {
     requireChords(); setComposeStatus("Bass…", "loading");
     const data = await postJson("/api/compose/bass", { chords: composeState.chords.map(chordTones), strategy: el("bass-strategy").value });
-    composeState.bass = data.notes; clearComposeRhythm(); setComposeStatus(`Bass: ${data.notes.length} notes`, "");
+    composeState.bass = data.notes; syncNativeRhythmAvailability(); clearComposeRhythm(); setComposeStatus(`Bass: ${data.notes.length} notes`, "");
   } catch (error) { setComposeStatus(error.message, "error"); }
 }
 async function generateMelody() {
   try {
     requireChords(); setComposeStatus("Melody…", "loading");
     const data = await postJson("/api/compose/melody", { chords: composeState.chords.map(chordTones), voice_count: Number(el("melody-voices").value), seed: Number(el("harmony-seed").value), contour: el("melody-contour").value });
-    composeState.melody = data.voices; clearComposeRhythm(); setComposeStatus(`Melody: ${data.voices.length} voices`, "");
+    composeState.melody = data.voices; syncNativeRhythmAvailability(); clearComposeRhythm(); setComposeStatus(`Melody: ${data.voices.length} voices`, "");
   } catch (error) { setComposeStatus(error.message, "error"); }
 }
 function scheduleTone(frequency, start, duration, level = 0.2) {
@@ -616,29 +616,48 @@ el("compose-rhythm-apply").onclick = async () => {
     adoptComposeRhythm({ ...data, layers, mappings }, "layers");
   } catch (error) { setComposeRhythmStatus(error.message, "error"); }
 };
-function nativeRhythmTargets() {
-  const targets = [];
-  if (el("compose-rhythm-target-harmony").checked) targets.push("harmony");
-  if (el("compose-rhythm-target-bass").checked && composeState.bass.length) targets.push("bass");
-  if (el("compose-rhythm-target-melody").checked) composeState.melody.forEach((_, index) => targets.push(`melody:${index}`));
-  return targets;
+function syncNativeRhythmAvailability() {
+  const availability = { harmony:composeState.chords.length > 0, bass:composeState.bass.length > 0, melody:composeState.melody.length > 0 };
+  el("compose-rhythm-generate").querySelectorAll("[data-generator-role]").forEach(row => {
+    const enabled = row.querySelector(".rhythm-generator-enabled"), available = availability[row.dataset.generatorRole];
+    if (available && enabled.dataset.available !== "true") enabled.checked = true;
+    enabled.disabled = !available; enabled.dataset.available = String(available);
+    row.classList.toggle("unavailable", !available);
+  });
+}
+function nativeRhythmGenerators() {
+  const generators = [];
+  el("compose-rhythm-generate").querySelectorAll("[data-generator-role]").forEach(row => {
+    const role = row.dataset.generatorRole, enabled = row.querySelector(".rhythm-generator-enabled");
+    if (enabled.disabled || !enabled.checked) return;
+    const settings = {
+      strategy:row.querySelector(".rhythm-generator-strategy").value,
+      profile:row.querySelector(".rhythm-generator-profile").value,
+      density:Number(row.querySelector(".rhythm-generator-density").value),
+      syncopation:Number(row.querySelector(".rhythm-generator-sync").value)
+    };
+    const targets = role === "melody" ? composeState.melody.map((_, index) => `melody:${index}`) : [role];
+    targets.forEach(target => generators.push({ target, ...settings }));
+  });
+  return generators;
 }
 el("compose-rhythm-native").onclick = async () => {
   try {
     requireChords();
-    const targets = nativeRhythmTargets(); if (!targets.length) throw new Error("生成対象を1つ以上選択してください。");
+    const generators = nativeRhythmGenerators(); if (!generators.length) throw new Error("生成対象を1つ以上選択してください。");
     setComposeRhythmStatus("Generating…", "loading");
     const data = await postJson("/api/compose/rhythm/generate", {
       clock:composeRhythmClock(), composition:composeRhythmMaterial(),
-      strategy:el("compose-rhythm-strategy").value, profile:el("compose-rhythm-profile").value,
-      density:Number(el("compose-rhythm-density").value), syncopation:Number(el("compose-rhythm-sync").value),
-      seed:Number(el("compose-rhythm-seed").value), targets
+      seed:Number(el("compose-rhythm-seed").value), generators
     });
     adoptComposeRhythm(data, "generate");
   } catch (error) { setComposeRhythmStatus(error.message, "error"); }
 };
-el("compose-rhythm-density").oninput = event => el("compose-rhythm-density-value").textContent = Number(event.target.value).toFixed(2);
-el("compose-rhythm-sync").oninput = event => el("compose-rhythm-sync-value").textContent = Number(event.target.value).toFixed(2);
+el("compose-rhythm-generate").querySelectorAll(".generator-range input").forEach(input => {
+  const update = () => { input.nextElementSibling.textContent = Number(input.value).toFixed(2); };
+  input.oninput = update; input.onchange = update;
+});
+syncNativeRhythmAvailability();
 
 // ---- Scale editor / snapping / harmonics ----
 function jsMonzo(ratio) {
@@ -1134,6 +1153,7 @@ function latticeComposeChord(harmony) {
 function sendLatticeToCompose(harmonies, label) {
   composeState.chords = harmonies.map(latticeComposeChord);
   composeState.bass = []; composeState.melody = []; composeState.rhythm = null;
+  syncNativeRhythmAvailability();
   setComposeRhythmStatus("", "");
   composeState.activeStep = 0; composeState.graph = null; composeState.graphInput = null;
   state.compositionNode = null; state.walk = null; state.showGraph = false;

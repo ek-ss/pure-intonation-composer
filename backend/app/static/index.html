@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Pure Intonation Workbench</title>
-    <link rel="stylesheet" href="/static/style.css?v=20260726-compose-rhythm">
+    <link rel="stylesheet" href="/static/style.css?v=20260726-role-rhythms">
   </head>
   <body>
     <header class="topbar">
@@ -232,43 +232,38 @@
             <button id="compose-rhythm-apply" class="primary">Apply rhythm</button>
           </div>
           <div id="compose-rhythm-generate" hidden>
-            <div class="compose-grid">
-              <div>
-                <label>Strategy
-                  <select id="compose-rhythm-strategy">
-                    <option value="transition-aware">transition-aware</option>
-                    <option value="semi-markov">semi-markov</option>
-                    <option value="interlocking">interlocking</option>
-                    <option value="ratio-derived">ratio-derived (Experimental)</option>
-                  </select>
-                </label>
-                <label>Profile
-                  <select id="compose-rhythm-profile">
-                    <option value="grounded">grounded</option>
-                    <option value="interlocking">interlocking</option>
-                    <option value="sparse">sparse</option>
-                    <option value="flowing">flowing</option>
-                  </select>
-                </label>
-              </div>
-              <div>
-                <label>Density <output id="compose-rhythm-density-value">0.35</output>
-                  <input id="compose-rhythm-density" type="range" min="0.05" max="0.9" step="0.05" value="0.35">
-                </label>
-                <label>Syncopation <output id="compose-rhythm-sync-value">0.35</output>
-                  <input id="compose-rhythm-sync" type="range" min="0" max="1" step="0.05" value="0.35">
-                </label>
-              </div>
-              <div>
-                <span class="field-label">Targets</span>
-                <div class="target-checks">
-                  <label class="check"><input id="compose-rhythm-target-harmony" type="checkbox" checked> Harmony</label>
-                  <label class="check"><input id="compose-rhythm-target-bass" type="checkbox" checked> Bass</label>
-                  <label class="check"><input id="compose-rhythm-target-melody" type="checkbox" checked> Melody</label>
-                </div>
-                <button id="compose-rhythm-native" class="primary">Generate rhythm</button>
-              </div>
+            <div class="table-wrap compose-rhythm-generator-table">
+              <table>
+                <thead><tr><th>Role</th><th>On</th><th>Strategy</th><th>Profile</th><th>Density</th><th>Syncopation</th></tr></thead>
+                <tbody>
+                  <tr data-generator-role="harmony">
+                    <td>Harmony</td>
+                    <td><input class="rhythm-generator-enabled" type="checkbox" checked aria-label="Harmony rhythm"></td>
+                    <td><select class="rhythm-generator-strategy" aria-label="Harmony strategy"><option value="transition-aware">transition-aware</option><option value="semi-markov">semi-markov</option><option value="interlocking">interlocking</option><option value="ratio-derived">ratio-derived</option></select></td>
+                    <td><select class="rhythm-generator-profile" aria-label="Harmony profile"><option value="grounded">grounded</option><option value="interlocking">interlocking</option><option value="sparse">sparse</option><option value="flowing">flowing</option></select></td>
+                    <td><div class="generator-range"><input class="rhythm-generator-density" type="range" min="0.05" max="0.9" step="0.05" value="0.25" aria-label="Harmony density"><output>0.25</output></div></td>
+                    <td><div class="generator-range"><input class="rhythm-generator-sync" type="range" min="0" max="1" step="0.05" value="0.15" aria-label="Harmony syncopation"><output>0.15</output></div></td>
+                  </tr>
+                  <tr data-generator-role="bass">
+                    <td>Bass</td>
+                    <td><input class="rhythm-generator-enabled" type="checkbox" checked aria-label="Bass rhythm"></td>
+                    <td><select class="rhythm-generator-strategy" aria-label="Bass strategy"><option value="semi-markov">semi-markov</option><option value="transition-aware">transition-aware</option><option value="interlocking">interlocking</option><option value="ratio-derived">ratio-derived</option></select></td>
+                    <td><select class="rhythm-generator-profile" aria-label="Bass profile"><option value="grounded">grounded</option><option value="interlocking">interlocking</option><option value="sparse">sparse</option><option value="flowing">flowing</option></select></td>
+                    <td><div class="generator-range"><input class="rhythm-generator-density" type="range" min="0.05" max="0.9" step="0.05" value="0.35" aria-label="Bass density"><output>0.35</output></div></td>
+                    <td><div class="generator-range"><input class="rhythm-generator-sync" type="range" min="0" max="1" step="0.05" value="0.25" aria-label="Bass syncopation"><output>0.25</output></div></td>
+                  </tr>
+                  <tr data-generator-role="melody">
+                    <td>Melody</td>
+                    <td><input class="rhythm-generator-enabled" type="checkbox" checked aria-label="Melody rhythm"></td>
+                    <td><select class="rhythm-generator-strategy" aria-label="Melody strategy"><option value="semi-markov">semi-markov</option><option value="transition-aware">transition-aware</option><option value="interlocking">interlocking</option><option value="ratio-derived">ratio-derived</option></select></td>
+                    <td><select class="rhythm-generator-profile" aria-label="Melody profile"><option value="flowing">flowing</option><option value="grounded">grounded</option><option value="interlocking">interlocking</option><option value="sparse">sparse</option></select></td>
+                    <td><div class="generator-range"><input class="rhythm-generator-density" type="range" min="0.05" max="0.9" step="0.05" value="0.50" aria-label="Melody density"><output>0.50</output></div></td>
+                    <td><div class="generator-range"><input class="rhythm-generator-sync" type="range" min="0" max="1" step="0.05" value="0.55" aria-label="Melody syncopation"><output>0.55</output></div></td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
+            <button id="compose-rhythm-native" class="primary">Generate rhythm</button>
           </div>
         </div>
         <div id="progression" class="progression" aria-live="polite"></div>
@@ -416,6 +411,6 @@
       </section>
     </main>
     <template id="key-template"><button class="key"><span class="key-name"></span><span class="ratio"></span></button></template>
-    <script src="/static/app.js?v=20260726-compose-rhythm"></script>
+    <script src="/static/app.js?v=20260726-role-rhythms"></script>
   </body>
 </html>

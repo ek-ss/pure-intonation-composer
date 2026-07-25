@@ -234,6 +234,32 @@ class ComposeRhythmApplyRequest(BaseModel):
     chord_durations: list[int] | None = Field(default=None, max_length=256)
 
 
+class ComposeRhythmGeneratorRequest(BaseModel):
+    target: str = Field(min_length=1, max_length=40)
+    strategy: Literal[
+        "transition-aware", "semi-markov", "interlocking", "ratio-derived"
+    ] = "transition-aware"
+    profile: Literal["grounded", "interlocking", "sparse", "flowing"] = "grounded"
+    density: float = Field(default=0.35, ge=0.02, le=0.95)
+    syncopation: float = Field(default=0.35, ge=0, le=1)
+
+    @field_validator("target")
+    @classmethod
+    def target_must_be_supported(cls, value: str) -> str:
+        if value in {"harmony", "bass"}:
+            return value
+        prefix, separator, index = value.partition(":")
+        if (
+            prefix not in {"melody", "chord_tone"}
+            or separator != ":"
+            or not index.isdigit()
+        ):
+            raise ValueError(
+                "target must be harmony, bass, melody:i, or chord_tone:i"
+            )
+        return value
+
+
 class ComposeRhythmGenerateRequest(BaseModel):
     clock: CompositionClockRequest = Field(default_factory=CompositionClockRequest)
     composition: CompositionPitchesRequest
@@ -244,6 +270,11 @@ class ComposeRhythmGenerateRequest(BaseModel):
     density: float = Field(default=0.35, ge=0.02, le=0.95)
     syncopation: float = Field(default=0.35, ge=0, le=1)
     seed: int = 0
+    generators: list[ComposeRhythmGeneratorRequest] | None = Field(
+        default=None,
+        min_length=1,
+        max_length=16,
+    )
     targets: list[str] = Field(
         default_factory=lambda: ["harmony", "bass", "melody:0"],
         min_length=1,
@@ -265,6 +296,16 @@ class ComposeRhythmGenerateRequest(BaseModel):
                 raise ValueError(
                     "targets must contain harmony, bass, melody:i, or chord_tone:i"
                 )
+        return values
+
+    @field_validator("generators")
+    @classmethod
+    def generator_targets_must_be_unique(
+        cls,
+        values: list[ComposeRhythmGeneratorRequest] | None,
+    ) -> list[ComposeRhythmGeneratorRequest] | None:
+        if values is not None and len({value.target for value in values}) != len(values):
+            raise ValueError("generator targets must be unique")
         return values
 
 

@@ -422,20 +422,45 @@ Generate rhythm inside Compose without a Rhythm-panel source:
     "melody": [["3/2", "5/3"]],
     "transition_scores": [null, 500]
   },
-  "strategy": "transition-aware",
-  "profile": "grounded",
-  "density": 0.35,
-  "syncopation": 0.35,
   "seed": 42,
-  "targets": ["harmony", "bass", "melody:0"]
+  "generators": [
+    {
+      "target": "harmony",
+      "strategy": "transition-aware",
+      "profile": "sparse",
+      "density": 0.2,
+      "syncopation": 0.1
+    },
+    {
+      "target": "bass",
+      "strategy": "semi-markov",
+      "profile": "grounded",
+      "density": 0.35,
+      "syncopation": 0.25
+    },
+    {
+      "target": "melody:0",
+      "strategy": "interlocking",
+      "profile": "flowing",
+      "density": 0.55,
+      "syncopation": 0.65
+    }
+  ]
 }
 ```
 
 Strategies: `transition-aware`, `semi-markov`, `interlocking`, and
 experimental `ratio-derived`. Profiles: `grounded`, `interlocking`, `sparse`,
-and `flowing`. The response includes generated `layers`, `mappings`,
-subdivision-based `chord_durations`, and the same compiled event contract as
-`/apply`. Output is deterministic for identical inputs and seed.
+and `flowing`. Every `generators[]` entry independently controls one exact
+target. The UI expands its Melody row into `melody:0`, `melody:1`, and so on.
+Harmony's strategy controls harmonic chord durations; the other strategies
+control their own onset patterns. For backward compatibility, requests may
+still use top-level `strategy`, `profile`, `density`, `syncopation`, and
+`targets`.
+
+The response includes the effective `generators`, generated `layers`,
+`mappings`, subdivision-based `chord_durations`, and the same compiled event
+contract as `/apply`. Output is deterministic for identical inputs and seed.
 
 ---
 

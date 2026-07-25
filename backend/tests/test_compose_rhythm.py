@@ -5,6 +5,7 @@ from fastapi.testclient import TestClient
 
 from app.composition.rhythm import (
     CompositionClock,
+    RhythmGeneratorSettings,
     RhythmLayer,
     RhythmMapping,
     compile_rhythm,
@@ -210,6 +211,40 @@ def test_native_rhythm_strategies_are_deterministic(strategy: str) -> None:
     assert compiled.clock.total_ticks == 3840
 
 
+def test_native_rhythm_uses_independent_target_settings() -> None:
+    clock = CompositionClock(bars=2)
+    chords, bass, melody = _material()
+    settings = [
+        RhythmGeneratorSettings("harmony", "transition-aware", "sparse", 0.08, 0.0),
+        RhythmGeneratorSettings("bass", "semi-markov", "flowing", 0.9, 0.1),
+        RhythmGeneratorSettings("melody:0", "interlocking", "grounded", 0.5, 0.9),
+    ]
+    layers, mappings, durations, compiled = generate_compose_rhythm(
+        clock,
+        chords,
+        bass,
+        melody,
+        "transition-aware",
+        "grounded",
+        0.35,
+        0.35,
+        41,
+        [],
+        [None, 700],
+        settings,
+    )
+    assert [mapping.target for mapping in mappings] == [
+        "harmony",
+        "bass",
+        "melody:0",
+    ]
+    assert sum(layers[0].pattern) < sum(layers[1].pattern)
+    assert mappings[0].gate == pytest.approx(1.4)
+    assert mappings[1].articulation == "tie"
+    assert sum(durations) == clock.total_subdivisions
+    assert compiled.events
+
+
 def test_compose_rhythm_apply_endpoint() -> None:
     response = client.post(
         "/api/compose/rhythm/apply",
@@ -259,6 +294,70 @@ def test_compose_rhythm_generate_endpoint() -> None:
     assert sum(data["chord_durations"]) == 32
     assert len(data["layers"]) == 3
     assert data["events"]
+
+
+def test_compose_rhythm_generate_endpoint_accepts_independent_settings() -> None:
+    response = client.post(
+        "/api/compose/rhythm/generate",
+        json={
+            "clock": {"bars": 2},
+            "composition": {
+                "chords": [["1/1", "5/4", "3/2"], ["9/8", "4/3", "5/3"]],
+                "bass": ["1/2", "9/16"],
+                "melody": [["3/2", "5/3"]],
+                "transition_scores": [None, 500],
+            },
+            "seed": 23,
+            "generators": [
+                {
+                    "target": "harmony",
+                    "strategy": "transition-aware",
+                    "profile": "sparse",
+                    "density": 0.1,
+                    "syncopation": 0.1,
+                },
+                {
+                    "target": "bass",
+                    "strategy": "semi-markov",
+                    "profile": "flowing",
+                    "density": 0.8,
+                    "syncopation": 0.2,
+                },
+                {
+                    "target": "melody:0",
+                    "strategy": "interlocking",
+                    "profile": "grounded",
+                    "density": 0.5,
+                    "syncopation": 0.9,
+                },
+            ],
+        },
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert [item["target"] for item in data["generators"]] == [
+        "harmony",
+        "bass",
+        "melody:0",
+    ]
+    assert data["generators"][0]["density"] == pytest.approx(0.1)
+    assert data["generators"][1]["profile"] == "flowing"
+    assert data["generators"][2]["syncopation"] == pytest.approx(0.9)
+    assert data["events"]
+
+
+def test_compose_rhythm_generate_rejects_duplicate_generator_targets() -> None:
+    response = client.post(
+        "/api/compose/rhythm/generate",
+        json={
+            "composition": {"chords": [["1/1"]]},
+            "generators": [
+                {"target": "harmony"},
+                {"target": "harmony", "density": 0.6},
+            ],
+        },
+    )
+    assert response.status_code == 422
 
 
 def test_compose_rhythm_rejects_unknown_mapping_layer() -> None:

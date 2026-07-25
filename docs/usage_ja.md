@@ -137,9 +137,10 @@ CPSの和声グラフから、複数パートを含むテクスチャ全体を�
   割り当てます。`Chord tones`、`Roles`、`Hybrid`プリセットに加え、各行で
   対象、声部方針、音数不足時の処理、gate、velocity、octave、articulation、
   collisionを編集でき、On/Soloも指定できます。
-* `Generate`ではRhythmパネルと独立して、transition-aware、
-  Semi-Markov、interlocking、実験的ratio-derivedの各戦略からイベントを
-  生成します。profile、density、syncopation、対象、bars、seedを指定します。
+* `Generate`ではHarmony、Bass、Melodyの各行に独立したStrategy、Profile、
+  Density、Syncopationを設定します。transition-aware、Semi-Markov、
+  interlocking、実験的ratio-derivedを役割ごとに選択できます。Melody行の
+  設定は生成済みの全旋律声部へ適用され、barsとseedは全体で共有します。
 * **Apply rhythm / Generate rhythm**後は、再生、MIDI、JSON、WAVが同じ
   tick単位イベント列を使用します。**Clear rhythm**で従来の固定ステップへ
   戻ります。

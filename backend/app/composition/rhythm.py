@@ -55,6 +55,15 @@ class RhythmMapping:
 
 
 @dataclass(frozen=True)
+class RhythmGeneratorSettings:
+    target: str
+    strategy: str = "transition-aware"
+    profile: str = "grounded"
+    density: float = 0.35
+    syncopation: float = 0.35
+
+
+@dataclass(frozen=True)
 class RhythmicNoteEvent:
     track_id: str
     chord_index: int
@@ -187,42 +196,51 @@ def generate_compose_rhythm(
     seed: int,
     targets: list[str],
     transition_scores: list[float | None] | None = None,
+    target_settings: list[RhythmGeneratorSettings] | None = None,
 ) -> tuple[list[RhythmLayer], list[RhythmMapping], list[int], CompiledRhythm]:
     """Generate deterministic Compose-native patterns and compile their events."""
-    if strategy not in {"transition-aware", "semi-markov", "interlocking", "ratio-derived"}:
-        raise ValueError("unknown Compose rhythm strategy")
-    if profile not in {"grounded", "interlocking", "sparse", "flowing"}:
-        raise ValueError("unknown Compose rhythm profile")
-    if not 0.02 <= density <= 0.95 or not 0 <= syncopation <= 1:
-        raise ValueError("density and syncopation are out of range")
-    if not targets:
+    settings = (
+        target_settings
+        if target_settings is not None
+        else [
+            RhythmGeneratorSettings(target, strategy, profile, density, syncopation)
+            for target in targets
+        ]
+    )
+    _validate_generator_settings(settings)
+    if not settings:
         raise ValueError("at least one target is required")
+    harmony_settings = next(
+        (setting for setting in settings if setting.target == "harmony"),
+        None,
+    )
+    use_transition_timing = (
+        harmony_settings is not None and harmony_settings.strategy == "transition-aware"
+        if target_settings is not None
+        else strategy == "transition-aware"
+    )
     chord_durations = (
         transition_aware_durations(clock, chords, transition_scores, seed)
-        if strategy == "transition-aware"
+        if use_transition_timing
         else _even_chord_durations(clock.total_subdivisions, len(chords))
     )
     layers = _native_layers(
         clock,
         chords,
-        strategy,
-        profile,
-        density,
-        syncopation,
         seed,
-        targets,
+        settings,
         chord_durations,
     )
     mappings = [
         RhythmMapping(
             layer.name,
-            target,
-            gate=_profile_gate(profile, target),
-            velocity_scale=_role_velocity(target),
-            collision="retrigger" if target == "harmony" else "merge",
-            articulation="tie" if profile == "flowing" else "gate",
+            setting.target,
+            gate=_profile_gate(setting.profile, setting.target),
+            velocity_scale=_role_velocity(setting.target),
+            collision="retrigger" if setting.target == "harmony" else "merge",
+            articulation="tie" if setting.profile == "flowing" else "gate",
         )
-        for layer, target in zip(layers, targets)
+        for layer, setting in zip(layers, settings)
     ]
     compiled = compile_rhythm(
         clock,
@@ -296,12 +314,8 @@ def transition_aware_durations(
 def _native_layers(
     clock: CompositionClock,
     chords: list[list[Fraction]],
-    strategy: str,
-    profile: str,
-    density: float,
-    syncopation: float,
     seed: int,
-    targets: list[str],
+    settings: list[RhythmGeneratorSettings],
     chord_durations: list[int],
 ) -> list[RhythmLayer]:
     total = clock.total_subdivisions
@@ -312,15 +326,16 @@ def _native_layers(
         cursor += duration
     layers: list[RhythmLayer] = []
     placed: list[list[int]] = []
-    for index, target in enumerate(targets):
-        role_density = _role_density(profile, target, density)
-        if strategy == "ratio-derived":
+    for index, setting in enumerate(settings):
+        target = setting.target
+        role_density = _role_density(setting.profile, target, setting.density)
+        if setting.strategy == "ratio-derived":
             pattern = _ratio_derived_pattern(total, chords, role_density, index)
-        elif strategy == "interlocking":
+        elif setting.strategy == "interlocking":
             pattern = _interlocking_pattern(
                 total,
                 role_density,
-                syncopation,
+                setting.syncopation,
                 seed + index,
                 boundaries,
                 placed,
@@ -330,11 +345,11 @@ def _native_layers(
             pattern = _semi_markov_pattern(
                 total,
                 role_density,
-                syncopation,
+                setting.syncopation,
                 seed + index,
                 boundaries,
                 target,
-                profile,
+                setting.profile,
                 clock,
             )
         if target in {"harmony", "bass"}:
@@ -346,6 +361,27 @@ def _native_layers(
         layers.append(RhythmLayer(f"native-{index + 1}", tuple(pattern), velocities))
         placed.append(pattern)
     return layers
+
+
+def _validate_generator_settings(settings: list[RhythmGeneratorSettings]) -> None:
+    strategies = {"transition-aware", "semi-markov", "interlocking", "ratio-derived"}
+    profiles = {"grounded", "interlocking", "sparse", "flowing"}
+    if len({setting.target for setting in settings}) != len(settings):
+        raise ValueError("Compose rhythm generator targets must be unique")
+    for setting in settings:
+        prefix, separator, index = setting.target.partition(":")
+        if setting.target not in {"harmony", "bass"} and (
+            prefix not in {"melody", "chord_tone"}
+            or separator != ":"
+            or not index.isdigit()
+        ):
+            raise ValueError(f"unknown Compose rhythm target: {setting.target}")
+        if setting.strategy not in strategies:
+            raise ValueError("unknown Compose rhythm strategy")
+        if setting.profile not in profiles:
+            raise ValueError("unknown Compose rhythm profile")
+        if not 0.02 <= setting.density <= 0.95 or not 0 <= setting.syncopation <= 1:
+            raise ValueError("density and syncopation are out of range")
 
 
 def _semi_markov_pattern(

@@ -290,7 +290,23 @@ chord_tone_index
 
 ---
 
-# 14. RhythmicNoteEvent
+# 14. CompositionRhythmGenerator
+
+```text
+target
+
+strategy
+
+profile
+
+density
+
+syncopation
+```
+
+---
+
+# 15. RhythmicNoteEvent
 
 ```text
 track_id
@@ -312,7 +328,7 @@ source_layer
 
 ---
 
-# 15. DrumHit
+# 16. DrumHit
 
 ```text
 instrument
@@ -326,7 +342,7 @@ probability
 
 ---
 
-# 16. DrumPattern
+# 17. DrumPattern
 
 ```text
 id
@@ -342,7 +358,7 @@ density
 
 ---
 
-# 17. DrumState
+# 18. DrumState
 
 ```text
 pattern
@@ -354,7 +370,7 @@ transition_probability
 
 ---
 
-# 18. RhythmLayer
+# 19. RhythmLayer
 
 ```text
 generator
@@ -368,7 +384,7 @@ patterns[]
 
 ---
 
-# 19. FormSection
+# 20. FormSection
 
 ```text
 name
@@ -388,7 +404,7 @@ tempo
 
 ---
 
-# 17. Composition
+# 21. Composition
 
 Top-level object.
 
@@ -410,7 +426,7 @@ seed
 
 ---
 
-# 18. AudioPreset
+# 22. AudioPreset
 
 ```text
 name
@@ -426,7 +442,7 @@ effects
 
 ---
 
-# 19. EffectChain
+# 23. EffectChain
 
 ```text
 reverb
@@ -442,7 +458,7 @@ eq
 
 ---
 
-# 20. RenderSettings
+# 24. RenderSettings
 
 ```text
 sample_rate
@@ -458,7 +474,7 @@ dither
 
 ---
 
-# 21. Project
+# 25. Project
 
 Represents one saved project.
 
@@ -480,7 +496,7 @@ modified
 
 ---
 
-# 22. Metadata
+# 26. Metadata
 
 ```text
 title
@@ -496,7 +512,7 @@ description
 
 ---
 
-# 23. Serialization
+# 27. Serialization
 
 All objects must support
 
@@ -514,7 +530,7 @@ PostgreSQL
 
 ---
 
-# 24. Validation
+# 28. Validation
 
 All ratios
 
@@ -535,7 +551,7 @@ All UUIDs
 
 ---
 
-# 25. Immutability
+# 29. Immutability
 
 Musical objects are immutable.
 
@@ -543,7 +559,7 @@ Editing produces new objects rather than modifying existing ones.
 
 ---
 
-# 26. Versioning
+# 30. Versioning
 
 Every serialized file contains
 

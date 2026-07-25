@@ -175,10 +175,11 @@ Builds a full texture from a CPS harmonic graph.
   `Roles`, and `Hybrid`; every row can change target, assignment policy,
   overflow, gate, velocity, octave, articulation, and collision handling.
   On/Solo checkboxes control which source tracks compile.
-* `Generate` creates rhythm inside Compose. Choose transition-aware harmonic
-  rhythm, seeded Semi-Markov voices, interlocking onset allocation, or the
-  experimental ratio-derived cycles, plus a profile, density, syncopation,
-  targets, bars, and seed.
+* `Generate` gives Harmony, Bass, and Melody independent Strategy, Profile,
+  Density, and Syncopation controls. Each row can use transition-aware
+  harmonic rhythm, seeded Semi-Markov generation, interlocking onset
+  allocation, or experimental ratio-derived cycles. The Melody row applies
+  to every generated melody voice; bars and seed remain shared.
 * **Apply rhythm / Generate rhythm** compiles an integer-tick event timeline.
   Playback and all exports use those exact events. **Clear rhythm** restores
   the original fixed two-beat-per-chord behavior.

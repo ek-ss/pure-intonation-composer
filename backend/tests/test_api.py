@@ -18,9 +18,12 @@ def test_root_landing_page() -> None:
     assert 'id="lattice-progression"' in response.text
     assert 'id="lattice-walk-compose"' in response.text
     assert 'id="lattice-keyboard"' in response.text
-    assert "/static/app.js?v=20260726-compose-rhythm" in response.text
+    assert "/static/app.js?v=20260726-role-rhythms" in response.text
     assert 'id="compose-rhythm-apply"' in response.text
     assert 'id="compose-rhythm-native"' in response.text
+    assert 'data-generator-role="harmony"' in response.text
+    assert 'data-generator-role="bass"' in response.text
+    assert 'data-generator-role="melody"' in response.text
     script = client.get("/static/app.js")
     assert script.status_code == 200
     assert "renderHarmonyStackOnCircle" in script.text
