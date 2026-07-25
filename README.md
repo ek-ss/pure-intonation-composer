@@ -86,6 +86,8 @@ docs/
   api.md               Implemented REST/WebSocket API reference
   data_model.md        Conceptual data model specification
   development_plan.md  Active roadmap and detailed feature designs
+  development_plan_genre_arrangement.md
+                       Planned genre-guided arrangement pipeline
   examples.md          Copy-paste API usage examples
   visualization.md     Graph layout specification
 ```

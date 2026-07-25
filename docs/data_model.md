@@ -573,3 +573,68 @@ Every serialized file contains
 ```
 
 Backward compatibility should be maintained whenever possible.
+
+---
+
+# 31. Genre Arrangement Models (Planned)
+
+The genre arrangement pipeline adds the following versioned project models.
+Their detailed contract is defined in
+[development_plan_genre_arrangement.md](development_plan_genre_arrangement.md).
+
+```text
+BasicChord
+  id
+  name
+  mode
+  tones
+  root_degree
+  allowed_root_degrees
+  tone_vectors
+  tags
+
+GenreProfile
+  id
+  display_name
+  schema_version
+  tempo_range
+  allowed_meters
+  default_form
+  harmony
+  rhythm
+  parts
+  arrangement
+  render
+
+ArrangementSection
+  id
+  role
+  start_bar
+  bars
+  energy_start
+  energy_end
+  harmony_density
+  part_presence
+
+ArrangementProject
+  schema_version
+  metadata
+  source_scale
+  chord_vocabulary
+  requested_profile
+  resolved_profile
+  seed
+  form
+  harmony_progression
+  clock
+  tracks
+  events
+  automation
+  mix
+  render_settings
+  decision_trace
+```
+
+`ArrangementProject` extends the conceptual `Project` boundary rather than
+introducing a second persistence format. Exact ratio and lattice-coordinate
+provenance must survive JSON round-trips.

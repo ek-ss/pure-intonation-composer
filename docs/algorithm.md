@@ -354,7 +354,12 @@ Optional tempo-independent phase drift may also be enabled.
 
 The form generator controls macro-scale evolution.
 
-Supported forms
+This remains planned. Its first concrete implementation is specified by the
+[Genre Arrangement Pipeline](development_plan_genre_arrangement.md), which
+adds exact section lengths, energy curves, genre profiles, and locked-section
+regeneration.
+
+Candidate forms
 
 ABA
 

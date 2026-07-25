@@ -944,6 +944,34 @@ CR5 — Experimental evaluation — Partially done
   within one UI frame.
 * Clearing rhythm restores the current fixed-step Compose behavior.
 
+## G11. Genre Arrangement Pipeline
+
+Status
+
+* Planned
+
+G11 will turn a generated scale and a user-selected vocabulary of basic exact-
+ratio chords into a complete genre-guided arrangement. It sits above Compose
+and G10: the new layer generates form, section-aware harmony, coordinated
+drums, bass, comping, melody, and texture roles, then compiles them to the
+existing integer-tick event model.
+
+The first profiles are Pop, Ambient, Alternative Rock, and Future Bass.
+Profiles are versioned, editable parameter bundles rather than opaque genre
+labels. Exact ratios remain authoritative, and genre preferences must adapt
+when the supplied scale or chord vocabulary does not contain conventional
+12-EDO chord types.
+
+The same arrangement timeline must drive workbench playback, type-1
+microtonal MIDI, lossless JSON, preview rendering, and stems. Project JSON
+import/migration, instrument presets, and section-level regeneration are
+therefore part of the delivery boundary.
+
+See
+[development_plan_genre_arrangement.md](development_plan_genre_arrangement.md)
+for the input/profile models, genre behavior, algorithms, API, staged delivery
+plan, and acceptance criteria.
+
 ---
 
 # 4. Historical Milestones
