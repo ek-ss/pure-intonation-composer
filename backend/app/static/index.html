@@ -216,6 +216,85 @@
         <p id="roll-inspector" class="hint" aria-live="polite"></p>
       </section>
 
+      <section class="panel lattice">
+        <div class="section-heading"><h2>Lattice Lab <span class="experimental">Experimental</span></h2><span id="lattice-status" role="status"></span></div>
+        <div class="compose-grid">
+          <div>
+            <label>生成子（カンマ区切り）
+              <input id="lattice-generators" value="3, 5">
+            </label>
+            <label>指数の最小
+              <input id="lattice-min" value="-2, -2">
+            </label>
+            <label>指数の最大
+              <input id="lattice-max" value="2, 2">
+            </label>
+            <label>衝突ポリシー
+              <select id="lattice-collision">
+                <option value="keep">keep all</option>
+                <option value="merge">merge</option>
+              </select>
+            </label>
+            <button id="lattice-scale" class="primary">格子を生成</button>
+          </div>
+          <div>
+            <label>ルート音
+              <input id="lattice-root" value="1/1">
+            </label>
+            <label>差分ベクトル（1行に1ベクトル）
+              <textarea id="lattice-diffs" rows="4">1, 0
+0, 1</textarea>
+            </label>
+            <div class="button-row">
+              <button id="lattice-harmony">ハーモニーを再構成</button>
+              <button id="lattice-send-compose" class="quiet">Compose に送る</button>
+            </div>
+            <label>並べ替え
+              <select id="lattice-order">
+                <option value="original">user-entered</option>
+                <option value="ascending">ascending cents</option>
+                <option value="nearest">nearest-neighbor path</option>
+                <option value="lexicographic">generator-priority</option>
+              </select>
+            </label>
+          </div>
+          <div>
+            <label>許可ステップ（1行に1ベクトル）
+              <textarea id="lattice-allowed" rows="4">1, 0
+0, 1
+-1, 0
+0, -1</textarea>
+            </label>
+            <label>長さ
+              <input id="lattice-walk-length" type="number" min="1" max="512" value="16">
+            </label>
+            <label>シード
+              <input id="lattice-walk-seed" type="number" value="42">
+            </label>
+            <label>境界ポリシー
+              <select id="lattice-boundary">
+                <option value="reflect">reflect</option>
+                <option value="stop">stop</option>
+                <option value="wrap">wrap</option>
+                <option value="resample">resample</option>
+              </select>
+            </label>
+            <button id="lattice-walk">ウォーク</button>
+            <button id="lattice-walk-play" class="quiet">▶ 和声ウォーク再生</button>
+          </div>
+        </div>
+        <p id="lattice-inspector" class="hint"></p>
+        <div class="lattice-view">
+          <div>
+            <div class="axis-selects">X <select id="lattice-axis-x"></select> Y <select id="lattice-axis-y"></select></div>
+            <canvas id="lattice-canvas" width="560" height="560" aria-label="指数格子の投影"></canvas>
+          </div>
+          <div class="table-wrap lattice-table">
+            <table><thead><tr><th>Vector</th><th>Raw</th><th>Norm</th><th>Oct</th><th>Cents</th><th>Grp</th></tr></thead><tbody id="lattice-points"></tbody></table>
+          </div>
+        </div>
+      </section>
+
       <section class="panel rhythm">
         <div class="section-heading"><h2>Rhythm</h2><span id="rhythm-status" role="status"></span></div>
         <div class="drum-controls">

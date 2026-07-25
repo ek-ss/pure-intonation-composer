@@ -66,6 +66,16 @@ function renderCircle() {
     ctx.fillStyle="#ffd47e"; ctx.font="bold 13px system-ui"; ctx.textAlign="center";
     ctx.fillText(`${n}/${d}`, (points[a].x+points[b].x)/2, (points[a].y+points[b].y)/2-8);
   }
+  if(typeof latticeState!=="undefined"&&latticeState.tones.length){
+    latticeState.tones.forEach((tone,i)=>{
+      const angle=((tone.cents%1200)+1200)%1200/1200*Math.PI*2-Math.PI/2;
+      const x=mid+Math.cos(angle)*(radius+16), y=mid+Math.sin(angle)*(radius+16);
+      ctx.fillStyle="#fff4cf"; ctx.save(); ctx.translate(x,y); ctx.rotate(Math.PI/4); ctx.fillRect(-6,-6,12,12); ctx.restore();
+      ctx.fillStyle="#fff4cf"; ctx.font="11px system-ui"; ctx.textAlign="center";
+      ctx.fillText(tone.normalized_ratio, mid+Math.cos(angle)*(radius+40), mid+Math.sin(angle)*(radius+40)+4);
+      ctx.fillStyle="#10131c"; ctx.fillText(String(i+1), x, y+3.5);
+    });
+  }
   canvas.onclick = event => { const rect=canvas.getBoundingClientRect(), x=(event.clientX-rect.left)*size/rect.width, y=(event.clientY-rect.top)*size/rect.height; let nearest=-1, distance=Infinity; state.pitches.forEach((pitch,i)=>{const a=pitch.cents/1200*Math.PI*2-Math.PI/2, px=mid+Math.cos(a)*radius, py=mid+Math.sin(a)*radius, d=Math.hypot(px-x,py-y);if(d<distance){distance=d;nearest=i}}); if(distance<28) play(nearest); };
 }
 function graphLayout(graph, size) {
@@ -612,3 +622,170 @@ el("drums-export-json").onclick = async () => {
   } catch (error) { setRhythmStatus(error.message, "error"); }
 };
 buildDrumUI();
+
+// ---- Lattice Lab (G9 exponent-lattice harmony laboratory, experimental) ----
+const latticeState = { points: [], tones: [], offsets: [], walk: null, walkPitches: null, walkHarmonies: null, selected: null, dims: 0 };
+const GROUP_COLORS = ["#98e7ca", "#83b7ff", "#caa8ff", "#ffd47e", "#ff9d9a", "#a9b9ff", "#7ed6f2", "#f2a97e"];
+function setLatticeStatus(text, kind = "") { const s = el("lattice-status"); s.textContent = text; s.className = kind; }
+function parseInts(source) { const values = source.split(",").map(v => Number(v.trim())).filter(v => !Number.isNaN(v)); if (!values.length || values.some(v => !Number.isInteger(v))) throw new Error("整数をカンマ区切りで入力してください。"); return values; }
+function latticeGenerators() { const g = parseInts(el("lattice-generators").value); if (g.some(v => v < 2) || g.length > 8) throw new Error("生成子は2以上の整数を8個まで入力してください。"); return g; }
+function parseVectorRows(source, dims) {
+  return source.split("\n").map(l => l.trim()).filter(Boolean).map(line => {
+    const v = parseInts(line);
+    if (v.length !== dims) throw new Error(`各ベクトルは ${dims} 次元にしてください。`);
+    return v;
+  });
+}
+function syncLatticeAxes() {
+  const dims = latticeState.dims;
+  ["lattice-axis-x", "lattice-axis-y"].forEach((id, which) => {
+    const select = el(id); select.innerHTML = "";
+    for (let i = 0; i < dims; i++) { const option = document.createElement("option"); option.value = i; option.textContent = `a${i + 1}`; select.append(option); }
+    select.value = which === 0 ? 0 : Math.min(1, dims - 1);
+    select.onchange = renderLatticeCanvas;
+  });
+}
+async function generateLattice() {
+  try {
+    const generators = latticeGenerators();
+    setLatticeStatus("Generating…", "loading");
+    const data = await postJson("/api/exponent-lattice/scale", { generators, minimum: parseInts(el("lattice-min").value), maximum: parseInts(el("lattice-max").value), collision_policy: el("lattice-collision").value });
+    latticeState.points = data.points; latticeState.dims = generators.length; latticeState.tones = []; latticeState.offsets = []; latticeState.walk = null; latticeState.walkPitches = null; latticeState.walkHarmonies = null;
+    syncLatticeAxes(); renderLatticeTable(); renderLatticeCanvas();
+    setLatticeStatus(data.basis.warnings.length ? data.basis.warnings.join(" ") : `${data.point_count} points`, data.basis.warnings.length ? "error" : "");
+  } catch (error) { setLatticeStatus(error.message, "error"); }
+}
+function renderLatticeTable() {
+  const body = el("lattice-points"); body.innerHTML = "";
+  latticeState.points.slice(0, 256).forEach((point, index) => {
+    const row = document.createElement("tr");
+    row.innerHTML = `<td class="monzo">(${point.vector.join(",")})</td><td>${point.ratio}</td><td>${point.normalized_ratio}</td><td>${point.octave_shift}</td><td>${point.cents.toFixed(1)}</td><td>${point.collision_group}</td>`;
+    row.onclick = () => { stopProgression(); scheduleTone(Number(el("base-frequency").value) * ratioValue(point.normalized_ratio), audioContext().currentTime + .05, 1.2); setLatticeStatus(`(${point.vector.join(",")}) → ${point.normalized_ratio} · group ${point.collision_group}`, ""); };
+    body.append(row);
+  });
+  if (latticeState.points.length > 256) setLatticeStatus(`先頭256件を表示 (全 ${latticeState.points.length} 点)`, "");
+}
+function latticeProjection() {
+  const canvas = el("lattice-canvas"), size = canvas.width, margin = 36;
+  const ax = Number(el("lattice-axis-x").value || 0), ay = Number(el("lattice-axis-y").value || 0);
+  const minimum = parseInts(el("lattice-min").value), maximum = parseInts(el("lattice-max").value);
+  const sx = (size - margin * 2) / Math.max(1, maximum[ax] - minimum[ax]), sy = (size - margin * 2) / Math.max(1, maximum[ay] - minimum[ay]);
+  const scale = Math.min(sx, sy);
+  return { canvas, size, ax, ay, project: v => ({ x: margin + (v[ax] - minimum[ax]) * scale + (size - margin * 2 - (maximum[ax] - minimum[ax]) * scale) / 2, y: size - margin - (v[ay] - minimum[ay]) * scale - (size - margin * 2 - (maximum[ay] - minimum[ay]) * scale) / 2 }) };
+}
+function drawArrow(ctx, from, to, color, label) {
+  const angle = Math.atan2(to.y - from.y, to.x - from.x), head = 7;
+  ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(from.x, from.y); ctx.lineTo(to.x, to.y); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(to.x, to.y); ctx.lineTo(to.x - head * Math.cos(angle - .5), to.y - head * Math.sin(angle - .5)); ctx.lineTo(to.x - head * Math.cos(angle + .5), to.y - head * Math.sin(angle + .5)); ctx.fill();
+  if (label) { ctx.font = "10px system-ui"; ctx.textAlign = "center"; ctx.fillText(label, (from.x + to.x) / 2, (from.y + to.y) / 2 - 5); }
+}
+function renderLatticeCanvas() {
+  const { canvas, size, ax, ay, project } = latticeProjection(), ctx = canvas.getContext("2d");
+  ctx.clearRect(0, 0, size, size);
+  latticeState.points.forEach(point => {
+    const p = project(point.vector);
+    ctx.fillStyle = GROUP_COLORS[point.collision_group % GROUP_COLORS.length];
+    ctx.beginPath(); ctx.arc(p.x, p.y, 5, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#aeb9d0"; ctx.font = "9px system-ui"; ctx.textAlign = "center";
+    ctx.fillText(point.normalized_ratio, p.x, p.y - 8);
+  });
+  if (latticeState.offsets.length) {
+    latticeState.offsets.slice(1).forEach((offset, i) => {
+      drawArrow(ctx, project(latticeState.offsets[i]), project(offset), "#98e7ca", `Δ${i + 1}`);
+    });
+    const origin = project(latticeState.offsets[0]);
+    ctx.strokeStyle = "#fff4cf"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(origin.x, origin.y, 9, 0, Math.PI * 2); ctx.stroke();
+  }
+  if (latticeState.walk && latticeState.walk.length > 1) {
+    latticeState.walk.slice(1).forEach((vector, i) => drawArrow(ctx, project(latticeState.walk[i]), project(vector), "#ffd47e"));
+  }
+  if (latticeState.selected) {
+    const p = project(latticeState.selected);
+    ctx.strokeStyle = "#fff4cf"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(p.x, p.y, 10, 0, Math.PI * 2); ctx.stroke();
+  }
+  canvas.onclick = async event => {
+    const rect = canvas.getBoundingClientRect(), x = (event.clientX - rect.left) * size / rect.width, y = (event.clientY - rect.top) * size / rect.height;
+    const nearest = latticeState.points.reduce((best, point) => { const p = project(point.vector), d = Math.hypot(p.x - x, p.y - y); return d < best.distance ? { point, distance: d } : best; }, { point: null, distance: Infinity });
+    if (!nearest.point || nearest.distance >= 24) { latticeState.selected = null; el("lattice-inspector").textContent = ""; renderLatticeCanvas(); return; }
+    stopProgression(); scheduleTone(Number(el("base-frequency").value) * ratioValue(nearest.point.normalized_ratio), audioContext().currentTime + .05, 1.2);
+    const point = nearest.point;
+    if (latticeState.selected && latticeState.selected.join() !== point.vector.join()) {
+      try {
+        const generators = latticeGenerators();
+        const analysis = await postJson("/api/exponent-lattice/analyze", { generators, vectors: [latticeState.selected, point.vector] });
+        const d = analysis.distances[0], terms = generators.map((g, i) => `${g}^${point.vector[i]}`).join(" · ");
+        el("lattice-inspector").textContent = `(${latticeState.selected.join(",")}) → (${point.vector.join(",")}): lattice L1 ${d.lattice_l1} · L2 ${d.lattice_l2.toFixed(2)} · monzo ${d.monzo} · cents ${d.cents.toFixed(1)} ｜ N(root · ${terms})`;
+      } catch (error) { setLatticeStatus(error.message, "error"); }
+      latticeState.selected = null;
+    } else {
+      latticeState.selected = point.vector;
+      el("lattice-inspector").textContent = `(${point.vector.join(",")}) → ${point.ratio} = ${point.normalized_ratio} × 2^${-point.octave_shift} · ${point.cents.toFixed(1)} cents · group ${point.collision_group} ｜ 別の点をクリックすると距離を表示`;
+    }
+    renderLatticeCanvas();
+  };
+}
+function orderLatticeTones() {
+  if (!latticeState.tones.length) return;
+  const mode = el("lattice-order").value;
+  const pairs = latticeState.offsets.map((offset, i) => ({ offset, tone: latticeState.tones[i] }));
+  if (mode === "ascending") pairs.sort((a, b) => a.tone.cents - b.tone.cents);
+  else if (mode === "lexicographic") pairs.sort((a, b) => { for (let i = 0; i < a.offset.length; i++) { if (a.offset[i] !== b.offset[i]) return a.offset[i] - b.offset[i]; } return 0; });
+  else if (mode === "nearest") {
+    const remaining = pairs.splice(0), ordered = [remaining.shift()];
+    while (remaining.length) {
+      const last = ordered.at(-1).offset;
+      let best = 0, distance = Infinity;
+      remaining.forEach((candidate, i) => { const d = candidate.offset.reduce((sum, v, j) => sum + Math.abs(v - last[j]), 0); if (d < distance) { distance = d; best = i; } });
+      ordered.push(remaining.splice(best, 1)[0]);
+    }
+    pairs.push(...ordered);
+  }
+  latticeState.offsets = pairs.map(p => p.offset); latticeState.tones = pairs.map(p => p.tone);
+  renderLatticeCanvas(); renderCircle();
+  setLatticeStatus(`${latticeState.tones.length} tones: ${latticeState.tones.map(t => t.normalized_ratio).join("  ")}`, "");
+}
+el("lattice-order").onchange = orderLatticeTones;
+async function reconstructHarmony() {
+  try {
+    const generators = latticeGenerators();
+    const differences = parseVectorRows(el("lattice-diffs").value, generators.length);
+    const data = await postJson("/api/exponent-lattice/harmony", { root: el("lattice-root").value, generators, differences });
+    latticeState.tones = data.tones; latticeState.offsets = data.offsets; latticeState.walk = null; latticeState.walkPitches = null; latticeState.walkHarmonies = null;
+    if (!latticeState.points.length) { latticeState.dims = generators.length; syncLatticeAxes(); }
+    orderLatticeTones();
+  } catch (error) { setLatticeStatus(error.message, "error"); }
+}
+async function latticeWalk() {
+  try {
+    const generators = latticeGenerators();
+    const harmonyDifferences = parseVectorRows(el("lattice-diffs").value, generators.length);
+    const data = await postJson("/api/exponent-lattice/walk", { generators, start_vector: generators.map(() => 0), allowed_differences: parseVectorRows(el("lattice-allowed").value, generators.length), root: el("lattice-root").value, harmony_differences: harmonyDifferences, length: Number(el("lattice-walk-length").value), seed: Number(el("lattice-walk-seed").value), minimum: parseInts(el("lattice-min").value), maximum: parseInts(el("lattice-max").value), boundary: el("lattice-boundary").value });
+    latticeState.walk = data.path; latticeState.walkPitches = data.pitches; latticeState.walkHarmonies = data.harmonies; latticeState.tones = []; latticeState.offsets = [];
+    if (!latticeState.points.length) { latticeState.dims = generators.length; syncLatticeAxes(); }
+    renderLatticeCanvas(); renderCircle();
+    setLatticeStatus(`walk: ${data.path.length} steps · ${data.harmonies[0]?.tones.length || 0} tones per harmony`, "");
+  } catch (error) { setLatticeStatus(error.message, "error"); }
+}
+el("lattice-scale").onclick = generateLattice;
+el("lattice-harmony").onclick = reconstructHarmony;
+el("lattice-walk").onclick = latticeWalk;
+el("lattice-walk-play").onclick = () => {
+  const harmonies = latticeState.walkHarmonies;
+  if (!harmonies || !harmonies.length) { setLatticeStatus("先にウォークを生成してください。", "error"); return; }
+  stopProgression();
+  const base = Number(el("base-frequency").value), now = audioContext().currentTime + .1;
+  const voiceCount = Math.max(1, ...harmonies.map(harmony => harmony.tones.length));
+  const level = Math.min(.18, .32 / Math.sqrt(voiceCount));
+  harmonies.forEach((harmony, i) => {
+    harmony.tones.forEach(tone => scheduleTone(base * ratioValue(tone.normalized_ratio), now + i * .35, .3, level));
+  });
+  setLatticeStatus(`Playing walk · ${harmonies.length} harmonies × ${voiceCount} tones`, "loading");
+};
+el("lattice-send-compose").onclick = () => {
+  if (!latticeState.tones.length) { setLatticeStatus("先にハーモニーを再構成してください。", "error"); return; }
+  composeState.chords = latticeState.tones.map(t => ({ node: 0, factors: [1], ratio: t.normalized_ratio, transition_score: null }));
+  composeState.bass = []; composeState.melody = [];
+  renderProgression(); setComposeStatus(`Lattice: ${composeState.chords.length} chords`, "");
+  document.querySelector(".compose").scrollIntoView({ behavior: "smooth" });
+};

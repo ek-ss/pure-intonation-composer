@@ -29,6 +29,10 @@ from app.models import (
     HumanizeRequest,
     IntervalRequest,
     JsonExportRequest,
+    LatticeAnalyzeRequest,
+    LatticeHarmonyRequest,
+    LatticeScaleRequest,
+    LatticeWalkRequest,
     MidiRequest,
     RatioRequest,
     ScalaRequest,
@@ -46,6 +50,18 @@ from app.models import (
     RhythmMidiRequest,
     ScaleSaveRequest,
     ScalaImportRequest,
+)
+from app.lattice import (
+    ExponentBasis,
+    LatticePitch,
+    cents_distance,
+    enumerate_domain,
+    evaluate,
+    lattice_distance,
+    lattice_walk,
+    monzo_distance,
+    normalize,
+    reconstruct,
 )
 from app.exporters.midi import MidiDrumHit, MidiNote, drum_midi_bytes, microtonal_midi_bytes, midi_bytes
 from app.rhythm.drums import (
@@ -620,6 +636,171 @@ def scales_delete(name: str) -> dict[str, object]:
     if not delete_scale(name):
         raise HTTPException(status_code=404, detail="scale not found")
     return {"name": name, "deleted": True}
+
+
+def _lattice_basis_payload(basis: ExponentBasis) -> dict[str, object]:
+    return {
+        "generators": list(basis.generators),
+        "prime_matrix": [
+            {str(prime): exponent for prime, exponent in sorted(row.items())}
+            for row in basis.prime_matrix()
+        ],
+        "dependencies": [list(vector) for vector in basis.dependencies()],
+        "warnings": basis.warnings(),
+    }
+
+
+def _lattice_pitch_payload(point: LatticePitch) -> dict[str, object]:
+    return {
+        "vector": list(point.vector),
+        "ratio": ratio_text(point.raw_ratio),
+        "normalized_ratio": ratio_text(point.normalized_ratio),
+        "octave_shift": point.octave_shift,
+        "cents": round(point.cents, 5),
+        "pitch_class_id": point.pitch_class_id,
+        "collision_group": point.collision_group,
+    }
+
+
+@app.post("/api/exponent-lattice/scale")
+def exponent_lattice_scale(request: LatticeScaleRequest) -> dict[str, object]:
+    """Enumerate a bounded exponent-lattice domain with collision diagnostics."""
+    try:
+        basis = ExponentBasis(tuple(request.generators))
+        points = enumerate_domain(basis, tuple(request.minimum), tuple(request.maximum))
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    if request.collision_policy == "merge":
+        seen: set[str] = set()
+        merged: list[LatticePitch] = []
+        for point in points:
+            if point.pitch_class_id in seen:
+                continue
+            seen.add(point.pitch_class_id)
+            merged.append(point)
+        points = merged
+    return {
+        "basis": _lattice_basis_payload(basis),
+        "point_count": len(points),
+        "points": [_lattice_pitch_payload(point) for point in points],
+    }
+
+
+@app.post("/api/exponent-lattice/harmony")
+def exponent_lattice_harmony(request: LatticeHarmonyRequest) -> dict[str, object]:
+    """Reconstruct a harmony from a root ratio and cumulative difference vectors."""
+    try:
+        basis = ExponentBasis(tuple(request.generators))
+        root = parse_ratio(request.root)
+        if request.root_vector is not None:
+            implied = evaluate(basis, tuple(request.root_vector))
+            if normalize(implied)[0] != normalize(root)[0]:
+                raise ValueError("root_vector does not match the root pitch class")
+        offsets, tones = reconstruct(root, basis, [tuple(d) for d in request.differences])
+    except (ValueError, ZeroDivisionError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    return {
+        "offsets": [list(offset) for offset in offsets],
+        "tones": [
+            {
+                "vector": list(tone.vector),
+                "raw_ratio": ratio_text(tone.raw_ratio),
+                "normalized_ratio": ratio_text(tone.normalized_ratio),
+                "octave_shift": tone.octave_shift,
+                "cents": round(tone.cents, 5),
+            }
+            for tone in tones
+        ],
+        "root": ratio_text(root),
+    }
+
+
+@app.post("/api/exponent-lattice/walk")
+def exponent_lattice_walk(request: LatticeWalkRequest) -> dict[str, object]:
+    """Run a seeded lattice walk and reconstruct a harmony at every root."""
+    try:
+        basis = ExponentBasis(tuple(request.generators))
+        root = parse_ratio(request.root)
+        harmony_differences = [
+            tuple(difference) for difference in request.harmony_differences
+        ]
+        path = lattice_walk(
+            basis,
+            tuple(request.start_vector),
+            [tuple(difference) for difference in request.allowed_differences],
+            request.length,
+            request.seed,
+            tuple(request.minimum),
+            tuple(request.maximum),
+            request.boundary,
+        )
+        pitches = []
+        harmonies = []
+        harmony_offsets: list[list[int]] = []
+        for vector in path:
+            walk_root = root * evaluate(basis, vector)
+            normalized_ratio, _shift = normalize(walk_root)
+            pitches.append(
+                {
+                    "vector": list(vector),
+                    "normalized_ratio": ratio_text(normalized_ratio),
+                    "cents": round(cents(normalized_ratio), 5),
+                }
+            )
+            offsets, tones = reconstruct(walk_root, basis, harmony_differences)
+            if not harmony_offsets:
+                harmony_offsets = [list(offset) for offset in offsets]
+            harmonies.append(
+                {
+                    "root_vector": list(vector),
+                    "tones": [
+                        {
+                            "vector": [
+                                coordinate + offset
+                                for coordinate, offset in zip(vector, tone.vector)
+                            ],
+                            "offset": list(tone.vector),
+                            "raw_ratio": ratio_text(tone.raw_ratio),
+                            "normalized_ratio": ratio_text(tone.normalized_ratio),
+                            "octave_shift": tone.octave_shift,
+                            "cents": round(tone.cents, 5),
+                        }
+                        for tone in tones
+                    ],
+                }
+            )
+    except (ValueError, ZeroDivisionError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    return {
+        "path": [list(vector) for vector in path],
+        "pitches": pitches,
+        "harmony_offsets": harmony_offsets,
+        "harmonies": harmonies,
+    }
+
+
+@app.post("/api/exponent-lattice/analyze")
+def exponent_lattice_analyze(request: LatticeAnalyzeRequest) -> dict[str, object]:
+    """Report basis diagnostics and pairwise lattice/monzo/cents distances."""
+    try:
+        basis = ExponentBasis(tuple(request.generators))
+        vectors = [tuple(vector) for vector in request.vectors]
+        distances = []
+        for i in range(len(vectors)):
+            for j in range(i + 1, len(vectors)):
+                distances.append(
+                    {
+                        "i": i,
+                        "j": j,
+                        "lattice_l1": lattice_distance(vectors[i], vectors[j], 1),
+                        "lattice_l2": lattice_distance(vectors[i], vectors[j], 2),
+                        "monzo": monzo_distance(basis, vectors[i], vectors[j]),
+                        "cents": cents_distance(basis, vectors[i], vectors[j]),
+                    }
+                )
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    return {"basis": _lattice_basis_payload(basis), "distances": distances}
 
 
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")

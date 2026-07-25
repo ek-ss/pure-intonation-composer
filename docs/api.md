@@ -192,6 +192,73 @@ All traversals are deterministic for a given seed.
 
 ---
 
+# 4b. Exponent Lattice (Experimental)
+
+Products of integer generators treated as points in an exponent lattice
+(G9 in `development_plan.md`). All ratio math is exact; validation
+limits: at most 8 generators, exponents −16…16, 4096 enumerated
+coordinates per request.
+
+## POST /api/exponent-lattice/scale
+
+```json
+{ "generators": [3, 5], "minimum": [-2, -2], "maximum": [2, 2], "collision_policy": "keep" }
+```
+
+Response: basis diagnostics (`prime_matrix`, `dependencies`, `warnings`)
+plus `points[]` with `vector`, `ratio` (raw), `normalized_ratio`,
+`octave_shift`, `cents`, `pitch_class_id`, `collision_group`.
+`collision_policy: "merge"` returns one point per pitch class.
+
+## POST /api/exponent-lattice/harmony
+
+```json
+{ "root": "1/1", "generators": [3, 5], "differences": [[1, 0], [0, 1]] }
+```
+
+Difference vectors apply cumulatively from the root. Response: `offsets`
+(root-relative cumulative vectors) and `tones[]` with reconstructed
+exact ratios. Root plus differences round-trips losslessly.
+
+## POST /api/exponent-lattice/walk
+
+```json
+{
+  "generators": [3, 5],
+  "start_vector": [0, 0],
+  "allowed_differences": [[1, 0], [0, 1], [-1, 0], [0, -1]],
+  "root": "1/1",
+  "harmony_differences": [[1, 0], [0, 1]],
+  "length": 16,
+  "seed": 42,
+  "minimum": [-2, -2],
+  "maximum": [2, 2],
+  "boundary": "reflect"
+}
+```
+
+`boundary`: `"stop"` | `"reflect"` | `"wrap"` | `"resample"`. Response:
+coordinate `path`, root `pitches`, cumulative `harmony_offsets`, and
+`harmonies`, one reconstructed tone stack per walk point. At step `i`, every
+tone is evaluated as `root · Q(path[i] + harmony_offset)` and octave
+normalized; all tones in that stack are intended to sound simultaneously.
+The domain boundary constrains walk roots, not the harmony's offset tones.
+Deterministic per seed. Omitting `harmony_differences` produces a root-only
+stack for backward compatibility.
+
+## POST /api/exponent-lattice/analyze
+
+```json
+{ "generators": [3, 9], "vectors": [[2, 0], [0, 1]] }
+```
+
+Response: basis prime matrix, multiplicative dependencies (e.g. 9 = 3²),
+warnings (generator 2 is octave-only), and pairwise lattice L1/L2,
+monzo, and cents distances. The three distance families are distinct
+values and must not be treated as equivalent.
+
+---
+
 # 5. Composition
 
 ## POST /api/compose/harmony

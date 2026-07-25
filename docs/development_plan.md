@@ -294,7 +294,43 @@ difference vectors.
 Status
 
 * Mathematical model and implementation plan — Defined below
-* Core, API, workbench, persistence, and composition integration — Planned
+* EV1 exact mathematical core (basis, products, normalization, prime
+  matrix, dependency diagnostics) — Done (`app/lattice.py`)
+* EV2 scale generation with collision grouping — Done
+  (`POST /api/exponent-lattice/scale`)
+* EV3 difference harmony (cumulative reconstruction, transforms) — Done
+  (`POST /api/exponent-lattice/harmony`)
+* EV4 seeded walks with boundary policies + analyze endpoint — Partially done:
+  walk points now reconstruct and audition the difference-vector harmony as
+  simultaneous tones; the full Compose/bass/melody/export bridge remains
+  pending (`POST /api/exponent-lattice/walk`,
+  `/api/exponent-lattice/analyze`)
+* EV5 experimental workbench (basis/domain editor, difference editor,
+  scale table, 2-axis lattice projection, difference arrows, walk
+  overlay, Pitch Circle layer) — Partially done, behind the `Experimental`
+  label
+* EV6 persistence — Planned
+* EV7 performance/docs — Partially done: API and usage documentation plus
+  deterministic unit tests exist; benchmarks, worked examples, and browser
+  regression coverage remain pending
+
+Implementation audit (2026-07-25)
+
+* Available now: exact exponent arithmetic, collision-aware scale generation,
+  harmony reconstruction, four walk boundary policies, basis/distance
+  analysis, 2-axis projection, Pitch Circle harmony markers, and simultaneous
+  difference-harmony playback at every walk root.
+* Still required for EV4/EV5: represent a reconstructed Lattice harmony as one
+  Compose chord or progression step rather than one chord per tone; preserve
+  coordinates through bass, melody, playback, JSON, MIDI, and WAV; add
+  structured difference-row controls (add, remove, reorder, duplicate),
+  optional root-coordinate editing, non-projected coordinate filtering, and
+  Composition Roll exponent-coordinate lanes.
+* Still required for EV6: versioned project JSON, migration handling,
+  coordinate-plus-ratio persistence, and Scala/MIDI/WAV interoperability rules.
+* Still required for EV7 and promotion from Experimental: performance
+  benchmarks, documented worked examples, Japanese Lattice Lab usage
+  documentation, and desktop/mobile interaction and JSON round-trip tests.
 
 ### G9.1 Mathematical Model
 
@@ -492,8 +528,10 @@ POST /api/exponent-lattice/harmony
   -> cumulative offsets, reconstructed tones, relation metrics
 
 POST /api/exponent-lattice/walk
-  root vector, allowed differences, length, seed, boundary policy
-  -> deterministic coordinate path and sounding pitches
+  root ratio, root vector, allowed walk differences, harmony differences,
+  length, seed, boundary policy
+  -> deterministic coordinate path, root pitches, and one reconstructed
+     harmony stack per walk point
 
 POST /api/exponent-lattice/analyze
   basis and vectors or ratios

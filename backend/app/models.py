@@ -323,6 +323,38 @@ class RhythmMidiRequest(BaseModel):
         return _resolve_velocities(self.pattern, self.velocity, self.velocities)
 
 
+class LatticeScaleRequest(BaseModel):
+    generators: list[int] = Field(min_length=1, max_length=8)
+    minimum: list[int]
+    maximum: list[int]
+    collision_policy: Literal["keep", "merge"] = "keep"
+
+
+class LatticeHarmonyRequest(BaseModel):
+    root: str = Field(pattern=r"^\d+/\d+$")
+    generators: list[int] = Field(min_length=1, max_length=8)
+    differences: list[list[int]] = Field(max_length=512)
+    root_vector: list[int] | None = None
+
+
+class LatticeWalkRequest(BaseModel):
+    generators: list[int] = Field(min_length=1, max_length=8)
+    start_vector: list[int]
+    allowed_differences: list[list[int]] = Field(min_length=1, max_length=64)
+    root: str = Field(default="1/1", pattern=r"^\d+/\d+$")
+    harmony_differences: list[list[int]] = Field(default_factory=list, max_length=512)
+    length: int = Field(default=16, ge=1, le=512)
+    seed: int = 0
+    minimum: list[int]
+    maximum: list[int]
+    boundary: Literal["stop", "reflect", "wrap", "resample"] = "reflect"
+
+
+class LatticeAnalyzeRequest(BaseModel):
+    generators: list[int] = Field(min_length=1, max_length=8)
+    vectors: list[list[int]] = Field(min_length=1, max_length=64)
+
+
 class JsonExportRequest(BaseModel):
     name: str = Field(default="Pure Intonation Composition", min_length=1, max_length=80)
     composition: dict[str, object]

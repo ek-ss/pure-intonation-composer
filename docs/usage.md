@@ -228,6 +228,38 @@ API: `POST /api/drums/generate`, `/api/rhythm/optimize-rotations`,
 `play`, `pause`, `stop`, and `improvise` (with `seed`), and replies
 with transport state messages. See [examples.md](examples.md).
 
+## 2.11 Lattice Lab (Experimental)
+
+An exponent-lattice harmony laboratory alongside CPS (G9 in
+`development_plan.md`). A basis of integer generators `(a, b, …)` maps
+exponent vectors to exact ratios `aⁿ¹ · bⁿ² · …`.
+
+* **格子を生成** — enumerate the lattice over per-generator exponent
+  ranges (min/max lists, one value per generator). The canvas shows a
+  2-axis projection (choose the axes); points are colored by collision
+  group — distinct vectors that sound the same pitch share a color.
+  Click a point to hear it. The table lists vector, raw ratio,
+  octave-normalized ratio, octave shift, cents, and group. `merge`
+  collapses duplicates.
+* **ハーモニーを再構成** — build a harmony from a root ratio plus
+  ordered difference vectors (one per line, e.g. `1, 0`). Arrows show
+  the cumulative path on the lattice; the root is ringed. The status
+  line lists the reconstructed tones.
+* **Compose に送る** — adopt the reconstructed tones as the Compose
+  panel's chord progression (for bass/melody, playback, and export).
+* **ウォーク** — seeded random walk through the lattice using an
+  allowed-step vocabulary (one vector per line) and a boundary policy
+  (`reflect`, `stop`, `wrap`, `resample`) against the min/max domain.
+  **和声ウォーク再生** treats every walk point as a moving root and
+  simultaneously sounds the harmony reconstructed from the root field and
+  the ordered difference-vector list. The next step starts after the whole
+  stack has sounded.
+* Warnings appear for octave-only generator `2` and multiplicatively
+  dependent bases (e.g. `3, 9`).
+
+API: `POST /api/exponent-lattice/scale`, `/harmony`, `/walk`,
+`/analyze`.
+
 ---
 
 # 3. API Overview
@@ -242,7 +274,8 @@ Base URL `http://127.0.0.1:8000`; all bodies JSON; errors are
 | Scale store | `GET/POST /api/scales`, `GET/DELETE /api/scales/{name}`, `POST /api/scales/import` |
 | Graph | `POST /api/harmonic-graph` (build + walks + layered layout) |
 | Composition | `POST /api/compose/harmony`, `/api/compose/voice-leading`, `/api/compose/bass`, `/api/compose/melody` |
-| Rhythm | `POST /api/rhythm/euclidean`, `/api/rhythm/state-graph`, `/api/rhythm/phase-shift`, `/api/rhythm/humanize` |
+| Rhythm | `POST /api/rhythm/euclidean`, `/api/rhythm/state-graph`, `/api/rhythm/phase-shift`, `/api/rhythm/humanize`, `/api/rhythm/optimize-rotations`, `/api/rhythm/analyze`, `/api/drums/generate` |
+| Lattice lab | `POST /api/exponent-lattice/scale`, `/api/exponent-lattice/harmony`, `/api/exponent-lattice/walk`, `/api/exponent-lattice/analyze` |
 | Rendering | `POST /api/render/wav`, `POST /api/render/jobs`, `GET /api/render/jobs/{id}`, `GET /api/render/jobs/{id}/audio` |
 | Export | `POST /api/export/midi`, `/api/export/rhythm/midi`, `/api/export/scala`, `/api/export/json` |
 | Real-time | `WS /api/ws/transport` |
