@@ -220,6 +220,27 @@ Difference vectors apply cumulatively from the root. Response: `offsets`
 (root-relative cumulative vectors) and `tones[]` with reconstructed
 exact ratios. Root plus differences round-trips losslessly.
 
+## POST /api/exponent-lattice/chord
+
+```json
+{
+  "root": "1/1",
+  "generators": [3, 5],
+  "allowed_differences": [[1, 0], [0, 1], [-1, 0], [0, -1]],
+  "tone_count": 4,
+  "seed": 42,
+  "minimum": [-2, -2],
+  "maximum": [2, 2]
+}
+```
+
+Generates a deterministic, self-avoiding cumulative difference path.
+Candidates outside the exponent domain or colliding with an already selected
+normalized pitch class are skipped. Response: `differences`, `offsets`, and
+the exact reconstructed `tones`. A 422 response is returned when the current
+domain and step vocabulary cannot produce the requested number of unique
+tones.
+
 ## POST /api/exponent-lattice/walk
 
 ```json

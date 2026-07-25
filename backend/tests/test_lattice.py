@@ -12,6 +12,7 @@ from app.lattice import (
     differences_from_offsets,
     enumerate_domain,
     evaluate,
+    generate_lattice_chord,
     invert_signs,
     lattice_distance,
     lattice_walk,
@@ -91,6 +92,38 @@ def test_reconstruct() -> None:
     assert offsets == [(0, 0), (1, 0), (1, 1)]
     assert tones[1].normalized_ratio == Fraction(3, 2)
     assert tones[2].normalized_ratio == Fraction(15, 8)
+
+
+def test_generate_lattice_chord_is_deterministic_and_unique() -> None:
+    basis = ExponentBasis((3, 5))
+    arguments = (
+        Fraction(1, 1),
+        basis,
+        [(1, 0), (0, 1), (-1, 0), (0, -1)],
+        4,
+        17,
+        (-2, -2),
+        (2, 2),
+    )
+    first = generate_lattice_chord(*arguments)
+    second = generate_lattice_chord(*arguments)
+    assert first == second
+    differences, offsets, tones = first
+    assert differences_from_offsets(offsets) == differences
+    assert len({tone.normalized_ratio for tone in tones}) == len(tones) == 4
+
+
+def test_generate_lattice_chord_rejects_unreachable_size() -> None:
+    with pytest.raises(ValueError, match="cannot generate 3 unique tones"):
+        generate_lattice_chord(
+            Fraction(1, 1),
+            ExponentBasis((2,)),
+            [(1,)],
+            3,
+            0,
+            (0,),
+            (2,),
+        )
 
 
 def test_path_transforms() -> None:
@@ -193,6 +226,27 @@ def test_harmony_endpoint_root_vector_mismatch() -> None:
         },
     )
     assert response.status_code == 422
+
+
+def test_chord_endpoint() -> None:
+    payload = {
+        "root": "5/4",
+        "generators": [3, 5],
+        "allowed_differences": [[1, 0], [0, 1], [-1, 0], [0, -1]],
+        "tone_count": 4,
+        "seed": 17,
+        "minimum": [-2, -2],
+        "maximum": [2, 2],
+    }
+    first = client.post("/api/exponent-lattice/chord", json=payload)
+    second = client.post("/api/exponent-lattice/chord", json=payload)
+    assert first.status_code == second.status_code == 200
+    assert first.json() == second.json()
+    data = first.json()
+    assert data["root"] == "5/4"
+    assert len(data["tones"]) == 4
+    assert len(data["differences"]) == 3
+    assert len({tone["normalized_ratio"] for tone in data["tones"]}) == 4
 
 
 def test_walk_endpoint() -> None:

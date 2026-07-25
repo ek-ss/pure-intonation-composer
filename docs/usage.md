@@ -241,23 +241,32 @@ exponent vectors to exact ratios `aⁿ¹ · bⁿ² · …`.
   Click a point to hear it. The table lists vector, raw ratio,
   octave-normalized ratio, octave shift, cents, and group. `merge`
   collapses duplicates.
+* **和音を生成** — create a seeded chord of the requested size from the
+  allowed-step vocabulary. The generator avoids duplicate sounding pitch
+  classes and writes the generated cumulative path back to the difference
+  editor for further editing.
 * **ハーモニーを再構成** — build a harmony from a root ratio plus
   ordered difference vectors (one per line, e.g. `1, 0`). Arrows show
   the cumulative path on the lattice; the root is ringed. The status
   line lists the reconstructed tones.
-* **Compose に送る** — adopt the reconstructed tones as the Compose
-  panel's chord progression (for bass/melody, playback, and export).
+* **Compose に送る** — adopt the reconstructed tones as one Compose chord,
+  preserving its lattice vectors in JSON while making the complete tone
+  stack available to bass/melody generation, playback, MIDI, and WAV.
 * **ウォーク** — seeded random walk through the lattice using an
   allowed-step vocabulary (one vector per line) and a boundary policy
   (`reflect`, `stop`, `wrap`, `resample`) against the min/max domain.
   **和声ウォーク再生** treats every walk point as a moving root and
   simultaneously sounds the harmony reconstructed from the root field and
-  the ordered difference-vector list. The next step starts after the whole
-  stack has sounded.
+  the ordered difference-vector list. **Compose に送る** converts the complete
+  walk to a progression with one simultaneous chord per walk point.
+* **Lattice Keyboard** — after generating or reconstructing a chord, its first
+  tones are assigned to `A S D F ...`. When the Lattice Lab panel has focus,
+  key-down starts the tone and key-up releases it; the on-screen keys provide
+  the same interaction.
 * Warnings appear for octave-only generator `2` and multiplicatively
   dependent bases (e.g. `3, 9`).
 
-API: `POST /api/exponent-lattice/scale`, `/harmony`, `/walk`,
+API: `POST /api/exponent-lattice/scale`, `/harmony`, `/chord`, `/walk`,
 `/analyze`.
 
 ---
@@ -275,7 +284,7 @@ Base URL `http://127.0.0.1:8000`; all bodies JSON; errors are
 | Graph | `POST /api/harmonic-graph` (build + walks + layered layout) |
 | Composition | `POST /api/compose/harmony`, `/api/compose/voice-leading`, `/api/compose/bass`, `/api/compose/melody` |
 | Rhythm | `POST /api/rhythm/euclidean`, `/api/rhythm/state-graph`, `/api/rhythm/phase-shift`, `/api/rhythm/humanize`, `/api/rhythm/optimize-rotations`, `/api/rhythm/analyze`, `/api/drums/generate` |
-| Lattice lab | `POST /api/exponent-lattice/scale`, `/api/exponent-lattice/harmony`, `/api/exponent-lattice/walk`, `/api/exponent-lattice/analyze` |
+| Lattice lab | `POST /api/exponent-lattice/scale`, `/api/exponent-lattice/harmony`, `/api/exponent-lattice/chord`, `/api/exponent-lattice/walk`, `/api/exponent-lattice/analyze` |
 | Rendering | `POST /api/render/wav`, `POST /api/render/jobs`, `GET /api/render/jobs/{id}`, `GET /api/render/jobs/{id}/audio` |
 | Export | `POST /api/export/midi`, `/api/export/rhythm/midi`, `/api/export/scala`, `/api/export/json` |
 | Real-time | `WS /api/ws/transport` |

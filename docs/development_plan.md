@@ -300,15 +300,14 @@ Status
   (`POST /api/exponent-lattice/scale`)
 * EV3 difference harmony (cumulative reconstruction, transforms) — Done
   (`POST /api/exponent-lattice/harmony`)
-* EV4 seeded walks with boundary policies + analyze endpoint — Partially done:
-  walk points now reconstruct and audition the difference-vector harmony as
-  simultaneous tones; the full Compose/bass/melody/export bridge remains
-  pending (`POST /api/exponent-lattice/walk`,
-  `/api/exponent-lattice/analyze`)
+* EV4 seeded walks with boundary policies + analyze endpoint — Done: walk
+  points reconstruct simultaneous difference-vector harmonies and the full
+  walk can enter Compose for bass/melody generation, playback, and export
+  (`POST /api/exponent-lattice/walk`, `/api/exponent-lattice/analyze`)
 * EV5 experimental workbench (basis/domain editor, difference editor,
-  scale table, 2-axis lattice projection, difference arrows, walk
-  overlay, Pitch Circle layer) — Partially done, behind the `Experimental`
-  label
+  seeded chord generation, scale table, 2-axis lattice projection,
+  difference arrows, walk overlay, Pitch Circle layer, and ASD keyboard) —
+  Partially done, behind the `Experimental` label
 * EV6 persistence — Planned
 * EV7 performance/docs — Partially done: API and usage documentation plus
   deterministic unit tests exist; benchmarks, worked examples, and browser
@@ -317,15 +316,15 @@ Status
 Implementation audit (2026-07-25)
 
 * Available now: exact exponent arithmetic, collision-aware scale generation,
-  harmony reconstruction, four walk boundary policies, basis/distance
-  analysis, 2-axis projection, Pitch Circle harmony markers, and simultaneous
-  difference-harmony playback at every walk root.
-* Still required for EV4/EV5: represent a reconstructed Lattice harmony as one
-  Compose chord or progression step rather than one chord per tone; preserve
-  coordinates through bass, melody, playback, JSON, MIDI, and WAV; add
-  structured difference-row controls (add, remove, reorder, duplicate),
-  optional root-coordinate editing, non-projected coordinate filtering, and
-  Composition Roll exponent-coordinate lanes.
+  seeded unique-pitch chord generation, harmony reconstruction, four walk
+  boundary policies, basis/distance analysis, 2-axis projection, Pitch Circle
+  harmony markers, ASD keyboard audition, simultaneous difference-harmony
+  playback, and chord/walk transfer to Compose.
+* Still required for EV5: propagate coordinate provenance into derived
+  bass/melody notes and export sidecars; add structured difference-row
+  controls (add, remove, reorder, duplicate), optional root-coordinate
+  editing, non-projected coordinate filtering, and Composition Roll
+  exponent-coordinate lanes.
 * Still required for EV6: versioned project JSON, migration handling,
   coordinate-plus-ratio persistence, and Scala/MIDI/WAV interoperability rules.
 * Still required for EV7 and promotion from Experimental: performance
@@ -526,6 +525,10 @@ POST /api/exponent-lattice/scale
 POST /api/exponent-lattice/harmony
   root, basis, ordered difference vectors
   -> cumulative offsets, reconstructed tones, relation metrics
+
+POST /api/exponent-lattice/chord
+  root, basis, allowed differences, tone count, seed, exponent domain
+  -> seeded unique-pitch difference path and reconstructed tones
 
 POST /api/exponent-lattice/walk
   root ratio, root vector, allowed walk differences, harmony differences,

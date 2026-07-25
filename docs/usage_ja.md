@@ -159,6 +159,30 @@ API: `POST /api/rhythm/euclidean`、`/api/rhythm/humanize`、`/api/rhythm/phase-
 
 `ws://127.0.0.1:8000/api/ws/transport` は、JSONコマンド `play`、`pause`、`stop`、`improvise`（`seed`付き）を受け取り、トランスポート状態メッセージを返します。詳細は [examples.md](examples.md) を参照してください。
 
+## 2.11 Lattice Lab（Experimental）
+
+整数生成子 `(a, b, …)` の指数ベクトルを、正確な比
+`aⁿ¹ · bⁿ² · …` として扱う実験用の和声ラボです。
+
+* **格子を生成** — 生成子と指数範囲から格子点を列挙します。同じ
+  ピッチクラスとなる異なる座標は衝突グループとして表示されます。
+* **和音を生成** — 許可ステップ、音数、シードから、発音が重複しない
+  累積差分ベクトル列を決定論的に生成します。生成結果は差分ベクトル欄へ
+  反映されるため、そのまま編集できます。
+* **ハーモニーを再構成** — ルート比と差分ベクトル列から和音を正確に
+  復元します。**Compose に送る**では、全構成音を1つの和音として渡し、
+  ベース・旋律生成、再生、MIDI、JSON、WAVで利用できます。
+* **ウォーク** — 指数格子上の経路を生成し、各地点を移動ルートとした
+  和声スタックを構成します。**和声ウォーク再生**ではステップごとに
+  全構成音を同時発音し、ウォーク側の**Compose に送る**では経路全体を
+  和声進行へ変換します。
+* **Lattice Keyboard** — Lattice Labにフォーカスがある間、生成または
+  再構成した和音を `A S D F …` キーで押している間だけ発音できます。
+  画面上の鍵盤も同じ割り当てです。
+
+API: `POST /api/exponent-lattice/scale`、`/harmony`、`/chord`、`/walk`、
+`/analyze`
+
 ---
 
 # 3. API概要
@@ -173,6 +197,7 @@ API: `POST /api/rhythm/euclidean`、`/api/rhythm/humanize`、`/api/rhythm/phase-
 | グラフ | `POST /api/harmonic-graph`（構築、walk、layered layout） |
 | 作曲 | `POST /api/compose/harmony`、`/api/compose/voice-leading`、`/api/compose/bass`、`/api/compose/melody` |
 | リズム | `POST /api/rhythm/euclidean`、`/api/rhythm/state-graph`、`/api/rhythm/phase-shift`、`/api/rhythm/humanize` |
+| Lattice Lab | `POST /api/exponent-lattice/scale`、`/api/exponent-lattice/harmony`、`/api/exponent-lattice/chord`、`/api/exponent-lattice/walk`、`/api/exponent-lattice/analyze` |
 | レンダリング | `POST /api/render/wav`、`POST /api/render/jobs`、`GET /api/render/jobs/{id}`、`GET /api/render/jobs/{id}/audio` |
 | エクスポート | `POST /api/export/midi`、`/api/export/rhythm/midi`、`/api/export/scala`、`/api/export/json` |
 | リアルタイム | `WS /api/ws/transport` |

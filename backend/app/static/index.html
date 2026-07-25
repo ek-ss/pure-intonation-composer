@@ -216,7 +216,7 @@
         <p id="roll-inspector" class="hint" aria-live="polite"></p>
       </section>
 
-      <section class="panel lattice">
+      <section id="lattice-panel" class="panel lattice" tabindex="0">
         <div class="section-heading"><h2>Lattice Lab <span class="experimental">Experimental</span></h2><span id="lattice-status" role="status"></span></div>
         <div class="compose-grid">
           <div>
@@ -241,6 +241,15 @@
             <label>ルート音
               <input id="lattice-root" value="1/1">
             </label>
+            <div class="lattice-chord-options">
+              <label>和音の音数
+                <input id="lattice-chord-size" type="number" min="1" max="16" value="3">
+              </label>
+              <label>和音シード
+                <input id="lattice-chord-seed" type="number" value="42">
+              </label>
+            </div>
+            <button id="lattice-chord-generate" class="primary">和音を生成</button>
             <label>差分ベクトル（1行に1ベクトル）
               <textarea id="lattice-diffs" rows="4">1, 0
 0, 1</textarea>
@@ -279,9 +288,16 @@
                 <option value="resample">resample</option>
               </select>
             </label>
-            <button id="lattice-walk">ウォーク</button>
-            <button id="lattice-walk-play" class="quiet">▶ 和声ウォーク再生</button>
+            <div class="button-row">
+              <button id="lattice-walk">ウォーク</button>
+              <button id="lattice-walk-play" class="quiet">▶ 和声ウォーク再生</button>
+              <button id="lattice-walk-compose" class="quiet">Compose に送る</button>
+            </div>
           </div>
+        </div>
+        <div class="lattice-keyboard-bar">
+          <span>Lattice Keyboard</span>
+          <div id="lattice-keyboard" class="keyboard lattice-keyboard" aria-label="Lattice harmony keyboard"></div>
         </div>
         <p id="lattice-inspector" class="hint"></p>
         <div class="lattice-view">

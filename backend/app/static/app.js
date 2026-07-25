@@ -191,10 +191,10 @@ function renderTimeline(){
   for (let i = 0; i <= marks; i++) { const tick = document.createElement("span"); tick.className = "axis"; tick.style.left = `${i / marks * 88 + 4}%`; tick.textContent = `${(seconds * i / marks).toFixed(1)}s`; box.append(tick); }
 }
 function stop(index) { const voice=state.active.get(index); if(!voice) return; const now=audioContext().currentTime, release=Number(el("release").value)/1000; voice.gain.gain.cancelScheduledValues(now); voice.gain.gain.setTargetAtTime(.0001,now,release/5); voice.osc.stop(now+release); state.active.delete(index); if(state.focus===index) state.focus=[...state.active.keys()].at(-1) ?? null; render(); }
-function stopAll() { [...state.active.keys()].forEach(stop); }
+function stopAll() { [...state.active.keys()].forEach(stop); stopAllLatticeTones(); }
 el("generator").onchange=syncGeneratorFields; el("choose").oninput=event=>el("choose-value").textContent=event.target.value; el("generate").onclick=generate; el("stop").onclick=stopAll;
 el("base-frequency").oninput=e=>el("base-output").textContent=`${e.target.value} Hz`; ["attack","decay","release"].forEach(id=>el(id).oninput=e=>el(`${id}-output`).textContent=`${e.target.value} ms`); el("sustain").oninput=e=>el("sustain-output").textContent=`${e.target.value}%`;
-document.addEventListener("keydown", event=>{if(event.repeat || /INPUT|SELECT/.test(event.target.tagName)) return; const index=keyboardKeys.indexOf(event.key.toUpperCase()); if(index>=0){event.preventDefault();play(index);}}); document.addEventListener("keyup",event=>{const index=keyboardKeys.indexOf(event.key.toUpperCase());if(index>=0)stop(index)});
+document.addEventListener("keydown", event=>{if(event.defaultPrevented || event.repeat || /INPUT|SELECT|TEXTAREA/.test(event.target.tagName)) return; const index=keyboardKeys.indexOf(event.key.toUpperCase()); if(index>=0){event.preventDefault();play(index);}}); document.addEventListener("keyup",event=>{if(event.defaultPrevented)return;const index=keyboardKeys.indexOf(event.key.toUpperCase());if(index>=0)stop(index)});
 el("scala").onclick=async()=>{ if(!state.pitches.length)return; const response=await fetch("/api/export/scala",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({name:"Pure Intonation Workbench",ratios:state.pitches.map(p=>p.ratio)})}); const link=document.createElement("a");link.href=URL.createObjectURL(await response.blob());link.download="pure-intonation.scl";link.click();URL.revokeObjectURL(link.href); };
 el("graph-toggle").onclick=()=>{if(!state.graph)return;state.showGraph=!state.showGraph;el("visual-title").textContent=state.showGraph?"Harmonic graph":"Pitch circle";el("graph-toggle").textContent=state.showGraph?"Circle":"Graph";el("walk-controls").hidden=!state.showGraph;syncWalkControls();renderCircle();};
 function syncWalkControls(){const op=el("walk-operation").value;el("walk-end").hidden=op!=="shortest_path";el("walk-metric").hidden=op!=="weighted_walk";el("walk-steps").hidden=op==="shortest_path";el("walk-seed").hidden=op==="shortest_path";}
@@ -232,7 +232,12 @@ const composeState = { chords: [], bass: [], melody: [], scheduled: [], activeSt
 function setComposeStatus(text, kind = "") { const s = el("compose-status"); s.textContent = text; s.className = kind; }
 function ratioValue(ratio) { const [n, d] = ratio.split("/").map(Number); return n / d; }
 function ratioMul(ratio, factor) { const [n, d] = ratio.split("/").map(Number); let num = n * factor, den = d; const g = gcd(num, den); num /= g; den /= g; while (num >= den * 2) den *= 2; while (num < den) num *= 2; return `${num}/${den}`; }
-function chordTones(chord) { const tones = [chord.ratio]; chord.factors.filter(f => f !== 1).forEach(f => { const tone = ratioMul(chord.ratio, f); if (!tones.includes(tone)) tones.push(tone); }); return tones; }
+function chordTones(chord) {
+  if (Array.isArray(chord.tones) && chord.tones.length) return [...new Set(chord.tones)];
+  const tones = [chord.ratio];
+  chord.factors.filter(f => f !== 1).forEach(f => { const tone = ratioMul(chord.ratio, f); if (!tones.includes(tone)) tones.push(tone); });
+  return tones;
+}
 async function postJson(endpoint, body) {
   const response = await fetch(endpoint, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
   const data = await response.json();
@@ -301,14 +306,21 @@ function playProgression() {
 }
 function auditionChord(chord) { stopProgression(); const now = audioContext().currentTime + 0.05; chordTones(chord).forEach(r => scheduleTone(Number(el("base-frequency").value) * ratioValue(r), now, 1.2)); }
 function syncCompositionNode() { state.compositionNode = composeState.chords[composeState.activeStep]?.node ?? null; }
-function selectCompositionStep(index, audition = false) { if (!composeState.chords[index]) return; composeState.activeStep = index; syncCompositionNode(); if (audition) auditionChord(composeState.chords[index]); renderProgression(); renderCompositionRoll(); renderCircle(); }
+function selectCompositionStep(index, audition = false) {
+  const chord = composeState.chords[index]; if (!chord) return;
+  composeState.activeStep = index; syncCompositionNode();
+  if (chord.lattice && typeof latticeState !== "undefined") { latticeState.activeWalkStep = index; renderLatticeKeyboard(); }
+  if (audition) auditionChord(chord);
+  renderProgression(); renderCompositionRoll(); renderCircle();
+}
 function selectCompositionNode(node) { const step = composeState.chords.findIndex(chord => chord.node === node); if (step >= 0) selectCompositionStep(step); }
 function renderHarmonyStack(ctx, left, top) {
   const chord = composeState.chords[composeState.activeStep]; if (!chord) return;
-  const tones = chordTones(chord), width = 128, row = 17, height = 30 + tones.length * row;
+  const tones = chordTones(chord), descriptor = chord.lattice ? `r=(${chord.lattice.root_vector.join(",")})` : `{${chord.factors.join(",")}}`;
+  const width = Math.max(128, Math.min(240, descriptor.length * 6 + 16)), row = 17, height = 30 + tones.length * row;
   ctx.fillStyle = "#10131ce6"; ctx.fillRect(left, top, width, height); ctx.strokeStyle = "#40506d"; ctx.strokeRect(left, top, width, height);
   ctx.fillStyle = "#ffd47e"; ctx.font = "bold 11px system-ui"; ctx.textAlign = "left"; ctx.fillText(`Step ${composeState.activeStep + 1}`, left + 8, top + 14);
-  ctx.fillStyle = "#aeb9d0"; ctx.font = "10px system-ui"; ctx.fillText(`{${chord.factors.join(",")}}`, left + 8, top + 26);
+  ctx.fillStyle = "#aeb9d0"; ctx.font = "10px system-ui"; ctx.fillText(descriptor, left + 8, top + 26);
   tones.forEach((ratio, index) => { const y = top + 32 + index * row; ctx.fillStyle = "#98e7ca"; ctx.fillRect(left + 8, y, width - 16, 13); ctx.fillStyle = "#092118"; ctx.font = "10px system-ui"; ctx.textAlign = "center"; ctx.fillText(ratio, left + width / 2, y + 10); });
 }
 function renderHarmonyStackOnCircle(ctx, mid, radius) {
@@ -624,7 +636,8 @@ el("drums-export-json").onclick = async () => {
 buildDrumUI();
 
 // ---- Lattice Lab (G9 exponent-lattice harmony laboratory, experimental) ----
-const latticeState = { points: [], tones: [], offsets: [], walk: null, walkPitches: null, walkHarmonies: null, selected: null, dims: 0 };
+const latticeState = { points: [], tones: [], offsets: [], walk: null, walkPitches: null, walkHarmonies: null, activeWalkStep: 0, activeKeys: new Map(), selected: null, dims: 0 };
+const LATTICE_KEYS = "ASDFGHJKL;QWERTY".split("");
 const GROUP_COLORS = ["#98e7ca", "#83b7ff", "#caa8ff", "#ffd47e", "#ff9d9a", "#a9b9ff", "#7ed6f2", "#f2a97e"];
 function setLatticeStatus(text, kind = "") { const s = el("lattice-status"); s.textContent = text; s.className = kind; }
 function parseInts(source) { const values = source.split(",").map(v => Number(v.trim())).filter(v => !Number.isNaN(v)); if (!values.length || values.some(v => !Number.isInteger(v))) throw new Error("整数をカンマ区切りで入力してください。"); return values; }
@@ -634,6 +647,49 @@ function parseVectorRows(source, dims) {
     const v = parseInts(line);
     if (v.length !== dims) throw new Error(`各ベクトルは ${dims} 次元にしてください。`);
     return v;
+  });
+}
+function latticeKeyboardTones() {
+  if (latticeState.tones.length) return latticeState.tones;
+  return latticeState.walkHarmonies?.[latticeState.activeWalkStep]?.tones || [];
+}
+function startLatticeTone(index) {
+  const tone = latticeKeyboardTones()[index];
+  if (!tone || latticeState.activeKeys.has(index)) return;
+  const context = audioContext(), osc = context.createOscillator(), gain = context.createGain(), now = context.currentTime;
+  const attack = Number(el("attack").value) / 1000, decay = Number(el("decay").value) / 1000, sustain = Number(el("sustain").value) / 100;
+  osc.type = el("waveform").value;
+  osc.frequency.value = Number(el("base-frequency").value) * ratioValue(tone.normalized_ratio);
+  gain.gain.setValueAtTime(.0001, now);
+  gain.gain.exponentialRampToValueAtTime(.24, now + attack);
+  gain.gain.exponentialRampToValueAtTime(Math.max(.001, .24 * sustain), now + attack + decay);
+  osc.connect(gain).connect(context.destination); osc.start();
+  latticeState.activeKeys.set(index, { osc, gain });
+  el("lattice-keyboard").querySelector(`[data-lattice-index="${index}"]`)?.classList.add("active");
+  setLatticeStatus(`${LATTICE_KEYS[index]} · ${tone.normalized_ratio}`, "");
+}
+function stopLatticeTone(index) {
+  const voice = latticeState.activeKeys.get(index); if (!voice) return;
+  const now = audioContext().currentTime, release = Number(el("release").value) / 1000;
+  voice.gain.gain.cancelScheduledValues(now);
+  voice.gain.gain.setTargetAtTime(.0001, now, release / 5);
+  voice.osc.stop(now + release);
+  latticeState.activeKeys.delete(index);
+  el("lattice-keyboard").querySelector(`[data-lattice-index="${index}"]`)?.classList.remove("active");
+}
+function stopAllLatticeTones() { [...latticeState.activeKeys.keys()].forEach(stopLatticeTone); }
+function renderLatticeKeyboard() {
+  stopAllLatticeTones();
+  const box = el("lattice-keyboard"); box.innerHTML = "";
+  latticeKeyboardTones().slice(0, LATTICE_KEYS.length).forEach((tone, index) => {
+    const button = document.createElement("button");
+    button.className = "key"; button.dataset.latticeIndex = index;
+    button.innerHTML = `<span class="key-name">${LATTICE_KEYS[index]}</span><span class="ratio">${tone.normalized_ratio}</span>`;
+    button.onpointerdown = event => { event.preventDefault(); startLatticeTone(index); };
+    button.onpointerup = () => stopLatticeTone(index);
+    button.onpointercancel = () => stopLatticeTone(index);
+    button.onpointerleave = () => stopLatticeTone(index);
+    box.append(button);
   });
 }
 function syncLatticeAxes() {
@@ -647,11 +703,12 @@ function syncLatticeAxes() {
 }
 async function generateLattice() {
   try {
+    stopAllLatticeTones();
     const generators = latticeGenerators();
     setLatticeStatus("Generating…", "loading");
     const data = await postJson("/api/exponent-lattice/scale", { generators, minimum: parseInts(el("lattice-min").value), maximum: parseInts(el("lattice-max").value), collision_policy: el("lattice-collision").value });
     latticeState.points = data.points; latticeState.dims = generators.length; latticeState.tones = []; latticeState.offsets = []; latticeState.walk = null; latticeState.walkPitches = null; latticeState.walkHarmonies = null;
-    syncLatticeAxes(); renderLatticeTable(); renderLatticeCanvas();
+    syncLatticeAxes(); renderLatticeTable(); renderLatticeCanvas(); renderLatticeKeyboard();
     setLatticeStatus(data.basis.warnings.length ? data.basis.warnings.join(" ") : `${data.point_count} points`, data.basis.warnings.length ? "error" : "");
   } catch (error) { setLatticeStatus(error.message, "error"); }
 }
@@ -742,16 +799,37 @@ function orderLatticeTones() {
     pairs.push(...ordered);
   }
   latticeState.offsets = pairs.map(p => p.offset); latticeState.tones = pairs.map(p => p.tone);
-  renderLatticeCanvas(); renderCircle();
+  renderLatticeCanvas(); renderCircle(); renderLatticeKeyboard();
   setLatticeStatus(`${latticeState.tones.length} tones: ${latticeState.tones.map(t => t.normalized_ratio).join("  ")}`, "");
 }
 el("lattice-order").onchange = orderLatticeTones;
+async function generateLatticeChord() {
+  try {
+    const generators = latticeGenerators();
+    setLatticeStatus("Generating chord…", "loading");
+    const data = await postJson("/api/exponent-lattice/chord", {
+      root: el("lattice-root").value,
+      generators,
+      allowed_differences: parseVectorRows(el("lattice-allowed").value, generators.length),
+      tone_count: Number(el("lattice-chord-size").value),
+      seed: Number(el("lattice-chord-seed").value),
+      minimum: parseInts(el("lattice-min").value),
+      maximum: parseInts(el("lattice-max").value)
+    });
+    el("lattice-diffs").value = data.differences.map(difference => difference.join(", ")).join("\n");
+    latticeState.tones = data.tones; latticeState.offsets = data.offsets;
+    latticeState.walk = null; latticeState.walkPitches = null; latticeState.walkHarmonies = null; latticeState.activeWalkStep = 0;
+    if (!latticeState.points.length) { latticeState.dims = generators.length; syncLatticeAxes(); }
+    orderLatticeTones();
+    setLatticeStatus(`Generated chord · ${data.tones.length} tones · seed ${data.seed}`, "");
+  } catch (error) { setLatticeStatus(error.message, "error"); }
+}
 async function reconstructHarmony() {
   try {
     const generators = latticeGenerators();
     const differences = parseVectorRows(el("lattice-diffs").value, generators.length);
     const data = await postJson("/api/exponent-lattice/harmony", { root: el("lattice-root").value, generators, differences });
-    latticeState.tones = data.tones; latticeState.offsets = data.offsets; latticeState.walk = null; latticeState.walkPitches = null; latticeState.walkHarmonies = null;
+    latticeState.tones = data.tones; latticeState.offsets = data.offsets; latticeState.walk = null; latticeState.walkPitches = null; latticeState.walkHarmonies = null; latticeState.activeWalkStep = 0;
     if (!latticeState.points.length) { latticeState.dims = generators.length; syncLatticeAxes(); }
     orderLatticeTones();
   } catch (error) { setLatticeStatus(error.message, "error"); }
@@ -761,13 +839,14 @@ async function latticeWalk() {
     const generators = latticeGenerators();
     const harmonyDifferences = parseVectorRows(el("lattice-diffs").value, generators.length);
     const data = await postJson("/api/exponent-lattice/walk", { generators, start_vector: generators.map(() => 0), allowed_differences: parseVectorRows(el("lattice-allowed").value, generators.length), root: el("lattice-root").value, harmony_differences: harmonyDifferences, length: Number(el("lattice-walk-length").value), seed: Number(el("lattice-walk-seed").value), minimum: parseInts(el("lattice-min").value), maximum: parseInts(el("lattice-max").value), boundary: el("lattice-boundary").value });
-    latticeState.walk = data.path; latticeState.walkPitches = data.pitches; latticeState.walkHarmonies = data.harmonies; latticeState.tones = []; latticeState.offsets = [];
+    latticeState.walk = data.path; latticeState.walkPitches = data.pitches; latticeState.walkHarmonies = data.harmonies; latticeState.activeWalkStep = 0; latticeState.tones = []; latticeState.offsets = [];
     if (!latticeState.points.length) { latticeState.dims = generators.length; syncLatticeAxes(); }
-    renderLatticeCanvas(); renderCircle();
+    renderLatticeCanvas(); renderCircle(); renderLatticeKeyboard();
     setLatticeStatus(`walk: ${data.path.length} steps · ${data.harmonies[0]?.tones.length || 0} tones per harmony`, "");
   } catch (error) { setLatticeStatus(error.message, "error"); }
 }
 el("lattice-scale").onclick = generateLattice;
+el("lattice-chord-generate").onclick = generateLatticeChord;
 el("lattice-harmony").onclick = reconstructHarmony;
 el("lattice-walk").onclick = latticeWalk;
 el("lattice-walk-play").onclick = () => {
@@ -782,10 +861,57 @@ el("lattice-walk-play").onclick = () => {
   });
   setLatticeStatus(`Playing walk · ${harmonies.length} harmonies × ${voiceCount} tones`, "loading");
 };
+function latticeComposeChord(harmony) {
+  const tones = harmony.tones.map(tone => tone.normalized_ratio), generators = latticeGenerators();
+  return {
+    node: null,
+    factors: [],
+    ratio: tones[0],
+    tones,
+    transition_score: null,
+    lattice: {
+      generators,
+      root_ratio: el("lattice-root").value,
+      root_vector: harmony.root_vector,
+      harmony_differences: parseVectorRows(el("lattice-diffs").value, generators.length),
+      tone_vectors: harmony.tones.map(tone => tone.vector),
+      offsets: harmony.tones.map(tone => tone.offset || tone.vector)
+    }
+  };
+}
+function sendLatticeToCompose(harmonies, label) {
+  composeState.chords = harmonies.map(latticeComposeChord);
+  composeState.bass = []; composeState.melody = [];
+  composeState.activeStep = 0; composeState.graph = null; composeState.graphInput = null;
+  state.compositionNode = null; state.walk = null; state.showGraph = false;
+  el("visual-title").textContent = "Pitch circle"; el("graph-toggle").hidden = true; el("walk-controls").hidden = true;
+  el("composition-roll-panel").hidden = false;
+  renderProgression(); renderCompositionRoll(); renderCircle();
+  setComposeStatus(`${label}: ${composeState.chords.length} chords`, "");
+  document.querySelector(".compose").scrollIntoView({ behavior: "smooth" });
+}
 el("lattice-send-compose").onclick = () => {
   if (!latticeState.tones.length) { setLatticeStatus("先にハーモニーを再構成してください。", "error"); return; }
-  composeState.chords = latticeState.tones.map(t => ({ node: 0, factors: [1], ratio: t.normalized_ratio, transition_score: null }));
-  composeState.bass = []; composeState.melody = [];
-  renderProgression(); setComposeStatus(`Lattice: ${composeState.chords.length} chords`, "");
-  document.querySelector(".compose").scrollIntoView({ behavior: "smooth" });
+  const rootVector = latticeState.offsets[0]?.map(() => 0) || [];
+  sendLatticeToCompose([{
+    root_vector: rootVector,
+    tones: latticeState.tones.map((tone, index) => ({ ...tone, offset: latticeState.offsets[index] }))
+  }], "Lattice chord");
 };
+el("lattice-walk-compose").onclick = () => {
+  if (!latticeState.walkHarmonies?.length) { setLatticeStatus("先にウォークを生成してください。", "error"); return; }
+  sendLatticeToCompose(latticeState.walkHarmonies, "Lattice walk");
+};
+const latticePanel = el("lattice-panel");
+latticePanel.addEventListener("keydown", event => {
+  if (event.repeat || /INPUT|SELECT|TEXTAREA/.test(event.target.tagName)) return;
+  const index = LATTICE_KEYS.indexOf(event.key.toUpperCase());
+  if (index < 0 || !latticeKeyboardTones()[index]) return;
+  event.preventDefault(); event.stopPropagation(); startLatticeTone(index);
+});
+latticePanel.addEventListener("keyup", event => {
+  const index = LATTICE_KEYS.indexOf(event.key.toUpperCase());
+  if (index < 0) return;
+  event.preventDefault(); event.stopPropagation(); stopLatticeTone(index);
+});
+window.addEventListener("blur", stopAllLatticeTones);

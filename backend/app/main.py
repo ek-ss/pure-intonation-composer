@@ -30,6 +30,7 @@ from app.models import (
     IntervalRequest,
     JsonExportRequest,
     LatticeAnalyzeRequest,
+    LatticeChordRequest,
     LatticeHarmonyRequest,
     LatticeScaleRequest,
     LatticeWalkRequest,
@@ -57,6 +58,7 @@ from app.lattice import (
     cents_distance,
     enumerate_domain,
     evaluate,
+    generate_lattice_chord,
     lattice_distance,
     lattice_walk,
     monzo_distance,
@@ -712,6 +714,41 @@ def exponent_lattice_harmony(request: LatticeHarmonyRequest) -> dict[str, object
             for tone in tones
         ],
         "root": ratio_text(root),
+    }
+
+
+@app.post("/api/exponent-lattice/chord")
+def exponent_lattice_chord(request: LatticeChordRequest) -> dict[str, object]:
+    """Generate a seeded harmony path with unique sounding pitch classes."""
+    try:
+        basis = ExponentBasis(tuple(request.generators))
+        root = parse_ratio(request.root)
+        differences, offsets, tones = generate_lattice_chord(
+            root,
+            basis,
+            [tuple(difference) for difference in request.allowed_differences],
+            request.tone_count,
+            request.seed,
+            tuple(request.minimum),
+            tuple(request.maximum),
+        )
+    except (ValueError, ZeroDivisionError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    return {
+        "root": ratio_text(root),
+        "seed": request.seed,
+        "differences": [list(difference) for difference in differences],
+        "offsets": [list(offset) for offset in offsets],
+        "tones": [
+            {
+                "vector": list(tone.vector),
+                "raw_ratio": ratio_text(tone.raw_ratio),
+                "normalized_ratio": ratio_text(tone.normalized_ratio),
+                "octave_shift": tone.octave_shift,
+                "cents": round(tone.cents, 5),
+            }
+            for tone in tones
+        ],
     }
 
 

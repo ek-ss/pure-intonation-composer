@@ -337,6 +337,16 @@ class LatticeHarmonyRequest(BaseModel):
     root_vector: list[int] | None = None
 
 
+class LatticeChordRequest(BaseModel):
+    root: str = Field(default="1/1", pattern=r"^\d+/\d+$")
+    generators: list[int] = Field(min_length=1, max_length=8)
+    allowed_differences: list[list[int]] = Field(min_length=1, max_length=64)
+    tone_count: int = Field(default=3, ge=1, le=16)
+    seed: int = 0
+    minimum: list[int]
+    maximum: list[int]
+
+
 class LatticeWalkRequest(BaseModel):
     generators: list[int] = Field(min_length=1, max_length=8)
     start_vector: list[int]

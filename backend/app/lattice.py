@@ -183,6 +183,71 @@ def reconstruct(root: Fraction, basis: ExponentBasis, differences: list[Vector])
     return offsets, tones
 
 
+def generate_lattice_chord(
+    root: Fraction,
+    basis: ExponentBasis,
+    allowed: list[Vector],
+    tone_count: int,
+    seed: int,
+    minimum: Vector,
+    maximum: Vector,
+) -> tuple[list[Vector], list[Vector], list[LatticePitch]]:
+    """Generate a deterministic self-avoiding harmony path in exponent space."""
+    _check_vector(basis, minimum)
+    _check_domain(minimum, maximum)
+    if not 1 <= tone_count <= 16:
+        raise ValueError("tone_count must be between 1 and 16")
+    if not allowed:
+        raise ValueError("allowed_differences must not be empty")
+    for difference in allowed:
+        _check_vector(basis, difference)
+
+    origin = tuple(0 for _ in basis.generators)
+    if not all(lo <= value <= hi for value, lo, hi in zip(origin, minimum, maximum)):
+        raise ValueError("the exponent domain must contain the zero-vector root")
+
+    random = Random(seed)
+    offsets = [origin]
+    used_pitch_classes = {normalize(root)[0]}
+    visits = 0
+
+    def search() -> bool:
+        nonlocal visits
+        if len(offsets) == tone_count:
+            return True
+        visits += 1
+        if visits > MAX_DOMAIN_POINTS * 4:
+            return False
+        current = offsets[-1]
+        candidates = []
+        for difference in allowed:
+            candidate = tuple(a + b for a, b in zip(current, difference))
+            if not all(lo <= value <= hi for value, lo, hi in zip(candidate, minimum, maximum)):
+                continue
+            pitch_class = normalize(root * evaluate(basis, candidate))[0]
+            if pitch_class in used_pitch_classes:
+                continue
+            candidates.append((candidate, pitch_class))
+        random.shuffle(candidates)
+        for candidate, pitch_class in candidates:
+            offsets.append(candidate)
+            used_pitch_classes.add(pitch_class)
+            if search():
+                return True
+            used_pitch_classes.remove(pitch_class)
+            offsets.pop()
+        return False
+
+    if not search():
+        raise ValueError(
+            f"cannot generate {tone_count} unique tones with the current "
+            "domain and allowed differences"
+        )
+    differences = differences_from_offsets(offsets)
+    _offsets, tones = reconstruct(root, basis, differences)
+    return differences, offsets, tones
+
+
 def transpose_root(root: Fraction, factor: Fraction) -> Fraction:
     if factor <= 0:
         raise ValueError("transposition factor must be positive")
