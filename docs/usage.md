@@ -7,7 +7,8 @@ Version: 0.1
 This guide covers every implemented function: the browser workbench
 (panel by panel) and the HTTP/WebSocket API. For exact request/response
 schemas see [api.md](api.md); for copy-paste commands see
-[examples.md](examples.md).
+[examples.md](examples.md). Current limitations and remaining work are tracked
+in [status.md](status.md).
 
 ---
 

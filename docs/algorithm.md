@@ -12,9 +12,10 @@ This document specifies the musical algorithms used by the Pure Intonation Compo
 
 > **Status:** design specification. The CPS/Euler–Fokker generators, harmonic
 > graph, transition scoring, bass/melody/voice-leading engines, Euclidean
-> rhythm, state graphs, phase shifting, and humanization are implemented as
-> described. The form generator, texture density, spatialization, and
-> Markov/procedural rhythm generators are planned work.
+> rhythm, state graphs, phase shifting, humanization, and Compose-native
+> Semi-Markov/interlocking rhythm are implemented. The form generator, global
+> texture-density conductor, and spatialization are planned work. See
+> [status.md](status.md) for the audited boundary.
 
 Unlike conventional DAWs or algorithmic composition systems based on equal temperament, this project defines music as motion through harmonic state spaces generated from integer frequency ratios.
 
@@ -290,17 +291,22 @@ Phase
 Velocity Profile
 ```
 
-Supported generators
+Implemented drum processes
 
-Euclidean Rhythm
+* Euclidean rhythm
+* manual pattern editing
+* Hamming-distance state graphs
+* discrete phase offsets
+* seeded timing/velocity humanization
 
-Markov Chain
+Implemented Compose pitch-rhythm processes
 
-Manual Pattern
+* transition-aware harmonic durations
+* seeded Semi-Markov onset generation
+* interlocking onset allocation
+* experimental ratio-derived cycles
 
-Random Pattern
-
-Procedural Pattern
+Coordinated state transitions, fills, and preset libraries remain planned.
 
 ---
 
@@ -460,11 +466,11 @@ Square
 
 Additive
 
+Future support
+
 FM
 
 Noise
-
-Future support
 
 Physical modeling
 

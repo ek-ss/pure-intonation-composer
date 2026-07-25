@@ -1,5 +1,11 @@
 # Rhythm Generation Development Plan
 
+> **Document status:** original milestone plan and design history. Core rhythm
+> generation, analysis, workbench, and export are implemented, while
+> coordinated state transitions, fills, presets, continuous drift, and release
+> benchmarks remain open. Use [status.md](status.md) for the current audited
+> status.
+
 This section defines the development roadmap for Euclidean rhythm generation, multi-part drum coordination, phase shifting, state-transition graphs, humanization, and rhythm export.
 
 The rhythm system must support four primary percussion layers:
@@ -18,7 +24,7 @@ Each milestone must produce a usable and testable rhythm-generation pipeline.
 ## R1. Core Rhythm Representation
 
 **Priority:** Must
-**Status:** Done or verify against current implementation
+**Status:** Done
 
 ### Tasks
 
@@ -49,7 +55,7 @@ Each milestone must produce a usable and testable rhythm-generation pipeline.
 ## R2. Euclidean Rhythm Generator
 
 **Priority:** Must
-**Status:** Done or verify against current implementation
+**Status:** Done
 
 ### Tasks
 
@@ -530,6 +536,7 @@ POST /api/export/rhythm/midi
 
 **Priority:** Could
 **Target:** Version 0.2
+**Status:** Planned
 
 ### Tasks
 

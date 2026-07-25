@@ -6,26 +6,14 @@ Version: 0.1
 
 ## Implementation Status
 
-Phases P1–P9 are implemented on the `develop` branch; P10 (stable
-release) is in progress. Work is now tracked by the Entonal-style
-functional groups in section 3.
+This document is the active roadmap and retains detailed feature designs.
+The audited, concise source of truth for completed work, partial work, known
+gaps, and verification counts is [status.md](status.md).
 
-Recent additions beyond the original phase scope:
-
-* GM-percussion rhythm MIDI export (`POST /api/export/rhythm/midi`)
-* Reference-node layered grid graph layout (`docs/visualization.md`)
-  alongside the force-directed graph viewer, with walk visualization
-* Real-time-scaled timeline recorder with replay
-* Compose and rhythm workbench panels (harmony/bass/melody generation,
-  WAV render jobs, MIDI/JSON export)
-* Compose Rhythm Orchestration with imported layer mapping, native rhythm
-  generation, independent Harmony/Bass/Melody generator settings, event
-  playback/export, and time-proportional Composition Roll
-
-Performance tuning and installer distribution remain release-operations
-work and should be measured for each target platform before a production
-release. The test suite currently covers all endpoints and engines
-(152 tests); `ruff` and `mypy` are clean.
+Phases P1-P9 are implemented in their original scope. P10 remains open for
+project persistence, automated browser regression, performance validation,
+and distribution. Per-group status notes below explain the detailed boundary
+between current behavior and planned work.
 
 ---
 
@@ -145,12 +133,11 @@ Planned
 
 ### G5.1 Composition Visualizer
 
-The Compose panel can generate harmony, bass, and melody, but its current
-horizontal chord list does not make the relationship between those layers
-legible over time. Add a linked **Composition Roll** as the primary
-composition visualization. It must use a cents-based vertical axis rather
-than MIDI-note rows, so that the actual sizes of pure intervals remain
-visible.
+This work introduced a linked **Composition Roll** because the original
+horizontal chord list did not make harmony, bass, and melody relationships
+legible over time. The implemented view uses a cents-based vertical axis
+rather than MIDI-note rows, so the actual sizes of pure intervals remain
+visible. The remaining interaction work is listed below.
 
 Status
 
@@ -662,13 +649,12 @@ scale source:
 
 ## G10. Compose Rhythm Orchestration
 
-Compose currently gives every chord, bass note, and melody note one fixed
-duration. The Rhythm workbench generates useful percussion layers, but those
-layers cannot yet articulate pitched composition material. Add a rhythm
-orchestration stage between pitch generation and playback/export. Harmony,
-bass, and melody generation must remain pitch-domain operations; rhythm
-orchestration converts their results into timed note events without changing
-the selected ratios.
+The original Compose implementation gave every chord, bass note, and melody
+note one fixed duration, while the Rhythm workbench only articulated
+percussion. G10 added a rhythm orchestration stage between pitch generation
+and playback/export. Harmony, bass, and melody remain pitch-domain operations;
+rhythm orchestration converts their results into timed note events without
+changing the selected ratios.
 
 Status
 
@@ -793,9 +779,9 @@ store mappings by stable track ids, not display labels.
 
 ### G10.4 Compose-Native Rhythm Generation
 
-Compose also needs rhythm generation that does not depend on patterns already
-created in the Rhythm panel. The following algorithms should be evaluated
-behind one seeded interface.
+Compose-native generation now supports rhythm that does not depend on patterns
+created in the Rhythm panel. The following algorithms share one seeded
+interface; their implementation status is recorded in G10.7.
 
 #### A. Transition-Aware Harmonic Rhythm
 
@@ -889,7 +875,7 @@ events so the result is reproducible and inspectable.
 
 ### G10.6 Compose UI and Visualization
 
-Add a Rhythm section inside Compose after pitch generation:
+The implemented Rhythm section inside Compose follows this control contract:
 
 * source segmented control: `Rhythm layers` or `Generate`;
 * mapping mode: `Chord tones`, `Roles`, or `Hybrid`;
@@ -982,57 +968,42 @@ tracked in the functional groups above.
 
 # Testing Strategy
 
-Every module contains
+Current verification:
 
-Unit tests
+* deterministic unit tests for mathematical and composition engines;
+* API integration and validation tests;
+* regression tests for lattice compatibility and export behavior;
+* `ruff` and `mypy` checks.
 
-Integration tests
+Release additions:
 
-Regression tests
-
-Property tests where applicable
-
-Coverage target
-
-90%
+* automated browser interaction and screenshot regression;
+* property tests where they provide value;
+* measured coverage with a 90% target;
+* repeatable performance benchmarks.
 
 ---
 
 # Performance Targets
 
-Graph generation
+These are unverified release targets, not current benchmark results:
 
-< 1 second
-
-Random walk
-
-10000 transitions per second
-
-Offline rendering
-
-10× real time
-
-Memory
-
-< 1 GB
+| Operation | Target |
+| --- | --- |
+| Graph generation | < 1 second for documented ordinary inputs |
+| Random walk | >= 10,000 transitions per second |
+| Offline rendering | >= 10x real time |
+| Process memory | < 1 GB for documented practical limits |
 
 ---
 
 # Code Style
 
-Python 3.12
-
-PEP8
-
-Type hints mandatory
-
-black
-
-ruff
-
-mypy
-
-pytest
+* Python 3.12 or newer
+* PEP 8 and type hints
+* `ruff` for linting
+* `mypy` for type checking
+* `pytest` for automated tests
 
 ---
 

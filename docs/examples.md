@@ -73,3 +73,42 @@ curl -X POST http://127.0.0.1:8000/api/harmonic-graph \
   -H 'content-type: application/json' \
   -d '{"factors":[1,3,5,7],"choose":2,"operation":"weighted_walk","steps":12,"seed":42,"metric":"harmonic"}'
 ```
+
+## Generate Independent Harmony, Bass, and Melody Rhythms
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/compose/rhythm/generate \
+  -H 'content-type: application/json' \
+  -d '{
+    "clock":{"bars":2,"tempo_bpm":96},
+    "composition":{
+      "chords":[["1/1","5/4","3/2"],["9/8","4/3","5/3"]],
+      "bass":["1/2","9/16"],
+      "melody":[["3/2","5/3"]],
+      "transition_scores":[null,500]
+    },
+    "seed":42,
+    "generators":[
+      {"target":"harmony","strategy":"transition-aware","profile":"sparse","density":0.2,"syncopation":0.1},
+      {"target":"bass","strategy":"semi-markov","profile":"grounded","density":0.35,"syncopation":0.25},
+      {"target":"melody:0","strategy":"interlocking","profile":"flowing","density":0.55,"syncopation":0.65}
+    ]
+  }'
+```
+
+## Build an Exponent-Lattice Chord Progression
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/exponent-lattice/progression \
+  -H 'content-type: application/json' \
+  -d '{
+    "generators":[3,5],
+    "root":"1/1",
+    "start_vector":[0,0],
+    "chord_vectors":[[0,-1],[-1,0]],
+    "progression_differences":[[1,0],[0,1]]
+  }'
+```
+
+The response contains root coordinates and simultaneous harmony stacks for
+`(0,0)`, `(1,0)`, and `(1,1)`.

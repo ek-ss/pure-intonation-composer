@@ -698,13 +698,16 @@ Responses:
 
 ---
 
-# 10. Planned (Not Yet Implemented)
+# 10. Roadmap Candidates
 
-From the original specification, still open:
+These capabilities are not part of the current API:
 
 - `/api/v1` route versioning
-- Authentication (JWT/OAuth)
+- Authentication for remote multi-user deployment
 - Instrument presets and project persistence
 - Form generator, full `/compose` one-shot endpoint
 - Server-Sent Events (`/events`)
-- Scala file import
+- WebMIDI/MPE/MTS and OSC integration
+
+Scala import is implemented at `POST /api/scales/import`. See
+[status.md](status.md) for the prioritized gaps.

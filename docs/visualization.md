@@ -5,6 +5,13 @@
 **Layout ID:** `reference_layered_grid`
 **Version:** 0.1
 
+> **Document status:** implemented for CPS/Johnson graphs in
+> `app/graphs/layout.py`, exposed by `POST /api/harmonic-graph`, and covered by
+> deterministic layout tests. Broader Composition Roll enhancements are
+> tracked separately in
+> [development_plan.md](development_plan.md#g51-composition-visualizer) and
+> [status.md](status.md).
+
 ---
 
 ## 1. Purpose

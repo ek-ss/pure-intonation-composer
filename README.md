@@ -65,9 +65,11 @@ backend/
     main.py            FastAPI application: REST endpoints + WebSocket transport
     models.py          Pydantic request models
     jobs.py            Async render job queue
+    lattice.py         Exact exponent-lattice mathematics and traversal
+    scales.py          Process-local named scale store
     generators/        CPS, Euler–Fokker, harmonic/subharmonic series
-    graphs/            Johnson graph + traversal algorithms
-    composition/       Harmony, voice leading, bass, melody
+    graphs/            Johnson graph, traversal, and layered layout
+    composition/       Harmony, voice leading, bass, melody, rhythm orchestration
     rhythm/            Euclidean, state graph, phase shift, humanize
     audio/             Offline WAV rendering
     exporters/         MIDI (pitched + percussion), Scala
@@ -75,18 +77,23 @@ backend/
     static/            Browser workbench (vanilla JS, no build step)
   tests/               pytest suite
 docs/
+  README.md            Documentation map and source-of-truth rules
+  status.md            Canonical implementation status and known gaps
   usage.md             User guide for the workbench and API
+  usage_ja.md          Japanese user guide
   algorithm.md         Musical algorithm design specification
+  algorithm_rhythm.md  Multi-part rhythm design specification
   api.md               Implemented REST/WebSocket API reference
-  data_model.md        Canonical data model specification
-  development_plan.md  Roadmap, functional groups, and current status
+  data_model.md        Conceptual data model specification
+  development_plan.md  Active roadmap and detailed feature designs
   examples.md          Copy-paste API usage examples
   visualization.md     Graph layout specification
 ```
 
 ## Documentation
 
-Start with the [usage guide](docs/usage.md) for the workbench and API.
-See [docs/examples.md](docs/examples.md) for copy-paste commands and
-[docs/development_plan.md](docs/development_plan.md) for the roadmap and
-implementation status.
+Start with the [documentation map](docs/README.md). The
+[implementation status](docs/status.md) is the source of truth for completed
+and remaining work. Use the [Japanese guide](docs/usage_ja.md) or
+[English guide](docs/usage.md) for the workbench, and
+[examples.md](docs/examples.md) for runnable API commands.

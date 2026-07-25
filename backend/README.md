@@ -8,29 +8,25 @@ FastAPI backend for generating and analysing rational tunings.
 cd backend
 python -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
+pip install -e '.[dev]'
 uvicorn app.main:app --reload
 ```
 
-Open `http://127.0.0.1:8000/docs` for the interactive API documentation.
+Open `http://127.0.0.1:8000` for the browser workbench and
+`http://127.0.0.1:8000/docs` for the interactive API documentation.
 
-## Included endpoints
+## Included Subsystems
 
-- `POST /api/cps` — Combination Product Set generation
-- `POST /api/euler-fokker` — Euler–Fokker genus generation
-- `POST /api/harmonic-series` and `/api/subharmonic-series`
-- `POST /api/analyze-ratio` — cents and sparse prime-exponent monzo
-- `POST /api/harmonic-graph` — CPS Johnson graph and deterministic traversals
-- `POST /api/compose/harmony` — deterministic, connected CPS chord progressions
-- `POST /api/compose/voice-leading` — compact, non-crossing rational voicings
-- `POST /api/compose/bass` — continuous root, fifth, and mirror bass lines
-- `POST /api/compose/melody` — independent contour-controlled melodic voices
-- `POST /api/rhythm/euclidean` — even pulse distribution
-- `POST /api/rhythm/state-graph` — binary Hamming-distance-one transitions
-- `POST /api/rhythm/phase-shift` and `/api/rhythm/humanize` — layered timing tools
-- `POST /api/render/wav` — offline WAV render with oscillator, ADSR, and effects
-- `POST /api/export/midi`, `/api/export/scala`, and `/api/export/json` — composition export
-- `POST /api/export/scala` — Scala `.scl` content
+- rational scale generation, analysis, snapping, storage, and Scala exchange;
+- Johnson harmonic graphs, deterministic walks, and layered layouts;
+- harmony, voice-leading, bass, melody, and tick-based rhythm orchestration;
+- Euclidean and polymetric drum generation, analysis, and humanization;
+- exponent-lattice scales, chords, root motion, and bounded walks;
+- WAV rendering, render jobs, MIDI/Scala/JSON export, and WebSocket transport.
+
+The complete route list and wire schemas are maintained in
+[docs/api.md](../docs/api.md). Current implementation boundaries and known
+gaps are in [docs/status.md](../docs/status.md).
 
 ## Example
 

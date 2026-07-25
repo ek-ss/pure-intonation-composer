@@ -4,6 +4,12 @@
 **Component:** Rhythm Engine
 **Version:** 0.1
 
+> **Document status:** mixed implementation and design specification.
+> Euclidean generation, rotation optimization, bounded polymetric analysis,
+> phase offsets, metrics, state graphs, accent velocities, and humanization
+> are implemented. Coordinated transitions, fill generation, presets, and
+> continuous phase drift remain planned; see [status.md](status.md).
+
 ---
 
 ## 1. Purpose

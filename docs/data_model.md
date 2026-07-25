@@ -14,9 +14,12 @@ This document defines the canonical data model used throughout the project.
 > bass, rhythm patterns, and render settings are implemented. Presets,
 > effect chains, projects, and SQL storage are planned work. The REST API
 > exchanges a practical subset of these models — see [api.md](api.md) for
-> the exact wire shapes.
+> the exact wire shapes and [status.md](status.md) for implementation
+> boundaries.
 
-Every module must exchange data using these models.
+These models define the intended public and persistence boundaries. Internal
+code currently uses a mix of dataclasses, Pydantic request models, and plain
+response dictionaries that map to the implemented subset.
 
 The models are independent of
 
@@ -514,19 +517,19 @@ description
 
 # 27. Serialization
 
-All objects must support
+Implemented exchange boundaries
 
-JSON
+* JSON request and response payloads
+* Pydantic validation for REST request models
+* Dataclass and dictionary serialization for the implemented domain objects
+* Composition JSON export from the workbench
 
-YAML
+Planned persistence boundaries
 
-Pydantic
-
-Future
-
-SQLite
-
-PostgreSQL
+* Versioned project JSON import, validation, and migration
+* YAML only where a human-authored configuration format is useful
+* SQLite or another on-disk store for local persistence
+* PostgreSQL only if a remote multi-user deployment requires it
 
 ---
 
