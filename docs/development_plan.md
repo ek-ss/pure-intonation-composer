@@ -328,8 +328,8 @@ Implementation audit (2026-07-25)
 * Still required for EV6: versioned project JSON, migration handling,
   coordinate-plus-ratio persistence, and Scala/MIDI/WAV interoperability rules.
 * Still required for EV7 and promotion from Experimental: performance
-  benchmarks, documented worked examples, Japanese Lattice Lab usage
-  documentation, and desktop/mobile interaction and JSON round-trip tests.
+  benchmarks, documented worked examples, and automated desktop/mobile
+  interaction and JSON round-trip tests.
 
 ### G9.1 Mathematical Model
 
