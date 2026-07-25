@@ -130,13 +130,29 @@ CPSの和声グラフから、複数パートを含むテクスチャ全体を�
 3. **旋律生成** — 和音の上に独立した旋律声部を生成します。声部数と輪郭（`arch`、`ascending`、`descending`、`free`）を設定できます。
 4. **▶ 再生 / 停止** — 選択したテンポで、和音、ベース、旋律をブラウザ内再生または停止します。
 
+**Rhythm Orchestration**
+
+* `Rhythm layers`では、現在のkick/snare/hat/percパターンを、和音の根音・
+  第2音・第3音などへ個別に割り当てるか、Harmony/Bass/Melodyの役割へ
+  割り当てます。`Chord tones`、`Roles`、`Hybrid`プリセットに加え、各行で
+  対象、声部方針、音数不足時の処理、gate、velocity、octave、articulation、
+  collisionを編集でき、On/Soloも指定できます。
+* `Generate`ではRhythmパネルと独立して、transition-aware、
+  Semi-Markov、interlocking、実験的ratio-derivedの各戦略からイベントを
+  生成します。profile、density、syncopation、対象、bars、seedを指定します。
+* **Apply rhythm / Generate rhythm**後は、再生、MIDI、JSON、WAVが同じ
+  tick単位イベント列を使用します。**Clear rhythm**で従来の固定ステップへ
+  戻ります。
+* Composition Rollは時間比例表示へ切り替わり、各音の発音・持続と
+  ソースパターンのレーンを表示します。
+
 エクスポート:
 
 * **MIDI** — 楽曲をMIDIファイルとしてダウンロードします。**ピッチベンドで正確な音程**を有効にすると、各音を個別のチャンネルへ配置し、正確なピッチベンドを付加します。これにより微分音を正しく保持できます。無効の場合は、最も近い12平均律の半音へ量子化されます。
 * **JSON** — 楽曲構造をJSONとしてダウンロードします。
 * **WAV レンダリング** — サーバー上で非同期ジョブとしてオフラインレンダリングします。完了すると、ボタンの下に音声プレーヤーが表示されます。Soundパネルの波形とADSRに加え、軽いリバーブが適用されます。
 
-API: `POST /api/compose/harmony`、`/api/compose/bass`、`/api/compose/melody`、`/api/compose/voice-leading`、`/api/export/midi`（`pitch_bend`）、`/api/export/json`、`POST /api/render/jobs` + `GET /api/render/jobs/{id}` + `GET /api/render/jobs/{id}/audio`
+API: `POST /api/compose/harmony`、`/api/compose/bass`、`/api/compose/melody`、`/api/compose/voice-leading`、`/api/compose/rhythm/apply`、`/api/compose/rhythm/generate`、`/api/export/midi`（`pitch_bend`）、`/api/export/json`、`POST /api/render/jobs` + `GET /api/render/jobs/{id}` + `GET /api/render/jobs/{id}/audio`
 
 ## 2.8 Rhythmパネル
 
@@ -199,7 +215,7 @@ API: `POST /api/exponent-lattice/scale`、`/harmony`、`/chord`、
 | 解析 | `POST /api/analyze-ratio`、`/api/analyze-interval`、`/api/tuning/snap` |
 | 音階ストア | `GET/POST /api/scales`、`GET/DELETE /api/scales/{name}`、`POST /api/scales/import` |
 | グラフ | `POST /api/harmonic-graph`（構築、walk、layered layout） |
-| 作曲 | `POST /api/compose/harmony`、`/api/compose/voice-leading`、`/api/compose/bass`、`/api/compose/melody` |
+| 作曲 | `POST /api/compose/harmony`、`/api/compose/voice-leading`、`/api/compose/bass`、`/api/compose/melody`、`/api/compose/rhythm/apply`、`/api/compose/rhythm/generate` |
 | リズム | `POST /api/rhythm/euclidean`、`/api/rhythm/state-graph`、`/api/rhythm/phase-shift`、`/api/rhythm/humanize` |
 | Lattice Lab | `POST /api/exponent-lattice/scale`、`/api/exponent-lattice/harmony`、`/api/exponent-lattice/chord`、`/api/exponent-lattice/progression`、`/api/exponent-lattice/walk`、`/api/exponent-lattice/analyze` |
 | レンダリング | `POST /api/render/wav`、`POST /api/render/jobs`、`GET /api/render/jobs/{id}`、`GET /api/render/jobs/{id}/audio` |

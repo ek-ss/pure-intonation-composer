@@ -18,11 +18,13 @@ Recent additions beyond the original phase scope:
 * Real-time-scaled timeline recorder with replay
 * Compose and rhythm workbench panels (harmony/bass/melody generation,
   WAV render jobs, MIDI/JSON export)
+* Compose Rhythm Orchestration with imported layer mapping, native rhythm
+  generation, event playback/export, and time-proportional Composition Roll
 
 Performance tuning and installer distribution remain release-operations
 work and should be measured for each target platform before a production
 release. The test suite currently covers all endpoints and engines
-(135 tests); `ruff` and `mypy` are clean.
+(149 tests); `ruff` and `mypy` are clean.
 
 ---
 
@@ -673,7 +675,11 @@ Status
   accents, humanization, and percussion MIDI export — Done
 * Compose harmony, bass, melody, fixed-step playback, MIDI/JSON/WAV export,
   and Composition Roll — Done
-* Rhythm-to-Compose assignment and Compose-native rhythm generation — Planned
+* Rhythm-to-Compose chord-tone/role/hybrid assignment — Done
+* Compose-native transition-aware, Semi-Markov, interlocking, and
+  ratio-derived generation — Done
+* Shared event playback, Composition Roll, MIDI/JSON/WAV integration — Done
+* Structured listening comparisons and performance benchmarks — Planned
 
 ### G10.1 Shared Time and Event Model
 
@@ -896,35 +902,36 @@ playhead, MIDI, JSON, and WAV must all use the same compiled event timeline.
 
 ### G10.7 Delivery Plan
 
-CR1 — Event timeline foundation
+CR1 — Event timeline foundation — Done
 
 * Add integer clock, track, mapping, and rhythmic-note-event models.
 * Refactor fixed Compose playback/export into the shared event compiler while
   preserving current audible behavior as the default.
 
-CR2 — Existing Rhythm integration
+CR2 — Existing Rhythm integration — Done
 
 * Add fixed-index chord-tone mapping, including root/second/third assignments.
 * Add harmony/bass/melody role mapping, collision policies, gate lengths, and
   polymetric projection.
 * Add mapping controls and source-pattern lanes to Composition Roll.
 
-CR3 — Compose-native generation
+CR3 — Compose-native generation — Done
 
 * Implement transition-aware harmonic rhythm with exact form-length fitting.
 * Implement seeded semi-Markov voice rhythms and profile presets.
 * Add interlocking optimization using shared Rhythm metrics.
 
-CR4 — Persistence and export
+CR4 — Persistence and export — Partially done
 
 * Store clock, mappings, generator settings, patterns, and events in project
-  JSON with schema migration.
+  JSON with schema migration. JSON export is done; project import/migration
+  remains planned.
 * Export event durations, velocities, ties, and microtonal channel allocation
   consistently to MIDI and WAV.
 
-CR5 — Experimental evaluation
+CR5 — Experimental evaluation — Partially done
 
-* Add ratio-derived cycles behind an Experimental flag.
+* Add ratio-derived cycles behind an Experimental flag. — Done
 * Run deterministic benchmarks and structured listening comparisons against
   Euclidean-only and fixed-step baselines.
 

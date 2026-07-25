@@ -370,6 +370,73 @@ Response: `notes[]` with `ratio`, `cents`, `leap_cents`, `strategy`.
 
 Response: `voices[]`, one per voice, each a list of `{ "ratio", "cents" }`.
 
+## POST /api/compose/rhythm/apply
+
+Map existing Rhythm layers onto ordered chord tones or Compose roles:
+
+```json
+{
+  "clock": {
+    "beats_per_bar": 4,
+    "subdivisions_per_beat": 4,
+    "bars": 2,
+    "ticks_per_beat": 480,
+    "tempo_bpm": 96
+  },
+  "composition": {
+    "chords": [["1/1", "5/4", "3/2"], ["9/8", "4/3", "5/3"]],
+    "bass": ["1/2", "9/16"],
+    "melody": [["3/2", "5/3"]]
+  },
+  "layers": [
+    { "name": "kick", "pattern": [1, 0, 0, 0] },
+    { "name": "snare", "pattern": [0, 0, 1, 0] }
+  ],
+  "mappings": [
+    { "source_layer": "kick", "target": "bass" },
+    { "source_layer": "snare", "target": "harmony", "collision": "retrigger" }
+  ]
+}
+```
+
+Targets: `harmony`, `bass`, `melody:i`, `chord_tone:i`, or `mute`.
+Chord-tone policies: `fixed-index`, `voice-led`, `rotate-per-chord`, and
+`register-spread`. Overflow: `drop`, `wrap`, or `clamp`. Each mapping also
+accepts `gate`, `register_octave`, `velocity_scale`, `collision`, and
+`articulation`. Polymetric patterns use modular projection and optional
+per-bar `phase_offsets`.
+
+Response: integer-tick `clock`, `chord_spans`, compiled `events`, and
+event-density/polyphony `metrics`.
+
+## POST /api/compose/rhythm/generate
+
+Generate rhythm inside Compose without a Rhythm-panel source:
+
+```json
+{
+  "clock": { "bars": 4, "tempo_bpm": 96 },
+  "composition": {
+    "chords": [["1/1", "5/4", "3/2"], ["9/8", "4/3", "5/3"]],
+    "bass": ["1/2", "9/16"],
+    "melody": [["3/2", "5/3"]],
+    "transition_scores": [null, 500]
+  },
+  "strategy": "transition-aware",
+  "profile": "grounded",
+  "density": 0.35,
+  "syncopation": 0.35,
+  "seed": 42,
+  "targets": ["harmony", "bass", "melody:0"]
+}
+```
+
+Strategies: `transition-aware`, `semi-markov`, `interlocking`, and
+experimental `ratio-derived`. Profiles: `grounded`, `interlocking`, `sparse`,
+and `flowing`. The response includes generated `layers`, `mappings`,
+subdivision-based `chord_durations`, and the same compiled event contract as
+`/apply`. Output is deterministic for identical inputs and seed.
+
 ---
 
 # 6. Rhythm

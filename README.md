@@ -14,12 +14,13 @@ exports MIDI, Scala, and JSON.
   or cent distance metrics)
 - **Composition engines** — seeded harmony progressions, voice leading
   (Hungarian assignment), bass lines (mirror/root/fifth/hybrid strategies),
-  and independent melody voices with contour and phrase memory
+  independent melody voices, and tick-accurate rhythm orchestration
 - **Exponent Lattice Lab** — exact integer-generator scales, seeded
   root-relative chords, explicit root-motion progressions, seeded walks,
   ASD keyboard audition, and transfer of lattice harmony into Compose
 - **Rhythm engine** — Euclidean rhythms, Hamming-distance state graphs,
-  phase shifting across independent cycle lengths, seeded humanization
+  phase shifting, seeded humanization, pitched-layer assignment, and
+  transition-aware/Semi-Markov/interlocking native Compose rhythms
 - **Audio** — offline WAV rendering (sine/triangle/saw/square/additive,
   ADSR, delay, reverb) with an async job queue
 - **Export** — MIDI (pitched and GM-percussion rhythm), Scala tuning files,

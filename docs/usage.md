@@ -168,6 +168,23 @@ Builds a full texture from a CPS harmonic graph.
 4. **▶ 再生 / 停止** — play or stop chords + bass + melody in the
    browser at the chosen tempo.
 
+**Rhythm Orchestration**
+
+* `Rhythm layers` maps the current kick/snare/hat/perc patterns to ordered
+  chord tones or to Harmony/Bass/Melody roles. Presets cover `Chord tones`,
+  `Roles`, and `Hybrid`; every row can change target, assignment policy,
+  overflow, gate, velocity, octave, articulation, and collision handling.
+  On/Solo checkboxes control which source tracks compile.
+* `Generate` creates rhythm inside Compose. Choose transition-aware harmonic
+  rhythm, seeded Semi-Markov voices, interlocking onset allocation, or the
+  experimental ratio-derived cycles, plus a profile, density, syncopation,
+  targets, bars, and seed.
+* **Apply rhythm / Generate rhythm** compiles an integer-tick event timeline.
+  Playback and all exports use those exact events. **Clear rhythm** restores
+  the original fixed two-beat-per-chord behavior.
+* Composition Roll switches to proportional musical time, draws attack and
+  sustain blocks, and shows the source-pattern lanes below the pitched events.
+
 Exports:
 
 * **MIDI** — download the composition as a MIDI file. Check
@@ -180,7 +197,8 @@ Exports:
   uses the Sound panel's waveform and ADSR plus a touch of reverb.
 
 API: `POST /api/compose/harmony`, `/api/compose/bass`,
-`/api/compose/melody`, `/api/compose/voice-leading`, `/api/export/midi`
+`/api/compose/melody`, `/api/compose/voice-leading`,
+`/api/compose/rhythm/apply`, `/api/compose/rhythm/generate`, `/api/export/midi`
 (`pitch_bend`), `/api/export/json`, `POST /api/render/jobs` +
 `GET /api/render/jobs/{id}` + `GET /api/render/jobs/{id}/audio`.
 
@@ -285,7 +303,7 @@ Base URL `http://127.0.0.1:8000`; all bodies JSON; errors are
 | Analysis | `POST /api/analyze-ratio`, `/api/analyze-interval`, `/api/tuning/snap` |
 | Scale store | `GET/POST /api/scales`, `GET/DELETE /api/scales/{name}`, `POST /api/scales/import` |
 | Graph | `POST /api/harmonic-graph` (build + walks + layered layout) |
-| Composition | `POST /api/compose/harmony`, `/api/compose/voice-leading`, `/api/compose/bass`, `/api/compose/melody` |
+| Composition | `POST /api/compose/harmony`, `/api/compose/voice-leading`, `/api/compose/bass`, `/api/compose/melody`, `/api/compose/rhythm/apply`, `/api/compose/rhythm/generate` |
 | Rhythm | `POST /api/rhythm/euclidean`, `/api/rhythm/state-graph`, `/api/rhythm/phase-shift`, `/api/rhythm/humanize`, `/api/rhythm/optimize-rotations`, `/api/rhythm/analyze`, `/api/drums/generate` |
 | Lattice lab | `POST /api/exponent-lattice/scale`, `/api/exponent-lattice/harmony`, `/api/exponent-lattice/chord`, `/api/exponent-lattice/progression`, `/api/exponent-lattice/walk`, `/api/exponent-lattice/analyze` |
 | Rendering | `POST /api/render/wav`, `POST /api/render/jobs`, `GET /api/render/jobs/{id}`, `GET /api/render/jobs/{id}/audio` |

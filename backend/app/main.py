@@ -13,6 +13,13 @@ from app.audio.render import Envelope, NoteEvent, render_wav
 from app.composition.harmony import generate_harmony
 from app.composition.bass import generate_bass
 from app.composition.melody import generate_melody
+from app.composition.rhythm import (
+    CompositionClock,
+    RhythmLayer,
+    RhythmMapping,
+    compile_rhythm,
+    generate_compose_rhythm,
+)
 from app.composition.voice_leading import voice_lead
 from app.generators.cps import generate_cps
 from app.generators.euler_fokker import generate_euler_fokker
@@ -23,6 +30,8 @@ from app.jobs import RenderJobs
 from app.models import (
     CPSRequest,
     BassRequest,
+    ComposeRhythmApplyRequest,
+    ComposeRhythmGenerateRequest,
     EulerFokkerRequest,
     HarmonicGraphRequest,
     HarmonyRequest,
@@ -341,6 +350,123 @@ def compose_melody(request: MelodyRequest) -> dict[str, object]:
                 ]
                 for voice in melody.voices
             ],
+        }
+    except (ValueError, ZeroDivisionError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+
+def _composition_clock(
+    request: ComposeRhythmApplyRequest | ComposeRhythmGenerateRequest,
+) -> CompositionClock:
+    clock = request.clock
+    return CompositionClock(
+        beats_per_bar=clock.beats_per_bar,
+        subdivisions_per_beat=clock.subdivisions_per_beat,
+        bars=clock.bars,
+        ticks_per_beat=clock.ticks_per_beat,
+        tempo_bpm=clock.tempo_bpm,
+    )
+
+
+def _composition_pitches(
+    request: ComposeRhythmApplyRequest | ComposeRhythmGenerateRequest,
+) -> tuple[list[list[Fraction]], list[Fraction], list[list[Fraction]]]:
+    composition = request.composition
+    return (
+        [[parse_ratio(value) for value in chord] for chord in composition.chords],
+        [parse_ratio(value) for value in composition.bass],
+        [[parse_ratio(value) for value in voice] for voice in composition.melody],
+    )
+
+
+@app.post("/api/compose/rhythm/apply")
+def compose_rhythm_apply(request: ComposeRhythmApplyRequest) -> dict[str, object]:
+    """Map existing polymetric Rhythm layers onto Compose pitch material."""
+    try:
+        chords, bass, melody = _composition_pitches(request)
+        layers = [
+            RhythmLayer(
+                layer.name,
+                tuple(layer.pattern),
+                tuple(layer.velocities_for()),
+                tuple(layer.phase_offsets),
+            )
+            for layer in request.layers
+        ]
+        mappings = [
+            RhythmMapping(
+                mapping.source_layer,
+                mapping.target,
+                mapping.policy,
+                mapping.overflow,
+                mapping.gate,
+                mapping.register_octave,
+                mapping.velocity_scale,
+                mapping.collision,
+                mapping.articulation,
+            )
+            for mapping in request.mappings
+        ]
+        return compile_rhythm(
+            _composition_clock(request),
+            chords,
+            bass,
+            melody,
+            layers,
+            mappings,
+            request.chord_durations,
+        ).payload()
+    except (ValueError, ZeroDivisionError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+
+@app.post("/api/compose/rhythm/generate")
+def compose_rhythm_generate(request: ComposeRhythmGenerateRequest) -> dict[str, object]:
+    """Generate seeded Compose-native rhythm and compile timed rational events."""
+    try:
+        chords, bass, melody = _composition_pitches(request)
+        layers, mappings, durations, compiled = generate_compose_rhythm(
+            _composition_clock(request),
+            chords,
+            bass,
+            melody,
+            request.strategy,
+            request.profile,
+            request.density,
+            request.syncopation,
+            request.seed,
+            request.targets,
+            request.composition.transition_scores,
+        )
+        return {
+            "strategy": request.strategy,
+            "profile": request.profile,
+            "seed": request.seed,
+            "layers": [
+                {
+                    "name": layer.name,
+                    "pattern": list(layer.pattern),
+                    "velocities": list(layer.velocities),
+                    "phase_offsets": list(layer.phase_offsets),
+                }
+                for layer in layers
+            ],
+            "mappings": [
+                {
+                    "source_layer": mapping.source_layer,
+                    "target": mapping.target,
+                    "policy": mapping.policy,
+                    "overflow": mapping.overflow,
+                    "gate": mapping.gate,
+                    "register_octave": mapping.register_octave,
+                    "velocity_scale": mapping.velocity_scale,
+                    "collision": mapping.collision,
+                    "articulation": mapping.articulation,
+                }
+                for mapping in mappings
+            ],
+            "chord_durations": durations,
+            **compiled.payload(),
         }
     except (ValueError, ZeroDivisionError) as error:
         raise HTTPException(status_code=422, detail=str(error)) from error

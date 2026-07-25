@@ -228,7 +228,7 @@ el("timeline-play").onclick=()=>{
 syncGeneratorFields(); generate();
 
 // ---- Compose: harmony / bass / melody / export / render ----
-const composeState = { chords: [], bass: [], melody: [], scheduled: [], activeStep: null, playhead: null, playheadFrame: null, graph: null, graphInput: null };
+const composeState = { chords: [], bass: [], melody: [], rhythm: null, scheduled: [], activeStep: null, playhead: null, playheadTick: null, playheadFrame: null, graph: null, graphInput: null };
 function setComposeStatus(text, kind = "") { const s = el("compose-status"); s.textContent = text; s.className = kind; }
 function ratioValue(ratio) { const [n, d] = ratio.split("/").map(Number); return n / d; }
 function ratioMul(ratio, factor) { const [n, d] = ratio.split("/").map(Number); let num = n * factor, den = d; const g = gcd(num, den); num /= g; den /= g; while (num >= den * 2) den *= 2; while (num < den) num *= 2; return `${num}/${den}`; }
@@ -249,7 +249,9 @@ function renderProgression() {
   composeState.chords.forEach((chord, index) => {
     const button = document.createElement("button");
     button.className = index === composeState.activeStep ? "active" : "";
-    const score = chord.transition_score === null ? "" : `Δ ${chord.transition_score.toFixed(2)}`;
+    const span = composeState.rhythm?.chord_spans?.[index];
+    const duration = span ? `${(span.duration_ticks / composeState.rhythm.clock.ticks_per_beat).toFixed(1)}b` : "";
+    const score = duration || (chord.transition_score === null ? "" : `Δ ${chord.transition_score.toFixed(2)}`);
     button.innerHTML = `<span class="chord-index">${index + 1}</span><span>${chord.ratio}</span><span class="chord-score">${score}</span>`;
     button.title = chordTones(chord).join("  ");
     button.onclick = () => selectCompositionStep(index, true);
@@ -262,7 +264,7 @@ async function generateHarmony() {
     setComposeStatus("Generating…", "loading");
     const data = await postJson("/api/compose/harmony", { factors, choose, length: Number(el("harmony-length").value), seed: Number(el("harmony-seed").value), metric: el("harmony-metric").value });
     const graph = await postJson("/api/harmonic-graph", { factors, choose });
-    composeState.chords = data.chords; composeState.bass = []; composeState.melody = []; composeState.activeStep = 0;
+    composeState.chords = data.chords; composeState.bass = []; composeState.melody = []; composeState.rhythm = null; composeState.activeStep = 0; setComposeRhythmStatus("", "");
     composeState.graph = graph; composeState.graphInput = { factors, choose }; state.graph = graph; state.walk = data.chords.map(chord => chord.node); state.layout = null; state.gridLayout = null; state.compositionNode = data.chords[0]?.node ?? null; el("graph-toggle").hidden = false;
     el("composition-roll-panel").hidden = false; renderProgression(); renderCompositionRoll(); setComposeStatus(`${data.length} chords`, "");
   } catch (error) { setComposeStatus(error.message, "error"); }
@@ -272,14 +274,14 @@ async function generateBass() {
   try {
     requireChords(); setComposeStatus("Bass…", "loading");
     const data = await postJson("/api/compose/bass", { chords: composeState.chords.map(chordTones), strategy: el("bass-strategy").value });
-    composeState.bass = data.notes; renderCompositionRoll(); setComposeStatus(`Bass: ${data.notes.length} notes`, "");
+    composeState.bass = data.notes; clearComposeRhythm(); setComposeStatus(`Bass: ${data.notes.length} notes`, "");
   } catch (error) { setComposeStatus(error.message, "error"); }
 }
 async function generateMelody() {
   try {
     requireChords(); setComposeStatus("Melody…", "loading");
     const data = await postJson("/api/compose/melody", { chords: composeState.chords.map(chordTones), voice_count: Number(el("melody-voices").value), seed: Number(el("harmony-seed").value), contour: el("melody-contour").value });
-    composeState.melody = data.voices; renderCompositionRoll(); setComposeStatus(`Melody: ${data.voices.length} voices`, "");
+    composeState.melody = data.voices; clearComposeRhythm(); setComposeStatus(`Melody: ${data.voices.length} voices`, "");
   } catch (error) { setComposeStatus(error.message, "error"); }
 }
 function scheduleTone(frequency, start, duration, level = 0.2) {
@@ -294,7 +296,19 @@ function beatSeconds() { return 60 / Number(el("tempo").value); }
 function playProgression() {
   if (!composeState.chords.length) { setComposeStatus("先に和声進行を生成してください。", "error"); return; }
   stopProgression();
-  const base = Number(el("base-frequency").value), step = beatSeconds() * 2, now = audioContext().currentTime + .1;
+  const base = Number(el("base-frequency").value), now = audioContext().currentTime + .1;
+  if (composeState.rhythm?.events?.length) {
+    const beat = beatSeconds(), ticksPerBeat = composeState.rhythm.clock.ticks_per_beat;
+    composeState.rhythm.events.forEach(event => {
+      const start = now + event.start_tick / ticksPerBeat * beat;
+      const duration = event.duration_ticks / ticksPerBeat * beat;
+      scheduleTone(base * ratioValue(event.ratio), start, duration, Math.min(.24, .2 * event.velocity / 100));
+    });
+    startRhythmPlayhead(now);
+    setComposeStatus(`Playing rhythm · ${composeState.rhythm.events.length} events`, "loading");
+    return;
+  }
+  const step = beatSeconds() * 2;
   composeState.chords.forEach((chord, index) => {
     const start = now + index * step;
     chordTones(chord).forEach(r => scheduleTone(base * ratioValue(r), start, step));
@@ -332,6 +346,13 @@ function renderHarmonyStackOnCircle(ctx, mid, radius) {
 }
 function centsForRatio(ratio) { return 1200 * Math.log2(ratioValue(ratio)); }
 function compositionViewModel() {
+  if (composeState.rhythm?.events?.length) {
+    return composeState.rhythm.events.map(event => {
+      const target = event.track_id.split("@")[0];
+      const layer = target === "bass" ? "bass" : target.startsWith("melody:") ? "melody" : "harmony";
+      return { layer, step:event.chord_index, ratio:event.ratio, cents:centsForRatio(event.ratio), start_tick:event.start_tick, duration_ticks:event.duration_ticks, track:event.track_id, source:event.source_layer, velocity:event.velocity };
+    });
+  }
   const notes = [];
   composeState.chords.forEach((chord, step) => chordTones(chord).forEach(ratio => notes.push({ layer:"harmony", step, ratio, cents:centsForRatio(ratio) })));
   composeState.bass.forEach((note, step) => notes.push({ layer:"bass", step, ratio:note.ratio, cents:centsForRatio(note.ratio), strategy:note.strategy, leap:note.leap_cents }));
@@ -340,6 +361,7 @@ function compositionViewModel() {
 }
 function renderCompositionRoll() {
   const canvas = el("composition-roll"); if (!canvas || !composeState.chords.length) return;
+  if (composeState.rhythm?.events?.length) { renderRhythmicCompositionRoll(canvas); return; }
   const ctx = canvas.getContext("2d"), width = canvas.width, height = canvas.height, left = 68, right = 20, top = 20, bottom = 40, steps = composeState.chords.length;
   const notes = compositionViewModel(), values = notes.map(note => note.cents), low = Math.floor((Math.min(...values, 0) - 240) / 1200) * 1200, high = Math.ceil((Math.max(...values, 1200) + 240) / 1200) * 1200, range = Math.max(1200, high - low);
   const x = step => left + (step + .5) * (width - left - right) / steps, y = cents => top + (high - cents) / range * (height - top - bottom), band = (width - left - right) / steps;
@@ -352,13 +374,86 @@ function renderCompositionRoll() {
   if (composeState.playhead !== null) { const px = left + composeState.playhead * band; ctx.strokeStyle = "#fff4cf"; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(px, top); ctx.lineTo(px, height - bottom); ctx.stroke(); }
   const active = composeState.activeStep; const chord = composeState.chords[active]; const extra = composeState.bass[active] ? ` · bass ${composeState.bass[active].ratio}` : ""; el("roll-status").textContent = `${steps} steps`; el("roll-inspector").textContent = chord ? `Step ${active + 1}: ${chordTones(chord).join(" · ")}${extra}` : "";
 }
+function renderRhythmicCompositionRoll(canvas) {
+  const rhythm = composeState.rhythm, events = compositionViewModel(), ctx = canvas.getContext("2d");
+  const width = canvas.width, height = canvas.height, left = 68, right = 20, top = 20, bottom = 72;
+  const values = events.map(event => event.cents), low = Math.floor((Math.min(...values, 0) - 240) / 1200) * 1200, high = Math.ceil((Math.max(...values, 1200) + 240) / 1200) * 1200, range = Math.max(1200, high - low);
+  const x = tick => left + tick / rhythm.clock.total_ticks * (width - left - right);
+  const y = cents => top + (high - cents) / range * (height - top - bottom);
+  const colors = { harmony:"#98e7ca", bass:"#ffd47e", melody:"#83b7ff" };
+  ctx.clearRect(0, 0, width, height); ctx.fillStyle = "#111622"; ctx.fillRect(0, 0, width, height);
+  for (let cent = low; cent <= high; cent += 1200) {
+    const py = y(cent); ctx.strokeStyle = "#30394d"; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(left, py); ctx.lineTo(width - right, py); ctx.stroke();
+    ctx.fillStyle = "#aeb9d0"; ctx.font = "12px system-ui"; ctx.textAlign = "right"; ctx.fillText(`${cent}c`, left - 8, py + 4);
+  }
+  rhythm.chord_spans.forEach((span, index) => {
+    const start = x(span.start_tick), end = x(span.start_tick + span.duration_ticks);
+    ctx.fillStyle = index === composeState.activeStep ? "#98e7ca18" : index % 2 ? "#ffffff04" : "#ffffff08"; ctx.fillRect(start, top, end - start, height - top - bottom);
+    ctx.strokeStyle = "#30394d"; ctx.beginPath(); ctx.moveTo(start, top); ctx.lineTo(start, height - bottom); ctx.stroke();
+    ctx.fillStyle = "#aeb9d0"; ctx.textAlign = "center"; ctx.font = "11px system-ui"; ctx.fillText(String(index + 1), (start + end) / 2, height - bottom + 16);
+  });
+  events.forEach(event => {
+    if ((event.layer === "harmony" && !el("roll-harmony").checked) || (event.layer === "bass" && !el("roll-bass").checked) || (event.layer === "melody" && !el("roll-melody").checked)) return;
+    const start = x(event.start_tick), end = x(event.start_tick + event.duration_ticks), py = y(event.cents);
+    ctx.fillStyle = colors[event.layer]; ctx.globalAlpha = .55 + .45 * event.velocity / 127; ctx.fillRect(start, py - 5, Math.max(3, end - start), 10); ctx.globalAlpha = 1;
+  });
+  const sources = [...new Set(rhythm.events.map(event => event.source_layer).filter(Boolean))].slice(0, 6);
+  sources.forEach((source, index) => {
+    const laneY = height - 38 + index * 7;
+    ctx.fillStyle = "#aeb9d0"; ctx.font = "8px system-ui"; ctx.textAlign = "right"; ctx.fillText(source, left - 5, laneY + 3);
+    rhythm.events.filter(event => event.source_layer === source).forEach(event => { ctx.fillStyle = "#caa8ff"; ctx.fillRect(x(event.start_tick), laneY, 3, 4); });
+  });
+  if (composeState.playheadTick !== null) {
+    const px = x(composeState.playheadTick); ctx.strokeStyle = "#fff4cf"; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(px, top); ctx.lineTo(px, height - bottom); ctx.stroke();
+  }
+  el("roll-status").textContent = `${rhythm.clock.bars} bars · ${rhythm.events.length} events`;
+  const active = composeState.activeStep, chord = composeState.chords[active];
+  el("roll-inspector").textContent = chord ? `Step ${active + 1}: ${chordTones(chord).join(" · ")}` : "";
+}
 function startCompositionPlayhead(startTime, stepSeconds) { stopCompositionPlayhead(); const context = audioContext(); const frame = () => { const position = (context.currentTime - startTime) / stepSeconds; if (position < 0) { composeState.playhead = 0; } else if (position <= composeState.chords.length) { composeState.playhead = position; composeState.activeStep = Math.min(composeState.chords.length - 1, Math.floor(position)); syncCompositionNode(); } else { stopCompositionPlayhead(); return; } renderCompositionRoll(); if (state.showGraph) renderCircle(); composeState.playheadFrame = requestAnimationFrame(frame); }; frame(); }
-function stopCompositionPlayhead() { if (composeState.playheadFrame) cancelAnimationFrame(composeState.playheadFrame); composeState.playheadFrame = null; composeState.playhead = null; if (composeState.chords.length) renderCompositionRoll(); }
-el("composition-roll").onclick = event => { if (!composeState.chords.length) return; const rect = event.currentTarget.getBoundingClientRect(), x = (event.clientX - rect.left) * event.currentTarget.width / rect.width, step = Math.max(0, Math.min(composeState.chords.length - 1, Math.floor((x - 68) / (event.currentTarget.width - 88) * composeState.chords.length))); selectCompositionStep(step, true); };
+function startRhythmPlayhead(startTime) {
+  stopCompositionPlayhead();
+  const context = audioContext(), rhythm = composeState.rhythm, beat = beatSeconds(), ticksPerBeat = rhythm.clock.ticks_per_beat;
+  const frame = () => {
+    const tick = (context.currentTime - startTime) / beat * ticksPerBeat;
+    if (tick < 0) composeState.playheadTick = 0;
+    else if (tick <= rhythm.clock.total_ticks) {
+      composeState.playheadTick = tick;
+      const index = rhythm.chord_spans.findIndex(span => tick < span.start_tick + span.duration_ticks);
+      composeState.activeStep = index < 0 ? composeState.chords.length - 1 : index;
+      syncCompositionNode();
+    } else { stopCompositionPlayhead(); return; }
+    renderCompositionRoll(); if (state.showGraph) renderCircle();
+    composeState.playheadFrame = requestAnimationFrame(frame);
+  };
+  frame();
+}
+function stopCompositionPlayhead() { if (composeState.playheadFrame) cancelAnimationFrame(composeState.playheadFrame); composeState.playheadFrame = null; composeState.playhead = null; composeState.playheadTick = null; if (composeState.chords.length) renderCompositionRoll(); }
+el("composition-roll").onclick = event => {
+  if (!composeState.chords.length) return;
+  const rect = event.currentTarget.getBoundingClientRect(), px = (event.clientX - rect.left) * event.currentTarget.width / rect.width;
+  if (composeState.rhythm) {
+    const tick = Math.max(0, Math.min(composeState.rhythm.clock.total_ticks, (px - 68) / (event.currentTarget.width - 88) * composeState.rhythm.clock.total_ticks));
+    const step = composeState.rhythm.chord_spans.findIndex(span => tick < span.start_tick + span.duration_ticks);
+    const nearest = composeState.rhythm.events.reduce((best, item) => Math.abs(item.start_tick - tick) < Math.abs(best.start_tick - tick) ? item : best, composeState.rhythm.events[0]);
+    selectCompositionStep(Math.max(0, step), true);
+    if (nearest) el("roll-inspector").textContent = `${nearest.track_id} · ${nearest.ratio} · tick ${nearest.start_tick} · ${nearest.duration_ticks} ticks · velocity ${nearest.velocity}`;
+    return;
+  }
+  const step = Math.max(0, Math.min(composeState.chords.length - 1, Math.floor((px - 68) / (event.currentTarget.width - 88) * composeState.chords.length)));
+  selectCompositionStep(step, true);
+};
 [
   "roll-harmony", "roll-bass", "roll-melody"
 ].forEach(id => el(id).onchange = renderCompositionRoll);
 function compositionEvents() {
+  if (composeState.rhythm?.events?.length) {
+    const beat = beatSeconds(), ticksPerBeat = composeState.rhythm.clock.ticks_per_beat;
+    return {
+      step: beat / composeState.rhythm.clock.subdivisions_per_beat,
+      events: composeState.rhythm.events.map(event => ({ ratio:event.ratio, start_seconds:event.start_tick / ticksPerBeat * beat, duration_seconds:event.duration_ticks / ticksPerBeat * beat, velocity:event.velocity }))
+    };
+  }
   const step = beatSeconds() * 2, events = [];
   composeState.chords.forEach((chord, index) => {
     chordTones(chord).forEach(r => events.push({ ratio: r, start_seconds: index * step, duration_seconds: step }));
@@ -378,7 +473,7 @@ el("export-midi").onclick = async () => {
   try {
     requireChords();
     const { step, events } = compositionEvents(), beat = beatSeconds();
-    const notes = events.map(event => ({ ratio: event.ratio, start_beats: event.start_seconds / beat, duration_beats: event.duration_seconds / beat }));
+    const notes = events.map(event => ({ ratio: event.ratio, start_beats: event.start_seconds / beat, duration_beats: event.duration_seconds / beat, velocity:event.velocity || 100 }));
     const response = await fetch("/api/export/midi", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ notes, base_frequency: Number(el("base-frequency").value), pitch_bend: el("midi-pitch-bend").checked }) });
     if (!response.ok) throw new Error("MIDI エクスポートに失敗しました。");
     download(await response.blob(), "composition.mid"); setComposeStatus(`${notes.length} notes → MIDI`, "");
@@ -387,7 +482,7 @@ el("export-midi").onclick = async () => {
 el("export-json").onclick = async () => {
   try {
     requireChords();
-    const composition = { seed: Number(el("harmony-seed").value), tempo: Number(el("tempo").value), chords: composeState.chords, bass: composeState.bass, melody: composeState.melody };
+    const composition = { schema_version: 2, seed: Number(el("harmony-seed").value), tempo: Number(el("tempo").value), chords: composeState.chords, bass: composeState.bass, melody: composeState.melody, rhythm: composeState.rhythm };
     const data = await postJson("/api/export/json", { name: "Pure Intonation Composition", composition });
     download(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }), "composition.json");
     setComposeStatus("JSON を保存しました", "");
@@ -411,6 +506,139 @@ el("render-wav").onclick = async () => {
     el("render-status").textContent = "Render: completed";
   } catch (error) { el("render-status").textContent = error.message; }
 };
+
+// ---- Compose rhythm orchestration ----
+let composeRhythmSource = "layers", composeRhythmMode = "chord-tones";
+function setComposeRhythmStatus(text, kind = "") { const status = el("compose-rhythm-status"); status.textContent = text; status.className = kind; }
+function bindSegmented(id, onChange) {
+  const group = el(id);
+  group.querySelectorAll("button").forEach(button => {
+    button.onclick = () => {
+      group.querySelectorAll("button").forEach(item => item.classList.toggle("active", item === button));
+      onChange(button.dataset.value);
+    };
+  });
+}
+bindSegmented("compose-rhythm-source", value => {
+  composeRhythmSource = value;
+  el("compose-rhythm-layers").hidden = value !== "layers";
+  el("compose-rhythm-generate").hidden = value !== "generate";
+});
+bindSegmented("compose-rhythm-mode", value => { composeRhythmMode = value; renderComposeRhythmMappings(); });
+function mappingTargetOptions() {
+  const options = [
+    ["chord_tone:0", "Chord 1 (root)"], ["chord_tone:1", "Chord 2"], ["chord_tone:2", "Chord 3"], ["chord_tone:3", "Chord 4"],
+    ["harmony", "Harmony"], ["bass", "Bass"], ["melody:0", "Melody 1"], ["melody:1", "Melody 2"], ["melody:2", "Melody 3"], ["melody:3", "Melody 4"], ["mute", "Mute"]
+  ];
+  return options.map(([value, label]) => `<option value="${value}">${label}</option>`).join("");
+}
+function composeRhythmPreset(layer, index) {
+  const byName = { kick:"bass", snare:"harmony", hat:"melody:0", perc:"melody:1" };
+  const hybrid = { kick:"bass", snare:"harmony", hat:"chord_tone:2", perc:"melody:0" };
+  if (composeRhythmMode === "roles") return byName[layer.name] || "mute";
+  if (composeRhythmMode === "hybrid") return hybrid[layer.name] || "mute";
+  return `chord_tone:${Math.min(index, 3)}`;
+}
+function compactSelect(className, options, value) {
+  const select = document.createElement("select"); select.className = className;
+  select.innerHTML = options.map(option => `<option value="${option}">${option}</option>`).join(""); select.value = value;
+  return select;
+}
+function renderComposeRhythmMappings() {
+  const body = el("compose-rhythm-mappings"); if (!body || typeof drumState === "undefined") return;
+  body.innerHTML = "";
+  drumState.layers.forEach((layer, index) => {
+    const row = document.createElement("tr"); row.dataset.source = layer.name;
+    const source = document.createElement("td"); source.textContent = layer.name;
+    const enabledCell = document.createElement("td"), enabled = document.createElement("input"); enabled.className = "rhythm-map-enabled"; enabled.type = "checkbox"; enabled.checked = true; enabled.title = `${layer.name} on`; enabledCell.append(enabled);
+    const soloCell = document.createElement("td"), solo = document.createElement("input"); solo.className = "rhythm-map-solo"; solo.type = "checkbox"; solo.title = `${layer.name} solo`; soloCell.append(solo);
+    const targetCell = document.createElement("td"), target = document.createElement("select"); target.className = "rhythm-map-target"; target.innerHTML = mappingTargetOptions(); target.value = composeRhythmPreset(layer, index); targetCell.append(target);
+    const policyCell = document.createElement("td"), policy = compactSelect("rhythm-map-policy", ["fixed-index", "voice-led", "rotate-per-chord", "register-spread"], "fixed-index"); policyCell.append(policy);
+    const overflowCell = document.createElement("td"), overflow = compactSelect("rhythm-map-overflow", ["drop", "wrap", "clamp"], index > 2 ? "wrap" : "drop"); overflowCell.append(overflow);
+    const gateCell = document.createElement("td"), gate = document.createElement("input"); gate.className = "rhythm-map-gate"; gate.type = "number"; gate.min = ".1"; gate.max = "16"; gate.step = ".1"; gate.value = target.value === "harmony" ? "0.9" : "0.7"; gateCell.append(gate);
+    const velocityCell = document.createElement("td"), velocity = document.createElement("input"); velocity.className = "rhythm-map-velocity"; velocity.type = "number"; velocity.min = ".1"; velocity.max = "2"; velocity.step = ".1"; velocity.value = "1"; velocityCell.append(velocity);
+    const octaveCell = document.createElement("td"), octave = document.createElement("input"); octave.className = "rhythm-map-octave"; octave.type = "number"; octave.min = "-4"; octave.max = "4"; octave.value = "0"; octaveCell.append(octave);
+    const articulationCell = document.createElement("td"), articulation = compactSelect("rhythm-map-articulation", ["gate", "legato", "tie", "accent"], "gate"); articulationCell.append(articulation);
+    const collisionCell = document.createElement("td"), collision = compactSelect("rhythm-map-collision", ["merge", "retrigger", "stack"], target.value === "harmony" ? "retrigger" : "merge"); collisionCell.append(collision);
+    row.append(source, enabledCell, soloCell, targetCell, policyCell, overflowCell, gateCell, velocityCell, octaveCell, articulationCell, collisionCell); body.append(row);
+  });
+}
+function composeRhythmClock() {
+  return { beats_per_bar:4, subdivisions_per_beat:4, bars:Number(el("compose-rhythm-bars").value), ticks_per_beat:480, tempo_bpm:Number(el("tempo").value) };
+}
+function composeRhythmMaterial() {
+  return {
+    chords: composeState.chords.map(chordTones),
+    bass: composeState.bass.map(note => note.ratio),
+    melody: composeState.melody.map(voice => voice.map(note => note.ratio)),
+    transition_scores: composeState.chords.map(chord => chord.transition_score ?? null)
+  };
+}
+function readComposeRhythmMappings() {
+  const rows = [...el("compose-rhythm-mappings").rows], hasSolo = rows.some(row => row.querySelector(".rhythm-map-solo").checked);
+  return rows.filter(row => row.querySelector(".rhythm-map-enabled").checked && (!hasSolo || row.querySelector(".rhythm-map-solo").checked)).map(row => ({
+    source_layer:row.dataset.source,
+    target:row.querySelector(".rhythm-map-target").value,
+    policy:row.querySelector(".rhythm-map-policy").value,
+    overflow:row.querySelector(".rhythm-map-overflow").value,
+    gate:Number(row.querySelector(".rhythm-map-gate").value),
+    velocity_scale:Number(row.querySelector(".rhythm-map-velocity").value),
+    register_octave:Number(row.querySelector(".rhythm-map-octave").value),
+    articulation:row.querySelector(".rhythm-map-articulation").value,
+    collision:row.querySelector(".rhythm-map-collision").value
+  }));
+}
+function adoptComposeRhythm(data, source) {
+  composeState.rhythm = { ...data, source };
+  composeState.playheadTick = null;
+  renderProgression(); renderCompositionRoll();
+  const metrics = data.metrics;
+  setComposeRhythmStatus(`${metrics.event_count} events · density ${metrics.onset_density.toFixed(2)} · max ${metrics.max_simultaneous_attacks}`, "");
+}
+function clearComposeRhythm(render = true) {
+  composeState.rhythm = null; composeState.playheadTick = null;
+  setComposeRhythmStatus("", "");
+  if (render && composeState.chords.length) { renderProgression(); renderCompositionRoll(); }
+}
+el("compose-rhythm-clear").onclick = () => { clearComposeRhythm(); setComposeStatus("Fixed-step rhythm", ""); };
+el("compose-rhythm-apply").onclick = async () => {
+  try {
+    requireChords(); setComposeRhythmStatus("Applying…", "loading");
+    const layers = drumState.layers.map(layer => ({
+      name:layer.name,
+      pattern:layer.pattern,
+      ...(layer.velocities.length === layer.pattern.length ? { velocities:layer.velocities } : {}),
+      phase_offsets:layer.phase_offsets || []
+    }));
+    const mappings = readComposeRhythmMappings();
+    if (!mappings.length) throw new Error("有効な割り当てを1つ以上選択してください。");
+    const data = await postJson("/api/compose/rhythm/apply", { clock:composeRhythmClock(), composition:composeRhythmMaterial(), layers, mappings });
+    adoptComposeRhythm({ ...data, layers, mappings }, "layers");
+  } catch (error) { setComposeRhythmStatus(error.message, "error"); }
+};
+function nativeRhythmTargets() {
+  const targets = [];
+  if (el("compose-rhythm-target-harmony").checked) targets.push("harmony");
+  if (el("compose-rhythm-target-bass").checked && composeState.bass.length) targets.push("bass");
+  if (el("compose-rhythm-target-melody").checked) composeState.melody.forEach((_, index) => targets.push(`melody:${index}`));
+  return targets;
+}
+el("compose-rhythm-native").onclick = async () => {
+  try {
+    requireChords();
+    const targets = nativeRhythmTargets(); if (!targets.length) throw new Error("生成対象を1つ以上選択してください。");
+    setComposeRhythmStatus("Generating…", "loading");
+    const data = await postJson("/api/compose/rhythm/generate", {
+      clock:composeRhythmClock(), composition:composeRhythmMaterial(),
+      strategy:el("compose-rhythm-strategy").value, profile:el("compose-rhythm-profile").value,
+      density:Number(el("compose-rhythm-density").value), syncopation:Number(el("compose-rhythm-sync").value),
+      seed:Number(el("compose-rhythm-seed").value), targets
+    });
+    adoptComposeRhythm(data, "generate");
+  } catch (error) { setComposeRhythmStatus(error.message, "error"); }
+};
+el("compose-rhythm-density").oninput = event => el("compose-rhythm-density-value").textContent = Number(event.target.value).toFixed(2);
+el("compose-rhythm-sync").oninput = event => el("compose-rhythm-sync-value").textContent = Number(event.target.value).toFixed(2);
 
 // ---- Scale editor / snapping / harmonics ----
 function jsMonzo(ratio) {
@@ -634,6 +862,7 @@ el("drums-export-json").onclick = async () => {
   } catch (error) { setRhythmStatus(error.message, "error"); }
 };
 buildDrumUI();
+renderComposeRhythmMappings();
 
 // ---- Lattice Lab (G9 exponent-lattice harmony laboratory, experimental) ----
 const latticeState = { points: [], tones: [], offsets: [], walk: null, walkPitches: null, walkHarmonies: null, sequenceKind: null, progressionDifferences: [], activeWalkStep: 0, activeKeys: new Map(), selected: null, dims: 0 };
@@ -904,7 +1133,8 @@ function latticeComposeChord(harmony) {
 }
 function sendLatticeToCompose(harmonies, label) {
   composeState.chords = harmonies.map(latticeComposeChord);
-  composeState.bass = []; composeState.melody = [];
+  composeState.bass = []; composeState.melody = []; composeState.rhythm = null;
+  setComposeRhythmStatus("", "");
   composeState.activeStep = 0; composeState.graph = null; composeState.graphInput = null;
   state.compositionNode = null; state.walk = null; state.showGraph = false;
   el("visual-title").textContent = "Pitch circle"; el("graph-toggle").hidden = true; el("walk-controls").hidden = true;

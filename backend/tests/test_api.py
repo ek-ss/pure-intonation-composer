@@ -18,13 +18,17 @@ def test_root_landing_page() -> None:
     assert 'id="lattice-progression"' in response.text
     assert 'id="lattice-walk-compose"' in response.text
     assert 'id="lattice-keyboard"' in response.text
-    assert "/static/app.js?v=20260726-lattice-fields" in response.text
+    assert "/static/app.js?v=20260726-compose-rhythm" in response.text
+    assert 'id="compose-rhythm-apply"' in response.text
+    assert 'id="compose-rhythm-native"' in response.text
     script = client.get("/static/app.js")
     assert script.status_code == 200
     assert "renderHarmonyStackOnCircle" in script.text
     assert "selectCompositionNode" in script.text
     assert "/api/exponent-lattice/chord" in script.text
     assert "/api/exponent-lattice/progression" in script.text
+    assert "/api/compose/rhythm/apply" in script.text
+    assert "/api/compose/rhythm/generate" in script.text
     assert "sendLatticeToCompose" in script.text
     assert 'const LATTICE_KEYS = "ASDFGHJKL;QWERTY"' in script.text
     assert client.get("/favicon.ico").status_code == 204

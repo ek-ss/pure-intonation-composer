@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Pure Intonation Workbench</title>
-    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="/static/style.css?v=20260726-compose-rhythm">
   </head>
   <body>
     <header class="topbar">
@@ -199,6 +199,78 @@
             <audio id="render-player" controls hidden></audio>
           </div>
         </div>
+        <div class="compose-rhythm">
+          <div class="section-heading">
+            <h3>Rhythm Orchestration</h3>
+            <span id="compose-rhythm-status" role="status"></span>
+          </div>
+          <div id="compose-rhythm-source" class="segmented" aria-label="リズムソース">
+            <button type="button" class="active" data-value="layers">Rhythm layers</button>
+            <button type="button" data-value="generate">Generate</button>
+          </div>
+          <div class="compose-rhythm-settings">
+            <label>Bars
+              <input id="compose-rhythm-bars" type="number" min="1" max="128" value="8">
+            </label>
+            <label>Seed
+              <input id="compose-rhythm-seed" type="number" value="42">
+            </label>
+            <button id="compose-rhythm-clear" class="quiet">Clear rhythm</button>
+          </div>
+          <div id="compose-rhythm-layers">
+            <div id="compose-rhythm-mode" class="segmented" aria-label="割り当てモード">
+              <button type="button" class="active" data-value="chord-tones">Chord tones</button>
+              <button type="button" data-value="roles">Roles</button>
+              <button type="button" data-value="hybrid">Hybrid</button>
+            </div>
+            <div class="table-wrap compose-rhythm-table">
+              <table>
+                <thead><tr><th>Source</th><th>On</th><th>Solo</th><th>Target</th><th>Policy</th><th>Overflow</th><th>Gate</th><th>Vel</th><th>Oct</th><th>Articulation</th><th>Collision</th></tr></thead>
+                <tbody id="compose-rhythm-mappings"></tbody>
+              </table>
+            </div>
+            <button id="compose-rhythm-apply" class="primary">Apply rhythm</button>
+          </div>
+          <div id="compose-rhythm-generate" hidden>
+            <div class="compose-grid">
+              <div>
+                <label>Strategy
+                  <select id="compose-rhythm-strategy">
+                    <option value="transition-aware">transition-aware</option>
+                    <option value="semi-markov">semi-markov</option>
+                    <option value="interlocking">interlocking</option>
+                    <option value="ratio-derived">ratio-derived (Experimental)</option>
+                  </select>
+                </label>
+                <label>Profile
+                  <select id="compose-rhythm-profile">
+                    <option value="grounded">grounded</option>
+                    <option value="interlocking">interlocking</option>
+                    <option value="sparse">sparse</option>
+                    <option value="flowing">flowing</option>
+                  </select>
+                </label>
+              </div>
+              <div>
+                <label>Density <output id="compose-rhythm-density-value">0.35</output>
+                  <input id="compose-rhythm-density" type="range" min="0.05" max="0.9" step="0.05" value="0.35">
+                </label>
+                <label>Syncopation <output id="compose-rhythm-sync-value">0.35</output>
+                  <input id="compose-rhythm-sync" type="range" min="0" max="1" step="0.05" value="0.35">
+                </label>
+              </div>
+              <div>
+                <span class="field-label">Targets</span>
+                <div class="target-checks">
+                  <label class="check"><input id="compose-rhythm-target-harmony" type="checkbox" checked> Harmony</label>
+                  <label class="check"><input id="compose-rhythm-target-bass" type="checkbox" checked> Bass</label>
+                  <label class="check"><input id="compose-rhythm-target-melody" type="checkbox" checked> Melody</label>
+                </div>
+                <button id="compose-rhythm-native" class="primary">Generate rhythm</button>
+              </div>
+            </div>
+          </div>
+        </div>
         <div id="progression" class="progression" aria-live="polite"></div>
       </section>
 
@@ -344,6 +416,6 @@
       </section>
     </main>
     <template id="key-template"><button class="key"><span class="key-name"></span><span class="ratio"></span></button></template>
-    <script src="/static/app.js?v=20260726-lattice-fields"></script>
+    <script src="/static/app.js?v=20260726-compose-rhythm"></script>
   </body>
 </html>

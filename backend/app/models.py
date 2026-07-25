@@ -145,6 +145,129 @@ class MelodyRequest(BaseModel):
     phrase_memory: int = Field(default=3, ge=0, le=64)
 
 
+class CompositionClockRequest(BaseModel):
+    beats_per_bar: int = Field(default=4, ge=1, le=16)
+    subdivisions_per_beat: int = Field(default=4, ge=1, le=16)
+    bars: int = Field(default=8, ge=1, le=128)
+    ticks_per_beat: int = Field(default=480, ge=24, le=960)
+    tempo_bpm: float = Field(default=96, ge=20, le=400)
+
+    @model_validator(mode="after")
+    def ticks_must_fit_subdivisions(self) -> CompositionClockRequest:
+        if self.ticks_per_beat % self.subdivisions_per_beat:
+            raise ValueError("ticks_per_beat must be divisible by subdivisions_per_beat")
+        if self.beats_per_bar * self.subdivisions_per_beat * self.bars > 4096:
+            raise ValueError("composition clock must not exceed 4096 subdivisions")
+        return self
+
+
+class CompositionPitchesRequest(BaseModel):
+    chords: list[list[str]] = Field(min_length=1, max_length=256)
+    bass: list[str] = Field(default_factory=list, max_length=256)
+    melody: list[list[str]] = Field(default_factory=list, max_length=8)
+    transition_scores: list[float | None] = Field(default_factory=list, max_length=256)
+
+
+class ComposeRhythmLayerRequest(BaseModel):
+    name: str = Field(min_length=1, max_length=32)
+    pattern: list[int] = Field(min_length=1, max_length=4096)
+    velocities: list[int] | None = None
+    phase_offsets: list[int] = Field(default_factory=list, max_length=128)
+
+    @field_validator("pattern")
+    @classmethod
+    def compose_pattern_must_be_binary(cls, values: list[int]) -> list[int]:
+        if any(value not in {0, 1} for value in values):
+            raise ValueError("pattern must contain only zeros and ones")
+        return values
+
+    @field_validator("velocities")
+    @classmethod
+    def compose_velocities_must_be_valid(
+        cls, values: list[int] | None
+    ) -> list[int] | None:
+        if values is not None and any(not 0 <= value <= 127 for value in values):
+            raise ValueError("velocities must be between 0 and 127")
+        return values
+
+    def velocities_for(self) -> list[int]:
+        if self.velocities is None:
+            return [100 if active else 0 for active in self.pattern]
+        if len(self.velocities) != len(self.pattern):
+            raise ValueError("velocities must match the pattern length")
+        return self.velocities
+
+
+class ComposeRhythmMappingRequest(BaseModel):
+    source_layer: str = Field(min_length=1, max_length=32)
+    target: str = Field(min_length=1, max_length=40)
+    policy: Literal[
+        "fixed-index", "voice-led", "rotate-per-chord", "register-spread"
+    ] = "fixed-index"
+    overflow: Literal["drop", "wrap", "clamp"] = "drop"
+    gate: float = Field(default=0.9, gt=0, le=16)
+    register_octave: int = Field(default=0, ge=-4, le=4)
+    velocity_scale: float = Field(default=1, gt=0, le=2)
+    collision: Literal["merge", "retrigger", "stack"] = "merge"
+    articulation: Literal["gate", "legato", "tie", "accent"] = "gate"
+
+    @field_validator("target")
+    @classmethod
+    def target_must_be_supported(cls, value: str) -> str:
+        if value in {"harmony", "bass", "mute"}:
+            return value
+        prefix, separator, index = value.partition(":")
+        if (
+            prefix not in {"melody", "chord_tone"}
+            or separator != ":"
+            or not index.isdigit()
+        ):
+            raise ValueError("target must be harmony, bass, mute, melody:i, or chord_tone:i")
+        return value
+
+
+class ComposeRhythmApplyRequest(BaseModel):
+    clock: CompositionClockRequest = Field(default_factory=CompositionClockRequest)
+    composition: CompositionPitchesRequest
+    layers: list[ComposeRhythmLayerRequest] = Field(min_length=1, max_length=16)
+    mappings: list[ComposeRhythmMappingRequest] = Field(min_length=1, max_length=64)
+    chord_durations: list[int] | None = Field(default=None, max_length=256)
+
+
+class ComposeRhythmGenerateRequest(BaseModel):
+    clock: CompositionClockRequest = Field(default_factory=CompositionClockRequest)
+    composition: CompositionPitchesRequest
+    strategy: Literal[
+        "transition-aware", "semi-markov", "interlocking", "ratio-derived"
+    ] = "transition-aware"
+    profile: Literal["grounded", "interlocking", "sparse", "flowing"] = "grounded"
+    density: float = Field(default=0.35, ge=0.02, le=0.95)
+    syncopation: float = Field(default=0.35, ge=0, le=1)
+    seed: int = 0
+    targets: list[str] = Field(
+        default_factory=lambda: ["harmony", "bass", "melody:0"],
+        min_length=1,
+        max_length=16,
+    )
+
+    @field_validator("targets")
+    @classmethod
+    def targets_must_be_supported(cls, values: list[str]) -> list[str]:
+        for value in values:
+            if value in {"harmony", "bass"}:
+                continue
+            prefix, separator, index = value.partition(":")
+            if (
+                prefix not in {"melody", "chord_tone"}
+                or separator != ":"
+                or not index.isdigit()
+            ):
+                raise ValueError(
+                    "targets must contain harmony, bass, melody:i, or chord_tone:i"
+                )
+        return values
+
+
 class EuclideanRhythmRequest(BaseModel):
     steps: int = Field(ge=1, le=256)
     pulses: int = Field(ge=0, le=256)
@@ -177,7 +300,7 @@ class RenderEventRequest(BaseModel):
 
 
 class RenderRequest(BaseModel):
-    events: list[RenderEventRequest] = Field(max_length=256)
+    events: list[RenderEventRequest] = Field(max_length=4096)
     base_frequency: float = Field(default=220, ge=20, le=2000)
     waveform: Literal["sine", "saw", "square", "triangle", "additive"] = "sine"
     attack_seconds: float = Field(default=0.02, gt=0, le=10)

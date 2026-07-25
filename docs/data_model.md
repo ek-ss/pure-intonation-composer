@@ -260,7 +260,59 @@ continuity_score
 
 ---
 
-# 12. DrumHit
+# 12. CompositionClock
+
+```text
+beats_per_bar
+
+subdivisions_per_beat
+
+tempo_bpm
+
+bars
+
+ticks_per_beat
+```
+
+---
+
+# 13. CompositionTrack
+
+```text
+id
+
+role
+
+voice_index
+
+chord_tone_index
+```
+
+---
+
+# 14. RhythmicNoteEvent
+
+```text
+track_id
+
+chord_index
+
+ratio
+
+start_tick
+
+duration_ticks
+
+velocity
+
+articulation
+
+source_layer
+```
+
+---
+
+# 15. DrumHit
 
 ```text
 instrument
@@ -274,7 +326,7 @@ probability
 
 ---
 
-# 13. DrumPattern
+# 16. DrumPattern
 
 ```text
 id
@@ -290,7 +342,7 @@ density
 
 ---
 
-# 14. DrumState
+# 17. DrumState
 
 ```text
 pattern
@@ -302,7 +354,7 @@ transition_probability
 
 ---
 
-# 15. RhythmLayer
+# 18. RhythmLayer
 
 ```text
 generator
@@ -316,7 +368,7 @@ patterns[]
 
 ---
 
-# 16. FormSection
+# 19. FormSection
 
 ```text
 name
