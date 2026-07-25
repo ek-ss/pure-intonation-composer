@@ -22,7 +22,7 @@ Recent additions beyond the original phase scope:
 Performance tuning and installer distribution remain release-operations
 work and should be measured for each target platform before a production
 release. The test suite currently covers all endpoints and engines
-(40 tests); `ruff` and `mypy` are clean.
+(135 tests); `ruff` and `mypy` are clean.
 
 ---
 
@@ -656,6 +656,294 @@ scale source:
 * whether boundary policies operate on exponent coordinates, sounding pitch
   classes, or both;
 * how much coordinate metadata MIDI/Scala sidecar JSON should preserve.
+
+## G10. Compose Rhythm Orchestration
+
+Compose currently gives every chord, bass note, and melody note one fixed
+duration. The Rhythm workbench generates useful percussion layers, but those
+layers cannot yet articulate pitched composition material. Add a rhythm
+orchestration stage between pitch generation and playback/export. Harmony,
+bass, and melody generation must remain pitch-domain operations; rhythm
+orchestration converts their results into timed note events without changing
+the selected ratios.
+
+Status
+
+* Rhythm layer generation, rotation optimization, phase shifting, velocity
+  accents, humanization, and percussion MIDI export — Done
+* Compose harmony, bass, melody, fixed-step playback, MIDI/JSON/WAV export,
+  and Composition Roll — Done
+* Rhythm-to-Compose assignment and Compose-native rhythm generation — Planned
+
+### G10.1 Shared Time and Event Model
+
+Both imported Rhythm patterns and Compose-native algorithms must compile to
+one serializable event model:
+
+```text
+CompositionClock
+  beats_per_bar: int
+  subdivisions_per_beat: int
+  tempo_bpm: float
+  bars: int
+
+CompositionTrack
+  id: str
+  role: harmony | chord_tone | bass | melody
+  voice_index: int | null
+  chord_tone_index: int | null
+
+RhythmicNoteEvent
+  track_id: str
+  chord_index: int
+  ratio: Ratio
+  start_tick: int
+  duration_ticks: int
+  velocity: int
+  articulation: gate | legato | tie | accent
+  source_layer: str | null
+```
+
+Use integer ticks internally rather than floating-point seconds. Tempo
+conversion happens only at playback or render time. A chord change and a note
+onset are separate concepts: the harmony timeline selects the active chord,
+while track patterns decide which tones attack, sustain, tie, or rest inside
+that chord. Events may not cross a chord boundary unless their mapping rule
+explicitly permits `tie`.
+
+The compiler must accept polymetric Rhythm layers with different cycle
+lengths. Each pattern is projected onto the composition clock by exact modular
+indexing; it must not expand to an unbounded least common multiple. Phase
+offsets, per-hit velocities, probability, and humanized timing are preserved
+as metadata until final scheduling.
+
+### G10.2 Assign Existing Rhythm Layers to Chord Tones
+
+The first strategy treats the ordered tones of every generated chord as
+independent playable tracks. For a three-note chord:
+
+```text
+kick  -> chord_tone:0 (root)
+snare -> chord_tone:1
+hat   -> chord_tone:2
+perc  -> configurable: double, wrap, rest, or auxiliary voice
+```
+
+At every active hit, the mapped ratio from the current chord is triggered.
+This makes the example assignment of root, second tone, and third tone
+explicit rather than inferring pitch from percussion names.
+
+Required mapping policies
+
+* `fixed-index`: keep each source layer on the same ordered chord-tone index;
+* `voice-led`: match the prior sounding pitch to the nearest octave placement
+  of the new chord, minimizing cents movement;
+* `rotate-per-chord`: rotate the tone assignment by chord index or a seeded
+  sequence;
+* `register-spread`: preserve the index but place each track in a configured
+  register without changing its pitch class.
+
+When a chord has fewer tones than the mapping expects, the user selects
+`drop`, `wrap`, or `clamp`. When it has more tones, unassigned tones may be
+silent, sustained as a pad, or distributed round-robin over a selected source
+layer. Lattice chords must use their stored ordered `tone_vectors`; ordinary
+CPS chords use their serialized tone order. Reordering a chord therefore
+changes fixed-index assignment but not voice-led assignment.
+
+The percussion instrument name is only a default hint. The mapping table is
+authoritative and supports arbitrary custom layer names.
+
+### G10.3 Assign Rhythm Layers by Musical Role
+
+The second strategy maps patterns to the existing Compose layers rather than
+individual chord tones. A useful default is:
+
+```text
+kick  -> bass
+snare -> harmony (complete chord attack)
+hat   -> melody:0
+perc  -> melody:1 or harmony ornament
+```
+
+Role targets behave differently:
+
+* `harmony`: one hit attacks all chord tones simultaneously; gate length
+  controls a stab, sustain, or tie into the next subdivision;
+* `bass`: one hit attacks the generated bass note for the active chord;
+* `melody:i`: one hit attacks the current note in melody voice `i`;
+* `chord_tone:i`: one hit attacks only the indexed chord tone;
+* `mute`: the source layer remains visible but produces no pitched event.
+
+One Rhythm layer may fan out to multiple targets, and several source layers
+may feed one target. Collision policy is selectable per target:
+`merge` keeps the strongest velocity, `retrigger` creates a new envelope,
+and `stack` preserves every event. The initial UI defaults to `merge` for
+bass/melody and `retrigger` for harmony.
+
+A hybrid preset combines both models, for example kick-to-bass,
+snare-to-complete-harmony, hat-to-third-tone, and perc-to-melody. Presets must
+store mappings by stable track ids, not display labels.
+
+### G10.4 Compose-Native Rhythm Generation
+
+Compose also needs rhythm generation that does not depend on patterns already
+created in the Rhythm panel. The following algorithms should be evaluated
+behind one seeded interface.
+
+#### A. Transition-Aware Harmonic Rhythm
+
+Generate chord durations before generating note onsets. Candidate durations
+are a bounded vocabulary such as `{1/2, 1, 2, 4}` beats. Score each duration
+using metrical position, phrase boundary, transition score, common-tone count,
+and cents/monzo/lattice movement:
+
+```text
+cost =
+  w_meter * weak_boundary_penalty
+  + w_motion * transition_distance
+  + w_density * local_change_density
+  - w_cadence * cadence_reward
+```
+
+Large harmonic changes prefer strong beats or longer preparation; common-tone
+transitions may move more quickly. The algorithm uses dynamic programming to
+fit an exact requested bar count and breaks equal-cost choices by seed.
+
+#### B. Seeded Semi-Markov Voice Rhythm
+
+Generate each target track with states `REST`, `ATTACK`, `HOLD`, and `TIE`.
+Transition probabilities depend on metrical weight, phrase position, active
+chord change, previous state duration, and target role. Semi-Markov duration
+distributions prevent mechanical one-step state changes. Bass favors attacks
+on strong beats, melody permits pickup and syncopated attacks, and harmony
+favors fewer, longer events.
+
+The output remains deterministic for the same seed and settings. Profiles
+such as `grounded`, `interlocking`, `sparse`, and `flowing` are parameter
+bundles, not separate algorithms.
+
+#### C. Interlocking Onset Allocation
+
+Starting from target densities, assign onsets one track at a time on a shared
+grid. Optimize:
+
+* required downbeat and chord-change anchors;
+* complementarity between harmony, bass, and melody;
+* maximum simultaneous attacks;
+* minimum rest and sustain lengths;
+* syncopation target;
+* repeated-pattern similarity across a phrase.
+
+Use the existing Rhythm collision, density, cluster, similarity, and
+syncopation metrics where their definitions apply. Add pitched constraints
+for chord-boundary ties and voice retrigger density. A beam search is preferred
+to exhaustive enumeration; candidates and tie-breaking must be seed-stable.
+
+#### D. Ratio-Derived Cycles (Experimental)
+
+Derive bounded cycle characteristics from the composition itself without
+turning exact ratio numerators directly into impractically long meters. Prime
+exponent magnitude, chord cardinality, harmonic transition distance, or
+lattice-vector distance may select from a user-bounded cycle/pulse vocabulary.
+This mode is exploratory and must always expose the resulting ordinary
+patterns and metrics. It may not bypass the shared event model.
+
+Initial implementation priority is A plus B, followed by C. D remains
+experimental until listening tests show that its musical behavior is more
+useful than arbitrary parameter mapping.
+
+### G10.5 Mapping and Generation API
+
+Proposed endpoints:
+
+```text
+POST /api/compose/rhythm/apply
+  clock, composition pitches, Rhythm layers, mapping rules, collision policy
+  -> compiled tracks, note events, rhythm metrics
+
+POST /api/compose/rhythm/generate
+  clock, composition pitches, strategy/profile, densities, seed, constraints
+  -> generated patterns, compiled tracks, note events, rhythm metrics
+```
+
+`composition pitches` contains the existing chord, bass, and melody response
+objects rather than duplicating their generation parameters. This keeps the
+operation usable for CPS, harmonic-graph, and Lattice Lab compositions.
+
+The response must include both abstract patterns and compiled note events.
+MIDI and WAV export consume the compiled events directly. JSON export stores
+the clock, source pattern or generator parameters, mapping rules, seed, and
+events so the result is reproducible and inspectable.
+
+### G10.6 Compose UI and Visualization
+
+Add a Rhythm section inside Compose after pitch generation:
+
+* source segmented control: `Rhythm layers` or `Generate`;
+* mapping mode: `Chord tones`, `Roles`, or `Hybrid`;
+* mapping table with source layer, target, gate, register, velocity scale, and
+  collision policy;
+* native generation controls for profile, density, syncopation, bar count,
+  seed, and harmonic-rhythm mode;
+* `Apply rhythm`, `Regenerate`, and `Clear rhythm` commands;
+* per-track mute/solo and a compact event inspector.
+
+The Composition Roll changes from one column per chord to a time-proportional
+grid. It shows onset blocks and sustains for harmony tones, bass, and melody,
+plus optional thin lanes for the source Rhythm patterns. Selecting an event
+highlights its source layer, mapping rule, chord, and ratio. Playback,
+playhead, MIDI, JSON, and WAV must all use the same compiled event timeline.
+
+### G10.7 Delivery Plan
+
+CR1 — Event timeline foundation
+
+* Add integer clock, track, mapping, and rhythmic-note-event models.
+* Refactor fixed Compose playback/export into the shared event compiler while
+  preserving current audible behavior as the default.
+
+CR2 — Existing Rhythm integration
+
+* Add fixed-index chord-tone mapping, including root/second/third assignments.
+* Add harmony/bass/melody role mapping, collision policies, gate lengths, and
+  polymetric projection.
+* Add mapping controls and source-pattern lanes to Composition Roll.
+
+CR3 — Compose-native generation
+
+* Implement transition-aware harmonic rhythm with exact form-length fitting.
+* Implement seeded semi-Markov voice rhythms and profile presets.
+* Add interlocking optimization using shared Rhythm metrics.
+
+CR4 — Persistence and export
+
+* Store clock, mappings, generator settings, patterns, and events in project
+  JSON with schema migration.
+* Export event durations, velocities, ties, and microtonal channel allocation
+  consistently to MIDI and WAV.
+
+CR5 — Experimental evaluation
+
+* Add ratio-derived cycles behind an Experimental flag.
+* Run deterministic benchmarks and structured listening comparisons against
+  Euclidean-only and fixed-step baselines.
+
+### G10.8 Acceptance Criteria
+
+* Kick, snare, and hat can independently trigger the root, second, and third
+  tones of every chord; a fourth layer follows the selected overflow policy.
+* Kick-to-bass, snare-to-harmony, hat-to-melody, and hybrid mappings produce
+  the same event sequence in playback, MIDI, JSON, and WAV.
+* Lattice and CPS chord order is preserved for fixed-index mappings.
+* Chords with changing cardinality never cause an invalid tone lookup or a
+  stuck note.
+* Polymetric layers remain bounded in memory and preserve phase offsets.
+* The same composition, clock, mappings, settings, and seed produce identical
+  events and metrics.
+* Native harmonic rhythm fills the exact requested number of bars.
+* Composition Roll onset positions and durations agree with scheduled audio
+  within one UI frame.
+* Clearing rhythm restores the current fixed-step Compose behavior.
 
 ---
 
