@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import AliasChoices, BaseModel, Field, field_validator, model_validator
 
 from app.rhythm.drums import LayerSpec
 
@@ -333,7 +333,10 @@ class LatticeScaleRequest(BaseModel):
 class LatticeHarmonyRequest(BaseModel):
     root: str = Field(pattern=r"^\d+/\d+$")
     generators: list[int] = Field(min_length=1, max_length=8)
-    chord_vectors: list[list[int]] = Field(max_length=512)
+    chord_vectors: list[list[int]] = Field(
+        max_length=512,
+        validation_alias=AliasChoices("chord_vectors", "differences"),
+    )
     root_vector: list[int] | None = None
 
 
@@ -352,7 +355,11 @@ class LatticeWalkRequest(BaseModel):
     start_vector: list[int]
     allowed_differences: list[list[int]] = Field(min_length=1, max_length=64)
     root: str = Field(default="1/1", pattern=r"^\d+/\d+$")
-    chord_vectors: list[list[int]] = Field(default_factory=list, max_length=512)
+    chord_vectors: list[list[int]] = Field(
+        default_factory=list,
+        max_length=512,
+        validation_alias=AliasChoices("chord_vectors", "harmony_differences"),
+    )
     length: int = Field(default=16, ge=1, le=512)
     seed: int = 0
     minimum: list[int]

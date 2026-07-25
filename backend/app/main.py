@@ -744,6 +744,7 @@ def exponent_lattice_chord(request: LatticeChordRequest) -> dict[str, object]:
         "root": ratio_text(root),
         "seed": request.seed,
         "chord_vectors": [list(vector) for vector in chord_vectors],
+        "differences": [list(vector) for vector in chord_vectors],
         "offsets": [list(offset) for offset in offsets],
         "tones": [
             {
@@ -803,6 +804,7 @@ def _lattice_harmony_sequence(
         "path": [list(vector) for vector in path],
         "pitches": pitches,
         "chord_offsets": chord_offsets,
+        "harmony_offsets": chord_offsets,
         "harmonies": harmonies,
     }
 

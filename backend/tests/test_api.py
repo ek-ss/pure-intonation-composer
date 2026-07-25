@@ -18,6 +18,7 @@ def test_root_landing_page() -> None:
     assert 'id="lattice-progression"' in response.text
     assert 'id="lattice-walk-compose"' in response.text
     assert 'id="lattice-keyboard"' in response.text
+    assert "/static/app.js?v=20260726-lattice-fields" in response.text
     script = client.get("/static/app.js")
     assert script.status_code == 200
     assert "renderHarmonyStackOnCircle" in script.text

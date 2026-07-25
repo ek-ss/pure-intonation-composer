@@ -256,6 +256,7 @@ def test_chord_endpoint() -> None:
     assert data["root"] == "5/4"
     assert len(data["tones"]) == 4
     assert len(data["chord_vectors"]) == 3
+    assert data["differences"] == data["chord_vectors"]
     assert len({tone["normalized_ratio"] for tone in data["tones"]}) == 4
 
 
@@ -279,6 +280,7 @@ def test_walk_endpoint() -> None:
     data = response.json()
     assert len(data["path"]) == len(data["pitches"]) == len(data["harmonies"]) == 13
     assert data["chord_offsets"] == [[0, 0], [1, 0], [0, 1]]
+    assert data["harmony_offsets"] == data["chord_offsets"]
     assert data["pitches"][0]["normalized_ratio"] == "5/4"
     assert [tone["normalized_ratio"] for tone in data["harmonies"][0]["tones"]] == [
         "5/4",
@@ -355,6 +357,34 @@ def test_progression_endpoint_separates_chord_shape_from_root_motion() -> None:
         [[1, 0], [1, -1], [0, 0]],
         [[1, 1], [1, 0], [0, 1]],
     ]
+
+
+def test_legacy_lattice_vector_fields_remain_compatible() -> None:
+    harmony = client.post(
+        "/api/exponent-lattice/harmony",
+        json={
+            "root": "1/1",
+            "generators": [3, 5],
+            "differences": [[0, -1], [-1, 0]],
+        },
+    )
+    assert harmony.status_code == 200
+    assert harmony.json()["offsets"] == [[0, 0], [0, -1], [-1, 0]]
+
+    walk = client.post(
+        "/api/exponent-lattice/walk",
+        json={
+            "generators": [3, 5],
+            "start_vector": [0, 0],
+            "allowed_differences": [[1, 0]],
+            "harmony_differences": [[0, -1], [-1, 0]],
+            "length": 1,
+            "minimum": [0, 0],
+            "maximum": [1, 1],
+        },
+    )
+    assert walk.status_code == 200
+    assert walk.json()["chord_offsets"] == [[0, 0], [0, -1], [-1, 0]]
 
 
 def test_analyze_endpoint() -> None:

@@ -221,6 +221,9 @@ implicit first offset is `[0, 0]`, so this request produces the chord
 `(0,0) + (0,-1) + (-1,0)`. Response: `offsets` and `tones[]` with exact
 reconstructed ratios.
 
+For compatibility with cached clients from the earlier experimental API,
+`differences` is accepted as a deprecated input alias for `chord_vectors`.
+
 ## POST /api/exponent-lattice/chord
 
 ```json
@@ -242,6 +245,9 @@ normalized pitch class are skipped. Response: `chord_vectors`, `offsets`, and
 the exact reconstructed `tones`. A 422 response is returned when the current
 domain and step vocabulary cannot produce the requested number of unique
 tones.
+
+The response temporarily also includes deprecated `differences`, equal to
+`chord_vectors`, for cached-client compatibility.
 
 ## POST /api/exponent-lattice/progression
 
@@ -292,6 +298,8 @@ tone is evaluated as `root · Q(path[i] + chord_offset)` and octave
 normalized; all tones in that stack are intended to sound simultaneously.
 The domain boundary constrains walk roots, not the harmony's offset tones.
 Deterministic per seed. Omitting `chord_vectors` produces a root-only stack.
+`harmony_differences` is accepted as a deprecated input alias, and
+`harmony_offsets` mirrors `chord_offsets` in the response for cached clients.
 
 ## POST /api/exponent-lattice/analyze
 
