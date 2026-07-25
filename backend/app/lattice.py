@@ -170,17 +170,30 @@ def differences_from_offsets(offsets: list[Vector]) -> list[Vector]:
     return [tuple(b - a for a, b in zip(offsets[i], offsets[i + 1])) for i in range(len(offsets) - 1)]
 
 
-def reconstruct(root: Fraction, basis: ExponentBasis, differences: list[Vector]) -> tuple[list[Vector], list[LatticePitch]]:
-    """Rebuild the ordered harmony stack from root plus difference vectors."""
-    for difference in differences:
-        _check_vector(basis, difference)
-    offsets = cumulative_offsets(differences) or [tuple(0 for _ in basis.generators)]
+def reconstruct(root: Fraction, basis: ExponentBasis, chord_vectors: list[Vector]) -> tuple[list[Vector], list[LatticePitch]]:
+    """Build a chord from independent root-relative exponent vectors."""
+    for vector in chord_vectors:
+        _check_vector(basis, vector)
+    offsets = [tuple(0 for _ in basis.generators), *chord_vectors]
     tones = []
     for index, offset in enumerate(offsets):
         raw = root * evaluate(basis, offset)
         normalized, shift = normalize(raw)
         tones.append(LatticePitch(offset, raw, normalized, shift, round(cents(normalized), 5), str(normalized), index))
     return offsets, tones
+
+
+def root_progression(
+    basis: ExponentBasis, start: Vector, differences: list[Vector]
+) -> list[Vector]:
+    """Accumulate root-motion differences into an absolute root path."""
+    _check_vector(basis, start)
+    for difference in differences:
+        _check_vector(basis, difference)
+    roots = [start]
+    for difference in differences:
+        roots.append(tuple(a + b for a, b in zip(roots[-1], difference)))
+    return roots
 
 
 def generate_lattice_chord(
@@ -243,9 +256,9 @@ def generate_lattice_chord(
             f"cannot generate {tone_count} unique tones with the current "
             "domain and allowed differences"
         )
-    differences = differences_from_offsets(offsets)
-    _offsets, tones = reconstruct(root, basis, differences)
-    return differences, offsets, tones
+    chord_vectors = offsets[1:]
+    _offsets, tones = reconstruct(root, basis, chord_vectors)
+    return chord_vectors, offsets, tones
 
 
 def transpose_root(root: Fraction, factor: Fraction) -> Fraction:

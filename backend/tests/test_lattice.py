@@ -21,6 +21,7 @@ from app.lattice import (
     normalize,
     reconstruct,
     reverse_path,
+    root_progression,
     rotate_path,
 )
 from app.main import app
@@ -88,10 +89,19 @@ def test_differences_cumulative_round_trip() -> None:
 
 def test_reconstruct() -> None:
     basis = ExponentBasis((3, 5))
-    offsets, tones = reconstruct(Fraction(1, 1), basis, [(1, 0), (0, 1)])
-    assert offsets == [(0, 0), (1, 0), (1, 1)]
-    assert tones[1].normalized_ratio == Fraction(3, 2)
-    assert tones[2].normalized_ratio == Fraction(15, 8)
+    offsets, tones = reconstruct(Fraction(1, 1), basis, [(0, -1), (-1, 0)])
+    assert offsets == [(0, 0), (0, -1), (-1, 0)]
+    assert tones[1].normalized_ratio == Fraction(8, 5)
+    assert tones[2].normalized_ratio == Fraction(4, 3)
+
+
+def test_root_progression_accumulates_motion_vectors() -> None:
+    basis = ExponentBasis((3, 5))
+    assert root_progression(basis, (0, 0), [(1, 0), (0, 1)]) == [
+        (0, 0),
+        (1, 0),
+        (1, 1),
+    ]
 
 
 def test_generate_lattice_chord_is_deterministic_and_unique() -> None:
@@ -108,8 +118,8 @@ def test_generate_lattice_chord_is_deterministic_and_unique() -> None:
     first = generate_lattice_chord(*arguments)
     second = generate_lattice_chord(*arguments)
     assert first == second
-    differences, offsets, tones = first
-    assert differences_from_offsets(offsets) == differences
+    chord_vectors, offsets, tones = first
+    assert offsets == [(0, 0), *chord_vectors]
     assert len({tone.normalized_ratio for tone in tones}) == len(tones) == 4
 
 
@@ -206,12 +216,12 @@ def test_scale_endpoint_validation() -> None:
 def test_harmony_endpoint() -> None:
     response = client.post(
         "/api/exponent-lattice/harmony",
-        json={"root": "1/1", "generators": [3, 5], "differences": [[1, 0], [0, 1]]},
+        json={"root": "1/1", "generators": [3, 5], "chord_vectors": [[0, -1], [-1, 0]]},
     )
     assert response.status_code == 200
     data = response.json()
-    assert data["offsets"] == [[0, 0], [1, 0], [1, 1]]
-    assert [tone["normalized_ratio"] for tone in data["tones"]] == ["1/1", "3/2", "15/8"]
+    assert data["offsets"] == [[0, 0], [0, -1], [-1, 0]]
+    assert [tone["normalized_ratio"] for tone in data["tones"]] == ["1/1", "8/5", "4/3"]
     assert data["root"] == "1/1"
 
 
@@ -221,7 +231,7 @@ def test_harmony_endpoint_root_vector_mismatch() -> None:
         json={
             "root": "5/4",
             "generators": [3, 5],
-            "differences": [[1, 0]],
+            "chord_vectors": [[1, 0]],
             "root_vector": [1, 0],
         },
     )
@@ -245,7 +255,7 @@ def test_chord_endpoint() -> None:
     data = first.json()
     assert data["root"] == "5/4"
     assert len(data["tones"]) == 4
-    assert len(data["differences"]) == 3
+    assert len(data["chord_vectors"]) == 3
     assert len({tone["normalized_ratio"] for tone in data["tones"]}) == 4
 
 
@@ -257,7 +267,7 @@ def test_walk_endpoint() -> None:
             "start_vector": [0, 0],
             "allowed_differences": [[1, 0], [0, 1], [-1, 0]],
             "root": "5/4",
-            "harmony_differences": [[1, 0], [0, 1]],
+            "chord_vectors": [[1, 0], [0, 1]],
             "length": 12,
             "seed": 3,
             "minimum": [-2, -2],
@@ -268,15 +278,15 @@ def test_walk_endpoint() -> None:
     assert response.status_code == 200
     data = response.json()
     assert len(data["path"]) == len(data["pitches"]) == len(data["harmonies"]) == 13
-    assert data["harmony_offsets"] == [[0, 0], [1, 0], [1, 1]]
+    assert data["chord_offsets"] == [[0, 0], [1, 0], [0, 1]]
     assert data["pitches"][0]["normalized_ratio"] == "5/4"
     assert [tone["normalized_ratio"] for tone in data["harmonies"][0]["tones"]] == [
         "5/4",
         "15/8",
-        "75/64",
+        "25/16",
     ]
     for harmony in data["harmonies"]:
-        for offset, tone in zip(data["harmony_offsets"], harmony["tones"]):
+        for offset, tone in zip(data["chord_offsets"], harmony["tones"]):
             assert tone["vector"] == [
                 coordinate + delta
                 for coordinate, delta in zip(harmony["root_vector"], offset)
@@ -302,7 +312,7 @@ def test_walk_endpoint_defaults_to_root_only_harmony() -> None:
     )
     assert response.status_code == 200
     data = response.json()
-    assert data["harmony_offsets"] == [[0, 0]]
+    assert data["chord_offsets"] == [[0, 0]]
     assert all(len(harmony["tones"]) == 1 for harmony in data["harmonies"])
 
 
@@ -313,13 +323,38 @@ def test_walk_endpoint_rejects_harmony_dimension_mismatch() -> None:
             "generators": [3, 5],
             "start_vector": [0, 0],
             "allowed_differences": [[1, 0]],
-            "harmony_differences": [[1, 0, 0]],
+            "chord_vectors": [[1, 0, 0]],
             "length": 1,
             "minimum": [0, 0],
             "maximum": [1, 1],
         },
     )
     assert response.status_code == 422
+
+
+def test_progression_endpoint_separates_chord_shape_from_root_motion() -> None:
+    response = client.post(
+        "/api/exponent-lattice/progression",
+        json={
+            "generators": [3, 5],
+            "root": "1/1",
+            "start_vector": [0, 0],
+            "chord_vectors": [[0, -1], [-1, 0]],
+            "progression_differences": [[1, 0], [0, 1]],
+        },
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["path"] == [[0, 0], [1, 0], [1, 1]]
+    assert data["chord_offsets"] == [[0, 0], [0, -1], [-1, 0]]
+    assert [
+        [tone["vector"] for tone in harmony["tones"]]
+        for harmony in data["harmonies"]
+    ] == [
+        [[0, 0], [0, -1], [-1, 0]],
+        [[1, 0], [1, -1], [0, 0]],
+        [[1, 1], [1, 0], [0, 1]],
+    ]
 
 
 def test_analyze_endpoint() -> None:

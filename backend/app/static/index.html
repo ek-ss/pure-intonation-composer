@@ -250,9 +250,9 @@
               </label>
             </div>
             <button id="lattice-chord-generate" class="primary">和音を生成</button>
-            <label>差分ベクトル（1行に1ベクトル）
-              <textarea id="lattice-diffs" rows="4">1, 0
-0, 1</textarea>
+            <label>和音ベクトル（根音相対、1行に1音）
+              <textarea id="lattice-diffs" rows="4">0, -1
+-1, 0</textarea>
             </label>
             <div class="button-row">
               <button id="lattice-harmony">ハーモニーを再構成</button>
@@ -268,7 +268,18 @@
             </label>
           </div>
           <div>
-            <label>許可ステップ（1行に1ベクトル）
+            <label>和声進行の差分ベクトル（1行に1ステップ）
+              <textarea id="lattice-progression-diffs" rows="4">1, 0
+0, 1</textarea>
+            </label>
+            <div class="button-row">
+              <button id="lattice-progression">和声進行を生成</button>
+              <button id="lattice-progression-play" class="quiet">▶ 進行再生</button>
+              <button id="lattice-progression-compose" class="quiet">Compose に送る</button>
+            </div>
+          </div>
+          <div>
+            <label>ウォークの許可ステップ（1行に1ベクトル）
               <textarea id="lattice-allowed" rows="4">1, 0
 0, 1
 -1, 0

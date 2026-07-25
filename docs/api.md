@@ -213,12 +213,13 @@ plus `points[]` with `vector`, `ratio` (raw), `normalized_ratio`,
 ## POST /api/exponent-lattice/harmony
 
 ```json
-{ "root": "1/1", "generators": [3, 5], "differences": [[1, 0], [0, 1]] }
+{ "root": "1/1", "generators": [3, 5], "chord_vectors": [[0, -1], [-1, 0]] }
 ```
 
-Difference vectors apply cumulatively from the root. Response: `offsets`
-(root-relative cumulative vectors) and `tones[]` with reconstructed
-exact ratios. Root plus differences round-trips losslessly.
+Every `chord_vectors` entry is an independent, root-relative offset. The
+implicit first offset is `[0, 0]`, so this request produces the chord
+`(0,0) + (0,-1) + (-1,0)`. Response: `offsets` and `tones[]` with exact
+reconstructed ratios.
 
 ## POST /api/exponent-lattice/chord
 
@@ -234,12 +235,38 @@ exact ratios. Root plus differences round-trips losslessly.
 }
 ```
 
-Generates a deterministic, self-avoiding cumulative difference path.
+Generates deterministic root-relative chord vectors by exploring a
+self-avoiding path.
 Candidates outside the exponent domain or colliding with an already selected
-normalized pitch class are skipped. Response: `differences`, `offsets`, and
+normalized pitch class are skipped. Response: `chord_vectors`, `offsets`, and
 the exact reconstructed `tones`. A 422 response is returned when the current
 domain and step vocabulary cannot produce the requested number of unique
 tones.
+
+## POST /api/exponent-lattice/progression
+
+```json
+{
+  "generators": [3, 5],
+  "root": "1/1",
+  "start_vector": [0, 0],
+  "chord_vectors": [[0, -1], [-1, 0]],
+  "progression_differences": [[1, 0], [0, 1]]
+}
+```
+
+`progression_differences` accumulate to form the root path
+`(0,0) -> (1,0) -> (1,1)`. The same root-relative chord vectors are added
+independently at every root, producing the absolute tone-vector stacks:
+
+```text
+(0,0) + (0,-1) + (-1,0)
+(1,0) + (1,-1) + (0,0)
+(1,1) + (1,0) + (0,1)
+```
+
+Response: cumulative root `path`, root `pitches`, root-relative
+`chord_offsets`, and one simultaneous tone stack in `harmonies` per root.
 
 ## POST /api/exponent-lattice/walk
 
@@ -249,7 +276,7 @@ tones.
   "start_vector": [0, 0],
   "allowed_differences": [[1, 0], [0, 1], [-1, 0], [0, -1]],
   "root": "1/1",
-  "harmony_differences": [[1, 0], [0, 1]],
+  "chord_vectors": [[0, -1], [-1, 0]],
   "length": 16,
   "seed": 42,
   "minimum": [-2, -2],
@@ -259,13 +286,12 @@ tones.
 ```
 
 `boundary`: `"stop"` | `"reflect"` | `"wrap"` | `"resample"`. Response:
-coordinate `path`, root `pitches`, cumulative `harmony_offsets`, and
+coordinate `path`, root `pitches`, root-relative `chord_offsets`, and
 `harmonies`, one reconstructed tone stack per walk point. At step `i`, every
-tone is evaluated as `root · Q(path[i] + harmony_offset)` and octave
+tone is evaluated as `root · Q(path[i] + chord_offset)` and octave
 normalized; all tones in that stack are intended to sound simultaneously.
 The domain boundary constrains walk roots, not the harmony's offset tones.
-Deterministic per seed. Omitting `harmony_differences` produces a root-only
-stack for backward compatibility.
+Deterministic per seed. Omitting `chord_vectors` produces a root-only stack.
 
 ## POST /api/exponent-lattice/analyze
 

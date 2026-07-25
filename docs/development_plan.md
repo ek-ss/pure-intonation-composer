@@ -287,9 +287,9 @@ Planned
 ## G9. Exponent-Lattice Harmony Laboratory
 
 This is a new experimental platform alongside CPS, not a CPS generator mode.
-It treats products of integer generators as points in an exponent lattice and
-represents a harmony by one root pitch plus an ordered sequence of exponent
-difference vectors.
+It treats products of integer generators as points in an exponent lattice.
+A chord is represented by independent root-relative exponent vectors, while
+a progression or walk moves the root by cumulative difference vectors.
 
 Status
 
@@ -298,15 +298,16 @@ Status
   matrix, dependency diagnostics) — Done (`app/lattice.py`)
 * EV2 scale generation with collision grouping — Done
   (`POST /api/exponent-lattice/scale`)
-* EV3 difference harmony (cumulative reconstruction, transforms) — Done
+* EV3 root-relative chord reconstruction and cumulative root motion — Done
   (`POST /api/exponent-lattice/harmony`)
-* EV4 seeded walks with boundary policies + analyze endpoint — Done: walk
-  points reconstruct simultaneous difference-vector harmonies and the full
-  walk can enter Compose for bass/melody generation, playback, and export
-  (`POST /api/exponent-lattice/walk`, `/api/exponent-lattice/analyze`)
-* EV5 experimental workbench (basis/domain editor, difference editor,
+* EV4 explicit progressions, seeded walks with boundary policies, and analyze
+  endpoint — Done: progression/walk points reconstruct the same simultaneous
+  root-relative chord and the full sequence can enter Compose for bass/melody
+  generation, playback, and export (`POST /api/exponent-lattice/progression`,
+  `/api/exponent-lattice/walk`, `/api/exponent-lattice/analyze`)
+* EV5 experimental workbench (basis/domain editor, chord/progression editors,
   seeded chord generation, scale table, 2-axis lattice projection,
-  difference arrows, walk overlay, Pitch Circle layer, and ASD keyboard) —
+  chord/root-motion arrows, walk overlay, Pitch Circle layer, and ASD keyboard) —
   Partially done, behind the `Experimental` label
 * EV6 persistence — Planned
 * EV7 performance/docs — Partially done: API and usage documentation plus
@@ -318,13 +319,13 @@ Implementation audit (2026-07-25)
 * Available now: exact exponent arithmetic, collision-aware scale generation,
   seeded unique-pitch chord generation, harmony reconstruction, four walk
   boundary policies, basis/distance analysis, 2-axis projection, Pitch Circle
-  harmony markers, ASD keyboard audition, simultaneous difference-harmony
-  playback, and chord/walk transfer to Compose.
+  harmony markers, ASD keyboard audition, simultaneous chord playback, and
+  chord/progression/walk transfer to Compose.
 * Still required for EV5: propagate coordinate provenance into derived
-  bass/melody notes and export sidecars; add structured difference-row
-  controls (add, remove, reorder, duplicate), optional root-coordinate
-  editing, non-projected coordinate filtering, and Composition Roll
-  exponent-coordinate lanes.
+  bass/melody notes and export sidecars; replace both vector text areas with
+  structured rows (add, remove, reorder, duplicate), add optional
+  root-coordinate editing, non-projected coordinate filtering, and
+  Composition Roll exponent-coordinate lanes.
 * Still required for EV6: versioned project JSON, migration handling,
   coordinate-plus-ratio persistence, and Scala/MIDI/WAV interoperability rules.
 * Still required for EV7 and promotion from Experimental: performance
@@ -382,44 +383,60 @@ view shows all coordinates or merges equivalent sounding pitches. The basis
 value `2` is allowed for analysis, but its exponent disappears after octave
 normalization and the UI must warn that it is an octave-only/null direction.
 
-### G9.2 Root-and-Difference Harmony Representation
+### G9.2 Root-Relative Chords and Root-Motion Progressions
 
-A harmony is stored as
+A chord shape is stored separately from a root-motion sequence:
 
 ```text
-H = (rho, A, Delta)
+H = (rho, A, C)
+P = (r0, Delta)
 
-rho   : positive rational root pitch
+rho   : positive rational reference root pitch
 A     : ordered integer generator basis
-Delta : ordered list (Δr1, Δr2, ..., Δrp), Δri ∈ Z^d
+C     : ordered chord vectors (c1, c2, ..., cp), cj ∈ Z^d
+r0    : starting root coordinate
+Delta : ordered root-motion differences (Δr1, ..., Δrq), Δri ∈ Z^d
 ```
 
-The difference vectors are interpreted cumulatively:
+Chord vectors are independent offsets from the current root. The zero vector
+is implicit and represents the root itself:
 
 ```text
-s0 = (0, ..., 0)
-si = sum(Δrj), j = 1..i
-tone_i = N(rho * Q_A(si)).
+c0 = (0, ..., 0)
+chord(r) = { N(rho * Q_A(r + cj)) | j = 0..p }.
 ```
 
-Therefore `tone_0 = N(rho)`, and the root plus the difference-vector list is
-sufficient to reconstruct the complete ordered harmony stack. Root-relative
-offsets `(s0, s1, ..., sp)` are derived data and should be returned by the API
-for inspection, but the canonical serialized form stores the differences.
+Progression differences apply only to root motion and are cumulative:
 
-The order is musically meaningful even when the result is played as a
-simultaneous chord: it records the construction path, supports deterministic
-stack display, and permits rotation or reversal transforms. The UI must offer
-explicit ordering policies when converting an unordered pitch set:
+```text
+r_i = r_(i-1) + Δr_i
+progression = (chord(r0), chord(r1), ..., chord(rq)).
+```
+
+For example, chord vectors `(0,-1), (-1,0)` and root-motion differences
+`(1,0), (0,1)` produce roots `(0,0) -> (1,0) -> (1,1)` and these absolute
+tone-vector stacks:
+
+```text
+(0,0) + (0,-1) + (-1,0)
+(1,0) + (1,-1) + (0,0)
+(1,1) + (1,0) + (0,1)
+```
+
+A random walk replaces the explicit root-motion list with a seeded path but
+applies the same `C` at each root. The order of `C` remains musically
+meaningful for keyboard assignment and display. The UI offers explicit
+ordering policies when converting an unordered pitch set:
 
 * user-entered order;
 * ascending cents;
 * nearest-neighbor lattice path;
 * generator-priority lexicographic order.
 
-Changing only `rho` transposes the same harmonic shape. Replacing a difference
-vector changes one local relation and propagates to all later cumulative
-tones. This distinction must be visible in both the editor and undo history.
+Changing only `rho` transposes the complete result. Replacing a chord vector
+changes one voice at every root without affecting the other voices. Replacing
+a root-motion difference changes that root and all later roots. This
+distinction must be visible in both the editor and undo history.
 
 ### G9.3 Canonical Data Models
 
@@ -443,13 +460,20 @@ ExponentPitch
   cents: float
   pitch_class_id: str
 
-DifferenceHarmony
+LatticeChord
   root_ratio: Ratio
   root_vector: tuple[int, ...] | null
   basis: ExponentBasis
-  differences: tuple[tuple[int, ...], ...]
-  cumulative_offsets: derived tuple[tuple[int, ...], ...]
+  chord_vectors: tuple[tuple[int, ...], ...]
+  chord_offsets: derived tuple[tuple[int, ...], ...] # zero plus chord_vectors
   tones: derived tuple[ExponentPitch, ...]
+
+LatticeProgression
+  chord: LatticeChord
+  start_vector: tuple[int, ...]
+  progression_differences: tuple[tuple[int, ...], ...]
+  root_path: derived tuple[tuple[int, ...], ...]
+  harmonies: derived tuple[LatticeChord, ...]
 ```
 
 All dimensions must match the basis length. JSON import rejects dimension
@@ -463,9 +487,9 @@ Core operations
 * exact exponent-product evaluation and octave normalization;
 * finite lattice enumeration with deterministic ordering;
 * collision grouping by normalized `Fraction`;
-* difference-to-cumulative and cumulative-to-difference round trips;
-* harmony reconstruction from root plus differences;
-* root transposition, path rotation, reversal, and sign inversion;
+* root-relative chord reconstruction;
+* root-motion difference-to-path and path-to-difference round trips;
+* root transposition plus root-path rotation, reversal, and sign inversion;
 * nearest lattice coordinate search for an imported rational pitch;
 * seeded walks using a configurable vocabulary of allowed difference vectors.
 
@@ -491,7 +515,8 @@ Controls
 * ordered generator list `a,b,c,...` with optional labels;
 * per-generator minimum/maximum exponent;
 * root ratio and optional root lattice coordinate;
-* editable difference-vector rows with add, remove, reorder, and duplicate;
+* editable chord-vector and root-motion rows with add, remove, reorder, and
+  duplicate;
 * ordering and collision policies;
 * allowed-step vocabulary, progression length, and random seed;
 * audition, export, and "send harmony to Compose" commands.
@@ -502,8 +527,8 @@ Views
   collision group;
 * exponent lattice: selectable two-axis projection for dimensions `d > 2`,
   with other coordinates filterable or encoded by color;
-* difference path: arrows labeled `Δri`, with the root and cumulative points
-  clearly distinguished;
+* chord shape: arrows from the root to each `cj`;
+* root path: arrows between roots labeled `Δri`;
 * Pitch Circle: sounding pitch classes, with collisions grouped and the active
   harmony stack highlighted;
 * Composition Roll: root and reconstructed tones over time, with an optional
@@ -523,15 +548,19 @@ POST /api/exponent-lattice/scale
   -> coordinates, pitch classes, collision groups, basis diagnostics
 
 POST /api/exponent-lattice/harmony
-  root, basis, ordered difference vectors
-  -> cumulative offsets, reconstructed tones, relation metrics
+  root, basis, ordered root-relative chord vectors
+  -> chord offsets and reconstructed tones
 
 POST /api/exponent-lattice/chord
   root, basis, allowed differences, tone count, seed, exponent domain
-  -> seeded unique-pitch difference path and reconstructed tones
+  -> seeded unique-pitch chord vectors and reconstructed tones
+
+POST /api/exponent-lattice/progression
+  root, basis, start vector, chord vectors, root-motion differences
+  -> cumulative root path and one reconstructed chord per root
 
 POST /api/exponent-lattice/walk
-  root ratio, root vector, allowed walk differences, harmony differences,
+  root ratio, root vector, allowed walk differences, chord vectors,
   length, seed, boundary policy
   -> deterministic coordinate path, root pitches, and one reconstructed
      harmony stack per walk point
@@ -561,9 +590,10 @@ EV2 — Scale generation
 * Enforce initial limits: at most 8 generators, exponents `-16..16`, and
   4096 enumerated coordinates per request.
 
-EV3 — Difference harmony
+EV3 — Chord and progression representation
 
-* Implement cumulative reconstruction and inverse differencing.
+* Implement independent root-relative chord reconstruction.
+* Implement cumulative root-motion reconstruction and inverse differencing.
 * Add root transposition and deterministic ordering conversion.
 * Add harmony endpoint and JSON serialization.
 
@@ -576,9 +606,9 @@ EV4 — Walk and composition bridge
 
 EV5 — Experimental UI
 
-* Add basis/domain editor, difference-sequence editor, scale table, lattice
-  projection, difference arrows, Pitch Circle layer, and Composition Roll
-  coordinate lanes.
+* Add basis/domain editor, chord-vector and progression editors, scale table,
+  lattice projection, chord/root-motion arrows, Pitch Circle layer, and
+  Composition Roll coordinate lanes.
 * Keep the feature behind an `Experimental` label until EV1-EV6 acceptance
   criteria pass.
 
@@ -599,10 +629,13 @@ EV7 — Performance and documentation
 ### G9.8 Acceptance Criteria
 
 * Every generated ratio is exact and normalizes to `[1, 2)`.
-* The same basis, domain, difference list, root, and seed always reproduce the
-  same output.
-* Difference/cumulative conversion round-trips without loss.
-* Root plus differences reconstructs every displayed harmony tone exactly.
+* The same basis, domain, chord vectors, root motion, root, and seed always
+  reproduce the same output.
+* Root-motion difference/path conversion round-trips without loss.
+* Root plus independent chord vectors reconstructs every displayed harmony
+  tone exactly.
+* Chord vectors `(0,-1), (-1,0)` and root differences `(1,0), (0,1)` produce
+  the three absolute stacks specified in G9.2.
 * `(3,5)` with vector `(1,-1)` produces `3/5`, normalized to `6/5`.
 * Dependent bases report collisions without discarding their source vectors.
 * Lattice, monzo, and cents distances are exposed as distinct values.

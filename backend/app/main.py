@@ -32,6 +32,7 @@ from app.models import (
     LatticeAnalyzeRequest,
     LatticeChordRequest,
     LatticeHarmonyRequest,
+    LatticeProgressionRequest,
     LatticeScaleRequest,
     LatticeWalkRequest,
     MidiRequest,
@@ -64,6 +65,7 @@ from app.lattice import (
     monzo_distance,
     normalize,
     reconstruct,
+    root_progression,
 )
 from app.exporters.midi import MidiDrumHit, MidiNote, drum_midi_bytes, microtonal_midi_bytes, midi_bytes
 from app.rhythm.drums import (
@@ -690,7 +692,7 @@ def exponent_lattice_scale(request: LatticeScaleRequest) -> dict[str, object]:
 
 @app.post("/api/exponent-lattice/harmony")
 def exponent_lattice_harmony(request: LatticeHarmonyRequest) -> dict[str, object]:
-    """Reconstruct a harmony from a root ratio and cumulative difference vectors."""
+    """Reconstruct a chord from independent root-relative vectors."""
     try:
         basis = ExponentBasis(tuple(request.generators))
         root = parse_ratio(request.root)
@@ -698,7 +700,11 @@ def exponent_lattice_harmony(request: LatticeHarmonyRequest) -> dict[str, object
             implied = evaluate(basis, tuple(request.root_vector))
             if normalize(implied)[0] != normalize(root)[0]:
                 raise ValueError("root_vector does not match the root pitch class")
-        offsets, tones = reconstruct(root, basis, [tuple(d) for d in request.differences])
+        offsets, tones = reconstruct(
+            root,
+            basis,
+            [tuple(vector) for vector in request.chord_vectors],
+        )
     except (ValueError, ZeroDivisionError) as error:
         raise HTTPException(status_code=422, detail=str(error)) from error
     return {
@@ -719,11 +725,11 @@ def exponent_lattice_harmony(request: LatticeHarmonyRequest) -> dict[str, object
 
 @app.post("/api/exponent-lattice/chord")
 def exponent_lattice_chord(request: LatticeChordRequest) -> dict[str, object]:
-    """Generate a seeded harmony path with unique sounding pitch classes."""
+    """Generate seeded root-relative chord vectors with unique pitches."""
     try:
         basis = ExponentBasis(tuple(request.generators))
         root = parse_ratio(request.root)
-        differences, offsets, tones = generate_lattice_chord(
+        chord_vectors, offsets, tones = generate_lattice_chord(
             root,
             basis,
             [tuple(difference) for difference in request.allowed_differences],
@@ -737,7 +743,7 @@ def exponent_lattice_chord(request: LatticeChordRequest) -> dict[str, object]:
     return {
         "root": ratio_text(root),
         "seed": request.seed,
-        "differences": [list(difference) for difference in differences],
+        "chord_vectors": [list(vector) for vector in chord_vectors],
         "offsets": [list(offset) for offset in offsets],
         "tones": [
             {
@@ -752,15 +758,82 @@ def exponent_lattice_chord(request: LatticeChordRequest) -> dict[str, object]:
     }
 
 
-@app.post("/api/exponent-lattice/walk")
-def exponent_lattice_walk(request: LatticeWalkRequest) -> dict[str, object]:
-    """Run a seeded lattice walk and reconstruct a harmony at every root."""
+def _lattice_harmony_sequence(
+    root: Fraction,
+    basis: ExponentBasis,
+    path: list[tuple[int, ...]],
+    chord_vectors: list[tuple[int, ...]],
+) -> dict[str, object]:
+    pitches = []
+    harmonies = []
+    chord_offsets: list[list[int]] = []
+    for vector in path:
+        sounding_root = root * evaluate(basis, vector)
+        normalized_ratio, _shift = normalize(sounding_root)
+        pitches.append(
+            {
+                "vector": list(vector),
+                "normalized_ratio": ratio_text(normalized_ratio),
+                "cents": round(cents(normalized_ratio), 5),
+            }
+        )
+        offsets, tones = reconstruct(sounding_root, basis, chord_vectors)
+        if not chord_offsets:
+            chord_offsets = [list(offset) for offset in offsets]
+        harmonies.append(
+            {
+                "root_vector": list(vector),
+                "tones": [
+                    {
+                        "vector": [
+                            coordinate + offset
+                            for coordinate, offset in zip(vector, tone.vector)
+                        ],
+                        "offset": list(tone.vector),
+                        "raw_ratio": ratio_text(tone.raw_ratio),
+                        "normalized_ratio": ratio_text(tone.normalized_ratio),
+                        "octave_shift": tone.octave_shift,
+                        "cents": round(tone.cents, 5),
+                    }
+                    for tone in tones
+                ],
+            }
+        )
+    return {
+        "path": [list(vector) for vector in path],
+        "pitches": pitches,
+        "chord_offsets": chord_offsets,
+        "harmonies": harmonies,
+    }
+
+
+@app.post("/api/exponent-lattice/progression")
+def exponent_lattice_progression(request: LatticeProgressionRequest) -> dict[str, object]:
+    """Accumulate root motion and apply one root-relative chord at every step."""
     try:
         basis = ExponentBasis(tuple(request.generators))
         root = parse_ratio(request.root)
-        harmony_differences = [
-            tuple(difference) for difference in request.harmony_differences
-        ]
+        path = root_progression(
+            basis,
+            tuple(request.start_vector),
+            [tuple(difference) for difference in request.progression_differences],
+        )
+        return _lattice_harmony_sequence(
+            root,
+            basis,
+            path,
+            [tuple(vector) for vector in request.chord_vectors],
+        )
+    except (ValueError, ZeroDivisionError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+
+@app.post("/api/exponent-lattice/walk")
+def exponent_lattice_walk(request: LatticeWalkRequest) -> dict[str, object]:
+    """Run a seeded root walk and apply one root-relative chord at every step."""
+    try:
+        basis = ExponentBasis(tuple(request.generators))
+        root = parse_ratio(request.root)
         path = lattice_walk(
             basis,
             tuple(request.start_vector),
@@ -771,49 +844,14 @@ def exponent_lattice_walk(request: LatticeWalkRequest) -> dict[str, object]:
             tuple(request.maximum),
             request.boundary,
         )
-        pitches = []
-        harmonies = []
-        harmony_offsets: list[list[int]] = []
-        for vector in path:
-            walk_root = root * evaluate(basis, vector)
-            normalized_ratio, _shift = normalize(walk_root)
-            pitches.append(
-                {
-                    "vector": list(vector),
-                    "normalized_ratio": ratio_text(normalized_ratio),
-                    "cents": round(cents(normalized_ratio), 5),
-                }
-            )
-            offsets, tones = reconstruct(walk_root, basis, harmony_differences)
-            if not harmony_offsets:
-                harmony_offsets = [list(offset) for offset in offsets]
-            harmonies.append(
-                {
-                    "root_vector": list(vector),
-                    "tones": [
-                        {
-                            "vector": [
-                                coordinate + offset
-                                for coordinate, offset in zip(vector, tone.vector)
-                            ],
-                            "offset": list(tone.vector),
-                            "raw_ratio": ratio_text(tone.raw_ratio),
-                            "normalized_ratio": ratio_text(tone.normalized_ratio),
-                            "octave_shift": tone.octave_shift,
-                            "cents": round(tone.cents, 5),
-                        }
-                        for tone in tones
-                    ],
-                }
-            )
+        return _lattice_harmony_sequence(
+            root,
+            basis,
+            path,
+            [tuple(vector) for vector in request.chord_vectors],
+        )
     except (ValueError, ZeroDivisionError) as error:
         raise HTTPException(status_code=422, detail=str(error)) from error
-    return {
-        "path": [list(vector) for vector in path],
-        "pitches": pitches,
-        "harmony_offsets": harmony_offsets,
-        "harmonies": harmonies,
-    }
 
 
 @app.post("/api/exponent-lattice/analyze")

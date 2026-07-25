@@ -16,8 +16,8 @@ exports MIDI, Scala, and JSON.
   (Hungarian assignment), bass lines (mirror/root/fifth/hybrid strategies),
   and independent melody voices with contour and phrase memory
 - **Exponent Lattice Lab** — exact integer-generator scales, seeded
-  difference-vector chords and walks, ASD keyboard audition, and transfer of
-  lattice harmony progressions into Compose
+  root-relative chords, explicit root-motion progressions, seeded walks,
+  ASD keyboard audition, and transfer of lattice harmony into Compose
 - **Rhythm engine** — Euclidean rhythms, Hamming-distance state graphs,
   phase shifting across independent cycle lengths, seeded humanization
 - **Audio** — offline WAV rendering (sine/triangle/saw/square/additive,

@@ -15,6 +15,7 @@ def test_root_landing_page() -> None:
     assert "Pure Intonation Workbench" in response.text
     assert 'id="composition-roll"' in response.text
     assert 'id="lattice-chord-generate"' in response.text
+    assert 'id="lattice-progression"' in response.text
     assert 'id="lattice-walk-compose"' in response.text
     assert 'id="lattice-keyboard"' in response.text
     script = client.get("/static/app.js")
@@ -22,6 +23,7 @@ def test_root_landing_page() -> None:
     assert "renderHarmonyStackOnCircle" in script.text
     assert "selectCompositionNode" in script.text
     assert "/api/exponent-lattice/chord" in script.text
+    assert "/api/exponent-lattice/progression" in script.text
     assert "sendLatticeToCompose" in script.text
     assert 'const LATTICE_KEYS = "ASDFGHJKL;QWERTY"' in script.text
     assert client.get("/favicon.ico").status_code == 204

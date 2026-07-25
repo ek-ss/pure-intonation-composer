@@ -636,7 +636,7 @@ el("drums-export-json").onclick = async () => {
 buildDrumUI();
 
 // ---- Lattice Lab (G9 exponent-lattice harmony laboratory, experimental) ----
-const latticeState = { points: [], tones: [], offsets: [], walk: null, walkPitches: null, walkHarmonies: null, activeWalkStep: 0, activeKeys: new Map(), selected: null, dims: 0 };
+const latticeState = { points: [], tones: [], offsets: [], walk: null, walkPitches: null, walkHarmonies: null, sequenceKind: null, progressionDifferences: [], activeWalkStep: 0, activeKeys: new Map(), selected: null, dims: 0 };
 const LATTICE_KEYS = "ASDFGHJKL;QWERTY".split("");
 const GROUP_COLORS = ["#98e7ca", "#83b7ff", "#caa8ff", "#ffd47e", "#ff9d9a", "#a9b9ff", "#7ed6f2", "#f2a97e"];
 function setLatticeStatus(text, kind = "") { const s = el("lattice-status"); s.textContent = text; s.className = kind; }
@@ -707,7 +707,7 @@ async function generateLattice() {
     const generators = latticeGenerators();
     setLatticeStatus("Generating…", "loading");
     const data = await postJson("/api/exponent-lattice/scale", { generators, minimum: parseInts(el("lattice-min").value), maximum: parseInts(el("lattice-max").value), collision_policy: el("lattice-collision").value });
-    latticeState.points = data.points; latticeState.dims = generators.length; latticeState.tones = []; latticeState.offsets = []; latticeState.walk = null; latticeState.walkPitches = null; latticeState.walkHarmonies = null;
+    latticeState.points = data.points; latticeState.dims = generators.length; latticeState.tones = []; latticeState.offsets = []; latticeState.walk = null; latticeState.walkPitches = null; latticeState.walkHarmonies = null; latticeState.sequenceKind = null; latticeState.progressionDifferences = [];
     syncLatticeAxes(); renderLatticeTable(); renderLatticeCanvas(); renderLatticeKeyboard();
     setLatticeStatus(data.basis.warnings.length ? data.basis.warnings.join(" ") : `${data.point_count} points`, data.basis.warnings.length ? "error" : "");
   } catch (error) { setLatticeStatus(error.message, "error"); }
@@ -749,7 +749,7 @@ function renderLatticeCanvas() {
   });
   if (latticeState.offsets.length) {
     latticeState.offsets.slice(1).forEach((offset, i) => {
-      drawArrow(ctx, project(latticeState.offsets[i]), project(offset), "#98e7ca", `Δ${i + 1}`);
+      drawArrow(ctx, project(latticeState.offsets[0]), project(offset), "#98e7ca", `c${i + 1}`);
     });
     const origin = project(latticeState.offsets[0]);
     ctx.strokeStyle = "#fff4cf"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(origin.x, origin.y, 9, 0, Math.PI * 2); ctx.stroke();
@@ -816,9 +816,9 @@ async function generateLatticeChord() {
       minimum: parseInts(el("lattice-min").value),
       maximum: parseInts(el("lattice-max").value)
     });
-    el("lattice-diffs").value = data.differences.map(difference => difference.join(", ")).join("\n");
+    el("lattice-diffs").value = data.chord_vectors.map(vector => vector.join(", ")).join("\n");
     latticeState.tones = data.tones; latticeState.offsets = data.offsets;
-    latticeState.walk = null; latticeState.walkPitches = null; latticeState.walkHarmonies = null; latticeState.activeWalkStep = 0;
+    latticeState.walk = null; latticeState.walkPitches = null; latticeState.walkHarmonies = null; latticeState.sequenceKind = null; latticeState.progressionDifferences = []; latticeState.activeWalkStep = 0;
     if (!latticeState.points.length) { latticeState.dims = generators.length; syncLatticeAxes(); }
     orderLatticeTones();
     setLatticeStatus(`Generated chord · ${data.tones.length} tones · seed ${data.seed}`, "");
@@ -827,31 +827,51 @@ async function generateLatticeChord() {
 async function reconstructHarmony() {
   try {
     const generators = latticeGenerators();
-    const differences = parseVectorRows(el("lattice-diffs").value, generators.length);
-    const data = await postJson("/api/exponent-lattice/harmony", { root: el("lattice-root").value, generators, differences });
-    latticeState.tones = data.tones; latticeState.offsets = data.offsets; latticeState.walk = null; latticeState.walkPitches = null; latticeState.walkHarmonies = null; latticeState.activeWalkStep = 0;
+    const chordVectors = parseVectorRows(el("lattice-diffs").value, generators.length);
+    const data = await postJson("/api/exponent-lattice/harmony", { root: el("lattice-root").value, generators, chord_vectors: chordVectors });
+    latticeState.tones = data.tones; latticeState.offsets = data.offsets; latticeState.walk = null; latticeState.walkPitches = null; latticeState.walkHarmonies = null; latticeState.sequenceKind = null; latticeState.progressionDifferences = []; latticeState.activeWalkStep = 0;
     if (!latticeState.points.length) { latticeState.dims = generators.length; syncLatticeAxes(); }
     orderLatticeTones();
+  } catch (error) { setLatticeStatus(error.message, "error"); }
+}
+function adoptLatticeSequence(data, kind, progressionDifferences = []) {
+  latticeState.walk = data.path; latticeState.walkPitches = data.pitches; latticeState.walkHarmonies = data.harmonies;
+  latticeState.sequenceKind = kind; latticeState.progressionDifferences = progressionDifferences;
+  latticeState.activeWalkStep = 0; latticeState.tones = []; latticeState.offsets = [];
+  if (!latticeState.points.length) { latticeState.dims = latticeGenerators().length; syncLatticeAxes(); }
+  renderLatticeCanvas(); renderCircle(); renderLatticeKeyboard();
+}
+async function latticeProgression() {
+  try {
+    const generators = latticeGenerators();
+    const progressionDifferences = parseVectorRows(el("lattice-progression-diffs").value, generators.length);
+    const data = await postJson("/api/exponent-lattice/progression", {
+      generators,
+      root: el("lattice-root").value,
+      start_vector: generators.map(() => 0),
+      chord_vectors: parseVectorRows(el("lattice-diffs").value, generators.length),
+      progression_differences: progressionDifferences
+    });
+    adoptLatticeSequence(data, "progression", progressionDifferences);
+    setLatticeStatus(`progression: ${data.path.length} chords · ${data.harmonies[0]?.tones.length || 0} tones per chord`, "");
   } catch (error) { setLatticeStatus(error.message, "error"); }
 }
 async function latticeWalk() {
   try {
     const generators = latticeGenerators();
-    const harmonyDifferences = parseVectorRows(el("lattice-diffs").value, generators.length);
-    const data = await postJson("/api/exponent-lattice/walk", { generators, start_vector: generators.map(() => 0), allowed_differences: parseVectorRows(el("lattice-allowed").value, generators.length), root: el("lattice-root").value, harmony_differences: harmonyDifferences, length: Number(el("lattice-walk-length").value), seed: Number(el("lattice-walk-seed").value), minimum: parseInts(el("lattice-min").value), maximum: parseInts(el("lattice-max").value), boundary: el("lattice-boundary").value });
-    latticeState.walk = data.path; latticeState.walkPitches = data.pitches; latticeState.walkHarmonies = data.harmonies; latticeState.activeWalkStep = 0; latticeState.tones = []; latticeState.offsets = [];
-    if (!latticeState.points.length) { latticeState.dims = generators.length; syncLatticeAxes(); }
-    renderLatticeCanvas(); renderCircle(); renderLatticeKeyboard();
+    const data = await postJson("/api/exponent-lattice/walk", { generators, start_vector: generators.map(() => 0), allowed_differences: parseVectorRows(el("lattice-allowed").value, generators.length), root: el("lattice-root").value, chord_vectors: parseVectorRows(el("lattice-diffs").value, generators.length), length: Number(el("lattice-walk-length").value), seed: Number(el("lattice-walk-seed").value), minimum: parseInts(el("lattice-min").value), maximum: parseInts(el("lattice-max").value), boundary: el("lattice-boundary").value });
+    adoptLatticeSequence(data, "walk");
     setLatticeStatus(`walk: ${data.path.length} steps · ${data.harmonies[0]?.tones.length || 0} tones per harmony`, "");
   } catch (error) { setLatticeStatus(error.message, "error"); }
 }
 el("lattice-scale").onclick = generateLattice;
 el("lattice-chord-generate").onclick = generateLatticeChord;
 el("lattice-harmony").onclick = reconstructHarmony;
+el("lattice-progression").onclick = latticeProgression;
 el("lattice-walk").onclick = latticeWalk;
-el("lattice-walk-play").onclick = () => {
+function playLatticeSequence(kind, emptyMessage, label) {
   const harmonies = latticeState.walkHarmonies;
-  if (!harmonies || !harmonies.length) { setLatticeStatus("先にウォークを生成してください。", "error"); return; }
+  if (latticeState.sequenceKind !== kind || !harmonies || !harmonies.length) { setLatticeStatus(emptyMessage, "error"); return; }
   stopProgression();
   const base = Number(el("base-frequency").value), now = audioContext().currentTime + .1;
   const voiceCount = Math.max(1, ...harmonies.map(harmony => harmony.tones.length));
@@ -859,8 +879,10 @@ el("lattice-walk-play").onclick = () => {
   harmonies.forEach((harmony, i) => {
     harmony.tones.forEach(tone => scheduleTone(base * ratioValue(tone.normalized_ratio), now + i * .35, .3, level));
   });
-  setLatticeStatus(`Playing walk · ${harmonies.length} harmonies × ${voiceCount} tones`, "loading");
-};
+  setLatticeStatus(`Playing ${label} · ${harmonies.length} harmonies × ${voiceCount} tones`, "loading");
+}
+el("lattice-progression-play").onclick = () => playLatticeSequence("progression", "先に和声進行を生成してください。", "progression");
+el("lattice-walk-play").onclick = () => playLatticeSequence("walk", "先にウォークを生成してください。", "walk");
 function latticeComposeChord(harmony) {
   const tones = harmony.tones.map(tone => tone.normalized_ratio), generators = latticeGenerators();
   return {
@@ -873,7 +895,8 @@ function latticeComposeChord(harmony) {
       generators,
       root_ratio: el("lattice-root").value,
       root_vector: harmony.root_vector,
-      harmony_differences: parseVectorRows(el("lattice-diffs").value, generators.length),
+      chord_vectors: parseVectorRows(el("lattice-diffs").value, generators.length),
+      progression_differences: latticeState.progressionDifferences,
       tone_vectors: harmony.tones.map(tone => tone.vector),
       offsets: harmony.tones.map(tone => tone.offset || tone.vector)
     }
@@ -898,8 +921,12 @@ el("lattice-send-compose").onclick = () => {
     tones: latticeState.tones.map((tone, index) => ({ ...tone, offset: latticeState.offsets[index] }))
   }], "Lattice chord");
 };
+el("lattice-progression-compose").onclick = () => {
+  if (latticeState.sequenceKind !== "progression" || !latticeState.walkHarmonies?.length) { setLatticeStatus("先に和声進行を生成してください。", "error"); return; }
+  sendLatticeToCompose(latticeState.walkHarmonies, "Lattice progression");
+};
 el("lattice-walk-compose").onclick = () => {
-  if (!latticeState.walkHarmonies?.length) { setLatticeStatus("先にウォークを生成してください。", "error"); return; }
+  if (latticeState.sequenceKind !== "walk" || !latticeState.walkHarmonies?.length) { setLatticeStatus("先にウォークを生成してください。", "error"); return; }
   sendLatticeToCompose(latticeState.walkHarmonies, "Lattice walk");
 };
 const latticePanel = el("lattice-panel");

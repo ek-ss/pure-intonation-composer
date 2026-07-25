@@ -333,7 +333,7 @@ class LatticeScaleRequest(BaseModel):
 class LatticeHarmonyRequest(BaseModel):
     root: str = Field(pattern=r"^\d+/\d+$")
     generators: list[int] = Field(min_length=1, max_length=8)
-    differences: list[list[int]] = Field(max_length=512)
+    chord_vectors: list[list[int]] = Field(max_length=512)
     root_vector: list[int] | None = None
 
 
@@ -352,12 +352,20 @@ class LatticeWalkRequest(BaseModel):
     start_vector: list[int]
     allowed_differences: list[list[int]] = Field(min_length=1, max_length=64)
     root: str = Field(default="1/1", pattern=r"^\d+/\d+$")
-    harmony_differences: list[list[int]] = Field(default_factory=list, max_length=512)
+    chord_vectors: list[list[int]] = Field(default_factory=list, max_length=512)
     length: int = Field(default=16, ge=1, le=512)
     seed: int = 0
     minimum: list[int]
     maximum: list[int]
     boundary: Literal["stop", "reflect", "wrap", "resample"] = "reflect"
+
+
+class LatticeProgressionRequest(BaseModel):
+    generators: list[int] = Field(min_length=1, max_length=8)
+    root: str = Field(default="1/1", pattern=r"^\d+/\d+$")
+    start_vector: list[int]
+    chord_vectors: list[list[int]] = Field(default_factory=list, max_length=512)
+    progression_differences: list[list[int]] = Field(max_length=512)
 
 
 class LatticeAnalyzeRequest(BaseModel):
