@@ -972,6 +972,28 @@ See
 for the input/profile models, genre behavior, algorithms, API, staged delivery
 plan, and acceptance criteria.
 
+### G11.1 Dual-Rhythm Harmonic Phase-Shift Composition
+
+Status
+
+* Planned
+
+This G11 extension applies two measurably different rhythms to the same source
+chord progression. In shared-clock mode, both streams articulate the same
+active chord with changing rhythmic phase. In independent-clock mode, both
+streams preserve the same chord order but traverse it with different duration
+sequences, creating controlled overlaps between different progression steps.
+
+The feature adds protected convergence points, bounded polymetric scheduling,
+exact-ratio overlap analysis, strict or adaptive voicing resolution, and a
+dual-lane Composition Roll. One compiled timeline remains authoritative for
+playback, type-1 MIDI, JSON, and rendering.
+
+See
+[development_plan_harmonic_phase_shift.md](development_plan_harmonic_phase_shift.md)
+for the mathematical model, request/output contracts, overlap policy,
+delivery plan, and acceptance criteria.
+
 ---
 
 # 4. Historical Milestones

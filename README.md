@@ -88,6 +88,8 @@ docs/
   development_plan.md  Active roadmap and detailed feature designs
   development_plan_genre_arrangement.md
                        Planned genre-guided arrangement pipeline
+  development_plan_harmonic_phase_shift.md
+                       Planned dual-rhythm harmonic phase composition
   examples.md          Copy-paste API usage examples
   visualization.md     Graph layout specification
 ```

@@ -638,3 +638,53 @@ ArrangementProject
 `ArrangementProject` extends the conceptual `Project` boundary rather than
 introducing a second persistence format. Exact ratio and lattice-coordinate
 provenance must survive JSON round-trips.
+
+---
+
+# 32. Harmonic Phase-Shift Models (Planned)
+
+The G11 phase extension preserves an immutable source `ArrangementProject` and
+adds two rhythmic views of its chord progression. See
+[development_plan_harmonic_phase_shift.md](development_plan_harmonic_phase_shift.md)
+for the complete invariants.
+
+```text
+PhaseStreamSpec
+  id
+  track_ids
+  generated_roles
+  rhythm
+  chord_durations
+  register
+  gain
+  pan
+
+PhasePlan
+  process
+  initial_offset_steps
+  increment_steps
+  update_interval_bars
+  direction
+  convergence_points
+  maximum_supercycle_bars
+
+PhaseShiftArrangementProject
+  schema_version
+  source_arrangement_digest
+  source_progression
+  resolved_phase_profile
+  streams
+  phase_schedule
+  convergence_points
+  overlap_windows
+  tracks
+  events
+  metrics
+  decision_trace
+  midi
+  mix
+  render_settings
+```
+
+Both streams must retain source chord ids and visit indices. JSON import must
+reject a phase project whose source digest or event provenance is inconsistent.

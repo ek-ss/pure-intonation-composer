@@ -466,6 +466,12 @@ Recommended rules:
 
 Rotation is static. Phase shifting changes the offset over time.
 
+This section defines phase for rhythmic patterns. The planned
+[Dual-Rhythm Harmonic Phase-Shift Composition](development_plan_harmonic_phase_shift.md)
+extends the same modular scheduling principle to two pitched streams that
+share one G11 chord progression, including harmonic-overlap and convergence
+constraints.
+
 Each layer owns:
 
 ```text
