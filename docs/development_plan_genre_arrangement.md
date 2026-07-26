@@ -4,7 +4,8 @@
 
 **Status:** GA1–GA4 and the GA5 workbench stage are implemented (MVP). Section
 or part-level regeneration, JSON re-import/migration, stems, and rendered
-effect automation remain planned.
+effect automation remain planned. GA6 Harmony Performance Patterns
+(block chords, arpeggios, and stride) is specified below and remains planned.
 
 This plan defines a higher-level composition pipeline that turns a generated
 scale and a user-selected vocabulary of basic chords into a complete,
@@ -285,6 +286,143 @@ Pitch-source rules remain explicit:
 * texture parts may sustain any declared chord or scale tone but may not invent
   an untracked 12-EDO pitch.
 
+### 5.5 Harmony Performance Patterns
+
+The current MVP realizes every `harmony` onset as a block chord: all voiced
+tones attack together. GA6 separates three decisions that must remain
+independently editable:
+
+1. **harmonic identity** selects the active exact-ratio chord;
+2. **voicing** places its tones in registers and minimizes voice movement;
+3. **performance pattern** expands the voiced chord span into timed events.
+
+Changing a performance pattern must not regenerate the chord progression or
+change its ratios. The first pattern vocabulary is:
+
+| Mode | Event behavior | Main controls |
+| --- | --- | --- |
+| `block` | Attack the complete voicing together | gate, velocity curve, retrigger/tie |
+| `arpeggio` | Attack ordered chord tones over the chord span | rate, order, octave span, rotation, gate |
+| `stride` | Alternate a low root/chord tone with a mid-register chord or shell | meter pattern, low-note source, chord size, bass-conflict policy |
+| `auto` | Select block, arpeggio, or stride per section or phrase from bounded profile weights | allowed modes, section roles, energy thresholds, repetition |
+
+`auto` is a selection policy, not a fourth note generator. Every resolved
+section records the concrete mode it selected.
+
+Proposed profile model:
+
+```text
+HarmonyPerformanceStyle
+  mode: auto | block | arpeggio | stride
+  allowed_modes: list[block | arpeggio | stride]
+  mode_weights: map[mode, float]
+  rate_subdivisions: int
+  gate: float
+  velocity_curve: flat | metrical | phrase
+  arpeggio
+    order: up | down | up_down | outside_in | seeded
+    octave_span: int
+    rotate_per_chord: bool
+  stride
+    low_note_source: root | lowest_voiced | bass_note
+    chord_tones: full | shell
+    bass_conflict: yield | coordinate | double
+  section_overrides: map[section_role, partial style]
+```
+
+`auto` resolves one of the allowed concrete modes using the genre profile,
+section role, energy, density, available chord size, meter, and seed. A user
+selection always overrides automatic choice. Pattern rates use integer
+subdivisions of the canonical clock; no floating-point time or unbounded LCM
+is introduced.
+
+#### Arpeggio realization
+
+For each chord slot, sort the already voiced tones by sounding pitch, then
+build the selected order. `up_down` does not duplicate the end tones at the
+turnaround. `outside_in` alternates the lowest and highest remaining tones.
+`seeded` creates one deterministic permutation per repeated phrase and may
+rotate it at chord boundaries.
+
+Onsets repeat at `rate_subdivisions` until the chord slot ends. Events are
+clamped to the slot unless an explicit tie policy permits a common tone to
+continue into the next chord. Octave expansion must stay inside the harmony
+part register. Chords with changing cardinality restart or rotate their order
+without indexing a missing tone.
+
+#### Stride realization
+
+Stride is meter-aware rather than hard-coded to 4/4:
+
+```text
+2/4 or 4/4: low on strong beats, chord/shell on following weak beats
+3/4:        low on beat 1, chord/shell on beats 2 and 3
+6/4:        two bounded low/chord groups, aligned to beats 1 and 4
+```
+
+The low event remains part of the harmony gesture even when it uses the root
+or generated bass pitch. It is tagged `gesture_component=low`; the upper
+attack is tagged `gesture_component=chord`. This keeps one musical gesture
+traceable without silently rewriting the independent bass part.
+
+When a bass track is enabled, `bass_conflict` is mandatory:
+
+* `yield`: omit a coincident stride-low event;
+* `coordinate`: retain it only when register separation and onset spacing pass
+  the profile thresholds;
+* `double`: allow intentional doubling and record that decision in the trace.
+
+The default is `yield`, preventing accidental low-frequency doubling.
+
+#### Compiler integration and canonical data
+
+Add a bounded `HarmonyGestureCompiler` between voicing and final event
+assembly. It emits virtual G10-compatible sources:
+
+```text
+block      -> full_chord source
+arpeggio   -> ordered chord_tone sources
+stride low -> root | lowest_voiced | bass_note source
+stride high-> full_chord | shell source
+```
+
+Pitch source and output track are separate fields. This permits a stride-low
+event to use a root or bass pitch while remaining on the harmony track. The
+compiler reuses the G10 clock, gate, collision, tie, and stable-id rules
+instead of adding a second timing system.
+
+The canonical project adds:
+
+```text
+harmony_gestures[]
+  id, section_id, chord_index, mode
+  start_tick, duration_ticks
+  resolved_settings
+
+events[]
+  source_gesture_id: str | null
+  gesture_component: block | tone | low | chord | null
+```
+
+This is a project-schema change. GA6 must introduce a new schema version and a
+migration that maps existing projects to `mode=block`; their existing event
+arrays and audible output must remain unchanged.
+
+#### Profile and workbench defaults
+
+Initial listening-test defaults:
+
+* Pop: arpeggio or block in intros/verses, block emphasis in choruses;
+* Ambient: slow arpeggio or sustained/rolled block; stride disabled by default;
+* Alternative Rock: block or riff-like repeated attacks; stride user-selectable;
+* Future Bass: syncopated block in drops, optional fast arpeggio in builds.
+
+The Arrange workbench adds a compact mode control (`Auto`, `Block`,
+`Arpeggio`, `Stride`), rate and order menus, and a bass-coordination menu that
+appears for stride. Composition Roll displays simultaneous block notes,
+staggered arpeggio tones, and separate stride-low/chord components. Pattern
+regeneration can lock progression, voicing, and all non-harmony parts.
+
 ## 6. Initial Genre Profiles
 
 The following ranges are starting defaults for listening tests, not hard
@@ -476,9 +614,23 @@ the main work surface.
 * Tune profile defaults without changing their versioned historical values. —
   Planned
 
-Recommended implementation order is GA1, GA2, GA3, GA4, then GA5. A thin
-end-to-end path for Pop should be completed during GA2/GA3 before expanding
-all genre profiles.
+### GA6 - Harmony Performance Patterns
+
+* Add versioned `HarmonyPerformanceStyle`, resolved `harmony_gestures`, event
+  provenance, and migration of existing projects to explicit `block` mode. —
+  Planned
+* Implement bounded block, ordered arpeggio, and meter-aware stride compilers
+  on the G10 integer clock. — Planned
+* Add bass-conflict policies, register validation, variable-cardinality chord
+  handling, and deterministic section/phrase selection. — Planned
+* Add Arrange controls and Composition Roll visualization for each gesture. —
+  Planned
+* Add JSON/MIDI/WAV equivalence tests and structured listening comparisons for
+  all four profiles. — Planned
+
+Recommended implementation order is GA1, GA2, GA3, GA4, GA5, then GA6.
+GA6 should first ship block and arpeggio with project migration, followed by
+stride after bass-conflict and meter tests are in place.
 
 ## 10. Acceptance Criteria
 
@@ -501,6 +653,14 @@ all genre profiles.
   unchanged.
 * Invalid profiles, chord references, or over-budget forms return bounded,
   actionable validation errors.
+* Existing projects migrate to explicit `block` performance without changing
+  their audible events.
+* Arpeggio orders are deterministic, remain within the configured register,
+  and never index a missing tone when chord cardinality changes.
+* Stride follows the declared meter and applies the selected bass-conflict
+  policy at every coincident low onset.
+* Block, arpeggio, and stride produce identical canonical events in workbench
+  playback, Composition Roll, JSON, MIDI, and WAV.
 
 ## 11. Evaluation Metrics
 
@@ -513,6 +673,9 @@ Automated metrics:
 * register violations and pitch-bend channel conflicts;
 * event equivalence across playback and exporters;
 * generation time and peak memory for documented limits.
+* harmony simultaneity ratio and arpeggio order accuracy;
+* stride low/chord alternation accuracy and bass-onset collision count;
+* performance-pattern register, chord-boundary, and event-budget violations;
 
 Listening evaluation:
 
@@ -521,6 +684,8 @@ Listening evaluation:
 * clarity of section contrast;
 * bass/drum and melody/harmony coordination;
 * quality of repeated-phrase variation;
+* recognizability and usefulness of block/arpeggio/stride changes without
+  changing the underlying harmony;
 * rendering fallbacks and balance.
 
 Listening scores tune future profile versions; they must not mutate projects

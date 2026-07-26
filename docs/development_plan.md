@@ -948,9 +948,11 @@ CR5 — Experimental evaluation — Partially done
 
 Status
 
-* Planned
+* GA1-GA4 and the GA5 workbench MVP are implemented
+* Project migration, section regeneration, stems/automation, structured
+  listening evaluation, and GA6 performance patterns remain planned
 
-G11 will turn a generated scale and a user-selected vocabulary of basic exact-
+G11 turns a generated scale and a user-selected vocabulary of basic exact-
 ratio chords into a complete genre-guided arrangement. It sits above Compose
 and G10: the new layer generates form, section-aware harmony, coordinated
 drums, bass, comping, melody, and texture roles, then compiles them to the
@@ -993,6 +995,27 @@ See
 [development_plan_harmonic_phase_shift.md](development_plan_harmonic_phase_shift.md)
 for the mathematical model, request/output contracts, overlap policy,
 delivery plan, and acceptance criteria.
+
+### G11.2 Harmony Performance Patterns
+
+Status
+
+* Planned as GA6
+
+The current arranger attacks all harmony tones together. GA6 adds a
+performance-pattern layer after chord selection and voicing so the same
+exact-ratio progression can be realized as block chords, ordered arpeggios,
+or meter-aware stride. Pattern changes do not regenerate harmony.
+
+The design includes deterministic per-section selection, arpeggio order and
+rate, stride low/chord alternation, explicit conflict policies with the
+independent bass part, event provenance, Composition Roll display, and one
+canonical event sequence for browser playback, JSON, MIDI, and WAV.
+
+See
+[development_plan_genre_arrangement.md](development_plan_genre_arrangement.md#55-harmony-performance-patterns)
+for the model, algorithms, schema migration, staged delivery, and acceptance
+criteria.
 
 ---
 
