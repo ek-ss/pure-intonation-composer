@@ -1223,6 +1223,26 @@ function arrangeControls() {
     drums_enabled: el("arrange-drums-enabled").checked,
   };
 }
+function arrangeHarmonyPerformance() {
+  const mode = el("arrange-harmony-mode").value;
+  if (mode === "auto") return null;
+  return {
+    mode,
+    allowed_modes: [mode],
+    mode_weights: { [mode]: 1 },
+    rate_subdivisions: Number(el("arrange-harmony-rate").value),
+    arpeggio: {
+      order: el("arrange-arpeggio-order").value,
+      octave_span: 1,
+      rotate_per_chord: false,
+    },
+    stride: {
+      low_note_source: "root",
+      chord_tones: "full",
+      bass_conflict: el("arrange-stride-conflict").value,
+    },
+  };
+}
 async function generateArrangement() {
   try {
     setArrangeStatus("Arranging…", "loading");
@@ -1240,6 +1260,7 @@ async function generateArrangement() {
       genre_profile: el("arrange-profile").value,
       clock,
       controls: arrangeControls(),
+      harmony_performance: arrangeHarmonyPerformance(),
       seed: Number(el("arrange-seed").value),
     });
     arrangeState.project = data;
@@ -1301,9 +1322,13 @@ function renderArrangeParts() {
 }
 function renderArrangeProgression() {
   const tbody = el("arrange-progression"); tbody.innerHTML = "";
+  const gestures = new Map(
+    (arrangeState.project?.harmony_gestures ?? [])
+      .map(gesture => [gesture.chord_index, gesture.mode])
+  );
   (arrangeState.project?.harmony_progression ?? []).forEach(slot => {
     const row = tbody.insertRow();
-    [slot.index + 1, slot.section_id, slot.name, slot.root, slot.tones.join(" "), slot.transition ? slot.transition.voice_leading_cents : "—"]
+    [slot.index + 1, slot.section_id, slot.name, gestures.get(slot.index) ?? "block", slot.root, slot.tones.join(" "), slot.transition ? slot.transition.voice_leading_cents : "—"]
       .forEach(value => { const cell = row.insertCell(); cell.textContent = value; });
     row.onclick = () => auditionArrangeChord(slot);
   });
@@ -1370,6 +1395,218 @@ el("arrange-use-scale").onclick = () => {
 let arrangeResizeFrame = 0;
 window.addEventListener("resize", () => {
   cancelAnimationFrame(arrangeResizeFrame);
-  arrangeResizeFrame = requestAnimationFrame(renderArrangeForm);
+  arrangeResizeFrame = requestAnimationFrame(() => {
+    renderArrangeForm();
+    renderPhaseRoll();
+  });
 });
 loadArrangeProfiles();
+
+// ---- Harmonic phase shift ----
+const phaseState = { project: null };
+function setPhaseStatus(message, kind) {
+  const status = el("phase-status");
+  status.textContent = message;
+  status.dataset.kind = kind;
+}
+function phaseStream(id) {
+  const stream = {
+    id,
+    generated_roles: ["harmony"],
+    rhythm: {
+      source: "euclidean",
+      cycle_steps: Number(el(`phase-${id}-cycle`).value),
+      pulses: Number(el(`phase-${id}-pulses`).value),
+      rotation: Number(el(`phase-${id}-rotation`).value),
+      density: .4,
+      syncopation: .4,
+      gate: id === "a" ? .9 : .65,
+    },
+    register_low_cents: id === "a" ? 0 : 1200,
+    register_high_cents: id === "a" ? 2400 : 3600,
+    gain: id === "a" ? .72 : .66,
+    pan: id === "a" ? -.25 : .25,
+  };
+  if (el("phase-mode").value === "independent_chord_clock") {
+    stream.chord_durations = id === "a" ? [8, 12, 8, 4] : [5, 9, 7, 11];
+  }
+  return stream;
+}
+async function generatePhaseShift() {
+  if (!arrangeState.project) {
+    setPhaseStatus("先にアレンジを生成してください。", "error");
+    return;
+  }
+  try {
+    setPhaseStatus("Generating phase…", "loading");
+    const bars = arrangeState.project.clock.bars;
+    const anchors = [
+      ...arrangeState.project.form.map(section => ({
+        bar: section.start_bar,
+        rhythm_offset: 0,
+        chord_offset: 0,
+        protected: true,
+      })),
+      { bar: bars, rhythm_offset: 0, chord_offset: 0, protected: true },
+    ];
+    const data = await postJson("/api/arrange/phase-shift", {
+      arrangement: arrangeState.project,
+      mode: el("phase-mode").value,
+      stream_a: phaseStream("a"),
+      stream_b: phaseStream("b"),
+      phase_plan: {
+        process: el("phase-process").value,
+        initial_offset_steps: Number(el("phase-b-rotation").value),
+        increment_steps: 1,
+        update_interval_bars: 1,
+        direction: "forward",
+        convergence_points: anchors,
+        maximum_supercycle_bars: Math.min(128, bars),
+      },
+      overlap_policy: {
+        resolution: el("phase-overlap").value,
+        maximum_combined_density: .9,
+        maximum_active_tones: 12,
+        maximum_overlap_cost: 12,
+        minimum_hamming_distance: .12,
+      },
+      seed: Number(el("arrange-seed").value),
+    });
+    phaseState.project = data;
+    renderPhaseRoll();
+    renderPhaseSchedule();
+    const metrics = data.phase_shift.metrics;
+    el("phase-metrics").textContent =
+      `Hamming ${metrics.rhythm_distinctness.onset_hamming_distance.toFixed(3)} · ` +
+      `Overlap ${metrics.rhythm_distinctness.onset_overlap_ratio.toFixed(3)} · ` +
+      `Alignments ${metrics.alignment_points} · Max cost ${metrics.maximum_overlap_cost.toFixed(3)}`;
+    setPhaseStatus(`${data.phase_shift.mode} · ${data.events.length} events`, "");
+  } catch (error) {
+    setPhaseStatus(error.message, "error");
+  }
+}
+function renderPhaseRoll() {
+  const canvas = el("phase-roll");
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  const width = Math.max(1, Math.round(canvas.getBoundingClientRect().width));
+  const height = 240, pixelRatio = window.devicePixelRatio || 1;
+  const pixelWidth = Math.round(width * pixelRatio), pixelHeight = Math.round(height * pixelRatio);
+  if (canvas.width !== pixelWidth || canvas.height !== pixelHeight) {
+    canvas.width = pixelWidth;
+    canvas.height = pixelHeight;
+  }
+  ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+  ctx.clearRect(0, 0, width, height);
+  ctx.fillStyle = "#111622";
+  ctx.fillRect(0, 0, width, height);
+  const project = phaseState.project;
+  if (!project) return;
+  const total = project.clock.total_ticks;
+  ctx.fillStyle = "#aeb9d0";
+  ctx.font = "12px sans-serif";
+  ctx.fillText("A", 8, 18);
+  ctx.fillText("B", 8, 113);
+  ctx.strokeStyle = "#30394d";
+  ctx.beginPath();
+  ctx.moveTo(0, 100);
+  ctx.lineTo(width, 100);
+  ctx.moveTo(0, 195);
+  ctx.lineTo(width, 195);
+  ctx.stroke();
+  project.events.filter(event => event.phase_stream_id).forEach(event => {
+    const laneTop = event.phase_stream_id === "a" ? 22 : 117;
+    const pitch = 1200 * Math.log2(ratioValue(event.ratio));
+    const localPitch = ((pitch % 2400) + 2400) % 2400;
+    const y = laneTop + 62 - localPitch / 2400 * 58;
+    const x = event.start_tick / total * width;
+    const w = Math.max(1, event.duration_ticks / total * width);
+    ctx.fillStyle = event.phase_stream_id === "a" ? "#98e7ca" : "#a9b9ff";
+    ctx.fillRect(x, y, w, 4);
+  });
+  (project.markers ?? []).forEach(marker => {
+    const x = marker.tick / total * width;
+    ctx.strokeStyle = "#ffd47e";
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, height);
+    ctx.stroke();
+  });
+  const schedule = project.phase_shift.phase_schedule;
+  if (schedule.length > 1) {
+    const maxOffset = Math.max(1, ...schedule.map(item => Math.abs(item.rhythm_offset)));
+    ctx.strokeStyle = "#ffd47e";
+    ctx.beginPath();
+    schedule.forEach((item, index) => {
+      const x = item.bar / project.clock.bars * width;
+      const y = 218 - item.rhythm_offset / maxOffset * 16;
+      if (index) ctx.lineTo(x, y);
+      else ctx.moveTo(x, y);
+    });
+    ctx.stroke();
+  }
+}
+function renderPhaseSchedule() {
+  const tbody = el("phase-schedule");
+  tbody.innerHTML = "";
+  (phaseState.project?.phase_shift.phase_schedule ?? []).forEach(item => {
+    const row = tbody.insertRow();
+    [item.bar + 1, item.rhythm_offset, item.chord_offset]
+      .forEach(value => { const cell = row.insertCell(); cell.textContent = value; });
+  });
+}
+function playPhaseShift() {
+  const project = phaseState.project;
+  if (!project) {
+    setPhaseStatus("先に位相シフトを生成してください。", "error");
+    return;
+  }
+  stopProgression();
+  const base = project.source_scale.base_frequency;
+  const secondsPerTick = 60 / project.clock.tempo_bpm / project.clock.ticks_per_beat;
+  const now = audioContext().currentTime + .1;
+  project.events.forEach(event => {
+    const start = now + event.start_tick * secondsPerTick;
+    const duration = Math.min(8, event.duration_ticks * secondsPerTick);
+    if (event.kind === "drum") arrangeDrumHit(event.drum_note, start, event.velocity);
+    else scheduleTone(base * ratioValue(event.ratio), start, duration, Math.min(.2, .16 * event.velocity / 100));
+  });
+  setPhaseStatus("Playing…", "loading");
+}
+async function phaseExport(endpoint, filename) {
+  if (!phaseState.project) {
+    setPhaseStatus("先に位相シフトを生成してください。", "error");
+    return;
+  }
+  try {
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ arrangement: phaseState.project }),
+    });
+    if (!response.ok) {
+      const detail = (await response.json()).detail;
+      throw new Error(detail ?? "エクスポートに失敗しました。");
+    }
+    download(await response.blob(), filename);
+    setPhaseStatus(`${filename} を書き出しました。`, "");
+  } catch (error) {
+    setPhaseStatus(error.message, "error");
+  }
+}
+el("phase-generate").onclick = generatePhaseShift;
+el("phase-play").onclick = playPhaseShift;
+el("phase-stop").onclick = () => { stopProgression(); setPhaseStatus("", ""); };
+el("phase-midi").onclick = () => phaseExport("/api/arrange/midi", "phase-shift.mid");
+el("phase-render").onclick = () => phaseExport("/api/arrange/render", "phase-shift.wav");
+el("phase-json").onclick = () => {
+  if (!phaseState.project) {
+    setPhaseStatus("先に位相シフトを生成してください。", "error");
+    return;
+  }
+  download(
+    new Blob([JSON.stringify(phaseState.project, null, 2)], { type: "application/json" }),
+    "phase-shift.json",
+  );
+  setPhaseStatus("phase-shift.json を書き出しました。", "");
+};

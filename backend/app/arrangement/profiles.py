@@ -68,6 +68,48 @@ class HarmonyStyle(BaseModel):
     max_root_motion_cents: float = Field(default=700, gt=0, le=1200)
 
 
+class ArpeggioStyle(BaseModel):
+    order: Literal["up", "down", "up_down", "outside_in", "seeded"] = "up"
+    octave_span: int = Field(default=1, ge=1, le=3)
+    rotate_per_chord: bool = False
+
+
+class StrideStyle(BaseModel):
+    low_note_source: Literal["root", "lowest_voiced", "bass_note"] = "root"
+    chord_tones: Literal["full", "shell"] = "full"
+    bass_conflict: Literal["yield", "coordinate", "double"] = "yield"
+
+
+PerformanceMode = Literal["block", "arpeggio", "stride"]
+
+
+def _default_performance_modes() -> list[PerformanceMode]:
+    return ["block"]
+
+
+class HarmonyPerformanceStyle(BaseModel):
+    mode: Literal["auto", "block", "arpeggio", "stride"] = "block"
+    allowed_modes: list[PerformanceMode] = Field(
+        default_factory=_default_performance_modes, min_length=1, max_length=3
+    )
+    mode_weights: dict[str, float] = Field(
+        default_factory=lambda: {"block": 1.0}, max_length=3
+    )
+    rate_subdivisions: int = Field(default=2, ge=1, le=16)
+    gate: float = Field(default=0.85, gt=0, le=4)
+    velocity_curve: Literal["flat", "metrical", "phrase"] = "metrical"
+    arpeggio: ArpeggioStyle = Field(default_factory=ArpeggioStyle)
+    stride: StrideStyle = Field(default_factory=StrideStyle)
+
+    @field_validator("mode_weights")
+    @classmethod
+    def weights_must_be_valid(cls, value: dict[str, float]) -> dict[str, float]:
+        allowed = {"block", "arpeggio", "stride"}
+        if not set(value).issubset(allowed) or any(weight < 0 for weight in value.values()):
+            raise ValueError("mode_weights must contain non-negative performance-mode weights")
+        return value
+
+
 class RhythmStyle(BaseModel):
     drums: bool = True
     half_time: bool = False
@@ -104,6 +146,9 @@ class GenreProfile(BaseModel):
     allowed_meters: list[int] = Field(min_length=1, max_length=4)
     default_form: list[SectionTemplate] = Field(min_length=1, max_length=32)
     harmony: HarmonyStyle = HarmonyStyle()
+    harmony_performance: HarmonyPerformanceStyle = Field(
+        default_factory=HarmonyPerformanceStyle
+    )
     rhythm: RhythmStyle = RhythmStyle()
     parts: list[PartStyle] = Field(min_length=1, max_length=8)
     render: dict[str, Any] = Field(default_factory=dict)
@@ -158,6 +203,12 @@ _POP = {
         "cadence_stability": 0.7,
         "weights": {"motif": 0.9, "repetition": 0.2, "cadence": 0.9},
     },
+    "harmony_performance": {
+        "mode": "auto",
+        "allowed_modes": ["block", "arpeggio"],
+        "mode_weights": {"block": 1.2, "arpeggio": 0.8},
+        "rate_subdivisions": 2,
+    },
     "rhythm": {"density": 0.55, "syncopation": 0.3},
     "parts": [
         {"role": "drums", "instrument": "drum kit", "register_low": 0.25, "register_high": 1.0,
@@ -188,6 +239,14 @@ _AMBIENT = {
         "cadence_stability": 0.1,
         "max_root_motion_cents": 500,
         "weights": {"voice_leading": 1.4, "common_tone": 1.2, "cadence": 0.1, "motif": 0.3},
+    },
+    "harmony_performance": {
+        "mode": "auto",
+        "allowed_modes": ["block", "arpeggio"],
+        "mode_weights": {"block": 0.8, "arpeggio": 1.2},
+        "rate_subdivisions": 4,
+        "gate": 1.5,
+        "arpeggio": {"order": "up_down", "octave_span": 2},
     },
     "rhythm": {"drums": False, "density": 0.2, "syncopation": 0.1, "fills": False},
     "parts": [
@@ -223,6 +282,13 @@ _ALTERNATIVE_ROCK = {
         "cadence_stability": 0.5,
         "weights": {"voice_leading": 0.5, "root_motion": 0.9, "complexity": 0.8, "motif": 0.8},
     },
+    "harmony_performance": {
+        "mode": "block",
+        "allowed_modes": ["block", "stride"],
+        "mode_weights": {"block": 1.0, "stride": 0.4},
+        "rate_subdivisions": 2,
+        "gate": 0.65,
+    },
     "rhythm": {"density": 0.7, "syncopation": 0.25, "crash_on_section": True},
     "parts": [
         {"role": "drums", "instrument": "drum kit", "register_low": 0.25, "register_high": 1.0,
@@ -254,6 +320,14 @@ _FUTURE_BASS = {
         "chord_size_preference": 4,
         "cadence_stability": 0.4,
         "weights": {"complexity": 0.3, "section_energy": 1.2, "motif": 0.7},
+    },
+    "harmony_performance": {
+        "mode": "auto",
+        "allowed_modes": ["block", "arpeggio"],
+        "mode_weights": {"block": 1.4, "arpeggio": 0.7},
+        "rate_subdivisions": 1,
+        "gate": 0.5,
+        "arpeggio": {"order": "outside_in", "octave_span": 2},
     },
     "rhythm": {"density": 0.65, "syncopation": 0.6, "half_time": True, "crash_on_section": True},
     "parts": [
@@ -304,6 +378,9 @@ def profile_summaries() -> list[dict[str, Any]]:
                 "drums": profile.rhythm.drums,
                 "half_time": profile.rhythm.half_time,
                 "preferred_tags": profile.harmony.preferred_tags,
+                "harmony_performance_modes": (
+                    profile.harmony_performance.allowed_modes
+                ),
                 "parts": [part.role for part in profile.parts],
             }
         )

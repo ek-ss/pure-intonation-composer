@@ -498,6 +498,11 @@ and part roles.
   "controls": { "energy": 0.5, "density": 0.5, "syncopation": 0.5,
     "harmonic_complexity": 0.5, "repetition": 0.5, "section_contrast": 0.5,
     "humanization": 0.0, "melody_enabled": true, "drums_enabled": true },
+  "harmony_performance": {
+    "mode": "arpeggio", "allowed_modes": ["arpeggio"],
+    "rate_subdivisions": 2,
+    "arpeggio": { "order": "up_down", "octave_span": 1 }
+  },
   "seed": 42
 }
 ```
@@ -510,8 +515,11 @@ scale-degree offsets materialized over `allowed_root_degrees`), and
 back). `clock` fields left `null` fall back to profile defaults; a custom
 `form.sections[]` must span exactly `clock.bars`.
 `subdivisions_per_beat` must divide the canonical 480-tick beat.
+`harmony_performance` is optional: profile defaults select `block`,
+`arpeggio`, or `stride` per section when omitted. Explicit modes support
+arpeggio order/rate and stride low-note, shell, and bass-conflict policies.
 
-The response is the canonical `ArrangementProject`: `schema_version`,
+The response is canonical `ArrangementProject` 1.1: `schema_version`,
 `metadata`, `source_scale`, materialized `chord_vocabulary` (with cents span,
 complexity, tension), `requested_profile`, `resolved_profile` (profile plus
 resolved macro controls), `seed`, `form` (sections with exact bar ranges and
@@ -521,6 +529,9 @@ or GM `drum_note`, ticks, velocity, articulation, section), `automation`
 (energy curves and, for Future Bass drops, sidechain-pump intent),
 `mix`, `render_settings`, and `decision_trace` (per-stage decisions including
 relaxed profile preferences such as a missing `power` chord tag).
+`harmony_gestures` records the resolved mode and settings for every chord
+slot. Harmony events reference their gesture and identify `block`, `tone`,
+`low`, or `chord` components.
 
 Identical request + profile version + seed produce identical JSON. Validation
 failures (unknown profile, empty vocabulary, meter outside the profile,
@@ -554,6 +565,57 @@ approximated as short untuned blips; effect automation is not rendered yet.
 Preview rendering is bounded to 4,000,000 samples (about 181 seconds at the
 default 22050 Hz, including release tails). Longer projects return `422`
 before synthesis; reduce bars or increase tempo.
+
+## POST /api/arrange/migrate
+
+```json
+{ "arrangement": { "...": "ArrangementProject 1.0" } }
+```
+
+Migrates a 1.0 project to 1.1 without regenerating audible events. Existing
+harmony events receive explicit block-gesture provenance. An already-current
+project is returned unchanged.
+
+## POST /api/arrange/phase-shift
+
+```json
+{
+  "arrangement": { "...": "ArrangementProject 1.0 or 1.1" },
+  "mode": "shared_chord_clock",
+  "stream_a": {
+    "id": "a",
+    "rhythm": { "source": "euclidean", "cycle_steps": 16, "pulses": 4 }
+  },
+  "stream_b": {
+    "id": "b",
+    "rhythm": {
+      "source": "euclidean", "cycle_steps": 15, "pulses": 5, "rotation": 2
+    }
+  },
+  "phase_plan": {
+    "process": "polymetric",
+    "initial_offset_steps": 2,
+    "convergence_points": [
+      { "bar": 0, "chord_offset": 0, "protected": true },
+      { "bar": 8, "chord_offset": 0, "protected": true }
+    ]
+  },
+  "overlap_policy": {
+    "resolution": "strict_full_chord",
+    "maximum_active_tones": 12
+  },
+  "seed": 42
+}
+```
+
+Compiles two measurably different exact-ratio harmony streams. Modes:
+`shared_chord_clock` and `independent_chord_clock`. Processes: `static`,
+`discrete`, `polymetric`, and `convergent`. The response is an
+`ArrangementProject` 1.1 accepted directly by `/api/arrange/midi` and
+`/api/arrange/render`, with `phase_shift` metadata containing stream
+definitions, per-bar offsets, convergence results, overlap windows, rhythm
+distinctness, density, and omission metrics. `fractional` is reserved for
+HP5 and currently returns `422`.
 
 ---
 

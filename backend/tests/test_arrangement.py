@@ -62,7 +62,7 @@ def test_generate_for_each_profile(profile: str) -> None:
     response = client.post("/api/arrange/generate", json=generate_payload(profile))
     assert response.status_code == 200, response.json()
     data = response.json()
-    assert data["schema_version"] == "1.0.0"
+    assert data["schema_version"] == "1.1.0"
     clock = data["clock"]
     assert clock["bars"] == 8
     # Sections exactly fill the declared bar ranges.
@@ -112,6 +112,53 @@ def test_profiles_produce_different_arrangements() -> None:
     assert tempos["ambient"] < tempos["future_bass"]
     event_counts = {profile: len(data["events"]) for profile, data in outputs.items()}
     assert len(set(event_counts.values())) > 1
+
+
+@pytest.mark.parametrize("mode", ["block", "arpeggio", "stride"])
+def test_harmony_performance_modes(mode: str) -> None:
+    performance: dict[str, object] = {
+        "mode": mode,
+        "allowed_modes": [mode],
+        "mode_weights": {mode: 1},
+        "rate_subdivisions": 2,
+    }
+    if mode == "stride":
+        performance["stride"] = {
+            "low_note_source": "root",
+            "chord_tones": "full",
+            "bass_conflict": "double",
+        }
+    response = client.post(
+        "/api/arrange/generate",
+        json=generate_payload("pop", harmony_performance=performance),
+    )
+    assert response.status_code == 200, response.json()
+    data = response.json()
+    assert data["harmony_gestures"]
+    assert {gesture["mode"] for gesture in data["harmony_gestures"]} == {mode}
+    harmony = [event for event in data["events"] if event["track_id"] == "harmony"]
+    assert harmony
+    assert all(event["source_gesture_id"] for event in harmony)
+    components = {event["gesture_component"] for event in harmony}
+    if mode == "block":
+        assert components == {"block"}
+    elif mode == "arpeggio":
+        assert components == {"tone"}
+        assert len({event["start_tick"] for event in harmony}) == len(harmony)
+    else:
+        assert components == {"low", "chord"}
+
+
+def test_auto_harmony_performance_is_resolved_per_section() -> None:
+    response = client.post("/api/arrange/generate", json=generate_payload("pop"))
+    assert response.status_code == 200
+    gestures = response.json()["harmony_gestures"]
+    assert gestures
+    assert {gesture["mode"] for gesture in gestures}.issubset({"block", "arpeggio"})
+    assert any(
+        entry["stage"] == "harmony-performance"
+        for entry in response.json()["decision_trace"]
+    )
 
 
 def test_determinism_same_seed() -> None:
@@ -198,6 +245,56 @@ def test_midi_section_markers_follow_bar_positions() -> None:
 def test_midi_export_rejects_invalid_project() -> None:
     response = client.post("/api/arrange/midi", json={"arrangement": {"clock": {}}})
     assert response.status_code == 422
+
+
+def test_midi_export_accepts_migrated_version_1_project() -> None:
+    arrangement = client.post(
+        "/api/arrange/generate", json=generate_payload("pop")
+    ).json()
+    arrangement["schema_version"] = "1.0.0"
+    arrangement.pop("harmony_gestures")
+    for event in arrangement["events"]:
+        event["source_gesture_id"] = None
+        event["gesture_component"] = None
+    response = client.post("/api/arrange/midi", json={"arrangement": arrangement})
+    assert response.status_code == 200
+
+
+def test_version_1_project_migrates_to_explicit_block_gestures() -> None:
+    arrangement = client.post(
+        "/api/arrange/generate", json=generate_payload("pop")
+    ).json()
+    arrangement["schema_version"] = "1.0.0"
+    arrangement.pop("harmony_gestures")
+    for event in arrangement["events"]:
+        event.pop("source_gesture_id")
+        event.pop("gesture_component")
+    audible_before = [
+        (
+            event["track_id"],
+            event["ratio"],
+            event["start_tick"],
+            event["duration_ticks"],
+            event["velocity"],
+        )
+        for event in arrangement["events"]
+    ]
+    response = client.post("/api/arrange/migrate", json={"arrangement": arrangement})
+    assert response.status_code == 200, response.json()
+    migrated = response.json()
+    assert migrated["schema_version"] == "1.1.0"
+    assert migrated["harmony_gestures"]
+    assert {gesture["mode"] for gesture in migrated["harmony_gestures"]} == {"block"}
+    assert audible_before == [
+        (
+            event["track_id"],
+            event["ratio"],
+            event["start_tick"],
+            event["duration_ticks"],
+            event["velocity"],
+        )
+        for event in migrated["events"]
+    ]
 
 
 def test_midi_export_rejects_malformed_event_as_422() -> None:

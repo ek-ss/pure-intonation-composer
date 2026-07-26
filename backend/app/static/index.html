@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Pure Intonation Workbench</title>
-    <link rel="stylesheet" href="/static/style.css?v=20260726-arrange-fixes">
+    <link rel="stylesheet" href="/static/style.css?v=20260726-phase-shift-2">
   </head>
   <body>
     <header class="topbar">
@@ -426,6 +426,33 @@
             <label>Humanization <input id="arrange-humanize" type="range" min="0" max="1" step="0.05" value="0"></label>
             <label class="check inline"><input id="arrange-melody-enabled" type="checkbox" checked> Melody</label>
             <label class="check inline"><input id="arrange-drums-enabled" type="checkbox" checked> Drums</label>
+            <label>Harmony performance
+              <select id="arrange-harmony-mode">
+                <option value="auto">Auto</option>
+                <option value="block">Block</option>
+                <option value="arpeggio">Arpeggio</option>
+                <option value="stride">Stride</option>
+              </select>
+            </label>
+            <label>Rate (subdivisions)
+              <input id="arrange-harmony-rate" type="number" min="1" max="16" value="2">
+            </label>
+            <label>Arpeggio order
+              <select id="arrange-arpeggio-order">
+                <option value="up">Up</option>
+                <option value="down">Down</option>
+                <option value="up_down">Up / Down</option>
+                <option value="outside_in">Outside / In</option>
+                <option value="seeded">Seeded</option>
+              </select>
+            </label>
+            <label>Stride / Bass
+              <select id="arrange-stride-conflict">
+                <option value="yield">Yield</option>
+                <option value="coordinate">Coordinate</option>
+                <option value="double">Double</option>
+              </select>
+            </label>
           </div>
           <div>
             <label>スケール（カンマ区切りの比）
@@ -458,10 +485,64 @@
             <table><thead><tr><th>Part</th><th>Instrument</th><th>Register</th><th>Events</th></tr></thead><tbody id="arrange-parts"></tbody></table>
           </div>
           <div class="table-wrap">
-            <table><thead><tr><th>#</th><th>Section</th><th>Chord</th><th>Root</th><th>Tones</th><th>VL¢</th></tr></thead><tbody id="arrange-progression"></tbody></table>
+            <table><thead><tr><th>#</th><th>Section</th><th>Chord</th><th>Performance</th><th>Root</th><th>Tones</th><th>VL¢</th></tr></thead><tbody id="arrange-progression"></tbody></table>
           </div>
         </div>
         <p id="arrange-trace" class="hint" aria-live="polite"></p>
+      </section>
+
+      <section id="phase-panel" class="panel phase" tabindex="0">
+        <div class="section-heading"><h2>Phase <span class="experimental">Experimental</span></h2><span id="phase-status" role="status"></span></div>
+        <div class="compose-grid">
+          <div>
+            <label>Chord clock
+              <select id="phase-mode">
+                <option value="shared_chord_clock">Shared</option>
+                <option value="independent_chord_clock">Independent</option>
+              </select>
+            </label>
+            <label>Phase process
+              <select id="phase-process">
+                <option value="static">Static</option>
+                <option value="discrete">Discrete</option>
+                <option value="polymetric" selected>Polymetric</option>
+                <option value="convergent">Convergent</option>
+              </select>
+            </label>
+            <label>Overlap
+              <select id="phase-overlap">
+                <option value="strict_full_chord">Strict</option>
+                <option value="adaptive_voicing">Adaptive</option>
+              </select>
+            </label>
+          </div>
+          <div>
+            <label>A cycle <input id="phase-a-cycle" type="number" min="2" max="128" value="16"></label>
+            <label>A pulses <input id="phase-a-pulses" type="number" min="1" max="128" value="4"></label>
+            <label>A rotation <input id="phase-a-rotation" type="number" min="-127" max="127" value="0"></label>
+          </div>
+          <div>
+            <label>B cycle <input id="phase-b-cycle" type="number" min="2" max="128" value="15"></label>
+            <label>B pulses <input id="phase-b-pulses" type="number" min="1" max="128" value="5"></label>
+            <label>B rotation <input id="phase-b-rotation" type="number" min="-127" max="127" value="2"></label>
+          </div>
+        </div>
+        <div class="button-row">
+          <button id="phase-generate" class="primary phase-primary">位相シフトを生成</button>
+          <button id="phase-play">▶ 再生</button>
+          <button id="phase-stop" class="quiet">停止</button>
+          <button id="phase-midi">MIDI</button>
+          <button id="phase-json">JSON</button>
+          <button id="phase-render">Render WAV</button>
+        </div>
+        <canvas id="phase-roll" width="1400" height="240" aria-label="位相シフト二重レーン"></canvas>
+        <div class="table-wrap phase-table">
+          <table>
+            <thead><tr><th>Bar</th><th>Rhythm offset</th><th>Chord offset</th></tr></thead>
+            <tbody id="phase-schedule"></tbody>
+          </table>
+        </div>
+        <p id="phase-metrics" class="hint" aria-live="polite"></p>
       </section>
 
       <section class="panel rhythm">
@@ -486,6 +567,6 @@
       </section>
     </main>
     <template id="key-template"><button class="key"><span class="key-name"></span><span class="ratio"></span></button></template>
-    <script src="/static/app.js?v=20260726-arrange-fixes"></script>
+    <script src="/static/app.js?v=20260726-phase-shift-2"></script>
   </body>
 </html>

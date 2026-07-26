@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from array import array
 from collections.abc import Iterable
+from copy import deepcopy
 from dataclasses import dataclass
 from fractions import Fraction
 from io import BytesIO
@@ -16,6 +17,7 @@ from app.arrangement.chords import (
     materialize_chords,
 )
 from app.arrangement.form import ArrangementSection, build_form
+from app.arrangement.gestures import HarmonyGesture, generate_harmony_gestures
 from app.arrangement.models import ArrangeGenerateRequest, ArrangementProjectInput
 from app.arrangement.parts import (
     ArrangementEvent,
@@ -43,7 +45,7 @@ from app.exporters.midi import (
 )
 from app.tuning.ratios import parse_ratio, ratio_text
 
-PROJECT_SCHEMA_VERSION = "1.0.0"
+PROJECT_SCHEMA_VERSION = "1.1.0"
 SAMPLE_RATE = 22_050
 MAX_RENDER_SAMPLES = 4_000_000
 
@@ -194,7 +196,9 @@ def generate_arrangement(request: ArrangeGenerateRequest) -> dict[str, Any]:
                 request.seed,
             )
         )
-    pitched_event_parts = [part for part in pitched_parts if part.role != "drums"]
+    pitched_event_parts = [
+        part for part in pitched_parts if part.role not in {"drums", "harmony"}
+    ]
     if pitched_event_parts:
         events.extend(
             generate_pitched_events(
@@ -212,6 +216,27 @@ def generate_arrangement(request: ArrangeGenerateRequest) -> dict[str, Any]:
                 request.seed,
             )
         )
+    gestures: list[HarmonyGesture] = []
+    if harmony_part is not None and "harmony" in enabled_roles:
+        performance = request.harmony_performance or profile.harmony_performance
+        harmony_events, gestures, gesture_notes = generate_harmony_gestures(
+            clock,
+            sections,
+            harmony_part,
+            progression,
+            voiced,
+            roots,
+            bass_notes,
+            [event for event in events if event.track_id == "bass"],
+            performance,
+            controls.density,
+            controls.syncopation,
+            controls.humanization,
+            request.seed,
+        )
+        events.extend(harmony_events)
+        for message in gesture_notes:
+            note("harmony-performance", message)
     final_events = finalize_events(events, clock.total_ticks)
     note("compile", f"compiled {len(final_events)} events on one canonical timeline")
 
@@ -249,11 +274,15 @@ def generate_arrangement(request: ArrangeGenerateRequest) -> dict[str, Any]:
                 "humanization": controls.humanization,
                 "melody_enabled": controls.melody_enabled,
                 "drums_enabled": controls.drums_enabled,
+                "harmony_performance": (
+                    request.harmony_performance or profile.harmony_performance
+                ).model_dump(),
             },
         },
         "seed": request.seed,
         "form": [section.payload() for section in sections],
         "harmony_progression": _progression_payload(progression, instances, clock),
+        "harmony_gestures": [gesture.payload() for gesture in gestures],
         "clock": {
             "tempo_bpm": tempo,
             "beats_per_bar": beats_per_bar,
@@ -273,6 +302,52 @@ def generate_arrangement(request: ArrangeGenerateRequest) -> dict[str, Any]:
         },
         "decision_trace": trace,
     }
+
+
+def migrate_arrangement_project(payload: dict[str, Any]) -> dict[str, Any]:
+    """Upgrade a 1.0 arrangement to explicit 1.1 block-gesture provenance."""
+    validated = ArrangementProjectInput.model_validate(payload)
+    if validated.schema_version == PROJECT_SCHEMA_VERSION:
+        return deepcopy(payload)
+    migrated = deepcopy(payload)
+    progression = migrated.get("harmony_progression")
+    if not isinstance(progression, list) or not progression:
+        raise ValueError("version 1.0 migration requires harmony_progression")
+    gestures = []
+    gesture_by_chord: dict[int, str] = {}
+    for raw_slot in progression:
+        try:
+            chord_index = int(raw_slot["index"])
+            gesture_id = f"gesture-{chord_index + 1:04d}"
+            gestures.append(
+                {
+                    "id": gesture_id,
+                    "section_id": str(raw_slot["section_id"]),
+                    "chord_index": chord_index,
+                    "mode": "block",
+                    "start_tick": int(raw_slot["start_tick"]),
+                    "duration_ticks": int(raw_slot["duration_ticks"]),
+                    "resolved_settings": {
+                        "migration": "1.0.0-to-1.1.0",
+                        "mode": "block",
+                    },
+                }
+            )
+            gesture_by_chord[chord_index] = gesture_id
+        except (KeyError, TypeError, ValueError) as error:
+            raise ValueError(f"invalid harmony_progression during migration: {error}") from error
+    for event in migrated["events"]:
+        if event.get("track_id") == "harmony" and event.get("kind") == "note":
+            chord_index = int(event["chord_index"])
+            event["source_gesture_id"] = gesture_by_chord.get(chord_index)
+            event["gesture_component"] = "block"
+        else:
+            event.setdefault("source_gesture_id", None)
+            event.setdefault("gesture_component", None)
+    migrated["schema_version"] = PROJECT_SCHEMA_VERSION
+    migrated["harmony_gestures"] = gestures
+    ArrangementProjectInput.model_validate(migrated)
+    return migrated
 
 
 def project_midi_bytes(payload: ArrangementProjectInput | dict[str, Any]) -> bytes:
@@ -438,6 +513,7 @@ def _project_view(payload: ArrangementProjectInput | dict[str, Any]) -> ProjectV
         )
         for section in project.form
     ]
+    markers.extend((marker.tick, marker.name) for marker in project.markers)
     return ProjectView(
         base_frequency=project.source_scale.base_frequency,
         tempo_bpm=project.clock.tempo_bpm,

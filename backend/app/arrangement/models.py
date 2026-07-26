@@ -5,7 +5,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from app.arrangement.profiles import SectionTemplate
+from app.arrangement.profiles import HarmonyPerformanceStyle, SectionTemplate
 
 RECOMMENDED_TAGS = {
     "stable",
@@ -98,6 +98,7 @@ class ArrangeGenerateRequest(BaseModel):
     clock: ArrangeClockInput = ArrangeClockInput()
     form: ArrangeFormInput | None = None
     controls: ArrangementControlsInput = ArrangementControlsInput()
+    harmony_performance: HarmonyPerformanceStyle | None = None
     seed: int = 0
 
 
@@ -154,6 +155,13 @@ class ArrangementProjectEvent(BaseModel):
     articulation: str = Field(min_length=1, max_length=24)
     chord_index: int = Field(ge=0, le=8191)
     section_id: str = Field(min_length=1, max_length=40)
+    source_gesture_id: str | None = Field(default=None, max_length=60)
+    gesture_component: Literal["block", "tone", "low", "chord"] | None = None
+    phase_stream_id: Literal["a", "b"] | None = None
+    source_slot_index: int | None = Field(default=None, ge=0, le=8191)
+    source_chord_id: str | None = Field(default=None, max_length=80)
+    visit_index: int | None = Field(default=None, ge=0, le=65_535)
+    phase_iteration: int | None = Field(default=None, ge=0, le=65_535)
 
     @model_validator(mode="after")
     def pitch_must_match_event_kind(self) -> ArrangementProjectEvent:
@@ -181,13 +189,32 @@ class ArrangementProjectRenderSettings(BaseModel):
     waveforms: dict[str, Waveform] = Field(default_factory=dict, max_length=8)
 
 
+class ArrangementProjectGesture(BaseModel):
+    id: str = Field(min_length=1, max_length=60)
+    section_id: str = Field(min_length=1, max_length=40)
+    chord_index: int = Field(ge=0, le=8191)
+    mode: Literal["block", "arpeggio", "stride"]
+    start_tick: int = Field(ge=0, le=737_279)
+    duration_ticks: int = Field(ge=1, le=737_280)
+    resolved_settings: dict[str, Any] = Field(default_factory=dict, max_length=16)
+
+
+class ArrangementProjectMarker(BaseModel):
+    tick: int = Field(ge=0, le=737_280)
+    name: str = Field(min_length=1, max_length=120)
+
+
 class ArrangementProjectInput(BaseModel):
-    schema_version: Literal["1.0.0"]
+    schema_version: Literal["1.0.0", "1.1.0"]
     source_scale: ArrangementProjectScale
     clock: ArrangementProjectClock
     tracks: list[ArrangementProjectTrack] = Field(min_length=1, max_length=8)
     form: list[ArrangementProjectSection] = Field(min_length=1, max_length=32)
     events: list[ArrangementProjectEvent] = Field(min_length=1, max_length=8192)
+    harmony_gestures: list[ArrangementProjectGesture] = Field(
+        default_factory=list, max_length=4096
+    )
+    markers: list[ArrangementProjectMarker] = Field(default_factory=list, max_length=128)
     mix: dict[str, ArrangementProjectMix] = Field(default_factory=dict, max_length=8)
     render_settings: ArrangementProjectRenderSettings = Field(
         default_factory=ArrangementProjectRenderSettings
@@ -212,6 +239,16 @@ class ArrangementProjectInput(BaseModel):
 
         known_tracks = set(track_ids)
         known_sections = set(section_ids)
+        gesture_ids = {gesture.id for gesture in self.harmony_gestures}
+        if len(gesture_ids) != len(self.harmony_gestures):
+            raise ValueError("harmony gesture ids must be unique")
+        for gesture in self.harmony_gestures:
+            if gesture.section_id not in known_sections:
+                raise ValueError(
+                    f"harmony gesture references unknown section '{gesture.section_id}'"
+                )
+            if gesture.start_tick + gesture.duration_ticks > self.clock.total_ticks:
+                raise ValueError(f"harmony gesture '{gesture.id}' extends beyond the clock")
         for event in self.events:
             if event.track_id not in known_tracks:
                 raise ValueError(f"event references unknown track '{event.track_id}'")
@@ -219,6 +256,13 @@ class ArrangementProjectInput(BaseModel):
                 raise ValueError(f"event references unknown section '{event.section_id}'")
             if event.start_tick + event.duration_ticks > self.clock.total_ticks:
                 raise ValueError(f"event '{event.id}' extends beyond clock.total_ticks")
+            if (
+                event.source_gesture_id is not None
+                and event.source_gesture_id not in gesture_ids
+            ):
+                raise ValueError(
+                    f"event references unknown harmony gesture '{event.source_gesture_id}'"
+                )
         if not set(self.mix).issubset(known_tracks):
             raise ValueError("mix references an unknown track")
         if not set(self.render_settings.waveforms).issubset(known_tracks):
@@ -230,3 +274,9 @@ class ArrangeProjectRequest(BaseModel):
     """MIDI/render requests carry the canonical ArrangementProject JSON back."""
 
     arrangement: ArrangementProjectInput
+
+
+class ArrangeMigrationRequest(BaseModel):
+    """Migrate a canonical arrangement project without regenerating its events."""
+
+    arrangement: dict[str, Any]

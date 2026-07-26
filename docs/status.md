@@ -10,8 +10,8 @@ documents.
 
 ## Verification Baseline
 
-- 43 OpenAPI paths plus one WebSocket transport endpoint
-- 181 passing pytest tests
+- 45 OpenAPI paths plus one WebSocket transport endpoint
+- 195 passing pytest tests
 - `ruff check app tests` passes
 - `mypy app` passes
 - Browser workbench implemented in vanilla JavaScript without a build step
@@ -29,8 +29,8 @@ manual rather than part of continuous integration.
 | Composition | Implemented | Seeded harmony, voice leading, bass strategies, multi-voice melody, browser playback, MIDI/JSON/WAV export | One-shot project composition endpoint, persisted project import |
 | Drum rhythm | Implemented core | Euclidean layers, rotation optimization, bounded polymetric analysis, phase offsets, state graph, humanization, metrics, MIDI/JSON export | Coordinated state transitions, fill generator, preset library, continuous phase drift |
 | Compose Rhythm Orchestration | Implemented core | Chord-tone and role mapping, overflow/voice policies, Harmony/Bass/Melody-specific generators, integer-tick events, playback and export integration | Project schema migration/import, structured listening comparisons, performance benchmarks |
-| Genre Arrangement Pipeline | Experimental MVP | Pop, Ambient, Alternative Rock, and Future Bass profiles; form and sounding-aware harmony generation; coordinated drums/bass/harmony/melody/texture; validated canonical JSON; bounded WAV preview; type-1 microtonal MIDI; responsive Arrange workbench | GA6 block/arpeggio/stride performance patterns, project migration/import, section regeneration, stems/effect rendering, structured listening comparisons, automated browser regression |
-| Harmonic Phase-Shift Composition | Planned | Specification completed for shared/independent chord clocks, two distinct rhythms, convergence, overlap analysis, MIDI/JSON/render integration | All implementation; HP1-HP2 are the proposed MVP |
+| Genre Arrangement Pipeline | Experimental MVP | Pop, Ambient, Alternative Rock, and Future Bass profiles; sounding-aware harmony; block/arpeggio/stride performance; coordinated parts; Project 1.1 and 1.0 migration; bounded WAV; type-1 microtonal MIDI; responsive Arrange workbench | Section regeneration, broader project import, stems/effect rendering, structured listening comparisons, automated browser regression |
+| Harmonic Phase-Shift Composition | Experimental MVP | Shared and independent chord clocks; static/discrete/polymetric/convergent phase; distinctness and overlap metrics; strict/adaptive resolution; convergence markers; dual-lane workbench; MIDI/JSON/WAV | HP5 fractional drift, track-role assignment UI, overlap matrix audition, automated browser regression, structured listening evaluation |
 | Visualization | Implemented core | Pitch Circle, force graph, reference-layered grid, walk overlays, harmonic stack highlighting, time-proportional Composition Roll | Voice-leading connectors, zoom/pan, per-voice mobile mode, persisted view state, automated browser regression |
 | Exponent Lattice Lab | Experimental, partial | Exact exponent math, collision groups, seeded chords, root-motion progressions, bounded walks, analysis, 2D projection, chord playback, keyboard, Compose transfer | Structured vector editor, non-projected filtering, coordinate provenance through bass/melody/export, exponent lanes, versioned persistence, benchmarks |
 | Audio and export | Implemented core | WebAudio audition, five offline oscillator modes, ADSR, delay/reverb, synchronous and queued WAV, pitched and percussion MIDI, pitch-bend retuning, Scala and JSON | FM/noise synthesis, instrument presets, durable render jobs |

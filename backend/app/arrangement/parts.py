@@ -45,6 +45,13 @@ class ArrangementEvent:
     articulation: str
     chord_index: int
     section_id: str
+    source_gesture_id: str | None = None
+    gesture_component: str | None = None
+    phase_stream_id: str | None = None
+    source_slot_index: int | None = None
+    source_chord_id: str | None = None
+    visit_index: int | None = None
+    phase_iteration: int | None = None
 
     def payload(self) -> dict[str, object]:
         return {
@@ -63,6 +70,13 @@ class ArrangementEvent:
             "articulation": self.articulation,
             "chord_index": self.chord_index,
             "section_id": self.section_id,
+            "source_gesture_id": self.source_gesture_id,
+            "gesture_component": self.gesture_component,
+            "phase_stream_id": self.phase_stream_id,
+            "source_slot_index": self.source_slot_index,
+            "source_chord_id": self.source_chord_id,
+            "visit_index": self.visit_index,
+            "phase_iteration": self.phase_iteration,
         }
 
 
@@ -355,6 +369,13 @@ def finalize_events(
                 articulation=event.articulation,
                 chord_index=event.chord_index,
                 section_id=event.section_id,
+                source_gesture_id=event.source_gesture_id,
+                gesture_component=event.gesture_component,
+                phase_stream_id=event.phase_stream_id,
+                source_slot_index=event.source_slot_index,
+                source_chord_id=event.source_chord_id,
+                visit_index=event.visit_index,
+                phase_iteration=event.phase_iteration,
             )
         )
     ordered = sorted(
@@ -384,6 +405,13 @@ def finalize_events(
             articulation=event.articulation,
             chord_index=event.chord_index,
             section_id=event.section_id,
+            source_gesture_id=event.source_gesture_id,
+            gesture_component=event.gesture_component,
+            phase_stream_id=event.phase_stream_id,
+            source_slot_index=event.source_slot_index,
+            source_chord_id=event.source_chord_id,
+            visit_index=event.visit_index,
+            phase_iteration=event.phase_iteration,
         )
         for index, event in enumerate(ordered)
     ]

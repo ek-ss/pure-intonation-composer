@@ -2,10 +2,9 @@
 
 **Project:** Pure Intonation Composer
 
-**Status:** GA1–GA4 and the GA5 workbench stage are implemented (MVP). Section
-or part-level regeneration, JSON re-import/migration, stems, and rendered
-effect automation remain planned. GA6 Harmony Performance Patterns
-(block chords, arpeggios, and stride) is specified below and remains planned.
+**Status:** GA1–GA6 are implemented (MVP). Section or part-level regeneration,
+general project import beyond the 1.0-to-1.1 migration, stems, rendered effect
+automation, and structured listening evaluation remain planned.
 
 This plan defines a higher-level composition pipeline that turns a generated
 scale and a user-selected vocabulary of basic chords into a complete,
@@ -618,19 +617,21 @@ the main work surface.
 
 * Add versioned `HarmonyPerformanceStyle`, resolved `harmony_gestures`, event
   provenance, and migration of existing projects to explicit `block` mode. —
-  Planned
+  Done (`ArrangementProject` 1.1 and `POST /api/arrange/migrate`)
 * Implement bounded block, ordered arpeggio, and meter-aware stride compilers
-  on the G10 integer clock. — Planned
+  on the G10 integer clock. — Done (`app/arrangement/gestures.py`)
 * Add bass-conflict policies, register validation, variable-cardinality chord
-  handling, and deterministic section/phrase selection. — Planned
+  handling, and deterministic section/phrase selection. — Done
 * Add Arrange controls and Composition Roll visualization for each gesture. —
-  Planned
+  Done for Arrange controls, provenance table, and arrangement/phase lanes;
+  direct editing in the main Composition Roll remains Planned
 * Add JSON/MIDI/WAV equivalence tests and structured listening comparisons for
-  all four profiles. — Planned
+  all four profiles. — Export equivalence tests Done; structured listening
+  comparisons Planned
 
-Recommended implementation order is GA1, GA2, GA3, GA4, GA5, then GA6.
-GA6 should first ship block and arpeggio with project migration, followed by
-stride after bass-conflict and meter tests are in place.
+GA1-GA6 now share the same canonical event and export path. Further work
+should prioritize listening evaluation and direct gesture editing without
+changing embedded historical profile versions.
 
 ## 10. Acceptance Criteria
 

@@ -87,9 +87,19 @@ from app.rhythm.drums import (
     phase_offsets,
 )
 from app.rhythm.engine import euclidean_rhythm, humanize, phase_shift, state_transition_graph
-from app.arrangement.models import ArrangeGenerateRequest, ArrangeProjectRequest
+from app.arrangement.models import (
+    ArrangeGenerateRequest,
+    ArrangeMigrationRequest,
+    ArrangeProjectRequest,
+)
+from app.arrangement.phase import HarmonicPhaseShiftRequest, generate_phase_shift
 from app.arrangement.profiles import profile_summaries
-from app.arrangement.project import generate_arrangement, project_midi_bytes, project_render_wav
+from app.arrangement.project import (
+    generate_arrangement,
+    migrate_arrangement_project,
+    project_midi_bytes,
+    project_render_wav,
+)
 from app.exporters.scala import scala_text
 from app.exporters.scala_import import parse_scala
 from app.scales import delete_scale, get_scale, list_scales, save_scale
@@ -1088,6 +1098,24 @@ def arrange_render(request: ArrangeProjectRequest) -> Response:
         media_type="audio/wav",
         headers={"Content-Disposition": "attachment; filename=arrangement.wav"},
     )
+
+
+@app.post("/api/arrange/phase-shift")
+def arrange_phase_shift(request: HarmonicPhaseShiftRequest) -> dict[str, object]:
+    """Compile dual-rhythm harmonic phase streams from an arrangement project."""
+    try:
+        return generate_phase_shift(request)
+    except (ValueError, ZeroDivisionError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+
+@app.post("/api/arrange/migrate")
+def arrange_migrate(request: ArrangeMigrationRequest) -> dict[str, object]:
+    """Migrate a canonical arrangement project to the current schema."""
+    try:
+        return migrate_arrangement_project(request.arrangement)
+    except (ValueError, ZeroDivisionError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
 
 
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")

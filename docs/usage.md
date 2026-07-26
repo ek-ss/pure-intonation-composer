@@ -309,6 +309,10 @@ comping, melody) on one canonical timeline.
   Repetition, Section contrast, Humanization, plus Melody/Drums toggles. Each
   macro reshapes explicit profile parameters; the resolved values are stored
   in the project's `resolved_profile.resolved_controls`.
+* **Harmony performance** — Auto uses profile/section defaults. Block attacks
+  the full voicing, Arpeggio distributes ordered tones at the selected rate,
+  and Stride alternates low and chord components while applying the selected
+  Bass conflict policy.
 * **スケール** — comma-separated ratios; **現在のスケールを使う** copies the
   scale currently generated in the workbench.
 * **和音ボキャブラリー（JSON）** — a list of basic chords. Modes:
@@ -337,7 +341,31 @@ comping, melody) on one canonical timeline.
 The same inputs, profile version, and seed reproduce the same arrangement.
 
 API: `GET /api/arrange/profiles`, `POST /api/arrange/generate`,
-`/api/arrange/midi`, `/api/arrange/render`.
+`/api/arrange/migrate`, `/api/arrange/midi`, `/api/arrange/render`.
+
+---
+
+## 2.13 Phase panel (Experimental)
+
+The Phase panel transforms the current Arrange result into two exact-ratio
+harmony streams.
+
+* **Chord clock** — Shared keeps both streams on the source chord active at
+  each tick. Independent lets A and B traverse the same chord order with
+  separately allocated durations.
+* **Phase process** — Static offset, scheduled Discrete changes, unequal
+  Polymetric cycles, or Convergent motion toward protected section entrances.
+* **A/B cycle, pulses, rotation** — deterministic Euclidean rhythm controls.
+* **Overlap** — Strict preserves full chords and rejects excessive overlap;
+  Adaptive may bound the moving stream's active tones and records omissions.
+* **位相シフトを生成** — compiles both streams, convergence markers, overlap
+  analysis, and a per-bar phase schedule.
+* **▶ 再生 / MIDI / JSON / Render WAV** — all use the returned canonical event
+  timeline. The dual lane shows A/B notes, convergence lines, and the rhythmic
+  offset curve.
+
+API: `POST /api/arrange/phase-shift`; its result is accepted by
+`POST /api/arrange/midi` and `POST /api/arrange/render`.
 
 ---
 
@@ -355,7 +383,7 @@ Base URL `http://127.0.0.1:8000`; all bodies JSON; errors are
 | Composition | `POST /api/compose/harmony`, `/api/compose/voice-leading`, `/api/compose/bass`, `/api/compose/melody`, `/api/compose/rhythm/apply`, `/api/compose/rhythm/generate` |
 | Rhythm | `POST /api/rhythm/euclidean`, `/api/rhythm/state-graph`, `/api/rhythm/phase-shift`, `/api/rhythm/humanize`, `/api/rhythm/optimize-rotations`, `/api/rhythm/analyze`, `/api/drums/generate` |
 | Lattice lab | `POST /api/exponent-lattice/scale`, `/api/exponent-lattice/harmony`, `/api/exponent-lattice/chord`, `/api/exponent-lattice/progression`, `/api/exponent-lattice/walk`, `/api/exponent-lattice/analyze` |
-| Arrangement | `GET /api/arrange/profiles`, `POST /api/arrange/generate`, `/api/arrange/midi`, `/api/arrange/render` |
+| Arrangement | `GET /api/arrange/profiles`, `POST /api/arrange/generate`, `/api/arrange/migrate`, `/api/arrange/phase-shift`, `/api/arrange/midi`, `/api/arrange/render` |
 | Rendering | `POST /api/render/wav`, `POST /api/render/jobs`, `GET /api/render/jobs/{id}`, `GET /api/render/jobs/{id}/audio` |
 | Export | `POST /api/export/midi`, `/api/export/rhythm/midi`, `/api/export/scala`, `/api/export/json` |
 | Real-time | `WS /api/ws/transport` |

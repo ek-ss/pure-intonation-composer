@@ -2,7 +2,7 @@
 
 **Project:** Pure Intonation Composer
 
-**Status:** Planned G11 extension
+**Status:** HP1–HP4 implemented (MVP); HP5 fractional drift remains planned
 
 This specification extends the Genre Arrangement Pipeline with two rhythmic
 streams that use the same ordered chord progression. The streams begin from a
@@ -482,11 +482,16 @@ resolved voicing.
 * Assign G11 tracks to shared, anchor, or moving groups.
 * Compile deterministic events and basic phase metrics.
 
+Status: Done for generated harmony streams with non-harmony source tracks
+phase-locked as the shared group.
+
 ### HP2 - Discrete and polymetric phase
 
 * Add static offsets, scheduled discrete shifts, and unequal bounded cycles.
 * Add convergence anchors and modular alignment analysis.
 * Preserve phase events in JSON, MIDI markers, and the Composition Roll.
+
+Status: Done.
 
 ### HP3 - Independent chord clocks
 
@@ -494,17 +499,28 @@ resolved voicing.
 * Add progression-order validation and bounded convergence planning.
 * Add overlap-window analysis and strict/adaptive voicing resolution.
 
+Status: Done for bounded duration allocation, progression-order preservation,
+protected convergence segments, overlap costs, strict rejection, and adaptive
+tone limits.
+
 ### HP4 - Export, rendering, and workbench
 
 * Extend type-1 MIDI and preview rendering to phase projects.
 * Add Phase controls, dual lanes, offset curve, and overlap matrix.
 * Add desktop/mobile browser workflows and JSON round-trip tests.
 
+Status: MIDI/WAV/JSON integration, Phase controls, dual lanes, offset curve,
+alignment schedule, and API round-trip tests are Done. Automated screenshot
+regression remains Planned.
+
 ### HP5 - Fractional drift experiment
 
 * Add rational event times and deterministic integer-tick error diffusion.
 * Quantify MIDI timing error and keep the mode opt-in.
 * Compare discrete, polymetric, and fractional results in listening tests.
+
+Status: Planned. Integer-tick requests return an actionable `422` rather than
+silently approximating fractional drift.
 
 HP1 and HP2 form the MVP. HP3 introduces true harmonic phase and requires
 more stringent musical evaluation. HP5 is experimental and must not delay the

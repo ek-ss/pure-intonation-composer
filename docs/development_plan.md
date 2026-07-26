@@ -949,8 +949,9 @@ CR5 — Experimental evaluation — Partially done
 Status
 
 * GA1-GA4 and the GA5 workbench MVP are implemented
-* Project migration, section regeneration, stems/automation, structured
-  listening evaluation, and GA6 performance patterns remain planned
+* GA6 performance patterns and Project 1.0-to-1.1 migration are implemented
+* Section regeneration, stems/automation, broader project migration, and
+  structured listening evaluation remain planned
 
 G11 turns a generated scale and a user-selected vocabulary of basic exact-
 ratio chords into a complete genre-guided arrangement. It sits above Compose
@@ -978,7 +979,8 @@ plan, and acceptance criteria.
 
 Status
 
-* Planned
+* HP1-HP4 implemented (MVP)
+* HP5 fractional drift and structured listening evaluation remain planned
 
 This G11 extension applies two measurably different rhythms to the same source
 chord progression. In shared-clock mode, both streams articulate the same
@@ -1000,7 +1002,7 @@ delivery plan, and acceptance criteria.
 
 Status
 
-* Planned as GA6
+* Implemented as GA6
 
 The current arranger attacks all harmony tones together. GA6 adds a
 performance-pattern layer after chord selection and voicing so the same
