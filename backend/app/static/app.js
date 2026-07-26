@@ -1192,3 +1192,184 @@ latticePanel.addEventListener("keyup", event => {
   event.preventDefault(); event.stopPropagation(); stopLatticeTone(index);
 });
 window.addEventListener("blur", stopAllLatticeTones);
+
+// ---- Arrange (genre arrangement pipeline, experimental) ----
+const arrangeState = { profiles: [], project: null };
+function setArrangeStatus(message, kind) { const status = el("arrange-status"); status.textContent = message; status.dataset.kind = kind; }
+async function loadArrangeProfiles() {
+  try {
+    const data = await (await fetch("/api/arrange/profiles")).json();
+    arrangeState.profiles = data.profiles;
+    const select = el("arrange-profile");
+    select.innerHTML = "";
+    data.profiles.forEach(profile => {
+      const option = document.createElement("option");
+      option.value = profile.id;
+      option.textContent = `${profile.display_name} (${profile.tempo_range[0]}–${profile.tempo_range[1]} BPM)`;
+      select.appendChild(option);
+    });
+  } catch { setArrangeStatus("プロファイルを読み込めませんでした。", "error"); }
+}
+function arrangeControls() {
+  return {
+    energy: Number(el("arrange-energy").value),
+    density: Number(el("arrange-density").value),
+    syncopation: Number(el("arrange-syncopation").value),
+    harmonic_complexity: Number(el("arrange-complexity").value),
+    repetition: Number(el("arrange-repetition").value),
+    section_contrast: Number(el("arrange-contrast").value),
+    humanization: Number(el("arrange-humanize").value),
+    melody_enabled: el("arrange-melody-enabled").checked,
+    drums_enabled: el("arrange-drums-enabled").checked,
+  };
+}
+async function generateArrangement() {
+  try {
+    setArrangeStatus("Arranging…", "loading");
+    const ratios = el("arrange-scale").value.split(",").map(v => v.trim()).filter(Boolean);
+    let chords;
+    try { chords = JSON.parse(el("arrange-chords").value); }
+    catch { throw new Error("和音ボキャブラリーの JSON が不正です。"); }
+    const clock = { subdivisions_per_beat: 4 };
+    if (el("arrange-bars").value) clock.bars = Number(el("arrange-bars").value);
+    if (el("arrange-meter").value) clock.beats_per_bar = Number(el("arrange-meter").value);
+    if (el("arrange-tempo").value) clock.tempo_bpm = Number(el("arrange-tempo").value);
+    const data = await postJson("/api/arrange/generate", {
+      scale: { ratios, base_frequency: Number(el("base-frequency").value) },
+      chord_vocabulary: chords,
+      genre_profile: el("arrange-profile").value,
+      clock,
+      controls: arrangeControls(),
+      seed: Number(el("arrange-seed").value),
+    });
+    arrangeState.project = data;
+    renderArrangeForm(); renderArrangeParts(); renderArrangeProgression(); renderArrangeTrace();
+    setArrangeStatus(`${data.resolved_profile.profile.display_name} · ${data.form.length} sections · ${data.events.length} events`, "");
+  } catch (error) { setArrangeStatus(error.message, "error"); }
+}
+function renderArrangeForm() {
+  const project = arrangeState.project, canvas = el("arrange-form-canvas"), ctx = canvas.getContext("2d");
+  const width = Math.max(1, Math.round(canvas.getBoundingClientRect().width));
+  const height = 180, pixelRatio = window.devicePixelRatio || 1;
+  const pixelWidth = Math.round(width * pixelRatio), pixelHeight = Math.round(height * pixelRatio);
+  if (canvas.width !== pixelWidth || canvas.height !== pixelHeight) {
+    canvas.width = pixelWidth; canvas.height = pixelHeight;
+  }
+  ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+  ctx.clearRect(0, 0, width, height);
+  if (!project) return;
+  const bars = project.clock.bars;
+  const hues = { intro: 210, verse: 150, pre_chorus: 100, chorus: 30, bridge: 260, breakdown: 0, drop: 340, outro: 190 };
+  project.form.forEach(section => {
+    const x = section.start_bar / bars * width, w = section.bars / bars * width;
+    const hue = hues[section.canonical_role] ?? 220;
+    ctx.fillStyle = `hsl(${hue} 45% 88%)`; ctx.fillRect(x, 0, w - 1, height - 60);
+    ctx.strokeStyle = `hsl(${hue} 40% 45%)`; ctx.strokeRect(x + .5, .5, w - 1.5, height - 61);
+    ctx.fillStyle = `hsl(${hue} 45% 30%)`; ctx.font = "13px sans-serif";
+    ctx.fillText(`${section.role} (${section.bars})`, x + 6, 18);
+    const y1 = height - 60 - section.energy_start * 40, y2 = height - 60 - section.energy_end * 40;
+    ctx.strokeStyle = `hsl(${hue} 60% 40%)`; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(x + 2, y1); ctx.lineTo(x + w - 3, y2); ctx.stroke(); ctx.lineWidth = 1;
+  });
+  // Chord slots along the bottom.
+  project.harmony_progression.forEach(slot => {
+    const bar = slot.start_tick / project.clock.ticks_per_beat / project.clock.beats_per_bar;
+    const x = bar / bars * width, w = slot.duration_ticks / project.clock.ticks_per_beat / project.clock.beats_per_bar / bars * width;
+    ctx.fillStyle = "hsl(220 30% 75%)"; ctx.fillRect(x, height - 55, w - 1, 20);
+    ctx.fillStyle = "hsl(220 40% 25%)"; ctx.font = "10px sans-serif";
+    if (w > 40) ctx.fillText(slot.name, x + 3, height - 42);
+  });
+  // Event density strip.
+  const buckets = new Array(bars * 4).fill(0);
+  project.events.forEach(event => {
+    const bar = event.start_tick / project.clock.ticks_per_beat / project.clock.beats_per_bar;
+    buckets[Math.min(buckets.length - 1, Math.floor(bar * 4))]++;
+  });
+  const peak = Math.max(...buckets, 1);
+  buckets.forEach((count, index) => {
+    const h = count / peak * 28;
+    ctx.fillStyle = "hsl(220 25% 60%)"; ctx.fillRect(index / buckets.length * width, height - h, width / buckets.length - 1, h);
+  });
+}
+function renderArrangeParts() {
+  const tbody = el("arrange-parts"); tbody.innerHTML = "";
+  (arrangeState.project?.tracks ?? []).forEach(track => {
+    const row = tbody.insertRow();
+    [track.role, track.instrument, `${track.register[0]} – ${track.register[1]}`, track.event_count]
+      .forEach(value => { const cell = row.insertCell(); cell.textContent = value; });
+  });
+}
+function renderArrangeProgression() {
+  const tbody = el("arrange-progression"); tbody.innerHTML = "";
+  (arrangeState.project?.harmony_progression ?? []).forEach(slot => {
+    const row = tbody.insertRow();
+    [slot.index + 1, slot.section_id, slot.name, slot.root, slot.tones.join(" "), slot.transition ? slot.transition.voice_leading_cents : "—"]
+      .forEach(value => { const cell = row.insertCell(); cell.textContent = value; });
+    row.onclick = () => auditionArrangeChord(slot);
+  });
+}
+function renderArrangeTrace() {
+  el("arrange-trace").textContent = (arrangeState.project?.decision_trace ?? [])
+    .map(entry => `[${entry.stage}] ${entry.message}`).join("  ·  ");
+}
+function auditionArrangeChord(slot) {
+  stopProgression();
+  const base = arrangeState.project.source_scale.base_frequency, now = audioContext().currentTime + .05;
+  slot.tones.forEach(ratio => scheduleTone(base * ratioValue(ratio), now, 1.4));
+}
+const ARRANGE_DRUMS = { 36: ["sine", 120, .16, 45], 38: ["square", 190, .1, 0], 39: ["square", 220, .08, 0], 42: ["square", 6000, .04, 0], 46: ["square", 5200, .09, 0], 49: ["square", 4200, .3, 0] };
+function arrangeDrumHit(note, time, velocity) {
+  const [type, frequency, duration, sweep] = ARRANGE_DRUMS[note] ?? ["triangle", 800, .06, 0];
+  const context = audioContext(), osc = context.createOscillator(), gain = context.createGain();
+  osc.type = type; osc.frequency.setValueAtTime(frequency, time);
+  if (sweep) osc.frequency.exponentialRampToValueAtTime(sweep, time + duration);
+  gain.gain.setValueAtTime(.35 * velocity / 127, time); gain.gain.exponentialRampToValueAtTime(.0001, time + duration);
+  osc.connect(gain).connect(context.destination); osc.start(time); osc.stop(time + duration + .05);
+  composeState.scheduled.push(osc);
+}
+function playArrangement() {
+  const project = arrangeState.project;
+  if (!project) { setArrangeStatus("先にアレンジを生成してください。", "error"); return; }
+  stopProgression();
+  const base = project.source_scale.base_frequency, tempo = project.clock.tempo_bpm, tpb = project.clock.ticks_per_beat;
+  const now = audioContext().currentTime + .1, secondsPerTick = 60 / tempo / tpb;
+  project.events.forEach(event => {
+    const start = now + event.start_tick * secondsPerTick, duration = event.duration_ticks * secondsPerTick;
+    if (event.kind === "drum") arrangeDrumHit(event.drum_note, start, event.velocity);
+    else scheduleTone(base * ratioValue(event.ratio), start, Math.min(duration, 8), Math.min(.22, .18 * event.velocity / 100));
+  });
+  const total = project.clock.total_ticks * secondsPerTick;
+  setArrangeStatus(`Playing… ${total.toFixed(1)}s`, "loading");
+  setTimeout(() => setArrangeStatus(`${project.resolved_profile.profile.display_name} · ${project.events.length} events`, ""), total * 1000 + 500);
+}
+async function arrangeExport(endpoint, filename) {
+  const project = arrangeState.project;
+  if (!project) { setArrangeStatus("先にアレンジを生成してください。", "error"); return; }
+  try {
+    const response = await fetch(endpoint, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ arrangement: project }) });
+    if (!response.ok) { const detail = (await response.json()).detail; throw new Error(detail ?? "エクスポートに失敗しました。"); }
+    download(await response.blob(), filename);
+    setArrangeStatus(`${filename} を書き出しました。`, "");
+  } catch (error) { setArrangeStatus(error.message, "error"); }
+}
+el("arrange-generate").onclick = generateArrangement;
+el("arrange-play").onclick = playArrangement;
+el("arrange-stop").onclick = () => { stopProgression(); setArrangeStatus("", ""); };
+el("arrange-midi").onclick = () => arrangeExport("/api/arrange/midi", "arrangement.mid");
+el("arrange-render").onclick = () => arrangeExport("/api/arrange/render", "arrangement.wav");
+el("arrange-json").onclick = () => {
+  if (!arrangeState.project) { setArrangeStatus("先にアレンジを生成してください。", "error"); return; }
+  download(new Blob([JSON.stringify(arrangeState.project, null, 2)], { type: "application/json" }), "arrangement.json");
+  setArrangeStatus("arrangement.json を書き出しました。", "");
+};
+el("arrange-use-scale").onclick = () => {
+  if (!state.pitches.length) { setArrangeStatus("先にスケールを生成してください。", "error"); return; }
+  el("arrange-scale").value = state.pitches.map(p => p.ratio).join(", ");
+  setArrangeStatus(`${state.pitches.length} 音のスケールを設定しました。`, "");
+};
+let arrangeResizeFrame = 0;
+window.addEventListener("resize", () => {
+  cancelAnimationFrame(arrangeResizeFrame);
+  arrangeResizeFrame = requestAnimationFrame(renderArrangeForm);
+});
+loadArrangeProfiles();

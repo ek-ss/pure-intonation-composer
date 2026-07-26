@@ -2,7 +2,9 @@
 
 **Project:** Pure Intonation Composer
 
-**Status:** Planned
+**Status:** GA1–GA4 and the GA5 workbench stage are implemented (MVP). Section
+or part-level regeneration, JSON re-import/migration, stems, and rendered
+effect automation remain planned.
 
 This plan defines a higher-level composition pipeline that turns a generated
 scale and a user-selected vocabulary of basic chords into a complete,
@@ -419,34 +421,60 @@ the main work surface.
 ### GA1 - Models and profile registry
 
 * Add versioned `GenreProfile`, `BasicChord`, `FormPlan`, and
-  `ArrangementProject` models.
-* Add built-in profiles and profile validation.
-* Add project JSON import and migration before user profiles are persisted.
+  `ArrangementProject` models. — Done (`app/arrangement/profiles.py`,
+  `app/arrangement/models.py`, `app/arrangement/project.py`)
+* Add built-in profiles and profile validation. — Done (`pop`, `ambient`,
+  `alternative_rock`, `future_bass`; `GET /api/arrange/profiles`)
+* Add project JSON import and migration before user profiles are persisted. —
+  Planned (the canonical project JSON is exported and accepted back by the
+  MIDI/render endpoints; schema migration is not implemented yet)
 
 ### GA2 - Harmony and form
 
-* Implement chord-vocabulary analysis and transition graph construction.
+* Implement chord-vocabulary analysis and transition graph construction. —
+  Done (`app/arrangement/chords.py`)
 * Implement seeded form, energy, progression, cadence, and voicing generation.
-* Expose decision metrics and locked-stage regeneration.
+  — Done (`app/arrangement/form.py`, `app/arrangement/progression.py`,
+  bounded beam search with the §5.3 cost function; repetition and motif
+  identity use sounding pitch-class sets rather than template ids)
+* Expose decision metrics and locked-stage regeneration. — Decision trace
+  done; locked-stage regeneration Planned
 
 ### GA3 - Rhythm and parts
 
-* Reuse G10 for harmonic and pitched-part rhythm.
-* Add section-aware drum generation, fills, and shared accent landmarks.
-* Implement bass, comping/pad/guitar, melody, and optional texture roles.
+* Reuse G10 for harmonic and pitched-part rhythm. — Done
+  (`app/arrangement/parts.py` compiles through `app/composition/rhythm.py`)
+* Add section-aware drum generation, fills, and shared accent landmarks. —
+  Done (euclidean per-section layers, boundary fills, crash accents,
+  half-time backbeat for Future Bass)
+* Implement bass, comping/pad/guitar, melody, and optional texture roles. —
+  Done (texture = sustained chord tone)
 
 ### GA4 - Export and rendering
 
-* Add type-1 multitrack microtonal MIDI export with section markers.
-* Add lossless arrangement JSON export/import.
-* Add instrument presets, stereo preview mix, then stems and automation.
+* Add type-1 multitrack microtonal MIDI export with section markers. — Done
+  (`app/exporters/midi.py::arrangement_midi_bytes`, global pitch-bend channel
+  allocation with actionable over-budget error)
+* Add lossless arrangement JSON export/import. — JSON export Done (canonical
+  response of `POST /api/arrange/generate`); re-import/migration Planned
+* Add instrument presets, stereo preview mix, then stems and automation. —
+  Preview mixdown Done (`POST /api/arrange/render`, per-role waveform/envelope
+  presets, bounded sample budget, one-stem-at-a-time PCM accumulation);
+  stems and rendered effect automation Planned (sidechain intent is recorded
+  as automation metadata only)
+* Validate canonical projects before MIDI/render export. — Done (version,
+  clock/form consistency, event timing and pitch fields, track/section
+  references, mix, and render settings return `422` on invalid input)
 
 ### GA5 - Workbench and evaluation
 
-* Add the Arrange workbench and section-level regeneration.
-* Add deterministic browser workflows and export round-trip tests.
-* Run structured listening comparisons for all four initial profiles.
-* Tune profile defaults without changing their versioned historical values.
+* Add the Arrange workbench and section-level regeneration. — Workbench Done
+  (profile selector, macro controls, form/energy lane, part list, progression
+  view, playback, MIDI/JSON/WAV export); section-level regeneration Planned
+* Add deterministic browser workflows and export round-trip tests. — Planned
+* Run structured listening comparisons for all four initial profiles. — Planned
+* Tune profile defaults without changing their versioned historical values. —
+  Planned
 
 Recommended implementation order is GA1, GA2, GA3, GA4, then GA5. A thin
 end-to-end path for Pop should be completed during GA2/GA3 before expanding

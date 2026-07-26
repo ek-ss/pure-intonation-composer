@@ -87,6 +87,9 @@ from app.rhythm.drums import (
     phase_offsets,
 )
 from app.rhythm.engine import euclidean_rhythm, humanize, phase_shift, state_transition_graph
+from app.arrangement.models import ArrangeGenerateRequest, ArrangeProjectRequest
+from app.arrangement.profiles import profile_summaries
+from app.arrangement.project import generate_arrangement, project_midi_bytes, project_render_wav
 from app.exporters.scala import scala_text
 from app.exporters.scala_import import parse_scala
 from app.scales import delete_scale, get_scale, list_scales, save_scale
@@ -1042,6 +1045,49 @@ def exponent_lattice_analyze(request: LatticeAnalyzeRequest) -> dict[str, object
     except ValueError as error:
         raise HTTPException(status_code=422, detail=str(error)) from error
     return {"basis": _lattice_basis_payload(basis), "distances": distances}
+
+
+@app.get("/api/arrange/profiles")
+def arrange_profiles() -> dict[str, object]:
+    """List the built-in genre profiles."""
+    return {"profiles": profile_summaries()}
+
+
+@app.post("/api/arrange/generate")
+def arrange_generate(request: ArrangeGenerateRequest) -> dict[str, object]:
+    """Compile scale + chord vocabulary + genre profile into an arrangement."""
+    try:
+        return generate_arrangement(request)
+    except (ValueError, ZeroDivisionError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+
+@app.post("/api/arrange/midi")
+def arrange_midi(request: ArrangeProjectRequest) -> Response:
+    """Export a generated ArrangementProject as SMF type 1 (microtonal)."""
+    try:
+        data = project_midi_bytes(request.arrangement)
+    except (ValueError, ZeroDivisionError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    return Response(
+        content=data,
+        media_type="audio/midi",
+        headers={"Content-Disposition": "attachment; filename=arrangement.mid"},
+    )
+
+
+@app.post("/api/arrange/render")
+def arrange_render(request: ArrangeProjectRequest) -> Response:
+    """Render a generated ArrangementProject to a preview WAV mixdown."""
+    try:
+        data = project_render_wav(request.arrangement)
+    except (ValueError, ZeroDivisionError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    return Response(
+        content=data,
+        media_type="audio/wav",
+        headers={"Content-Disposition": "attachment; filename=arrangement.wav"},
+    )
 
 
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")

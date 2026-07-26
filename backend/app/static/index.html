@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Pure Intonation Workbench</title>
-    <link rel="stylesheet" href="/static/style.css?v=20260726-role-rhythms">
+    <link rel="stylesheet" href="/static/style.css?v=20260726-arrange-fixes">
   </head>
   <body>
     <header class="topbar">
@@ -389,6 +389,81 @@
         </div>
       </section>
 
+      <section id="arrange-panel" class="panel arrange" tabindex="0">
+        <div class="section-heading"><h2>Arrange <span class="experimental">Experimental</span></h2><span id="arrange-status" role="status"></span></div>
+        <div class="compose-grid">
+          <div>
+            <label>ジャンルプロファイル
+              <select id="arrange-profile"></select>
+            </label>
+            <label>小節数（空欄でプロファイル既定）
+              <input id="arrange-bars" type="number" min="1" max="128" value="16">
+            </label>
+            <label>拍子
+              <select id="arrange-meter">
+                <option value="">profile default</option>
+                <option value="2">2/4</option>
+                <option value="3">3/4</option>
+                <option value="4" selected>4/4</option>
+                <option value="6">6/4</option>
+              </select>
+            </label>
+            <label>テンポ（空欄でプロファイル中央値）
+              <input id="arrange-tempo" type="number" min="30" max="300" placeholder="auto">
+            </label>
+            <label>シード
+              <input id="arrange-seed" type="number" value="42">
+            </label>
+            <button id="arrange-generate" class="primary">アレンジを生成</button>
+          </div>
+          <div>
+            <label>Energy <input id="arrange-energy" type="range" min="0" max="1" step="0.05" value="0.5"></label>
+            <label>Density <input id="arrange-density" type="range" min="0" max="1" step="0.05" value="0.5"></label>
+            <label>Syncopation <input id="arrange-syncopation" type="range" min="0" max="1" step="0.05" value="0.5"></label>
+            <label>Harmonic complexity <input id="arrange-complexity" type="range" min="0" max="1" step="0.05" value="0.5"></label>
+            <label>Repetition <input id="arrange-repetition" type="range" min="0" max="1" step="0.05" value="0.5"></label>
+            <label>Section contrast <input id="arrange-contrast" type="range" min="0" max="1" step="0.05" value="0.5"></label>
+            <label>Humanization <input id="arrange-humanize" type="range" min="0" max="1" step="0.05" value="0"></label>
+            <label class="check inline"><input id="arrange-melody-enabled" type="checkbox" checked> Melody</label>
+            <label class="check inline"><input id="arrange-drums-enabled" type="checkbox" checked> Drums</label>
+          </div>
+          <div>
+            <label>スケール（カンマ区切りの比）
+              <textarea id="arrange-scale" rows="3">1/1, 9/8, 5/4, 4/3, 3/2, 5/3, 7/4, 15/8</textarea>
+            </label>
+            <button id="arrange-use-scale" class="quiet" type="button">現在のスケールを使う</button>
+            <label>和音ボキャブラリー（JSON）
+              <textarea id="arrange-chords" rows="10">[
+  {"id": "tonic", "name": "Just major triad", "mode": "absolute",
+   "tones": ["1/1", "5/4", "3/2"], "tags": ["stable"]},
+  {"id": "color", "name": "Suspended color", "mode": "ratio_template",
+   "tones": ["1/1", "4/3", "3/2", "7/4"], "allowed_root_degrees": [0, 3, 4],
+   "tags": ["color", "suspended"]},
+  {"id": "diatonic", "name": "Diatonic triad", "mode": "degree_template",
+   "tones": [0, 2, 4], "allowed_root_degrees": [0, 1, 3, 4], "tags": ["stable"]}
+]</textarea>
+            </label>
+          </div>
+        </div>
+        <div class="button-row">
+          <button id="arrange-play">▶ 再生</button>
+          <button id="arrange-stop" class="quiet">停止</button>
+          <button id="arrange-midi">MIDI</button>
+          <button id="arrange-json">JSON</button>
+          <button id="arrange-render">Render WAV</button>
+        </div>
+        <canvas id="arrange-form-canvas" width="1400" height="180" aria-label="フォームとエネルギー曲線"></canvas>
+        <div class="lattice-view">
+          <div class="table-wrap">
+            <table><thead><tr><th>Part</th><th>Instrument</th><th>Register</th><th>Events</th></tr></thead><tbody id="arrange-parts"></tbody></table>
+          </div>
+          <div class="table-wrap">
+            <table><thead><tr><th>#</th><th>Section</th><th>Chord</th><th>Root</th><th>Tones</th><th>VL¢</th></tr></thead><tbody id="arrange-progression"></tbody></table>
+          </div>
+        </div>
+        <p id="arrange-trace" class="hint" aria-live="polite"></p>
+      </section>
+
       <section class="panel rhythm">
         <div class="section-heading"><h2>Rhythm</h2><span id="rhythm-status" role="status"></span></div>
         <div class="drum-controls">
@@ -411,6 +486,6 @@
       </section>
     </main>
     <template id="key-template"><button class="key"><span class="key-name"></span><span class="ratio"></span></button></template>
-    <script src="/static/app.js?v=20260726-role-rhythms"></script>
+    <script src="/static/app.js?v=20260726-arrange-fixes"></script>
   </body>
 </html>

@@ -10,8 +10,8 @@ documents.
 
 ## Verification Baseline
 
-- 39 OpenAPI paths plus one WebSocket transport endpoint
-- 152 passing pytest tests
+- 43 OpenAPI paths plus one WebSocket transport endpoint
+- 181 passing pytest tests
 - `ruff check app tests` passes
 - `mypy app` passes
 - Browser workbench implemented in vanilla JavaScript without a build step
@@ -29,7 +29,7 @@ manual rather than part of continuous integration.
 | Composition | Implemented | Seeded harmony, voice leading, bass strategies, multi-voice melody, browser playback, MIDI/JSON/WAV export | One-shot project composition endpoint, persisted project import |
 | Drum rhythm | Implemented core | Euclidean layers, rotation optimization, bounded polymetric analysis, phase offsets, state graph, humanization, metrics, MIDI/JSON export | Coordinated state transitions, fill generator, preset library, continuous phase drift |
 | Compose Rhythm Orchestration | Implemented core | Chord-tone and role mapping, overflow/voice policies, Harmony/Bass/Melody-specific generators, integer-tick events, playback and export integration | Project schema migration/import, structured listening comparisons, performance benchmarks |
-| Genre Arrangement Pipeline | Planned | Design completed for scale/chord input, genre profiles, form, harmony, coordinated parts, type-1 MIDI, JSON, and rendering | All implementation; initial profiles are Pop, Ambient, Alternative Rock, and Future Bass |
+| Genre Arrangement Pipeline | Experimental MVP | Pop, Ambient, Alternative Rock, and Future Bass profiles; form and sounding-aware harmony generation; coordinated drums/bass/harmony/melody/texture; validated canonical JSON; bounded WAV preview; type-1 microtonal MIDI; responsive Arrange workbench | Project migration/import, section regeneration, stems/effect rendering, structured listening comparisons, automated browser regression |
 | Harmonic Phase-Shift Composition | Planned | Specification completed for shared/independent chord clocks, two distinct rhythms, convergence, overlap analysis, MIDI/JSON/render integration | All implementation; HP1-HP2 are the proposed MVP |
 | Visualization | Implemented core | Pitch Circle, force graph, reference-layered grid, walk overlays, harmonic stack highlighting, time-proportional Composition Roll | Voice-leading connectors, zoom/pan, per-voice mobile mode, persisted view state, automated browser regression |
 | Exponent Lattice Lab | Experimental, partial | Exact exponent math, collision groups, seeded chords, root-motion progressions, bounded walks, analysis, 2D projection, chord playback, keyboard, Compose transfer | Structured vector editor, non-projected filtering, coordinate provenance through bass/melody/export, exponent lanes, versioned persistence, benchmarks |
@@ -58,8 +58,8 @@ release.
 3. Record performance baselines for graphs, long polymetric rhythms, lattice
    enumeration, MIDI export, and WAV rendering.
 4. Complete Lattice coordinate provenance and structured vector editing.
-5. Implement the Genre Arrangement Pipeline models and a thin Pop
-   end-to-end path, then expand the other three profiles.
+5. Evaluate and tune the Genre Arrangement Pipeline with structured listening
+   comparisons, then add section regeneration and project migration.
 6. Add WebMIDI/MPE and mapping workflows after project persistence is stable.
 
 Research features such as form generation, spatialization, adaptive harmonic

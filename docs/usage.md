@@ -294,6 +294,53 @@ API: `POST /api/exponent-lattice/scale`, `/harmony`, `/chord`,
 
 ---
 
+## 2.12 Arrange panel (Experimental)
+
+Genre-guided arrangement: a scale plus a small exact-ratio chord vocabulary
+becomes a complete section-aware arrangement (form, harmony, drums, bass,
+comping, melody) on one canonical timeline.
+
+* **ジャンルプロファイル** — built-in profiles: Pop, Ambient, Alternative
+  Rock, Future Bass. Profiles are inspectable parameter bundles (tempo range,
+  meters, form, harmony weights, parts), not fixed templates.
+* **小節数 / 拍子 / テンポ** — blank fields fall back to profile defaults;
+  the tempo is clamped into the profile range with a note in the trace.
+* **Macro sliders** — Energy, Density, Syncopation, Harmonic complexity,
+  Repetition, Section contrast, Humanization, plus Melody/Drums toggles. Each
+  macro reshapes explicit profile parameters; the resolved values are stored
+  in the project's `resolved_profile.resolved_controls`.
+* **スケール** — comma-separated ratios; **現在のスケールを使う** copies the
+  scale currently generated in the workbench.
+* **和音ボキャブラリー（JSON）** — a list of basic chords. Modes:
+  `absolute` (fixed pitch classes), `degree_template` (integer degree offsets
+  moved over `allowed_root_degrees`), `ratio_template` (interval ratios × an
+  allowed root). Tags like `stable`, `power`, `color` guide the profile; they
+  never alter the stored ratios.
+* **アレンジを生成** compiles the arrangement. The form lane shows sections
+  with their energy curves, chord slots, and event density; the part list
+  shows instrument, register, and event count per track; the progression
+  table lists every chord slot (click a row to audition the chord). The trace
+  line reports per-stage decisions, including profile preferences that had to
+  be relaxed (e.g. no `power`-tagged chord for the rock profile).
+* **▶ 再生 / 停止** — browser playback of the canonical events (pitched
+  tracks through the workbench synth, GM drum notes as short blips).
+* **MIDI / JSON / Render WAV** — type-1 multitrack microtonal MIDI with
+  section markers (global pitch-bend channel allocation; over-budget
+  arrangements return an actionable error instead of quantizing), the
+  lossless canonical project JSON, and a preview WAV mixdown through
+  per-role instrument presets. All three share the same event ids and timing.
+  MIDI/WAV export validates the returned project again, so malformed events
+  and out-of-range timing return `422`. WAV previews are limited to 4,000,000
+  samples (about 181 seconds at 22050 Hz); longer arrangements remain
+  available as JSON/MIDI and can be shortened or rendered at a faster tempo.
+
+The same inputs, profile version, and seed reproduce the same arrangement.
+
+API: `GET /api/arrange/profiles`, `POST /api/arrange/generate`,
+`/api/arrange/midi`, `/api/arrange/render`.
+
+---
+
 # 3. API Overview
 
 Base URL `http://127.0.0.1:8000`; all bodies JSON; errors are
@@ -308,6 +355,7 @@ Base URL `http://127.0.0.1:8000`; all bodies JSON; errors are
 | Composition | `POST /api/compose/harmony`, `/api/compose/voice-leading`, `/api/compose/bass`, `/api/compose/melody`, `/api/compose/rhythm/apply`, `/api/compose/rhythm/generate` |
 | Rhythm | `POST /api/rhythm/euclidean`, `/api/rhythm/state-graph`, `/api/rhythm/phase-shift`, `/api/rhythm/humanize`, `/api/rhythm/optimize-rotations`, `/api/rhythm/analyze`, `/api/drums/generate` |
 | Lattice lab | `POST /api/exponent-lattice/scale`, `/api/exponent-lattice/harmony`, `/api/exponent-lattice/chord`, `/api/exponent-lattice/progression`, `/api/exponent-lattice/walk`, `/api/exponent-lattice/analyze` |
+| Arrangement | `GET /api/arrange/profiles`, `POST /api/arrange/generate`, `/api/arrange/midi`, `/api/arrange/render` |
 | Rendering | `POST /api/render/wav`, `POST /api/render/jobs`, `GET /api/render/jobs/{id}`, `GET /api/render/jobs/{id}/audio` |
 | Export | `POST /api/export/midi`, `/api/export/rhythm/midi`, `/api/export/scala`, `/api/export/json` |
 | Real-time | `WS /api/ws/transport` |

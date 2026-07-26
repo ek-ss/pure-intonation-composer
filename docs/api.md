@@ -464,6 +464,99 @@ contract as `/apply`. Output is deterministic for identical inputs and seed.
 
 ---
 
+# 5b. Genre Arrangement (Experimental)
+
+Section-aware, genre-guided arrangement pipeline. A generated scale plus a
+small exact-ratio chord vocabulary compiles into one canonical integer-tick
+timeline (form, harmony, drums, bass, comping, melody, texture). Exact ratios
+are preserved until playback, MIDI encoding, or rendering. See
+`development_plan_genre_arrangement.md` for the full contract.
+
+## GET /api/arrange/profiles
+
+Lists the built-in genre profiles (`pop`, `ambient`, `alternative_rock`,
+`future_bass`) with tempo ranges, meters, form roles, preferred chord tags,
+and part roles.
+
+## POST /api/arrange/generate
+
+```json
+{
+  "scale": { "scale_id": null, "ratios": ["1/1", "9/8", "5/4", "4/3", "3/2", "5/3", "7/4", "15/8"], "base_frequency": 220 },
+  "chord_vocabulary": [
+    { "id": "tonic", "name": "Just major triad", "mode": "absolute",
+      "tones": ["1/1", "5/4", "3/2"], "tags": ["stable"] },
+    { "id": "color", "name": "Suspended color", "mode": "ratio_template",
+      "tones": ["1/1", "4/3", "3/2", "7/4"], "allowed_root_degrees": [0, 3, 4],
+      "tags": ["color", "suspended"] },
+    { "id": "diatonic", "name": "Diatonic triad", "mode": "degree_template",
+      "tones": [0, 2, 4], "allowed_root_degrees": [0, 1, 3, 4], "tags": ["stable"] }
+  ],
+  "genre_profile": "pop",
+  "clock": { "tempo_bpm": null, "beats_per_bar": 4, "subdivisions_per_beat": 4, "bars": 16 },
+  "form": null,
+  "controls": { "energy": 0.5, "density": 0.5, "syncopation": 0.5,
+    "harmonic_complexity": 0.5, "repetition": 0.5, "section_contrast": 0.5,
+    "humanization": 0.0, "melody_enabled": true, "drums_enabled": true },
+  "seed": 42
+}
+```
+
+Chord modes: `absolute` (stored pitch classes), `degree_template` (integer
+scale-degree offsets materialized over `allowed_root_degrees`), and
+`ratio_template` (exact interval ratios multiplied by an allowed root).
+`genre_profile` accepts a built-in id or an inline profile object
+(`resolved_profile.profile` from a previous response can be edited and sent
+back). `clock` fields left `null` fall back to profile defaults; a custom
+`form.sections[]` must span exactly `clock.bars`.
+`subdivisions_per_beat` must divide the canonical 480-tick beat.
+
+The response is the canonical `ArrangementProject`: `schema_version`,
+`metadata`, `source_scale`, materialized `chord_vocabulary` (with cents span,
+complexity, tension), `requested_profile`, `resolved_profile` (profile plus
+resolved macro controls), `seed`, `form` (sections with exact bar ranges and
+energy curves), `harmony_progression` (chord instances, roots, durations,
+transition metrics), `clock`, `tracks`, `events` (stable ids, exact `ratio`
+or GM `drum_note`, ticks, velocity, articulation, section), `automation`
+(energy curves and, for Future Bass drops, sidechain-pump intent),
+`mix`, `render_settings`, and `decision_trace` (per-stage decisions including
+relaxed profile preferences such as a missing `power` chord tag).
+
+Identical request + profile version + seed produce identical JSON. Validation
+failures (unknown profile, empty vocabulary, meter outside the profile,
+over-budget forms or event counts) return `422` with an actionable message.
+
+## POST /api/arrange/midi
+
+```json
+{ "arrangement": { "...": "ArrangementProject returned by /generate" } }
+```
+
+Exports the project as a Standard MIDI File **type 1** (`audio/midi`
+download): track 0 carries tempo, meter, and section markers; each
+arrangement part becomes one named track. Pitched notes are retuned with
+per-note pitch bend; channel allocation is global (channel 10 reserved for GM
+percussion) and simultaneous notes needing different bends never share a
+channel — over-budget arrangements return `422` instead of quantizing. The
+exporter never regenerates the arrangement.
+
+The returned project is validated again before export. Schema version, clock
+consistency, contiguous form ranges, track/section references, event bounds,
+ratios, drum notes, velocities, mix values, and render settings must remain
+valid; malformed or edited projects return `422`.
+
+## POST /api/arrange/render
+
+Same request body as `/api/arrange/midi`. Renders a mono preview mixdown
+(`audio/wav`, 22050 Hz) through per-role instrument presets (waveform +
+envelope), using the same event ids and timing as MIDI/JSON. Drum parts are
+approximated as short untuned blips; effect automation is not rendered yet.
+Preview rendering is bounded to 4,000,000 samples (about 181 seconds at the
+default 22050 Hz, including release tails). Longer projects return `422`
+before synthesis; reduce bars or increase tempo.
+
+---
+
 # 6. Rhythm
 
 ## POST /api/rhythm/euclidean
