@@ -124,6 +124,11 @@ def index() -> FileResponse:
     return FileResponse(STATIC_DIR / "index.html")
 
 
+@app.get("/lattice", include_in_schema=False)
+def lattice_lab() -> FileResponse:
+    return FileResponse(STATIC_DIR / "lattice.html")
+
+
 @app.get("/favicon.ico", include_in_schema=False, status_code=204)
 def favicon() -> Response:
     return Response(status_code=204)

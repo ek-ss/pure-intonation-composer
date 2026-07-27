@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Lattice Lab | Pure Intonation Workbench</title>
+    <link rel="stylesheet" href="/static/style.css?v=20260727-lattice-page-1">
+  </head>
+  <body class="lattice-page">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">EXPONENT-LATTICE HARMONY</p>
+        <h1>Lattice Lab</h1>
+      </div>
+      <span class="topbar-links"><a href="/">Workbench</a><a href="/docs" target="_blank" rel="noreferrer">API docs ↗</a></span>
+    </header>
+    <main class="lattice-main">
+      <section class="panel lattice-settings">
+        <div class="section-heading"><h2>Basis</h2><span id="lattice-status" role="status">Ready</span></div>
+        <label>生成子（カンマ区切り）<input id="generators" value="3, 5"></label>
+        <div class="lattice-field-grid">
+          <label>指数の最小<input id="minimum" value="-2, -2"></label>
+          <label>指数の最大<input id="maximum" value="2, 2"></label>
+        </div>
+        <label>衝突ポリシー
+          <select id="collision"><option value="keep">keep all</option><option value="merge">merge</option></select>
+        </label>
+        <button id="scale-generate" class="primary">格子を生成</button>
+        <hr>
+        <label>基音 <output id="base-output">220 Hz</output><input id="base-frequency" type="range" min="110" max="440" value="220"></label>
+        <label>波形<select id="waveform"><option value="sine">Sine</option><option value="triangle">Triangle</option><option value="sawtooth">Sawtooth</option><option value="square">Square</option></select></label>
+        <button id="stop-all" class="quiet">Stop all</button>
+      </section>
+
+      <section class="panel lattice-workspace">
+        <div class="section-heading"><h2>Harmony</h2><span id="harmony-summary"></span></div>
+        <div class="lattice-operation-grid">
+          <div>
+            <label>ルート音<input id="root" value="1/1"></label>
+            <div class="lattice-field-grid">
+              <label>和音の音数<input id="chord-size" type="number" min="1" max="16" value="3"></label>
+              <label>シード<input id="chord-seed" type="number" value="42"></label>
+            </div>
+            <button id="chord-generate" class="primary">和音を生成</button>
+          </div>
+          <div>
+            <label>和音ベクトル（根音相対、1行に1音）<textarea id="chord-vectors" rows="5">0, -1
+-1, 0</textarea></label>
+            <div class="button-row"><button id="harmony-reconstruct">ハーモニーを再構成</button><button id="send-compose" class="quiet">Composeへ送る</button></div>
+          </div>
+          <div>
+            <label>並べ替え<select id="tone-order"><option value="original">user-entered</option><option value="ascending">ascending cents</option><option value="nearest">nearest-neighbor path</option><option value="lexicographic">generator-priority</option></select></label>
+            <label>キーボード入力<label class="check inline"><input id="keyboard-target" type="checkbox" checked> Lattice Keyboard</label></label>
+          </div>
+        </div>
+        <div class="lattice-keyboard-bar"><span>Lattice Keyboard</span><div id="keyboard" class="keyboard lattice-keyboard" aria-label="Lattice harmony keyboard"></div></div>
+        <div class="lattice-pitch-circle"><div class="section-heading"><h3>Pitch circle</h3><span id="circle-summary"></span></div><canvas id="pitch-circle" width="560" height="560" aria-label="Lattice tones on a pitch circle"></canvas></div>
+      </section>
+
+      <section class="panel lattice-sequences">
+        <div class="section-heading"><h2>Sequences</h2><span id="sequence-summary"></span></div>
+        <div class="lattice-operation-grid">
+          <div>
+            <label>和声進行の差分ベクトル（1行に1ステップ）<textarea id="progression-vectors" rows="4">1, 0
+0, 1</textarea></label>
+            <div class="button-row"><button id="progression-generate">和声進行を生成</button><button id="progression-play" class="quiet">▶ 再生</button><button id="progression-compose" class="quiet">Composeへ送る</button></div>
+          </div>
+          <div>
+            <label>ウォークの許可ステップ（1行に1ベクトル）<textarea id="allowed-vectors" rows="4">1, 0
+0, 1
+-1, 0
+0, -1</textarea></label>
+            <div class="lattice-field-grid"><label>長さ<input id="walk-length" type="number" min="1" max="512" value="16"></label><label>シード<input id="walk-seed" type="number" value="42"></label></div>
+            <label>境界ポリシー<select id="boundary"><option value="reflect">reflect</option><option value="stop">stop</option><option value="wrap">wrap</option><option value="resample">resample</option></select></label>
+            <div class="button-row"><button id="walk-generate">ウォーク</button><button id="walk-play" class="quiet">▶ 再生</button><button id="walk-compose" class="quiet">Composeへ送る</button></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel lattice-domain">
+        <div class="section-heading"><h2>Lattice domain</h2><span id="domain-summary"></span></div>
+        <div class="lattice-view"><div><div class="axis-selects">X <select id="axis-x"></select> Y <select id="axis-y"></select></div><canvas id="lattice-canvas" width="560" height="560" aria-label="指数格子の投影"></canvas></div><div class="table-wrap lattice-table"><table><thead><tr><th>Vector</th><th>Raw</th><th>Norm</th><th>Oct</th><th>Cents</th><th>Grp</th></tr></thead><tbody id="points"></tbody></table></div></div>
+      </section>
+    </main>
+    <script src="/static/lattice.js?v=20260727-lattice-audio-2"></script>
+  </body>
+</html>

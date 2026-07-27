@@ -194,7 +194,29 @@ function stop(index) { const voice=state.active.get(index); if(!voice) return; c
 function stopAll() { [...state.active.keys()].forEach(stop); stopAllLatticeTones(); }
 el("generator").onchange=syncGeneratorFields; el("choose").oninput=event=>el("choose-value").textContent=event.target.value; el("generate").onclick=generate; el("stop").onclick=stopAll;
 el("base-frequency").oninput=e=>el("base-output").textContent=`${e.target.value} Hz`; ["attack","decay","release"].forEach(id=>el(id).oninput=e=>el(`${id}-output`).textContent=`${e.target.value} ms`); el("sustain").oninput=e=>el("sustain-output").textContent=`${e.target.value}%`;
-document.addEventListener("keydown", event=>{if(event.defaultPrevented || event.repeat || /INPUT|SELECT|TEXTAREA/.test(event.target.tagName)) return; const index=keyboardKeys.indexOf(event.key.toUpperCase()); if(index>=0){event.preventDefault();play(index);}}); document.addEventListener("keyup",event=>{if(event.defaultPrevented)return;const index=keyboardKeys.indexOf(event.key.toUpperCase());if(index>=0)stop(index)});
+function latticeKeyboardIsTarget() { return el("lattice-keyboard-target")?.checked; }
+document.addEventListener("keydown", event=>{
+  if(event.defaultPrevented || event.repeat || /INPUT|SELECT|TEXTAREA/.test(event.target.tagName)) return;
+  const key = event.key.toUpperCase();
+  if (latticeKeyboardIsTarget()) {
+    const latticeIndex = LATTICE_KEYS.indexOf(key);
+    if (latticeIndex >= 0 && latticeKeyboardTones()[latticeIndex]) { event.preventDefault(); startLatticeTone(latticeIndex); }
+    return;
+  }
+  const index = keyboardKeys.indexOf(key);
+  if(index >= 0) { event.preventDefault(); play(index); }
+});
+document.addEventListener("keyup", event=>{
+  if(event.defaultPrevented || /INPUT|SELECT|TEXTAREA/.test(event.target.tagName)) return;
+  const key = event.key.toUpperCase();
+  if (latticeKeyboardIsTarget()) {
+    const latticeIndex = LATTICE_KEYS.indexOf(key);
+    if (latticeIndex >= 0) { event.preventDefault(); stopLatticeTone(latticeIndex); }
+    return;
+  }
+  const index = keyboardKeys.indexOf(key);
+  if(index >= 0) stop(index);
+});
 el("scala").onclick=async()=>{ if(!state.pitches.length)return; const response=await fetch("/api/export/scala",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({name:"Pure Intonation Workbench",ratios:state.pitches.map(p=>p.ratio)})}); const link=document.createElement("a");link.href=URL.createObjectURL(await response.blob());link.download="pure-intonation.scl";link.click();URL.revokeObjectURL(link.href); };
 el("graph-toggle").onclick=()=>{if(!state.graph)return;state.showGraph=!state.showGraph;el("visual-title").textContent=state.showGraph?"Harmonic graph":"Pitch circle";el("graph-toggle").textContent=state.showGraph?"Circle":"Graph";el("walk-controls").hidden=!state.showGraph;syncWalkControls();renderCircle();};
 function syncWalkControls(){const op=el("walk-operation").value;el("walk-end").hidden=op!=="shortest_path";el("walk-metric").hidden=op!=="weighted_walk";el("walk-steps").hidden=op==="shortest_path";el("walk-seed").hidden=op==="shortest_path";}
@@ -914,6 +936,7 @@ function startLatticeTone(index) {
   osc.connect(gain).connect(context.destination); osc.start();
   latticeState.activeKeys.set(index, { osc, gain });
   el("lattice-keyboard").querySelector(`[data-lattice-index="${index}"]`)?.classList.add("active");
+  renderLatticeCircle();
   setLatticeStatus(`${LATTICE_KEYS[index]} · ${tone.normalized_ratio}`, "");
 }
 function stopLatticeTone(index) {
@@ -924,6 +947,7 @@ function stopLatticeTone(index) {
   voice.osc.stop(now + release);
   latticeState.activeKeys.delete(index);
   el("lattice-keyboard").querySelector(`[data-lattice-index="${index}"]`)?.classList.remove("active");
+  renderLatticeCircle();
 }
 function stopAllLatticeTones() { [...latticeState.activeKeys.keys()].forEach(stopLatticeTone); }
 function renderLatticeKeyboard() {
@@ -939,6 +963,33 @@ function renderLatticeKeyboard() {
     button.onpointerleave = () => stopLatticeTone(index);
     box.append(button);
   });
+  renderLatticeCircle();
+}
+function renderLatticeCircle() {
+  const canvas = el("lattice-circle"), ctx = canvas.getContext("2d"), size = canvas.width, mid = size / 2, radius = size * .35;
+  const tones = latticeKeyboardTones().slice(0, LATTICE_KEYS.length);
+  ctx.clearRect(0, 0, size, size);
+  ctx.strokeStyle = "#30394d"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(mid, mid, radius, 0, Math.PI * 2); ctx.stroke();
+  ctx.fillStyle = "#aeb9d0"; ctx.font = "14px system-ui"; ctx.textAlign = "center";
+  ctx.fillText(tones.length ? "1/1" : "Generate or reconstruct a lattice chord", mid, mid + 5);
+  const points = tones.map(tone => circlePoint(tone, mid, radius));
+  points.forEach(point => { ctx.strokeStyle = "#40506d"; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(mid, mid); ctx.lineTo(point.x, point.y); ctx.stroke(); });
+  tones.forEach((tone, index) => {
+    const point = points[index], active = latticeState.activeKeys.has(index), color = GROUP_COLORS[index % GROUP_COLORS.length];
+    ctx.fillStyle = color; ctx.beginPath(); ctx.arc(point.x, point.y, active ? 15 : 10, 0, Math.PI * 2); ctx.fill();
+    if (active) { ctx.strokeStyle = "#fff4cf"; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(point.x, point.y, 21, 0, Math.PI * 2); ctx.stroke(); }
+    ctx.fillStyle = "#10131c"; ctx.font = "bold 10px system-ui"; ctx.fillText(LATTICE_KEYS[index], point.x, point.y + 4);
+    ctx.fillStyle = color; ctx.font = "12px system-ui"; ctx.fillText(tone.normalized_ratio, mid + Math.cos(point.angle) * (radius + 30), mid + Math.sin(point.angle) * (radius + 30) + 4);
+  });
+  el("lattice-circle-status").textContent = tones.length ? `${tones.length} tones` : "";
+  canvas.onpointerdown = event => {
+    const rect = canvas.getBoundingClientRect(), x = (event.clientX - rect.left) * size / rect.width, y = (event.clientY - rect.top) * size / rect.height;
+    const nearest = points.reduce((best, point, index) => { const distance = Math.hypot(point.x - x, point.y - y); return distance < best.distance ? { index, distance } : best; }, { index: -1, distance: Infinity });
+    if (nearest.distance < 28) { event.preventDefault(); canvas.setPointerCapture?.(event.pointerId); startLatticeTone(nearest.index); }
+  };
+  canvas.onpointerup = event => { if (canvas.hasPointerCapture?.(event.pointerId)) canvas.releasePointerCapture(event.pointerId); stopAllLatticeTones(); };
+  canvas.onpointercancel = stopAllLatticeTones;
+  canvas.onpointerleave = event => { if (event.buttons) stopAllLatticeTones(); };
 }
 function syncLatticeAxes() {
   const dims = latticeState.dims;
@@ -1117,6 +1168,10 @@ el("lattice-chord-generate").onclick = generateLatticeChord;
 el("lattice-harmony").onclick = reconstructHarmony;
 el("lattice-progression").onclick = latticeProgression;
 el("lattice-walk").onclick = latticeWalk;
+el("lattice-keyboard-target").onchange = event => {
+  stopAll();
+  setLatticeStatus(event.target.checked ? "Keyboard input: Lattice Keyboard" : "Keyboard input: Pitch circle", "");
+};
 function playLatticeSequence(kind, emptyMessage, label) {
   const harmonies = latticeState.walkHarmonies;
   if (latticeState.sequenceKind !== kind || !harmonies || !harmonies.length) { setLatticeStatus(emptyMessage, "error"); return; }
@@ -1163,6 +1218,25 @@ function sendLatticeToCompose(harmonies, label) {
   setComposeStatus(`${label}: ${composeState.chords.length} chords`, "");
   document.querySelector(".compose").scrollIntoView({ behavior: "smooth" });
 }
+function importLatticeLabSession() {
+  const saved = sessionStorage.getItem("lattice-compose-harmonies");
+  if (!saved) return;
+  try {
+    const harmonies = JSON.parse(saved);
+    if (!Array.isArray(harmonies) || !harmonies.length) return;
+    composeState.chords = harmonies.map(harmony => {
+      const tones = harmony.tones.map(tone => tone.normalized_ratio);
+      const toneVectors = harmony.tones.map(tone => tone.vector).filter(Array.isArray);
+      return { node: null, factors: [], ratio: tones[0], tones, transition_score: null, lattice: { root_vector: harmony.root_vector || toneVectors[0]?.map(() => 0) || [], tone_vectors: toneVectors } };
+    });
+    composeState.bass = []; composeState.melody = []; composeState.rhythm = null; composeState.activeStep = 0; composeState.graph = null; composeState.graphInput = null;
+    state.compositionNode = null; state.walk = null; state.showGraph = false;
+    el("visual-title").textContent = "Pitch circle"; el("graph-toggle").hidden = true; el("walk-controls").hidden = true; el("composition-roll-panel").hidden = false;
+    syncNativeRhythmAvailability(); renderProgression(); renderCompositionRoll(); renderCircle(); setComposeStatus(`Lattice Lab: ${composeState.chords.length} chords`, "");
+  } catch { setComposeStatus("Lattice Lab の和音を読み込めませんでした。", "error"); }
+  sessionStorage.removeItem("lattice-compose-harmonies");
+}
+importLatticeLabSession();
 el("lattice-send-compose").onclick = () => {
   if (!latticeState.tones.length) { setLatticeStatus("先にハーモニーを再構成してください。", "error"); return; }
   const rootVector = latticeState.offsets[0]?.map(() => 0) || [];
@@ -1179,18 +1253,7 @@ el("lattice-walk-compose").onclick = () => {
   if (latticeState.sequenceKind !== "walk" || !latticeState.walkHarmonies?.length) { setLatticeStatus("先にウォークを生成してください。", "error"); return; }
   sendLatticeToCompose(latticeState.walkHarmonies, "Lattice walk");
 };
-const latticePanel = el("lattice-panel");
-latticePanel.addEventListener("keydown", event => {
-  if (event.repeat || /INPUT|SELECT|TEXTAREA/.test(event.target.tagName)) return;
-  const index = LATTICE_KEYS.indexOf(event.key.toUpperCase());
-  if (index < 0 || !latticeKeyboardTones()[index]) return;
-  event.preventDefault(); event.stopPropagation(); startLatticeTone(index);
-});
-latticePanel.addEventListener("keyup", event => {
-  const index = LATTICE_KEYS.indexOf(event.key.toUpperCase());
-  if (index < 0) return;
-  event.preventDefault(); event.stopPropagation(); stopLatticeTone(index);
-});
+renderLatticeCircle();
 window.addEventListener("blur", stopAllLatticeTones);
 
 // ---- Arrange (genre arrangement pipeline, experimental) ----

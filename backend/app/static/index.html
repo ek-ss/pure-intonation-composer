@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Pure Intonation Workbench</title>
-    <link rel="stylesheet" href="/static/style.css?v=20260726-phase-shift-2">
+    <link rel="stylesheet" href="/static/style.css?v=20260727-lattice-page-2">
   </head>
   <body>
     <header class="topbar">
@@ -12,7 +12,7 @@
         <p class="eyebrow">RATIONAL TUNING LAB</p>
         <h1>Pure Intonation Workbench</h1>
       </div>
-      <a href="/docs" target="_blank" rel="noreferrer">API docs ↗</a>
+      <span class="topbar-links"><a href="/lattice">Lattice Lab</a><a href="/docs" target="_blank" rel="noreferrer">API docs ↗</a></span>
     </header>
 
     <main>
@@ -48,7 +48,7 @@
       </section>
 
       <section class="panel visualizer">
-        <div class="section-heading"><h2 id="visual-title">Pitch circle</h2><span id="scale-name">CPS(4,2)</span><span class="heading-tools"><label class="check inline" title="倍音ガイド"><input id="harmonics-toggle" type="checkbox"> 倍音</label><input id="harmonics-count" type="number" min="5" max="64" value="16" title="倍音数"></span><button id="graph-toggle" class="quiet" title="Graph view">Graph</button></div>
+        <div class="section-heading"><h2 id="visual-title">Pitch circle</h2><span id="scale-name">CPS(4,2)</span><span class="heading-tools"><label class="check inline lattice-keyboard-target"><input id="lattice-keyboard-target" type="checkbox"> Lattice Keyboard</label><label class="check inline" title="倍音ガイド"><input id="harmonics-toggle" type="checkbox"> 倍音</label><input id="harmonics-count" type="number" min="5" max="64" value="16" title="倍音数"></span><button id="graph-toggle" class="quiet" title="Graph view">Graph</button></div>
         <div id="walk-controls" class="walk-controls" hidden>
           <select id="graph-layout" title="レイアウト">
             <option value="force">force-directed</option>
@@ -377,6 +377,10 @@
           <span>Lattice Keyboard</span>
           <div id="lattice-keyboard" class="keyboard lattice-keyboard" aria-label="Lattice harmony keyboard"></div>
         </div>
+        <div class="lattice-pitch-circle">
+          <div class="section-heading"><h3>Lattice Pitch circle</h3><span id="lattice-circle-status"></span></div>
+          <canvas id="lattice-circle" width="560" height="560" aria-label="Lattice keyboard tones on a pitch circle"></canvas>
+        </div>
         <p id="lattice-inspector" class="hint"></p>
         <div class="lattice-view">
           <div>
@@ -567,6 +571,6 @@
       </section>
     </main>
     <template id="key-template"><button class="key"><span class="key-name"></span><span class="ratio"></span></button></template>
-    <script src="/static/app.js?v=20260726-phase-shift-2"></script>
+    <script src="/static/app.js?v=20260727-lattice-page-2"></script>
   </body>
 </html>
