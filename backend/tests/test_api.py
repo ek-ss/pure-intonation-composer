@@ -75,6 +75,46 @@ def test_harmonic_pitch_circle_page() -> None:
     assert "rootFrequency" in script.text
 
 
+def test_prime_limit_explorer_page_and_search() -> None:
+    response = client.get("/prime-limit-explorer")
+    assert response.status_code == 200
+    assert "Prime-Limit Harmonic Explorer" in response.text
+    assert 'id="prime-circle"' in response.text
+    script = client.get("/static/prime_limit_explorer.js")
+    assert script.status_code == 200
+    assert "/api/prime-limit/explore" in script.text
+    assert "/api/prime-limit/chords" in script.text
+    assert "/api/prime-limit/progression" in script.text
+    response = client.post(
+        "/api/prime-limit/explore",
+        json={"primes": [3, 5, 7], "exponent_limit": 1, "height_limit": 2, "tolerance_cents": 8, "target_count": 7},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["basis"] == [3, 5, 7]
+    assert data["point_count"] == 19
+    assert len(data["scale"]) == 7
+    assert data["metrics"]["min_gap_cents"] > 0
+
+
+def test_prime_limit_chord_discovery_and_progression() -> None:
+    response = client.post(
+        "/api/prime-limit/chords",
+        json={"primes": [3, 5, 7], "exponent_limit": 1, "height_limit": 2, "tolerance_cents": 8, "target_count": 7, "tone_count": 3},
+    )
+    assert response.status_code == 200
+    candidates = response.json()["candidates"]
+    assert candidates
+    assert len(candidates[0]["tones"]) == 3
+    assert candidates[0]["metrics"]["algorithm_version"] == "g12-chord-v1"
+    response = client.post(
+        "/api/prime-limit/progression",
+        json={"chords": [[0, 300, 700], [0, 400, 700]]},
+    )
+    assert response.status_code == 200
+    assert response.json()["transitions"] == [{"common_tones": 2, "johnson_distance": 1, "voice_leading_cents": 100.0}]
+
+
 def test_cps_is_octave_reduced() -> None:
     response = client.post("/api/cps", json={"factors": [1, 3, 5, 7], "choose": 2})
     assert response.status_code == 200

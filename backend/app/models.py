@@ -544,6 +544,30 @@ class LatticeAnalyzeRequest(BaseModel):
     vectors: list[list[int]] = Field(min_length=1, max_length=64)
 
 
+class PrimeExplorerRequest(BaseModel):
+    primes: list[int] = Field(default_factory=lambda: [3, 5, 7], min_length=1, max_length=5)
+    exponent_limit: int = Field(default=2, ge=0, le=8)
+    height_limit: int = Field(default=4, ge=0, le=32)
+    tolerance_cents: float = Field(default=8, gt=0, le=100)
+    target_count: int = Field(default=12, ge=1, le=64)
+
+
+class PrimeChordRequest(PrimeExplorerRequest):
+    tone_count: int = Field(default=3, ge=2, le=6)
+    candidate_limit: int = Field(default=24, ge=1, le=128)
+
+
+class PrimeProgressionRequest(BaseModel):
+    chords: list[list[float]] = Field(min_length=2, max_length=64)
+
+    @field_validator("chords")
+    @classmethod
+    def chord_voice_counts_must_match(cls, value: list[list[float]]) -> list[list[float]]:
+        if not value[0] or len(value[0]) > 6 or any(len(chord) != len(value[0]) for chord in value):
+            raise ValueError("chords must contain matching voice counts between 1 and 6")
+        return value
+
+
 class JsonExportRequest(BaseModel):
     name: str = Field(default="Pure Intonation Composition", min_length=1, max_length=80)
     composition: dict[str, object]

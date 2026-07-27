@@ -1,7 +1,7 @@
 # Prime-Limit Harmonic Explorer Development Plan
 
 **Version:** 0.1
-**Status:** Proposed
+**Status:** Experimental MVP (P0-P7 core)
 **Roadmap ID:** G12
 **Related foundation:** [Harmonic Pitch Circle](harmonic_pitch_circle.md)
 
@@ -20,6 +20,33 @@ The two features have deliberately different responsibilities:
 
 The initial Explorer is a browser application. Its mathematical engine must be
 independent of rendering and audio so it can be tested deterministically.
+
+## Current Implementation
+
+The first vertical slice is available at `/prime-limit-explorer` and through
+the `/api/prime-limit/*` endpoints. It implements the core of P0-P7 within the
+existing FastAPI/static-page architecture:
+
+- validated prime bases and bounded integer exponent-vector enumeration;
+- exact `Fraction` ratios, octave reduction, cents conversion, and source
+  vector provenance;
+- deterministic circular clustering, including the 0/1200-cent boundary;
+- farthest-point scale selection with circular-gap metrics;
+- a synchronized continuous SVG Pitch Circle, scale table, cluster inspector,
+  and arbitrary-frequency Web Audio audition.
+- root-fixed triad/tetrad enumeration, deterministic MST/diameter/distance,
+  height, and pair-consonance metrics with an algorithm version;
+- selected-chord overlay on an exponent-axis lattice projection;
+- progression construction with common-tone, Johnson-distance, and minimum
+  circular voice-leading metrics;
+- versioned local browser-session save/load for current settings and the
+  progression.
+
+This is intentionally not yet a React/Vite application: the project already
+ships standalone static workbenches, and the MVP keeps the domain engine
+isolated in `backend/app/prime_explorer.py`. P8-P9 remain planned work:
+worker-based long searches, formal accessibility and visual-regression gates,
+versioned JSON/SVG export, session migrations, and release validation.
 
 Development principles:
 

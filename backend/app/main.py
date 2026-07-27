@@ -44,6 +44,9 @@ from app.models import (
     LatticeHarmonyRequest,
     LatticeProgressionRequest,
     LatticeScaleRequest,
+    PrimeExplorerRequest,
+    PrimeChordRequest,
+    PrimeProgressionRequest,
     LatticeWalkRequest,
     MidiRequest,
     RatioRequest,
@@ -77,6 +80,7 @@ from app.lattice import (
     reconstruct,
     root_progression,
 )
+from app.prime_explorer import discover_chords, explore as explore_prime_limit, progression_metrics
 from app.exporters.midi import MidiDrumHit, MidiNote, drum_midi_bytes, microtonal_midi_bytes, midi_bytes
 from app.rhythm.drums import (
     LayerSpec,
@@ -132,6 +136,11 @@ def lattice_lab() -> FileResponse:
 @app.get("/harmonic-pitch-circle", include_in_schema=False)
 def harmonic_pitch_circle() -> FileResponse:
     return FileResponse(STATIC_DIR / "harmonic_pitch_circle.html")
+
+
+@app.get("/prime-limit-explorer", include_in_schema=False)
+def prime_limit_explorer() -> FileResponse:
+    return FileResponse(STATIC_DIR / "prime_limit_explorer.html")
 
 
 @app.get("/favicon.ico", include_in_schema=False, status_code=204)
@@ -875,6 +884,40 @@ def exponent_lattice_scale(request: LatticeScaleRequest) -> dict[str, object]:
         "point_count": len(points),
         "points": [_lattice_pitch_payload(point) for point in points],
     }
+
+
+@app.post("/api/prime-limit/explore")
+def prime_limit_explore(request: PrimeExplorerRequest) -> dict[str, object]:
+    """Enumerate, octave-reduce, cluster, and select a prime-lattice scale."""
+    try:
+        return explore_prime_limit(
+            tuple(request.primes),
+            request.exponent_limit,
+            request.height_limit,
+            request.tolerance_cents,
+            request.target_count,
+        )
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+
+@app.post("/api/prime-limit/chords")
+def prime_limit_chords(request: PrimeChordRequest) -> dict[str, object]:
+    try:
+        return discover_chords(
+            tuple(request.primes), request.exponent_limit, request.height_limit,
+            request.tolerance_cents, request.target_count, request.tone_count, request.candidate_limit,
+        )
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+
+@app.post("/api/prime-limit/progression")
+def prime_limit_progression(request: PrimeProgressionRequest) -> dict[str, object]:
+    try:
+        return {"transitions": progression_metrics(request.chords)}
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
 
 
 @app.post("/api/exponent-lattice/harmony")

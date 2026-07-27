@@ -11,7 +11,7 @@ documents.
 ## Verification Baseline
 
 - 45 OpenAPI paths plus one WebSocket transport endpoint
-- 197 passing pytest tests
+- 199 passing pytest tests
 - `ruff check app tests` passes
 - `mypy app` passes
 - Browser workbench implemented in vanilla JavaScript without a build step
@@ -33,7 +33,7 @@ manual rather than part of continuous integration.
 | Harmonic Phase-Shift Composition | Experimental MVP | Shared and independent chord clocks; static/discrete/polymetric/convergent phase; distinctness and overlap metrics; strict/adaptive resolution; convergence markers; dual-lane workbench; MIDI/JSON/WAV | HP5 fractional drift, track-role assignment UI, overlap matrix audition, automated browser regression, structured listening evaluation |
 | Visualization | Implemented core | Pitch Circle, force graph, reference-layered grid, walk overlays, harmonic stack highlighting, time-proportional Composition Roll | Voice-leading connectors, zoom/pan, per-voice mobile mode, persisted view state, automated browser regression |
 | Harmonic Pitch Circle | Implemented | Standalone fifth-step chord-shape study page; fifth/chromatic circles, 32 chord patterns, numeric pitch-set detail, Johnson-distance history, and Web Audio block-chord audition | Enharmonic spelling policy, shape export, persistent histories |
-| Prime-Limit Harmonic Explorer | Proposed | Versioned G12 plan, domain invariants, P0-P9 delivery phases, integration boundaries, and performance gates | Resolve P0 open decisions, then implement the isolated foundation and math kernel |
+| Prime-Limit Harmonic Explorer | Experimental MVP | Prime-basis vector enumeration, exact ratios, boundary-aware clustering, scale selection, continuous Pitch Circle, chord discovery metrics, lattice overlays, progression metrics/playback, and local session persistence at `/prime-limit-explorer` | P8 worker/accessibility regression, portable JSON/SVG export and migration, P9 release validation |
 | Exponent Lattice Lab | Experimental, partial | Exact exponent math, collision groups, seeded chords, root-motion progressions, bounded walks, analysis, 2D projection, chord playback, keyboard, Compose transfer | Structured vector editor, non-projected filtering, coordinate provenance through bass/melody/export, exponent lanes, versioned persistence, benchmarks |
 | Audio and export | Implemented core | WebAudio audition, five offline oscillator modes, ADSR, delay/reverb, synchronous and queued WAV, pitched and percussion MIDI, pitch-bend retuning, Scala and JSON | FM/noise synthesis, instrument presets, durable render jobs |
 | Real-time input and transport | Partial | Pointer/PC keyboard performance, timeline record/replay, WebSocket play/pause/stop/improvise | WebMIDI, MPE, MTS-ESP, OSC, DAW synchronization, MIDI learn |
@@ -63,8 +63,8 @@ release.
 5. Evaluate and tune the Genre Arrangement Pipeline with structured listening
    comparisons, then add section regeneration and project migration.
 6. Add WebMIDI/MPE and mapping workflows after project persistence is stable.
-7. Begin G12 Prime-Limit Harmonic Explorer with P0 architecture decisions and
-   the independently testable P1 math kernel.
+7. Complete G12 P8-P9 with worker performance gates, accessibility/visual
+   regression, portable export/migration, and release validation.
 
 Research features such as form generation, spatialization, adaptive harmonic
 models, and distributed rendering remain later work and are not release
