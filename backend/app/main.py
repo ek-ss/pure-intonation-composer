@@ -129,6 +129,11 @@ def lattice_lab() -> FileResponse:
     return FileResponse(STATIC_DIR / "lattice.html")
 
 
+@app.get("/harmonic-pitch-circle", include_in_schema=False)
+def harmonic_pitch_circle() -> FileResponse:
+    return FileResponse(STATIC_DIR / "harmonic_pitch_circle.html")
+
+
 @app.get("/favicon.ico", include_in_schema=False, status_code=204)
 def favicon() -> Response:
     return Response(status_code=204)

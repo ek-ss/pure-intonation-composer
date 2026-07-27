@@ -58,6 +58,23 @@ def test_lattice_lab_page() -> None:
     assert "startAudio" in script.text
 
 
+def test_harmonic_pitch_circle_page() -> None:
+    response = client.get("/harmonic-pitch-circle")
+    assert response.status_code == 200
+    assert "Harmonic Pitch Circle" in response.text
+    assert 'id="harmonic-circle"' in response.text
+    assert 'id="chord-buttons"' in response.text
+    assert 'id="root-buttons"' in response.text
+    assert 'id="chord-audition"' in response.text
+    assert 'src="/static/harmonic_pitch_circle.js?v=20260727-harmonic-circle-transpose-5"' in response.text
+    script = client.get("/static/harmonic_pitch_circle.js")
+    assert script.status_code == 200
+    assert "fifthSteps" in script.text
+    assert "describeTransition" in script.text
+    assert "auditionCurrentChord" in script.text
+    assert "rootFrequency" in script.text
+
+
 def test_cps_is_octave_reduced() -> None:
     response = client.post("/api/cps", json={"factors": [1, 3, 5, 7], "choose": 2})
     assert response.status_code == 200

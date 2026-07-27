@@ -22,12 +22,14 @@ as implemented.
 | [algorithm.md](algorithm.md) | Composition algorithm specification, including future research |
 | [algorithm_rhythm.md](algorithm_rhythm.md) | Drum alignment and phase-shift design |
 | [visualization.md](visualization.md) | Implemented reference-node layered graph layout |
+| [harmonic_pitch_circle.md](harmonic_pitch_circle.md) | Implemented fifth-step chord-shape study page and G12 boundary |
 
 ## Roadmaps
 
 | Document | Scope |
 | --- | --- |
-| [development_plan.md](development_plan.md) | Active functional roadmap and G9-G11 overview |
+| [development_plan.md](development_plan.md) | Active functional roadmap and G9-G12 overview |
+| [development_plan_prime_limit_harmonic_explorer.md](development_plan_prime_limit_harmonic_explorer.md) | Proposed exact prime-lattice scale, chord, and progression explorer |
 | [development_plan_genre_arrangement.md](development_plan_genre_arrangement.md) | Planned genre-guided harmony, parts, MIDI/JSON, and rendering pipeline |
 | [development_plan_harmonic_phase_shift.md](development_plan_harmonic_phase_shift.md) | Planned dual-rhythm, same-progression harmonic phase composition |
 | [development_plan_rhythm.md](development_plan_rhythm.md) | Original rhythm milestone plan; retained as design history |

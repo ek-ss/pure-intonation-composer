@@ -1019,6 +1019,29 @@ See
 for the model, algorithms, schema migration, staged delivery, and acceptance
 criteria.
 
+## G12. Prime-Limit Harmonic Explorer
+
+Status
+
+* Proposed
+
+G12 extends the implemented 12-EDO Harmonic Pitch Circle into an exact
+prime-lattice exploration environment. It separates raw exponent vectors from
+octave-reduced pitch-class clusters, searches candidate scales, discovers and
+ranks prime-native chords across independent metrics, provides authoritative
+lattice views, and constructs playable chord-state progressions.
+
+The proposed delivery runs from P0 foundation through P9 release candidate.
+The mathematical engine remains independent of React, SVG, Web Audio, and
+persistence so its invariants and performance can be tested deterministically.
+The current `/harmonic-pitch-circle` and `/lattice` pages remain lightweight
+entry tools rather than being replaced by G12.
+
+See
+[development_plan_prime_limit_harmonic_explorer.md](development_plan_prime_limit_harmonic_explorer.md)
+for the domain model, technical direction, phase acceptance criteria,
+integration boundary, performance gates, and open decisions.
+
 ---
 
 # 4. Historical Milestones

@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Harmonic Pitch Circle | Pure Intonation Workbench</title>
+    <link rel="stylesheet" href="/static/style.css?v=20260727-harmonic-circle-audition-4">
+  </head>
+  <body class="harmonic-circle-page">
+    <header class="topbar">
+      <div><p class="eyebrow">FIFTH-STEP HARMONY STUDY</p><h1>Harmonic Pitch Circle</h1><p class="page-subtitle">Chord shapes in fifth-step coordinates</p></div>
+      <span class="topbar-links"><a href="/">Workbench</a><a href="/lattice">Lattice Lab</a><a href="/docs" target="_blank" rel="noreferrer">API docs ↗</a></span>
+    </header>
+    <main class="harmonic-circle-main">
+      <section class="panel harmonic-controls">
+        <div class="section-heading"><h2>View</h2><span id="circle-status" role="status"></span></div>
+        <span class="field-label">Root</span>
+        <div id="root-buttons" class="root-button-grid" aria-label="Root"></div>
+        <label>Display mode<select id="display-mode"><option value="fifths">Fifth circle</option><option value="chromatic">Chromatic circle</option></select></label>
+        <label>Label mode<select id="label-mode"><option value="both">Both</option><option value="fifth">Fifth step</option><option value="note">Note name</option></select></label>
+        <button id="history-clear" class="quiet">履歴をクリア</button>
+      </section>
+      <section class="panel harmonic-circle-visual">
+        <div class="section-heading"><h2 id="selected-title">C major</h2><span class="harmonic-audio-controls"><label class="check inline"><input id="chord-audition" type="checkbox"> Auto audition</label><span id="shape-label"></span></span></div>
+        <svg id="harmonic-circle" viewBox="0 0 720 720" role="img" aria-label="選択和音のPitch circle"></svg>
+        <div class="harmonic-legend"><span class="root">Root</span><span class="member">Chord tone</span><span>Circle order follows the selected mode</span></div>
+      </section>
+      <section class="panel harmonic-details">
+        <div class="section-heading"><h2>Chord detail</h2><span id="detail-symbol"></span></div>
+        <dl id="chord-detail" class="chord-detail"></dl>
+      </section>
+      <section class="panel chord-library">
+        <div class="section-heading"><h2>Chord library</h2><span id="library-count"></span></div>
+        <div id="chord-buttons" class="chord-categories"></div>
+      </section>
+      <section class="panel harmonic-history">
+        <div class="section-heading"><h2>Progression history</h2><span id="history-summary"></span></div>
+        <div class="table-wrap"><table><thead><tr><th>From</th><th>To</th><th>Shared notes</th><th>Changed notes</th><th>Johnson distance</th></tr></thead><tbody id="history-rows"></tbody></table></div>
+      </section>
+    </main>
+    <script src="/static/harmonic_pitch_circle.js?v=20260727-harmonic-circle-transpose-5"></script>
+  </body>
+</html>
