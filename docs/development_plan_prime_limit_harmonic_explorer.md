@@ -1,7 +1,7 @@
 # Prime-Limit Harmonic Explorer Development Plan
 
 **Version:** 0.1
-**Status:** Experimental MVP (P0-P7 core)
+**Status:** Experimental MVP (P0-P9 release-candidate core)
 **Roadmap ID:** G12
 **Related foundation:** [Harmonic Pitch Circle](harmonic_pitch_circle.md)
 
@@ -39,14 +39,17 @@ existing FastAPI/static-page architecture:
 - selected-chord overlay on an exponent-axis lattice projection;
 - progression construction with common-tone, Johnson-distance, and minimum
   circular voice-leading metrics;
-- versioned local browser-session save/load for current settings and the
-  progression.
+- versioned local browser-session save/load plus portable JSON and SVG export;
+- Worker-mediated scale searches with stale-result rejection, keyboard-focusable
+  SVG controls, and release verification through unit, API, type, and lint
+  checks.
 
 This is intentionally not yet a React/Vite application: the project already
 ships standalone static workbenches, and the MVP keeps the domain engine
-isolated in `backend/app/prime_explorer.py`. P8-P9 remain planned work:
-worker-based long searches, formal accessibility and visual-regression gates,
-versioned JSON/SVG export, session migrations, and release validation.
+isolated in `backend/app/prime_explorer.py`. Remaining hardening work is
+measured worker cancellation for very large scans, browser screenshot
+regression in continuous integration, formal accessibility auditing, schema
+migrations, and cross-browser audio evaluation.
 
 Development principles:
 

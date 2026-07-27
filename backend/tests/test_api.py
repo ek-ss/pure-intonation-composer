@@ -85,6 +85,10 @@ def test_prime_limit_explorer_page_and_search() -> None:
     assert "/api/prime-limit/explore" in script.text
     assert "/api/prime-limit/chords" in script.text
     assert "/api/prime-limit/progression" in script.text
+    assert "prime_limit_worker.js" in script.text
+    worker = client.get("/static/prime_limit_worker.js")
+    assert worker.status_code == 200
+    assert "/api/prime-limit/explore" in worker.text
     response = client.post(
         "/api/prime-limit/explore",
         json={"primes": [3, 5, 7], "exponent_limit": 1, "height_limit": 2, "tolerance_cents": 8, "target_count": 7},
