@@ -1,6 +1,6 @@
 # Implementation Status
 
-**Last audited:** 2026-07-27
+**Last audited:** 2026-07-28
 **Branch:** `develop`
 
 This is the canonical status document for Pure Intonation Composer. It is
@@ -11,7 +11,7 @@ documents.
 ## Verification Baseline
 
 - 45 OpenAPI paths plus one WebSocket transport endpoint
-- 199 passing pytest tests, including G12 chord/progression and Worker asset coverage
+- 200 passing pytest tests, including G12 chord/progression and Worker asset coverage
 - `ruff check app tests` passes
 - `mypy app` passes
 - Browser workbench implemented in vanilla JavaScript without a build step
@@ -27,6 +27,7 @@ manual rather than part of continuous integration.
 | Scale and tuning | Implemented, non-persistent | CPS, Euler-Fokker, harmonic/subharmonic series, ratio/cents/EDO input, EDO and prime-limit snapping, Scala import/export, named scale CRUD | On-disk scale storage, complete workbench presets, custom repeating intervals |
 | Harmonic graph | Implemented | Johnson graph, harmonic/monzo/cent metrics, shortest/random/weighted walks, deterministic layered layout | Large-graph performance benchmarks |
 | Composition | Implemented | Seeded harmony, voice leading, bass strategies, multi-voice melody, browser playback, MIDI/JSON/WAV export | One-shot project composition endpoint, persisted project import |
+| Minimal Functional Harmony Composer | Experimental MVP | Dedicated T/S/D form generator; Prime Explorer progression transfer/JSON import with chord-ID role mapping; independent Euclidean voices; kick/snare/hat/perc; 12-TET/5-limit/7-limit; Web Audio, JSON, and type-1 MIDI at `/minimal-functional-composer` | Editable function grammar and section form, continuous phase evolution, register-aware voice leading, project persistence, automated browser regression |
 | Drum rhythm | Implemented core | Euclidean layers, rotation optimization, bounded polymetric analysis, phase offsets, state graph, humanization, metrics, MIDI/JSON export | Coordinated state transitions, fill generator, preset library, continuous phase drift |
 | Compose Rhythm Orchestration | Implemented core | Chord-tone and role mapping, overflow/voice policies, Harmony/Bass/Melody-specific generators, integer-tick events, playback and export integration | Project schema migration/import, structured listening comparisons, performance benchmarks |
 | Genre Arrangement Pipeline | Experimental MVP | Pop, Ambient, Alternative Rock, and Future Bass profiles; sounding-aware harmony; block/arpeggio/stride performance; coordinated parts; Project 1.1 and 1.0 migration; bounded WAV; type-1 microtonal MIDI; responsive Arrange workbench | Section regeneration, broader project import, stems/effect rendering, structured listening comparisons, automated browser regression |
@@ -34,7 +35,7 @@ manual rather than part of continuous integration.
 | Visualization | Implemented core | Pitch Circle, force graph, reference-layered grid, walk overlays, harmonic stack highlighting, time-proportional Composition Roll | Voice-leading connectors, zoom/pan, per-voice mobile mode, persisted view state, automated browser regression |
 | Harmonic Pitch Circle | Implemented | Standalone fifth-step chord-shape study page; fifth/chromatic circles, 32 chord patterns, numeric pitch-set detail, Johnson-distance history, and Web Audio block-chord audition | Enharmonic spelling policy, shape export, persistent histories |
 | Prime-Limit Harmonic Explorer | Experimental release-candidate core | Prime-basis vector enumeration, boundary-aware clustering, continuous Pitch Circle, chord discovery, lattice/progression views, Worker-mediated searches, local session persistence, and JSON/SVG export at `/prime-limit-explorer` | Measured cancellation, CI screenshot/accessibility audit, session migration, cross-browser audio evaluation |
-| Exponent Lattice Lab | Experimental, partial | Exact exponent math, collision groups, seeded chords, root-motion progressions, bounded walks, analysis, 2D projection, chord playback, keyboard, Compose transfer | Structured vector editor, non-projected filtering, coordinate provenance through bass/melody/export, exponent lanes, versioned persistence, benchmarks |
+| Exponent Lattice Lab | Experimental, partial | Exact exponent math, collision groups, seeded chords, root-motion progressions, bounded walks, analysis, 2D projection, chord playback, keyboard, Compose transfer, and Minimal Composer transfer/JSON for progressions and walks | Structured vector editor, non-projected filtering, coordinate provenance through bass/melody/export, exponent lanes, versioned persistence, benchmarks |
 | Audio and export | Implemented core | WebAudio audition, five offline oscillator modes, ADSR, delay/reverb, synchronous and queued WAV, pitched and percussion MIDI, pitch-bend retuning, Scala and JSON | FM/noise synthesis, instrument presets, durable render jobs |
 | Real-time input and transport | Partial | Pointer/PC keyboard performance, timeline record/replay, WebSocket play/pause/stop/improvise | WebMIDI, MPE, MTS-ESP, OSC, DAW synchronization, MIDI learn |
 | Project and release | Partial | Editable Python package, FastAPI workbench, deterministic seeds, documented local workflow | Versioned project save/load, undo/redo, authentication if deployed remotely, packaging/installer, target-platform benchmarks |

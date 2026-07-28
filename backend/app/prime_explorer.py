@@ -217,13 +217,17 @@ def _mst_length(points: list[PitchCluster]) -> float:
 def discover_chords(
     primes: tuple[int, ...], exponent_limit: int, height_limit: int,
     tolerance_cents: float, target_count: int, tone_count: int, candidate_limit: int,
+    ranking_mode: str = "compact", root_vector: Vector = (),
 ) -> dict[str, object]:
     points = enumerate_points(primes, exponent_limit, height_limit)
+    if root_vector and len(root_vector) != len(primes):
+        raise ValueError(f"root_vector must have {len(primes)} dimensions")
+    root_vector = root_vector or tuple(0 for _ in primes)
     scale = select_scale(cluster_points(points, tolerance_cents), target_count)
     if not 2 <= tone_count <= min(6, len(scale)):
         raise ValueError("tone_count must be between 2 and the scale size (maximum 6)")
     root = min(scale, key=lambda cluster: (circular_distance(cluster.cents, 0), cluster.id))
-    candidates = []
+    candidates: list[dict[str, object]] = []
     for others in combinations([cluster for cluster in scale if cluster.id != root.id], tone_count - 1):
         chord = [root, *others]
         distances = [circular_distance(left.cents, right.cents) for left, right in combinations(chord, 2)]
@@ -240,22 +244,90 @@ def discover_chords(
         vectors = [cluster.representative.vector for cluster in chord]
         shape_id = ";".join(",".join(str(value - vectors[0][dimension]) for dimension, value in enumerate(vector)) for vector in vectors
         )
-        candidates.append((metrics["mst_cents"], metrics["mean_height"], shape_id, chord, metrics))
-    candidates.sort(key=lambda item: (item[0], item[1], item[2]))
+        candidates.append({"shape_id": shape_id, "chord": chord, "metrics": metrics})
+
+    if ranking_mode not in {"compact", "low_height", "wide", "consonant", "balanced"}:
+        raise ValueError("unsupported ranking_mode")
+
+    def metric(candidate: dict[str, object], name: str) -> float:
+        metrics = candidate["metrics"]
+        assert isinstance(metrics, dict)
+        value = metrics[name]
+        assert isinstance(value, float)
+        return value
+
+    def shape(candidate: dict[str, object]) -> str:
+        value = candidate["shape_id"]
+        assert isinstance(value, str)
+        return value
+
+    def normalized(name: str, value: float) -> float:
+        values = [metric(candidate, name) for candidate in candidates]
+        lower, upper = min(values), max(values)
+        return 0.0 if upper == lower else (value - lower) / (upper - lower)
+
+    for candidate in candidates:
+        candidate_metrics = candidate["metrics"]
+        assert isinstance(candidate_metrics, dict)
+        compactness = normalized("mst_cents", metric(candidate, "mst_cents"))
+        height_penalty = normalized("mean_height", metric(candidate, "mean_height"))
+        consonance_penalty = 1 - normalized("pair_consonance", metric(candidate, "pair_consonance"))
+        width_penalty = 1 - normalized("diameter_cents", metric(candidate, "diameter_cents"))
+        candidate_metrics["balanced_score"] = round(
+            0.40 * compactness + 0.25 * height_penalty + 0.25 * consonance_penalty + 0.10 * width_penalty,
+            5,
+        )
+        candidate_metrics["ranking_mode"] = ranking_mode
+
+    if ranking_mode == "compact":
+        candidates.sort(key=lambda candidate: (metric(candidate, "mst_cents"), metric(candidate, "mean_height"), shape(candidate)))
+    elif ranking_mode == "low_height":
+        candidates.sort(key=lambda candidate: (metric(candidate, "mean_height"), metric(candidate, "mst_cents"), shape(candidate)))
+    elif ranking_mode == "wide":
+        candidates.sort(key=lambda candidate: (-metric(candidate, "diameter_cents"), -metric(candidate, "mean_distance_cents"), metric(candidate, "mean_height"), shape(candidate)))
+    elif ranking_mode == "consonant":
+        candidates.sort(key=lambda candidate: (-metric(candidate, "pair_consonance"), metric(candidate, "mean_height"), metric(candidate, "mst_cents"), shape(candidate)))
+    else:
+        candidates.sort(key=lambda candidate: (metric(candidate, "balanced_score"), shape(candidate)))
     return {
         "scale": [
             {"id": cluster.id, "cents": round(cluster.cents, 5), "representative": point_payload(cluster.representative)}
             for cluster in scale
         ],
+        "root_vector": list(root_vector),
         "candidates": [
-            {
-                "id": f"chord-{index}",
-                "shape_id": shape_id,
-                "tones": [{"id": cluster.id, "cents": round(cluster.cents, 5), "representative": point_payload(cluster.representative)} for cluster in chord],
-                "metrics": metrics,
-            }
-            for index, (_mst, _height, shape_id, chord, metrics) in enumerate(candidates[:candidate_limit])
+            _candidate_payload(index, candidate, primes, root_vector)
+            for index, candidate in enumerate(candidates[:candidate_limit])
         ],
+    }
+
+
+def _shift_point(primes: tuple[int, ...], point: PrimePoint, root_vector: Vector) -> PrimePoint:
+    vector = tuple(value + shift for value, shift in zip(point.vector, root_vector))
+    ratio = Fraction(1)
+    for prime, exponent in zip(primes, vector):
+        ratio *= Fraction(prime) ** exponent
+    normalized, octave_shift = normalize(ratio)
+    return PrimePoint(vector, ratio, normalized, octave_shift, 1200 * log2(float(normalized)), sum(abs(value) for value in vector))
+
+
+def _candidate_payload(index: int, candidate: dict[str, object], primes: tuple[int, ...], root_vector: Vector) -> dict[str, object]:
+    chord = candidate["chord"]
+    assert isinstance(chord, list)
+    return {
+        "id": f"chord-{index}",
+        "shape_id": candidate["shape_id"],
+        "tones": [
+            {
+                "id": f"{cluster.id}@{','.join(str(value) for value in root_vector)}",
+                "source_id": cluster.id,
+                "cents": round(_shift_point(primes, cluster.representative, root_vector).cents, 5),
+                "representative": point_payload(_shift_point(primes, cluster.representative, root_vector)),
+            }
+            for cluster in chord
+            if isinstance(cluster, PitchCluster)
+        ],
+        "metrics": candidate["metrics"],
     }
 
 

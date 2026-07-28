@@ -756,7 +756,49 @@ completed, `404` for unknown jobs.
 
 ---
 
-# 8. Export
+# 8. Minimal Functional Harmony Composer
+
+## POST /api/minimal-functional/generate
+
+Builds a deterministic T/S/D minimal-process composition. The response is a
+self-contained composition payload with exact-ratio events, function chords,
+voice cycle metadata, and per-bar process analysis.
+
+```json
+{
+  "duration_bars": 32,
+  "tempo_bpm": 112,
+  "voice_count": 5,
+  "seed": 12345,
+  "tuning": "5-limit",
+  "climax_start": 0.62,
+  "resolution_start": 0.78
+}
+```
+
+- `duration_bars`: 8 to 128; default 32
+- `voice_count`: 3 to 8; default 5
+- `tuning`: `12-tet`, `5-limit`, or `7-limit`
+- `climax_start` must precede `resolution_start`
+
+Use the returned `events` directly with `POST /api/export/midi` for a
+pitch-bend microtonal MIDI file. The dedicated browser page also provides the
+same export flow.
+
+`prime_progression` accepts the `progression` array exported by Prime-Limit
+Harmonic Explorer. Assign its chord IDs with `function_chord_ids`, for example
+`{"T":["chord-21","chord-24"],"S":["chord-22"],"D":["chord-23"]}`. The generated payload
+also includes `drum_events` for kick, snare, hat, and percussion.
+
+## POST /api/minimal-functional/midi
+
+Exports a type-1 MIDI file containing a microtonally retuned Harmony track
+and a GM percussion track. Send generated `events` as `notes` and generated
+`drum_events` as `drums`.
+
+---
+
+# 9. Export
 
 ## POST /api/export/midi
 
@@ -830,7 +872,7 @@ Echoes the payload back as structured JSON for saving.
 
 ---
 
-# 9. Real-Time Transport
+# 10. Real-Time Transport
 
 ## WebSocket /api/ws/transport
 
@@ -853,7 +895,7 @@ Responses:
 
 ---
 
-# 10. Roadmap Candidates
+# 11. Roadmap Candidates
 
 These capabilities are not part of the current API:
 

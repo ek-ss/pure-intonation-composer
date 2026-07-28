@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Prime-Limit Harmonic Explorer | Pure Intonation Workbench</title>
-    <link rel="stylesheet" href="/static/style.css?v=20260727-prime-explorer-1">
+    <link rel="stylesheet" href="/static/style.css?v=20260728-prime-transfer-2">
   </head>
   <body class="prime-explorer-page">
     <header class="topbar">
@@ -47,21 +47,24 @@
       </section>
       <section class="panel prime-chords-panel">
         <div class="section-heading"><h2>Chord Discovery</h2><span id="prime-chord-summary"></span></div>
-        <div class="prime-chord-controls"><label>Voices<select id="prime-chord-size"><option value="3">Triads</option><option value="4">Tetrads</option></select></label><button id="prime-discover-chords">Discover chords</button></div>
+        <div class="prime-chord-controls"><label>Voices<select id="prime-chord-size"><option value="3">Triads</option><option value="4">Tetrads</option></select></label><label>Root shift [a, b, c]<input id="prime-root-vector" value="0, 0, 0" inputmode="numeric" aria-describedby="prime-root-hint"></label><label>Candidates<input id="prime-candidate-limit" type="number" min="1" max="128" value="24"></label><label>Rank<select id="prime-ranking-mode"><option value="compact">Compact</option><option value="low_height">Low height</option><option value="wide">Wide</option><option value="consonant">Consonant</option><option value="balanced">Balanced</option></select></label><button id="prime-discover-chords">Discover chords</button></div>
+        <p id="prime-root-hint" class="hint">For basis 3, 5, 7: [a, b, c] means 3^a * 5^b * 7^c.</p>
         <div id="prime-chord-candidates" class="prime-chord-candidates"></div>
       </section>
       <section class="panel prime-lattice-panel">
         <div class="section-heading"><h2>Authoritative Lattice</h2><span>Selected chord overlay</span></div>
-        <div class="axis-selects">X <select id="prime-axis-x"></select> Y <select id="prime-axis-y"></select></div>
-        <svg id="prime-lattice" viewBox="0 0 720 420" role="img" aria-label="Prime exponent lattice projection"></svg>
+        <div class="prime-harmony-views">
+          <div><div class="axis-selects">X <select id="prime-axis-x"></select> Y <select id="prime-axis-y"></select></div><svg id="prime-lattice" viewBox="0 0 720 420" role="img" aria-label="Prime exponent lattice projection"></svg></div>
+          <div class="prime-chord-circle-view"><h3>Continuous Pitch Circle</h3><svg id="prime-lattice-circle" viewBox="0 0 480 480" role="img" aria-label="Selected chord on continuous pitch circle"></svg><p id="prime-lattice-circle-summary" class="hint">Choose Play in Chord Discovery</p></div>
+        </div>
       </section>
       <section class="panel prime-progression-panel">
-        <div class="section-heading"><h2>Progression</h2><span id="prime-progression-summary">Add chord candidates</span></div>
-        <div class="button-row"><button id="prime-play-progression">Play progression</button><button id="prime-clear-progression" class="quiet">Clear</button><button id="prime-save-session" class="quiet">Save local</button><button id="prime-load-session" class="quiet">Load local</button><button id="prime-export-json" class="quiet">Export JSON</button><button id="prime-export-svg" class="quiet">Export SVG</button></div>
+        <div class="section-heading"><h2>Progression</h2><span id="prime-progression-summary">Add chord candidates</span><a class="quiet prime-minimal-link" href="/minimal-functional-composer">Minimal Composer</a></div>
+        <div class="button-row"><button id="prime-play-progression">Play progression</button><button id="prime-clear-progression" class="quiet">Clear</button><button id="prime-send-minimal" class="quiet">Send to Minimal Composer</button><button id="prime-save-session" class="quiet">Save local</button><button id="prime-load-session" class="quiet">Load local</button><button id="prime-export-json" class="quiet">Export JSON</button><button id="prime-export-svg" class="quiet">Export SVG</button></div>
         <div id="prime-progression" class="prime-progression"></div>
         <div class="table-wrap"><table><thead><tr><th>From</th><th>To</th><th>Common</th><th>Johnson</th><th>Voice leading</th></tr></thead><tbody id="prime-transition-rows"></tbody></table></div>
       </section>
     </main>
-    <script src="/static/prime_limit_explorer.js?v=20260727-prime-explorer-p4-p7"></script>
+    <script src="/static/prime_limit_explorer.js?v=20260728-prime-transfer-2"></script>
   </body>
 </html>

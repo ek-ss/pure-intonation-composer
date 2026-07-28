@@ -36,6 +36,12 @@ existing FastAPI/static-page architecture:
   and arbitrary-frequency Web Audio audition.
 - root-fixed triad/tetrad enumeration, deterministic MST/diameter/distance,
   height, and pair-consonance metrics with an algorithm version;
+- selectable chord ranking: Compact, Low height, Wide, Consonant, or Balanced;
+  Balanced normalizes the current candidate set and minimizes `0.40 * MST +
+  0.25 * height + 0.25 * (1 - consonance) + 0.10 * (1 - width)`;
+- root-shifted chord discovery: a root vector `[a, b, c]` for a `[3, 5, 7]`
+  basis translates every chord tone by `3^a * 5^b * 7^c`; shifted tones retain
+  their vectors and cents through lattice views, audition, and progression.
 - selected-chord overlay on an exponent-axis lattice projection;
 - progression construction with common-tone, Johnson-distance, and minimum
   circular voice-leading metrics;

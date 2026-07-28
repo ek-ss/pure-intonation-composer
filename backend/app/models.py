@@ -552,9 +552,47 @@ class PrimeExplorerRequest(BaseModel):
     target_count: int = Field(default=12, ge=1, le=64)
 
 
+class MinimalFunctionalRequest(BaseModel):
+    duration_bars: int = Field(default=32, ge=8, le=128)
+    beats_per_bar: int = Field(default=4, ge=2, le=12)
+    subdivisions_per_beat: int = Field(default=4, ge=1, le=8)
+    tempo_bpm: float = Field(default=112, ge=40, le=240)
+    voice_count: int = Field(default=5, ge=3, le=8)
+    seed: int = 12345
+    tuning: Literal["12-tet", "5-limit", "7-limit"] = "5-limit"
+    climax_start: float = Field(default=.62, ge=.45, le=.80)
+    resolution_start: float = Field(default=.78, ge=.65, le=.92)
+    prime_progression: list[dict[str, object]] = Field(default_factory=list, max_length=128)
+    function_chord_ids: dict[str, list[str] | str] = Field(default_factory=dict)
+    include_drums: bool = True
+    drum_density: float = Field(default=.55, ge=0, le=1)
+
+    @model_validator(mode="after")
+    def form_boundaries_must_be_ordered(self) -> MinimalFunctionalRequest:
+        if self.climax_start >= self.resolution_start:
+            raise ValueError("climax_start must precede resolution_start")
+        return self
+
+
+class MinimalFunctionalDrumHitRequest(BaseModel):
+    note: int = Field(ge=0, le=127)
+    start_beat: float = Field(ge=0, le=10_000)
+    velocity: int = Field(ge=1, le=127)
+
+
+class MinimalFunctionalMidiRequest(BaseModel):
+    notes: list[MidiNoteRequest] = Field(max_length=8192)
+    drums: list[MinimalFunctionalDrumHitRequest] = Field(default_factory=list, max_length=8192)
+    tempo_bpm: float = Field(default=112, ge=30, le=300)
+    beats_per_bar: int = Field(default=4, ge=2, le=12)
+    base_frequency: float = Field(default=220, ge=20, le=2000)
+
+
 class PrimeChordRequest(PrimeExplorerRequest):
     tone_count: int = Field(default=3, ge=2, le=6)
     candidate_limit: int = Field(default=24, ge=1, le=128)
+    ranking_mode: Literal["compact", "low_height", "wide", "consonant", "balanced"] = "compact"
+    root_vector: list[int] = Field(default_factory=list, max_length=5)
 
 
 class PrimeProgressionRequest(BaseModel):

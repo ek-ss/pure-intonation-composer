@@ -49,12 +49,15 @@ def test_lattice_lab_page() -> None:
     assert "Lattice Lab" in response.text
     assert 'id="pitch-circle"' in response.text
     assert 'id="progression-generate"' in response.text
-    assert 'src="/static/lattice.js?v=20260727-lattice-audio-2"' in response.text
+    assert 'id="progression-minimal"' in response.text
+    assert 'id="walk-minimal"' in response.text
+    assert 'src="/static/lattice.js?v=20260728-lattice-minimal-transfer-1"' in response.text
     script = client.get("/static/lattice.js")
     assert script.status_code == 200
     assert '"/api/exponent-lattice/chord"' in script.text
     assert '"/api/exponent-lattice/walk"' in script.text
     assert "lattice-compose-harmonies" in script.text
+    assert "minimalProgression" in script.text
     assert "startAudio" in script.text
 
 
@@ -75,6 +78,66 @@ def test_harmonic_pitch_circle_page() -> None:
     assert "rootFrequency" in script.text
 
 
+def test_minimal_functional_composer_page_and_generation() -> None:
+    response = client.get("/minimal-functional-composer")
+    assert response.status_code == 200
+    assert "Minimal Functional Composer" in response.text
+    assert 'id="minimal-form"' in response.text
+    assert 'id="minimal-voice-lanes"' in response.text
+    script = client.get("/static/minimal_functional_composer.js")
+    assert script.status_code == 200
+    assert "/api/minimal-functional/generate" in script.text
+    response = client.post(
+        "/api/minimal-functional/generate",
+        json={
+            "duration_bars": 16,
+            "tempo_bpm": 96,
+            "voice_count": 4,
+            "seed": 9,
+            "tuning": "7-limit",
+            "climax_start": 0.60,
+            "resolution_start": 0.76,
+        },
+    )
+    assert response.status_code == 200
+    composition = response.json()
+    assert composition["metadata"]["tuning"] == "7-limit"
+    assert len(composition["analysis"]) == 16
+    assert composition["events"]
+    assert {chord["function"] for chord in composition["chords"]} <= {"T", "S", "D"}
+    assert composition["analysis"][-1]["section"] == "coda"
+    assert composition["analysis"][-1]["stability"] > composition["analysis"][-1]["tension"]
+    assert {layer["id"] for layer in composition["drum_layers"]} == {"kick", "snare", "hat", "perc"}
+    assert composition["drum_events"]
+    invalid = client.post(
+        "/api/minimal-functional/generate",
+        json={"climax_start": 0.80, "resolution_start": 0.70},
+    )
+    assert invalid.status_code == 422
+    twelve_tet = client.post(
+        "/api/minimal-functional/generate",
+        json={"duration_bars": 8, "tuning": "12-tet"},
+    )
+    assert twelve_tet.status_code == 200
+    assert twelve_tet.json()["metadata"]["tuning"] == "12-tet"
+    imported = client.post(
+        "/api/minimal-functional/generate",
+        json={
+            "duration_bars": 8,
+            "prime_progression": [{"id": "chord-21", "tones": [{"representative": {"normalized_ratio": "1/1"}}, {"representative": {"normalized_ratio": "7/6"}}, {"representative": {"normalized_ratio": "3/2"}}]}, {"id": "chord-22", "tones": [{"representative": {"normalized_ratio": "1/1"}}, {"representative": {"normalized_ratio": "5/4"}}, {"representative": {"normalized_ratio": "3/2"}}]}],
+            "function_chord_ids": {"T": ["chord-21", "chord-22"], "S": ["chord-21", "chord-22"], "D": ["chord-21", "chord-22"]},
+        },
+    )
+    assert imported.status_code == 200
+    assert {chord["id"] for chord in imported.json()["chords"]} <= {"chord-21", "chord-22"}
+    midi = client.post(
+        "/api/minimal-functional/midi",
+        json={"notes": [{"ratio": "3/2", "start_beats": 0, "duration_beats": 1}], "drums": [{"note": 36, "start_beat": 0, "velocity": 100}]},
+    )
+    assert midi.status_code == 200
+    assert midi.content.startswith(b"MThd")
+
+
 def test_prime_limit_explorer_page_and_search() -> None:
     response = client.get("/prime-limit-explorer")
     assert response.status_code == 200
@@ -86,6 +149,10 @@ def test_prime_limit_explorer_page_and_search() -> None:
     assert "/api/prime-limit/chords" in script.text
     assert "/api/prime-limit/progression" in script.text
     assert "prime_limit_worker.js" in script.text
+    assert "prime-lattice-circle" in response.text
+    assert 'id="prime-candidate-limit"' in response.text
+    assert 'id="prime-ranking-mode"' in response.text
+    assert "syncPrimeAxes();" in script.text
     worker = client.get("/static/prime_limit_worker.js")
     assert worker.status_code == 200
     assert "/api/prime-limit/explore" in worker.text
@@ -104,13 +171,17 @@ def test_prime_limit_explorer_page_and_search() -> None:
 def test_prime_limit_chord_discovery_and_progression() -> None:
     response = client.post(
         "/api/prime-limit/chords",
-        json={"primes": [3, 5, 7], "exponent_limit": 1, "height_limit": 2, "tolerance_cents": 8, "target_count": 7, "tone_count": 3},
+        json={"primes": [3, 5, 7], "exponent_limit": 1, "height_limit": 2, "tolerance_cents": 8, "target_count": 7, "tone_count": 3, "ranking_mode": "balanced", "root_vector": [1, 0, 0]},
     )
     assert response.status_code == 200
     candidates = response.json()["candidates"]
     assert candidates
     assert len(candidates[0]["tones"]) == 3
     assert candidates[0]["metrics"]["algorithm_version"] == "g12-chord-v1"
+    assert candidates[0]["metrics"]["ranking_mode"] == "balanced"
+    assert 0 <= candidates[0]["metrics"]["balanced_score"] <= 1
+    assert candidates[0]["tones"][0]["representative"]["vector"] == [1, 0, 0]
+    assert candidates[0]["tones"][0]["cents"] == 701.955
     response = client.post(
         "/api/prime-limit/progression",
         json={"chords": [[0, 300, 700], [0, 400, 700]]},

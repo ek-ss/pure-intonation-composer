@@ -63,7 +63,7 @@
           <div>
             <label>和声進行の差分ベクトル（1行に1ステップ）<textarea id="progression-vectors" rows="4">1, 0
 0, 1</textarea></label>
-            <div class="button-row"><button id="progression-generate">和声進行を生成</button><button id="progression-play" class="quiet">▶ 再生</button><button id="progression-compose" class="quiet">Composeへ送る</button></div>
+            <div class="button-row"><button id="progression-generate">和声進行を生成</button><button id="progression-play" class="quiet">▶ 再生</button><button id="progression-compose" class="quiet">Composeへ送る</button><button id="progression-minimal" class="quiet">Minimalへ送る</button><button id="progression-export-json" class="quiet">JSON</button></div>
           </div>
           <div>
             <label>ウォークの許可ステップ（1行に1ベクトル）<textarea id="allowed-vectors" rows="4">1, 0
@@ -72,7 +72,7 @@
 0, -1</textarea></label>
             <div class="lattice-field-grid"><label>長さ<input id="walk-length" type="number" min="1" max="512" value="16"></label><label>シード<input id="walk-seed" type="number" value="42"></label></div>
             <label>境界ポリシー<select id="boundary"><option value="reflect">reflect</option><option value="stop">stop</option><option value="wrap">wrap</option><option value="resample">resample</option></select></label>
-            <div class="button-row"><button id="walk-generate">ウォーク</button><button id="walk-play" class="quiet">▶ 再生</button><button id="walk-compose" class="quiet">Composeへ送る</button></div>
+            <div class="button-row"><button id="walk-generate">ウォーク</button><button id="walk-play" class="quiet">▶ 再生</button><button id="walk-compose" class="quiet">Composeへ送る</button><button id="walk-minimal" class="quiet">Minimalへ送る</button><button id="walk-export-json" class="quiet">JSON</button></div>
           </div>
         </div>
       </section>
@@ -82,6 +82,6 @@
         <div class="lattice-view"><div><div class="axis-selects">X <select id="axis-x"></select> Y <select id="axis-y"></select></div><canvas id="lattice-canvas" width="560" height="560" aria-label="指数格子の投影"></canvas></div><div class="table-wrap lattice-table"><table><thead><tr><th>Vector</th><th>Raw</th><th>Norm</th><th>Oct</th><th>Cents</th><th>Grp</th></tr></thead><tbody id="points"></tbody></table></div></div>
       </section>
     </main>
-    <script src="/static/lattice.js?v=20260727-lattice-audio-2"></script>
+    <script src="/static/lattice.js?v=20260728-lattice-minimal-transfer-1"></script>
   </body>
 </html>

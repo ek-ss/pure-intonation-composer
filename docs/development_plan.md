@@ -1042,6 +1042,32 @@ See
 for the domain model, technical direction, phase acceptance criteria,
 integration boundary, performance gates, and open decisions.
 
+## G13. Minimal Functional Harmony Composer
+
+Status
+
+* Experimental MVP implemented
+
+G13 provides a dedicated minimal-music composer centered on the functional
+roles Tonic, Subdominant, and Dominant. It treats voice rhythm as a collection
+of independent Euclidean cycles and shapes their density, phase dispersion,
+and active voice count through Introduction, Accumulation, Development,
+Climax, Resolution, and Coda.
+
+The initial implementation exposes deterministic seeded generation,
+12-TET, 5-limit, and 7-limit pitch choices, T/S/D function lanes, process
+curves, Web Audio audition, and JSON/pitch-bend MIDI export. It is
+intentionally separate from Arrange: this page is an experimental
+process-composition instrument, not a replacement for genre-directed
+arrangement.
+
+Follow-on work adds editable harmonic grammars, user-authored cycle maps,
+continuous phase drift, stronger voice-leading/register policies, tuning
+pressure controls, and persistent project editing.
+
+See [minimal_functional_harmony_composer.md](minimal_functional_harmony_composer.md)
+for the implemented contract and MVP boundary.
+
 ---
 
 # 4. Historical Milestones

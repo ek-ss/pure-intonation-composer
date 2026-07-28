@@ -45,6 +45,8 @@ from app.models import (
     LatticeProgressionRequest,
     LatticeScaleRequest,
     PrimeExplorerRequest,
+    MinimalFunctionalRequest,
+    MinimalFunctionalMidiRequest,
     PrimeChordRequest,
     PrimeProgressionRequest,
     LatticeWalkRequest,
@@ -81,7 +83,8 @@ from app.lattice import (
     root_progression,
 )
 from app.prime_explorer import discover_chords, explore as explore_prime_limit, progression_metrics
-from app.exporters.midi import MidiDrumHit, MidiNote, drum_midi_bytes, microtonal_midi_bytes, midi_bytes
+from app.composition.minimal_functional import generate_minimal_functional
+from app.exporters.midi import MidiArrangementTrack, MidiDrumHit, MidiNote, arrangement_midi_bytes, drum_midi_bytes, microtonal_midi_bytes, midi_bytes
 from app.rhythm.drums import (
     LayerSpec,
     accent_velocities,
@@ -141,6 +144,11 @@ def harmonic_pitch_circle() -> FileResponse:
 @app.get("/prime-limit-explorer", include_in_schema=False)
 def prime_limit_explorer() -> FileResponse:
     return FileResponse(STATIC_DIR / "prime_limit_explorer.html")
+
+
+@app.get("/minimal-functional-composer", include_in_schema=False)
+def minimal_functional_composer() -> FileResponse:
+    return FileResponse(STATIC_DIR / "minimal_functional_composer.html")
 
 
 @app.get("/favicon.ico", include_in_schema=False, status_code=204)
@@ -901,12 +909,32 @@ def prime_limit_explore(request: PrimeExplorerRequest) -> dict[str, object]:
         raise HTTPException(status_code=422, detail=str(error)) from error
 
 
+@app.post("/api/minimal-functional/generate")
+def minimal_functional_generate(request: MinimalFunctionalRequest) -> dict[str, object]:
+    return generate_minimal_functional(request.model_dump())
+
+
+@app.post("/api/minimal-functional/midi")
+def minimal_functional_midi(request: MinimalFunctionalMidiRequest) -> Response:
+    try:
+        notes = tuple(MidiNote(parse_ratio(note.ratio), note.start_beats, note.duration_beats, note.velocity) for note in request.notes)
+        drums = tuple(MidiDrumHit(hit.note, hit.start_beat, hit.velocity) for hit in request.drums)
+        data = arrangement_midi_bytes(
+            [MidiArrangementTrack("Harmony", notes=notes), MidiArrangementTrack("Drums", drums=drums)],
+            request.tempo_bpm, request.beats_per_bar, base_frequency=request.base_frequency,
+        )
+        return Response(data, media_type="audio/midi", headers={"Content-Disposition": "attachment; filename=minimal-functional-study.mid"})
+    except (ValueError, ZeroDivisionError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+
 @app.post("/api/prime-limit/chords")
 def prime_limit_chords(request: PrimeChordRequest) -> dict[str, object]:
     try:
         return discover_chords(
             tuple(request.primes), request.exponent_limit, request.height_limit,
             request.tolerance_cents, request.target_count, request.tone_count, request.candidate_limit,
+            request.ranking_mode, tuple(request.root_vector),
         )
     except ValueError as error:
         raise HTTPException(status_code=422, detail=str(error)) from error

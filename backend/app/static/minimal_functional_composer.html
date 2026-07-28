@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Minimal Functional Composer | Pure Intonation Workbench</title>
+    <link rel="stylesheet" href="/static/style.css?v=20260728-minimal-functional-3">
+  </head>
+  <body class="minimal-functional-page">
+    <header class="topbar">
+      <div><p class="eyebrow">T / S / D · MINIMAL PROCESS COMPOSITION</p><h1>Minimal Functional Composer</h1><p class="page-subtitle">Functional harmony, independent rhythmic cycles, accumulation, and resolution</p></div>
+      <span class="topbar-links"><a href="/">Workbench</a><a href="/prime-limit-explorer">Prime-Limit Explorer</a><a href="/lattice">Lattice Lab</a></span>
+    </header>
+    <main class="minimal-functional-main">
+      <section class="panel minimal-controls">
+        <div class="section-heading"><h2>Composition</h2><span id="minimal-status" role="status">Ready</span></div>
+        <div class="minimal-control-grid"><label>Bars<input id="minimal-bars" type="number" min="8" max="128" value="32"></label><label>Tempo<input id="minimal-tempo" type="number" min="40" max="240" value="112"></label><label>Voices<input id="minimal-voices" type="number" min="3" max="8" value="5"></label><label>Seed<input id="minimal-seed" type="number" value="12345"></label></div>
+        <label>Tuning<select id="minimal-tuning"><option value="12-tet">12-TET</option><option value="5-limit">5-limit JI</option><option value="7-limit">7-limit JI</option></select></label>
+        <hr>
+        <div class="section-heading"><h3>Prime Progression</h3><span id="minimal-prime-summary">No import</span></div>
+        <input id="minimal-prime-file" type="file" accept="application/json,.json" hidden>
+        <div class="button-row"><button id="minimal-prime-import" class="quiet">Import JSON</button><button id="minimal-prime-local" class="quiet">Use transferred</button><button id="minimal-prime-clear" class="quiet">Clear</button></div>
+        <div id="minimal-function-map" class="minimal-function-map"></div>
+        <label>Climax <output id="minimal-climax-value">0.62</output><input id="minimal-climax" type="range" min=".45" max=".80" step=".01" value=".62"></label>
+        <label>Resolution <output id="minimal-resolution-value">0.78</output><input id="minimal-resolution" type="range" min=".65" max=".92" step=".01" value=".78"></label>
+        <label class="check"><input id="minimal-drums-enabled" type="checkbox" checked> Drums</label>
+        <label>Drum density <output id="minimal-drum-density-value">0.55</output><input id="minimal-drum-density" type="range" min="0" max="1" step=".05" value=".55"></label>
+        <button id="minimal-generate" class="primary">Generate composition</button>
+        <hr>
+        <label>Reference frequency <output id="minimal-base-value">220 Hz</output><input id="minimal-base" type="range" min="110" max="440" value="220"></label>
+        <div class="button-row"><button id="minimal-play">Play preview</button><button id="minimal-stop" class="quiet">Stop</button></div>
+        <div class="button-row"><button id="minimal-midi" class="quiet">MIDI</button><button id="minimal-json" class="quiet">JSON</button></div>
+      </section>
+      <section class="panel minimal-form-panel">
+        <div class="section-heading"><h2>Form and Harmonic Function</h2><span id="minimal-summary"></span></div>
+        <svg id="minimal-form" viewBox="0 0 1120 260" role="img" aria-label="Form timeline and T S D harmonic functions"></svg>
+        <div class="minimal-legend"><span class="function-t">T Tonic</span><span class="function-s">S Subdominant</span><span class="function-d">D Dominant</span></div>
+      </section>
+      <section class="panel minimal-analysis-panel">
+        <div class="section-heading"><h2>Process Curves</h2><span id="minimal-analysis-summary"></span></div>
+        <svg id="minimal-curves" viewBox="0 0 1120 280" role="img" aria-label="Density tension phase and stability curves"></svg>
+      </section>
+      <section class="panel minimal-voices-panel">
+        <div class="section-heading"><h2>Voice Rhythm Lanes</h2><span id="minimal-voice-summary"></span></div>
+        <div id="minimal-voice-lanes" class="minimal-voice-lanes"></div>
+      </section>
+      <section class="panel minimal-drums-panel">
+        <div class="section-heading"><h2>Drum Section</h2><span id="minimal-drum-summary"></span></div>
+        <div id="minimal-drum-lanes" class="minimal-voice-lanes"></div>
+      </section>
+      <section class="panel minimal-ending-panel">
+        <div class="section-heading"><h2>Resolution</h2><span id="minimal-ending-summary"></span></div>
+        <div id="minimal-ending" class="minimal-ending"></div>
+      </section>
+    </main>
+    <script src="/static/minimal_functional_composer.js?v=20260728-minimal-functional-3"></script>
+  </body>
+</html>
