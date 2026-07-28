@@ -10,8 +10,9 @@ documents.
 
 ## Verification Baseline
 
-- 45 OpenAPI paths plus one WebSocket transport endpoint
-- 200 passing pytest tests, including G12 chord/progression and Worker asset coverage
+- 58 OpenAPI paths plus one WebSocket transport endpoint
+- 202 passing pytest tests, including G12 chord/progression, Vital Pack export,
+  and Worker asset coverage
 - `ruff check app tests` passes
 - `mypy app` passes
 - Browser workbench implemented in vanilla JavaScript without a build step
@@ -28,7 +29,8 @@ manual rather than part of continuous integration.
 | Harmonic graph | Implemented | Johnson graph, harmonic/monzo/cent metrics, shortest/random/weighted walks, deterministic layered layout | Large-graph performance benchmarks |
 | Composition | Implemented | Seeded harmony, voice leading, bass strategies, multi-voice melody, browser playback, MIDI/JSON/WAV export | One-shot project composition endpoint, persisted project import |
 | Minimal Functional Harmony Composer | Experimental MVP | Dedicated T/S/D form generator; Prime Explorer progression transfer/JSON import with chord-ID role mapping; independent Euclidean voices; kick/snare/hat/perc; 12-TET/5-limit/7-limit; Web Audio, JSON, and type-1 MIDI at `/minimal-functional-composer` | Editable function grammar and section form, continuous phase evolution, register-aware voice leading, project persistence, automated browser regression |
-| Vital Pack Composer | Experimental MVP | PI01–PI08 role profiles, seeded 8–64 bar Future Bass/Minimal form, role-aware note/drum events, tuning-policy and automation timelines, Web Audio excerpt, project JSON, REAPER preset manifest at `/vital-pack-composer` | MPE/MTS/Scala output, drift correction, full per-track MIDI, Vital macro automation, REAPER import helper, spectral evaluation |
+| Vital Pack Composer | Experimental arrangement environment | PI01–PI08 role profiles, seeded 8–64 bar form, scoped section regeneration, role-aware note/drum events, quality checks, Web Audio, type-1 pitch-bend MIDI, Scala, tuning/MTS-style/sidechain JSON, project JSON, and REAPER manifest at `/vital-pack-composer` | Direct Vital/DAW automation, binary MTS-ESP, REAPER project generation, measured drift correction, spectral evaluation |
+| Motif Development Engine | Experimental core | Seeded 7-limit anchor-chord motif generation; 1-32 candidate exploration, profile-weighted evaluation, hard filtering with diagnostics, pitch-circle/monzo signatures, comparison, initial variations, section motif trees, browser audition, JSON, and generic pitch-bend MIDI at `/motif-development` | DTW insertion/deletion alignment, locks, Prime/Lattice transfer, Arrangement/Vital role adapters, project persistence, performance and browser regression |
 | Drum rhythm | Implemented core | Euclidean layers, rotation optimization, bounded polymetric analysis, phase offsets, state graph, humanization, metrics, MIDI/JSON export | Coordinated state transitions, fill generator, preset library, continuous phase drift |
 | Compose Rhythm Orchestration | Implemented core | Chord-tone and role mapping, overflow/voice policies, Harmony/Bass/Melody-specific generators, integer-tick events, playback and export integration | Project schema migration/import, structured listening comparisons, performance benchmarks |
 | Genre Arrangement Pipeline | Experimental MVP | Pop, Ambient, Alternative Rock, and Future Bass profiles; sounding-aware harmony; block/arpeggio/stride performance; coordinated parts; Project 1.1 and 1.0 migration; bounded WAV; type-1 microtonal MIDI; responsive Arrange workbench | Section regeneration, broader project import, stems/effect rendering, structured listening comparisons, automated browser regression |
@@ -67,6 +69,8 @@ release.
 6. Add WebMIDI/MPE and mapping workflows after project persistence is stable.
 7. Complete G12 P8-P9 with worker performance gates, accessibility/visual
    regression, portable export/migration, and release validation.
+8. Complete G14 alignment, lock, transfer, Arrangement/Vital adapter, and
+   project-persistence work after the prime-basis schema is fixed.
 
 Research features such as form generation, spatialization, adaptive harmonic
 models, and distributed rendering remain later work and are not release

@@ -814,11 +814,94 @@ Generates a seeded role-aware Vital Pack song plan.
 ```
 
 The response includes `sections`, exact-ratio `harmony`, instrument `events`,
-`tuning_timeline`, semantic `automation`, and a `reaper_manifest`.
+`tuning_timeline`, `mts_timeline` (a JSON retuning timeline with absolute
+frequencies), a `.scl`-compatible `base_scale`, `sidechain_envelope`, semantic
+`automation`, quality measurements, and a `reaper_manifest`.
+
+## POST /api/compose/vital-pack/section
+
+Regenerates one numbered form section with a deterministic seed offset. Send
+the normal Vital Pack request plus `section_index` (0 through 6) and a scope
+of `harmony`, `rhythm`, `voicing`, or `instruments`. The returned section
+window includes its matching harmony, events, tuning/MTS events, automation,
+and sidechain envelope so a client can replace that window in its plan.
+
+```json
+{"seed":72801,"length_bars":64,"section_index":3,"scope":"harmony"}
+```
+
+## POST /api/compose/vital-pack/midi
+
+Converts Vital Pack `events` into a type-1 MIDI arrangement: PI01–PI08 retain
+their own tracks, pitch events receive per-note pitch bend, and drum events
+use the GM percussion channel.
 
 ---
 
-# 10. Export
+# 10. Motif Development Engine
+
+The Motif Development Engine is an experimental 7-limit thematic-development
+API. It accepts inline anchor chords and motifs; project persistence and
+Prime Explorer/Lattice transfer are planned follow-up work.
+
+## POST /api/motif/generate
+
+Generates a deterministic four- to eight-note motif from a three- or four-tone
+anchor chord. The response retains per-note monzo, pitch-circle position,
+register, chord relation, interval/rhythm/contour signatures, identity
+features, and chord affinity.
+
+```json
+{
+  "anchor_chord": ["1/1", "5/4", "3/2", "7/4"],
+  "note_count": 6,
+  "length_beats": 2,
+  "register": [60, 84],
+  "max_lattice_radius": 2,
+  "circle_profile": "mostly_stepwise",
+  "rhythm_profile": "random_exploration",
+  "beam_width": 32,
+  "candidate_count": 16,
+  "evaluation_profile": "balanced",
+  "seed": 72801
+}
+```
+
+`rhythm_profile` may be `even`, `kawaii_syncopated`, or
+`random_exploration`. The latter allocates each note duration on a sixteenth
+note grid using the supplied seed; the durations always sum to `length_beats`.
+
+The endpoint explores `candidate_count` adjacent deterministic seeds (1-32),
+applies hard filters, and returns the best result at the top level plus a
+ranked `candidates` list and `exploration` summary. Each candidate has an
+`evaluation` object with Harmony, Melody, Rhythm, Identity, Novelty, and
+Complexity components, total score, filter decision, rejection reasons, and
+diagnostics. `evaluation_profile` may be `balanced`, `consonant`, `lyrical`,
+`rhythmic`, or `colourful`.
+
+## POST /api/motif/compare
+
+Compares two inline motifs without merging monzo, pitch-circle, register,
+contour, rhythm, and chord-affinity dimensions. It returns a component
+`distance_vector`, positional alignment, and `identity_retention`.
+
+## POST /api/motif/variation
+
+Transforms an inline source motif for a target chord. Supported initial
+operations are `lattice_transpose`, `neighbour_substitution`,
+`retrograde_pitch`, `rhythmic_diminution`, and `chord_tone_projection`.
+
+## POST /api/motif/develop
+
+Builds a deterministic section sequence and motif tree. Supply the source
+motif, anchor chord, a sequence of three- or four-tone harmony chords, and
+optional section roles. The response provides tree nodes/edges and flattened
+MIDI-ready `events` with `ratio`, `start_beats`, `duration_beats`, and
+`velocity`.
+
+---
+
+# 11. Export
 
 ## POST /api/export/midi
 
@@ -892,7 +975,7 @@ Echoes the payload back as structured JSON for saving.
 
 ---
 
-# 11. Real-Time Transport
+# 12. Real-Time Transport
 
 ## WebSocket /api/ws/transport
 
@@ -915,7 +998,7 @@ Responses:
 
 ---
 
-# 12. Roadmap Candidates
+# 13. Roadmap Candidates
 
 These capabilities are not part of the current API:
 

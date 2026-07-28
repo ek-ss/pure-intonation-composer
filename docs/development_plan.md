@@ -1023,7 +1023,7 @@ criteria.
 
 Status
 
-* Proposed
+* Experimental core implemented: P1-P6 backend and initial P8 workbench
 
 G12 extends the implemented 12-EDO Harmonic Pitch Circle into an exact
 prime-lattice exploration environment. It separates raw exponent vectors from
@@ -1067,6 +1067,35 @@ pressure controls, and persistent project editing.
 
 See [minimal_functional_harmony_composer.md](minimal_functional_harmony_composer.md)
 for the implemented contract and MVP boundary.
+
+## G14. Motif Development Engine
+
+Status
+
+* Proposed
+
+G14 generates a short motif from a three- or four-note anchor chord and
+develops it through a complete form. It compares theme identity independently
+in prime-lattice, pitch-circle, register, contour, rhythm, and current-chord
+affinity dimensions. Section roles target explicit transformation ranges, so
+Theme A, Development, Recapitulation, and Coda do not all optimize toward the
+closest possible copy.
+
+The engine is the thematic-development layer between G12 pitch/harmony
+exploration, G10 rhythm generation, G11 arrangement, and Vital Pack
+instrument/tuning output. Its domain layer remains independent of FastAPI,
+browser rendering, audio, and storage.
+
+The implemented core provides pitch/distance foundations, anchor-based seeded
+generation, signatures, comparison, initial transformations, section-level
+motif trees, and a linked Motif Development workbench. Arrangement-role
+transfer, Vital Pack mapping, persistent project IDs, and release validation
+remain planned.
+
+See
+[development_plan_motif_development_engine.md](development_plan_motif_development_engine.md)
+for the canonical G14 specification, models, APIs, delivery phases,
+performance gates, and acceptance criteria.
 
 ---
 

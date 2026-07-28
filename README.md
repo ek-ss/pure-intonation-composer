@@ -90,6 +90,8 @@ docs/
                        Planned genre-guided arrangement pipeline
   development_plan_harmonic_phase_shift.md
                        Planned dual-rhythm harmonic phase composition
+  development_plan_motif_development_engine.md
+                       Planned anchor-based motif development engine
   examples.md          Copy-paste API usage examples
   visualization.md     Graph layout specification
 ```

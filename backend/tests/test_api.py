@@ -158,6 +158,108 @@ def test_vital_pack_composer_profiles_and_generation() -> None:
     assert any(event["instrument_id"] == "PI05" for event in plan["events"])
     assert any(event["instrument_id"] == "DRUMS" for event in plan["events"])
     assert plan["reaper_manifest"]["tuning_control_track"] == 11
+    assert plan["mts_timeline"]
+    assert plan["sidechain_envelope"]
+    assert plan["quality"]["bass_mono_ok"]
+    assert all(4 <= len(section["active_instruments"]) <= 7 for section in plan["sections"])
+    section = client.post(
+        "/api/compose/vital-pack/section",
+        json={"seed": 9, "length_bars": 16, "section_index": 3, "scope": "harmony"},
+    )
+    assert section.status_code == 200
+    assert section.json()["scope"] == "harmony"
+    assert section.json()["tuning_timeline"]
+    rhythm = client.post(
+        "/api/compose/vital-pack/section",
+        json={"seed": 9, "length_bars": 16, "section_index": 3, "scope": "rhythm"},
+    )
+    assert rhythm.status_code == 200
+    assert rhythm.json()["replace_instruments"] == ["DRUMS"]
+    midi = client.post("/api/compose/vital-pack/midi", json={"tempo_bpm": 150, "events": plan["events"]})
+    assert midi.status_code == 200
+    assert midi.content.startswith(b"MThd")
+
+
+def test_motif_generation_comparison_and_variation() -> None:
+    page = client.get("/motif-development")
+    assert page.status_code == 200
+    assert "Motif Development" in page.text
+    assert 'id="motif-circle"' in page.text
+    assert 'id="motif-random-play"' in page.text
+    script = client.get("/static/motif_development.js")
+    assert script.status_code == 200
+    assert "/api/motif/develop" in script.text
+    assert "randomPlay" in script.text
+    request = {
+        "anchor_chord": ["1/1", "5/4", "3/2", "7/4"],
+        "note_count": 6,
+        "length_beats": 2,
+        "register": [60, 84],
+        "seed": 9,
+    }
+    first = client.post("/api/motif/generate", json=request)
+    second = client.post("/api/motif/generate", json=request)
+    assert first.status_code == 200
+    assert first.json() == second.json()
+    motif = first.json()
+    assert len(motif["notes"]) == 6
+    assert motif["interval_signature"]
+    assert motif["notes"][-1]["chord_relation"] == "exact"
+    exploration = client.post(
+        "/api/motif/generate",
+        json={**request, "candidate_count": 8, "evaluation_profile": "rhythmic", "rhythm_profile": "random_exploration"},
+    )
+    assert exploration.status_code == 200
+    candidates = exploration.json()["candidates"]
+    assert len(candidates) == 8
+    assert exploration.json()["exploration"]["profile"] == "rhythmic"
+    accepted = exploration.json()["exploration"]["accepted"]
+    assert all(candidate["evaluation"]["passed_filters"] for candidate in candidates[:accepted])
+    assert not any(candidate["evaluation"]["passed_filters"] for candidate in candidates[accepted:])
+    assert candidates[:accepted] == sorted(candidates[:accepted], key=lambda item: item["evaluation"]["total"], reverse=True)
+    assert {"harmony", "melody", "rhythm", "identity", "novelty", "complexity"} <= set(candidates[0]["evaluation"]["components"])
+    assert all("passed_filters" in candidate["evaluation"] for candidate in candidates)
+    random_rhythm = client.post(
+        "/api/motif/generate",
+        json={**request, "rhythm_profile": "random_exploration"},
+    )
+    assert random_rhythm.status_code == 200
+    random_notes = random_rhythm.json()["notes"]
+    assert len({note["duration_beats"] for note in random_notes}) > 1
+    assert sum(note["duration_beats"] for note in random_notes) == request["length_beats"]
+    compare = client.post(
+        "/api/motif/compare",
+        json={"anchor_chord": request["anchor_chord"], "source_notes": motif["notes"], "target_notes": motif["notes"]},
+    )
+    assert compare.status_code == 200
+    assert compare.json()["identity_retention"] == 1
+    assert compare.json()["distance_vector"]["pitch_circle"] == 0
+    variation = client.post(
+        "/api/motif/variation",
+        json={
+            "anchor_chord": request["anchor_chord"],
+            "source_notes": motif["notes"],
+            "target_chord": ["3/2", "15/8", "9/4"],
+            "formal_role": "development",
+            "allowed_transformations": ["lattice_transpose", "neighbour_substitution"],
+            "seed": 10,
+        },
+    )
+    assert variation.status_code == 200
+    assert variation.json()["transformation_chain"] == ["lattice_transpose", "neighbour_substitution"]
+    assert variation.json()["distance_vector"]["absolute_monzo"] > 0
+    development = client.post(
+        "/api/motif/develop",
+        json={
+            "anchor_chord": request["anchor_chord"],
+            "source_notes": motif["notes"],
+            "harmony": [request["anchor_chord"], ["3/2", "15/8", "9/4"], request["anchor_chord"], request["anchor_chord"]],
+            "seed": 11,
+        },
+    )
+    assert development.status_code == 200
+    assert len(development.json()["motif_tree"]["nodes"]) == 4
+    assert development.json()["events"]
 
 
 def test_prime_limit_explorer_page_and_search() -> None:

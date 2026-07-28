@@ -597,6 +597,103 @@ class VitalPackRequest(BaseModel):
     reference_frequency_hz: float = Field(default=440, ge=20, le=2000)
 
 
+class VitalPackSectionRequest(VitalPackRequest):
+    section_index: int = Field(ge=0, le=6)
+    scope: Literal["harmony", "rhythm", "voicing", "instruments"] = "harmony"
+
+
+class VitalPackMidiEventRequest(BaseModel):
+    instrument_id: str = Field(min_length=1, max_length=32)
+    start_beat: float = Field(ge=0, le=10_000)
+    duration_beats: float = Field(gt=0, le=10_000)
+    velocity: int = Field(ge=1, le=127)
+    ratio: str | None = Field(default=None, pattern=r"^\d+/\d+$")
+    note: int | None = Field(default=None, ge=0, le=127)
+
+    @model_validator(mode="after")
+    def event_must_be_pitched_or_percussive(self) -> VitalPackMidiEventRequest:
+        if (self.ratio is None) == (self.note is None):
+            raise ValueError("event must provide exactly one of ratio or note")
+        return self
+
+
+class VitalPackMidiRequest(BaseModel):
+    events: list[VitalPackMidiEventRequest] = Field(min_length=1, max_length=16_384)
+    tempo_bpm: float = Field(default=150, ge=30, le=300)
+    base_frequency: float = Field(default=220, ge=20, le=2000)
+
+
+class MotifGenerateRequest(BaseModel):
+    anchor_chord: list[str] = Field(min_length=3, max_length=4)
+    note_count: int = Field(default=6, ge=4, le=8)
+    length_beats: float = Field(default=2, gt=0, le=16)
+    register_midi: tuple[int, int] = Field(
+        default=(60, 84),
+        validation_alias=AliasChoices("register", "register_midi"),
+        serialization_alias="register",
+    )
+    max_lattice_radius: int = Field(default=2, ge=1, le=3)
+    circle_profile: Literal["mostly_stepwise", "mixed"] = "mostly_stepwise"
+    rhythm_profile: Literal["even", "kawaii_syncopated", "random_exploration"] = "kawaii_syncopated"
+    beam_width: int = Field(default=32, ge=1, le=128)
+    candidate_count: int = Field(default=16, ge=1, le=32)
+    evaluation_profile: Literal["balanced", "consonant", "lyrical", "rhythmic", "colourful"] = "balanced"
+    seed: int = 72801
+
+    @field_validator("anchor_chord")
+    @classmethod
+    def anchor_chord_must_be_ratios(cls, values: list[str]) -> list[str]:
+        if any("/" not in value for value in values):
+            raise ValueError("anchor_chord tones must be ratios")
+        return values
+
+    @model_validator(mode="after")
+    def register_must_be_ordered(self) -> MotifGenerateRequest:
+        if not 0 <= self.register_midi[0] < self.register_midi[1] <= 127:
+            raise ValueError("register must contain ordered MIDI bounds between 0 and 127")
+        return self
+
+
+class MotifNoteRequest(BaseModel):
+    ratio: str = Field(pattern=r"^\d+/\d+$")
+    onset_beat: float = Field(ge=0, le=256)
+    duration_beats: float = Field(gt=0, le=64)
+    velocity: int = Field(default=92, ge=1, le=127)
+    accent: bool = False
+    chord_relation: Literal["exact", "near", "related", "contrast"] = "exact"
+
+
+class MotifCompareRequest(BaseModel):
+    anchor_chord: list[str] = Field(min_length=3, max_length=4)
+    source_notes: list[MotifNoteRequest] = Field(min_length=2, max_length=32)
+    target_notes: list[MotifNoteRequest] = Field(min_length=2, max_length=32)
+
+
+class MotifVariationRequest(BaseModel):
+    anchor_chord: list[str] = Field(min_length=3, max_length=4)
+    source_notes: list[MotifNoteRequest] = Field(min_length=2, max_length=32)
+    target_chord: list[str] = Field(min_length=3, max_length=4)
+    source_motif_id: str = Field(default="inline-motif", min_length=1, max_length=80)
+    formal_role: Literal["a_prime", "build", "development", "climax", "recapitulation", "coda"] = "a_prime"
+    allowed_transformations: list[Literal["lattice_transpose", "neighbour_substitution", "retrograde_pitch", "rhythmic_diminution", "chord_tone_projection"]] = Field(default_factory=list)
+    seed: int = 72802
+
+
+class MotifDevelopRequest(BaseModel):
+    anchor_chord: list[str] = Field(min_length=3, max_length=4)
+    source_notes: list[MotifNoteRequest] = Field(min_length=2, max_length=32)
+    harmony: list[list[str]] = Field(min_length=4, max_length=32)
+    section_roles: list[Literal["theme", "a_prime", "build", "development", "climax", "recapitulation", "coda"]] = Field(default_factory=list)
+    seed: int = 72803
+
+    @field_validator("harmony")
+    @classmethod
+    def harmony_chords_must_be_triads_or_tetrads(cls, values: list[list[str]]) -> list[list[str]]:
+        if any(not 3 <= len(chord) <= 4 for chord in values):
+            raise ValueError("each harmony chord must contain three or four ratios")
+        return values
+
+
 class PrimeChordRequest(PrimeExplorerRequest):
     tone_count: int = Field(default=3, ge=2, le=6)
     candidate_limit: int = Field(default=24, ge=1, le=128)

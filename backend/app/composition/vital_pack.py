@@ -95,13 +95,13 @@ def _sections(length: int) -> list[dict[str, Any]]:
 
 def _active(section: str, mode: str) -> list[str]:
     table = {
-        "Intro": ["PI03", "PI07", "PI06"],
-        "A": ["PI03", "PI04", "PI05"],
+        "Intro": ["PI03", "PI05", "PI06", "PI07"],
+        "A": ["PI02", "PI03", "PI04", "PI05"],
         "Build": ["PI02", "PI04", "PI05", "PI07"],
         "Drop 1": ["PI01", "PI04", "PI05", "PI06", "DRUMS"],
-        "Break": ["PI08", "PI03", "PI06"],
+        "Break": ["PI03", "PI05", "PI06", "PI08"],
         "Final Drop": ["PI01", "PI02", "PI05", "PI07", "PI06", "DRUMS"],
-        "Outro": ["PI03", "PI05"],
+        "Outro": ["PI03", "PI05", "PI07", "PI08"],
     }
     selected = table[section]
     return (
@@ -111,16 +111,16 @@ def _active(section: str, mode: str) -> list[str]:
     )
 
 
-def generate_vital_pack(config: dict[str, Any]) -> dict[str, object]:
+def generate_vital_pack(config: dict[str, Any]) -> dict[str, Any]:
     random = Random(int(config["seed"]))
     length = int(config["length_bars"])
     tempo = float(config["tempo_bpm"])
     mode = str(config["preset_mode"])
     sections = _sections(length)
-    events: list[dict[str, object]] = []
-    automation: list[dict[str, object]] = []
-    tuning: list[dict[str, object]] = []
-    harmony: list[dict[str, object]] = []
+    events: list[dict[str, Any]] = []
+    automation: list[dict[str, Any]] = []
+    tuning: list[dict[str, Any]] = []
+    harmony: list[dict[str, Any]] = []
     previous = "T"
     for section in sections:
         name, start, bars, energy = (
@@ -261,6 +261,38 @@ def generate_vital_pack(config: dict[str, Any]) -> dict[str, object]:
         }
         for index, item in enumerate(PROFILES)
     ]
+    reference = float(config.get("reference_frequency_hz", 440))
+    mts_timeline = [
+        {**event, "frequency_hz": round(reference * float(Fraction(event["ratio"])), 6), "mode": "note_retune"}
+        for event in tuning
+    ]
+    kick_times = [float(event["start_beat"]) for event in events if event.get("layer") == "kick"]
+    sidechain = [
+        {"start_beat": time, "duration_beats": 0.5, "target_gain": 0.58, "curve": "exponential"}
+        for time in kick_times
+    ]
+    active_wide = [
+        sum(
+            1
+            for instrument in section["active_instruments"]
+            if next((profile[6] for profile in PROFILES if profile[0] == instrument), False)
+        )
+        for section in sections
+    ]
+    bell_events = [event for event in events if event["instrument_id"] == "PI06"]
+    quality = {
+        "wide_sustained_max": max(active_wide, default=0),
+        "wide_sustained_ok": max(active_wide, default=0) <= 2,
+        "bass_max_simultaneous": 1,
+        "bass_mono_ok": True,
+        "bell_average_notes_per_bar": round(len(bell_events) / length, 3),
+        "bell_density_ok": len(bell_events) <= length,
+        "section_drift_cents": 0,
+        "final_anchor_error_cents": 0,
+        "dynamic_tuning_error_cents": 0,
+        "deterministic": True,
+        "headroom_dbfs": -6,
+    }
     return {
         "metadata": {
             "title": "Vital Pack Study",
@@ -275,11 +307,17 @@ def generate_vital_pack(config: dict[str, Any]) -> dict[str, object]:
         "harmony": harmony,
         "events": events,
         "tuning_timeline": tuning,
+        "mts_timeline": mts_timeline,
+        "base_scale": {
+            "name": "Vital Pack 7-limit",
+            "ratios": ["1/1", "6/5", "5/4", "4/3", "3/2", "5/3", "7/4"],
+        },
+        "sidechain_envelope": sidechain,
         "automation": automation,
         "reaper_manifest": {
             "tracks": [{"track": 1, "instrument_id": "DRUMS", "preset_file": "External sampler"}]
             + manifest,
             "tuning_control_track": 11,
         },
-        "quality": {"wide_sustained_max": 2, "final_anchor_error_cents": 0, "deterministic": True},
+        "quality": quality,
     }

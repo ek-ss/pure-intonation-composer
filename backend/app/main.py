@@ -48,6 +48,12 @@ from app.models import (
     MinimalFunctionalRequest,
     MinimalFunctionalMidiRequest,
     VitalPackRequest,
+    VitalPackMidiRequest,
+    VitalPackSectionRequest,
+    MotifCompareRequest,
+    MotifDevelopRequest,
+    MotifGenerateRequest,
+    MotifVariationRequest,
     PrimeChordRequest,
     PrimeProgressionRequest,
     LatticeWalkRequest,
@@ -85,7 +91,11 @@ from app.lattice import (
 )
 from app.prime_explorer import discover_chords, explore as explore_prime_limit, progression_metrics
 from app.composition.minimal_functional import generate_minimal_functional
-from app.composition.vital_pack import vital_pack_profiles, generate_vital_pack
+from app.composition.vital_pack import PROFILES, generate_vital_pack, vital_pack_profiles
+from app.motif.engine import compare as compare_motif
+from app.motif.engine import develop as develop_motif
+from app.motif.engine import generate as generate_motif
+from app.motif.engine import vary as vary_motif
 from app.exporters.midi import MidiArrangementTrack, MidiDrumHit, MidiNote, arrangement_midi_bytes, drum_midi_bytes, microtonal_midi_bytes, midi_bytes
 from app.rhythm.drums import (
     LayerSpec,
@@ -151,6 +161,11 @@ def prime_limit_explorer() -> FileResponse:
 @app.get("/minimal-functional-composer", include_in_schema=False)
 def minimal_functional_composer() -> FileResponse:
     return FileResponse(STATIC_DIR / "minimal_functional_composer.html")
+
+
+@app.get("/motif-development", include_in_schema=False)
+def motif_development() -> FileResponse:
+    return FileResponse(STATIC_DIR / "motif_development.html")
 
 
 @app.get("/favicon.ico", include_in_schema=False, status_code=204)
@@ -943,6 +958,120 @@ def get_vital_pack_profiles() -> dict[str, object]:
 @app.post("/api/compose/vital-pack")
 def compose_vital_pack(request: VitalPackRequest) -> dict[str, object]:
     return generate_vital_pack(request.model_dump())
+
+
+@app.post("/api/compose/vital-pack/section")
+def regenerate_vital_pack_section(request: VitalPackSectionRequest) -> dict[str, object]:
+    plan = generate_vital_pack(request.model_dump() | {"seed": request.seed + request.section_index + 1})
+    section = plan["sections"][request.section_index]
+    start = (int(section["start_bar"]) - 1) * 4
+    end = start + int(section["bars"]) * 4
+    replacement_ids = (
+        ["DRUMS"]
+        if request.scope == "rhythm"
+        else [item[0] for item in PROFILES] if request.scope == "voicing" else None
+    )
+    selected_events = [
+        event
+        for event in plan["events"]
+        if start <= event["start_beat"] < end
+        and (replacement_ids is None or event["instrument_id"] in replacement_ids)
+    ]
+    selected_ids = sorted({event["instrument_id"] for event in selected_events})
+    return {
+        "scope": request.scope,
+        "section": section,
+        "replace_harmony": request.scope in {"harmony", "instruments"},
+        "replace_instruments": selected_ids,
+        "harmony": [
+            event
+            for event in plan["harmony"]
+            if request.scope in {"harmony", "instruments"} and start <= event["start_beat"] < end
+        ],
+        "events": selected_events,
+        "automation": [
+            event
+            for event in plan["automation"]
+            if event["start_beat"] == start and event["instrument_id"] in selected_ids
+        ],
+        "tuning_timeline": [
+            event
+            for event in plan["tuning_timeline"]
+            if start <= event["time"] < end and event["instrument_id"] in selected_ids
+        ],
+        "mts_timeline": [
+            event
+            for event in plan["mts_timeline"]
+            if start <= event["time"] < end and event["instrument_id"] in selected_ids
+        ],
+        "sidechain_envelope": [
+            event
+            for event in plan["sidechain_envelope"]
+            if "DRUMS" in selected_ids and start <= event["start_beat"] < end
+        ],
+    }
+
+
+@app.post("/api/compose/vital-pack/midi")
+def vital_pack_midi(request: VitalPackMidiRequest) -> Response:
+    try:
+        track_names = ["PI01", "PI02", "PI03", "PI04", "PI05", "PI06", "PI07", "PI08", "DRUMS"]
+        tracks = []
+        for name in track_names:
+            matching = [event for event in request.events if event.instrument_id == name]
+            if not matching:
+                continue
+            tracks.append(MidiArrangementTrack(
+                name,
+                notes=tuple(MidiNote(parse_ratio(event.ratio), event.start_beat, event.duration_beats, event.velocity) for event in matching if event.ratio),
+                drums=tuple(MidiDrumHit(event.note, event.start_beat, event.velocity) for event in matching if event.note is not None),
+            ))
+        data = arrangement_midi_bytes(tracks, request.tempo_bpm, 4, base_frequency=request.base_frequency)
+        return Response(data, media_type="audio/midi", headers={"Content-Disposition": "attachment; filename=vital-pack-arrangement.mid"})
+    except (ValueError, ZeroDivisionError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+
+@app.post("/api/motif/generate")
+def motif_generate(request: MotifGenerateRequest) -> dict[str, object]:
+    """Generate a deterministic 7-limit motif from a three- or four-note anchor chord."""
+    try:
+        return generate_motif(request.model_dump())
+    except (ValueError, ZeroDivisionError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+
+@app.post("/api/motif/compare")
+def motif_compare(request: MotifCompareRequest) -> dict[str, object]:
+    """Compare two inline motifs without collapsing monzo and pitch-circle distance."""
+    try:
+        source = [note.model_dump() for note in request.source_notes]
+        target = [note.model_dump() for note in request.target_notes]
+        return compare_motif(source, target, [parse_ratio(value) for value in request.anchor_chord])
+    except (ValueError, ZeroDivisionError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+
+@app.post("/api/motif/variation")
+def motif_variation(request: MotifVariationRequest) -> dict[str, object]:
+    """Create a deterministic transformed variation adapted to a target chord."""
+    try:
+        payload = request.model_dump()
+        payload["source_notes"] = [note.model_dump() for note in request.source_notes]
+        return vary_motif(payload)
+    except (ValueError, ZeroDivisionError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+
+@app.post("/api/motif/develop")
+def motif_develop(request: MotifDevelopRequest) -> dict[str, object]:
+    """Expand a theme through deterministic formal-role variations."""
+    try:
+        payload = request.model_dump()
+        payload["source_notes"] = [note.model_dump() for note in request.source_notes]
+        return develop_motif(payload)
+    except (ValueError, ZeroDivisionError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
 
 
 @app.post("/api/prime-limit/chords")
