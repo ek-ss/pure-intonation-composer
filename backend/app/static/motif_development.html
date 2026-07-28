@@ -9,7 +9,7 @@
   <body class="motif-development-page">
     <header class="topbar">
       <div><p class="eyebrow">G14 · PRIME LATTICE THEME DEVELOPMENT</p><h1>Motif Development</h1><p class="page-subtitle">Anchor chord motifs, pitch-circle identity, and section-scale variation</p></div>
-      <span class="topbar-links"><a href="/">Workbench</a><a href="/prime-limit-explorer">Prime Explorer</a><a href="/vital-pack-composer">Vital Pack</a></span>
+      <span class="topbar-links"><a href="/">Workbench</a><a href="/lattice">Lattice Lab</a><a href="/harmonic-pitch-circle">Harmonic Pitch Circle</a><a href="/prime-limit-explorer">Prime Explorer</a><a href="/minimal-functional-composer">Minimal Composer</a><a href="/vital-pack-composer">Vital Pack</a><a href="/docs" target="_blank" rel="noreferrer">API docs ↗</a></span>
     </header>
     <main class="motif-development-main">
       <section class="panel motif-controls">
@@ -17,6 +17,7 @@
         <label>Anchor chord<input id="motif-anchor" value="1/1, 5/4, 3/2, 7/4"></label>
         <div class="motif-field-grid"><label>Notes<input id="motif-count" type="number" min="4" max="8" value="6"></label><label>Length beats<input id="motif-length" type="number" min=".5" max="16" step=".25" value="2"></label><label>Register low<input id="motif-low" type="number" min="0" max="126" value="60"></label><label>Register high<input id="motif-high" type="number" min="1" max="127" value="84"></label><label>Radius<input id="motif-radius" type="number" min="1" max="3" value="2"></label><label>Seed<input id="motif-seed" type="number" value="72801"></label><label>Candidates<input id="motif-candidates" type="number" min="1" max="32" value="16"></label><label>Evaluation<select id="motif-evaluation"><option value="balanced">Balanced</option><option value="consonant">Consonant</option><option value="lyrical">Lyrical</option><option value="rhythmic">Rhythmic</option><option value="colourful">Colourful</option></select></label></div>
         <label>Rhythm<select id="motif-rhythm"><option value="random_exploration">Random duration exploration</option><option value="kawaii_syncopated">Kawaii syncopated</option><option value="even">Even</option></select></label>
+        <label>Terminal<select id="motif-terminal"><option value="root">Root</option><option value="stable">Stable (root / fifth)</option><option value="colour">Colour (third / colour)</option><option value="nearest_anchor">Nearest anchor</option><option value="weighted">Weighted anchor role</option><option value="random">Random anchor tone</option><option value="free">Free</option></select></label>
         <button id="motif-generate" class="primary">Generate motif</button>
         <div class="button-row"><button id="motif-random-play">Random play</button><button id="motif-play">Play motif</button><button id="motif-stop" class="quiet">Stop</button></div>
         <hr>
@@ -31,6 +32,6 @@
       <section class="panel motif-candidates-panel"><div class="section-heading"><h2>Exploration Candidates</h2><span id="motif-candidate-summary"></span></div><label class="check"><input id="motif-show-rejected" type="checkbox"> Show filtered candidates</label><div id="motif-candidates-list" class="motif-candidates"></div></section>
       <section class="panel motif-tree-panel"><div class="section-heading"><h2>Development Tree</h2><span id="motif-tree-summary"></span></div><div id="motif-tree" class="motif-tree"><p class="hint">Generate a motif, then develop its form.</p></div></section>
     </main>
-    <script src="/static/motif_development.js?v=20260729-motif-development-4"></script>
+    <script src="/static/motif_development.js?v=20260729-motif-development-6"></script>
   </body>
 </html>

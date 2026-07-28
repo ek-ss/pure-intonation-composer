@@ -20,6 +20,7 @@ PROFILE_WEIGHTS = {
     "colourful": {"harmony": 0.20, "melody": 0.24, "rhythm": 0.18, "identity": 0.14, "novelty": 0.24},
 }
 AFFINITY_FLOORS = {"balanced": 0.20, "consonant": 0.30, "lyrical": 0.18, "rhythmic": 0.16, "colourful": 0.12}
+ANCHOR_ROLES = ("root", "third", "fifth", "colour")
 
 
 def fixed_monzo(ratio: Fraction) -> tuple[int, int, int, int]:
@@ -184,6 +185,7 @@ def signature(notes: list[dict[str, Any]], anchors: list[Fraction]) -> dict[str,
             "highest_note_index": peak,
             "longest_note_index": longest,
             "terminal_relation": notes[-1]["chord_relation"],
+            "terminal_role": notes[-1].get("terminal_role"),
             "has_7_limit_colour": any(note["monzo"][3] != 0 for note in notes),
         },
     }
@@ -197,6 +199,39 @@ def _score_candidate(candidate: dict[str, Any], previous: dict[str, Any] | None,
     desired = 0.8 if profile == "mostly_stepwise" and 100 <= circle <= 350 else 0.35
     leap = abs(cents(candidate["ratio"] / Fraction(previous["ratio"])))
     return relation_bonus + desired + _affinity(candidate["ratio"], anchors) - max(0, leap - 700) / 700
+
+
+def _terminal_anchor_candidates(anchors: list[Fraction], low: int, high: int) -> list[dict[str, Any]]:
+    candidates = []
+    for index, anchor in enumerate(anchors):
+        placed = _place_in_register(anchor, low, high)
+        if placed is not None:
+            candidates.append({"ratio": placed, "role": ANCHOR_ROLES[index]})
+    if not candidates:
+        raise ValueError("anchor chord has no legal terminal tone in the requested register")
+    return candidates
+
+
+def _choose_terminal(
+    policy: str, candidates: list[dict[str, Any]], previous: Fraction, random: Random
+) -> dict[str, Any] | None:
+    if policy == "free":
+        return None
+    by_role = {candidate["role"]: candidate for candidate in candidates}
+    if policy == "root":
+        return by_role.get("root", candidates[0])
+    if policy == "stable":
+        stable = [candidate for candidate in candidates if candidate["role"] in {"root", "fifth"}]
+        return stable[random.randrange(len(stable))] if stable else candidates[0]
+    if policy == "colour":
+        colour = [candidate for candidate in candidates if candidate["role"] in {"third", "colour"}]
+        return colour[random.randrange(len(colour))] if colour else candidates[-1]
+    if policy == "nearest_anchor":
+        return min(candidates, key=lambda candidate: abs(cents(candidate["ratio"] / previous)))
+    if policy == "weighted":
+        weights = {"root": 0.45, "fifth": 0.30, "third": 0.18, "colour": 0.07}
+        return random.choices(candidates, weights=[weights[candidate["role"]] for candidate in candidates])[0]
+    return candidates[random.randrange(len(candidates))]
 
 
 def _generate_one(config: dict[str, Any]) -> dict[str, Any]:
@@ -214,16 +249,24 @@ def _generate_one(config: dict[str, Any]) -> dict[str, Any]:
         note = _pitch_payload(pick["ratio"], onset, duration, pick["relation"], 104 if index == 0 else 88)
         note["accent"] = index == 0 or onset.is_integer()
         notes.append(note)
-    # End on an anchor tone whenever a legal final anchor placement exists.
-    terminal = next((item for item in pool if item["relation"] == "exact"), None)
+    terminal = _choose_terminal(
+        str(config["terminal_policy"]),
+        _terminal_anchor_candidates(anchors, low, high),
+        Fraction(notes[-1]["ratio"]),
+        random,
+    )
     if terminal is not None:
         notes[-1] = _pitch_payload(terminal["ratio"], notes[-1]["onset_beat"], notes[-1]["duration_beats"], "exact", 98)
+        notes[-1]["terminal_role"] = terminal["role"]
+    else:
+        notes[-1]["terminal_role"] = "free"
     details = signature(notes, anchors)
     return {
         "id": f"motif-{config['seed']}",
         "seed": config["seed"],
         "engine_version": "0.1",
         "anchor_chord": [ratio_text(ratio) for ratio in anchors],
+        "terminal_policy": config["terminal_policy"],
         "notes": notes,
         "candidate_pool_size": len(pool),
         **details,

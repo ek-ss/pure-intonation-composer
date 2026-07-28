@@ -43,6 +43,24 @@ def test_root_landing_page() -> None:
     assert client.get("/favicon.ico").status_code == 204
 
 
+def test_primary_pages_link_to_every_other_workbench() -> None:
+    pages = {
+        "/": "/",
+        "/lattice": "/lattice",
+        "/harmonic-pitch-circle": "/harmonic-pitch-circle",
+        "/prime-limit-explorer": "/prime-limit-explorer",
+        "/minimal-functional-composer": "/minimal-functional-composer",
+        "/motif-development": "/motif-development",
+        "/vital-pack-composer": "/vital-pack-composer",
+    }
+    for page, current in pages.items():
+        response = client.get(page)
+        assert response.status_code == 200
+        for destination in set(pages.values()) - {current}:
+            assert f'href="{destination}"' in response.text
+        assert 'href="/docs"' in response.text
+
+
 def test_lattice_lab_page() -> None:
     response = client.get("/lattice")
     assert response.status_code == 200
@@ -190,6 +208,8 @@ def test_motif_generation_comparison_and_variation() -> None:
     assert script.status_code == 200
     assert "/api/motif/develop" in script.text
     assert "randomPlay" in script.text
+    assert "renderCandidates" in script.text
+    assert "await play()" in script.text
     request = {
         "anchor_chord": ["1/1", "5/4", "3/2", "7/4"],
         "note_count": 6,
@@ -205,6 +225,20 @@ def test_motif_generation_comparison_and_variation() -> None:
     assert len(motif["notes"]) == 6
     assert motif["interval_signature"]
     assert motif["notes"][-1]["chord_relation"] == "exact"
+    assert motif["identity_features"]["terminal_role"] == "root"
+    stable = client.post("/api/motif/generate", json={**request, "terminal_policy": "stable", "candidate_count": 1})
+    assert stable.status_code == 200
+    assert stable.json()["identity_features"]["terminal_role"] in {"root", "fifth"}
+    colour = client.post("/api/motif/generate", json={**request, "terminal_policy": "colour", "candidate_count": 1})
+    assert colour.status_code == 200
+    assert colour.json()["identity_features"]["terminal_role"] in {"third", "colour"}
+    for policy in ("nearest_anchor", "weighted", "random"):
+        terminal = client.post("/api/motif/generate", json={**request, "terminal_policy": policy, "candidate_count": 1})
+        assert terminal.status_code == 200
+        assert terminal.json()["identity_features"]["terminal_role"] in {"root", "third", "fifth", "colour"}
+    free = client.post("/api/motif/generate", json={**request, "terminal_policy": "free", "candidate_count": 1})
+    assert free.status_code == 200
+    assert free.json()["identity_features"]["terminal_role"] == "free"
     exploration = client.post(
         "/api/motif/generate",
         json={**request, "candidate_count": 8, "evaluation_profile": "rhythmic", "rhythm_profile": "random_exploration"},

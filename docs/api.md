@@ -863,6 +863,7 @@ features, and chord affinity.
   "beam_width": 32,
   "candidate_count": 16,
   "evaluation_profile": "balanced",
+  "terminal_policy": "root",
   "seed": 72801
 }
 ```
@@ -878,6 +879,14 @@ ranked `candidates` list and `exploration` summary. Each candidate has an
 Complexity components, total score, filter decision, rejection reasons, and
 diagnostics. `evaluation_profile` may be `balanced`, `consonant`, `lyrical`,
 `rhythmic`, or `colourful`.
+
+`terminal_policy` controls the final note. Anchor chord input order is
+`root`, `third`, `fifth`, then optional `colour`: `root` selects root,
+`stable` selects root/fifth, `colour` selects third/colour,
+`nearest_anchor` minimizes the final leap, `weighted` samples roles with a
+root-weighted distribution, `random` samples any anchor tone, and `free`
+does not force an anchor-tone ending. The response records the selected
+`identity_features.terminal_role`.
 
 ## POST /api/motif/compare
 

@@ -178,7 +178,27 @@ Each candidate pitch is classified as:
 Chord affinity combines monzo and pitch-circle proximity and weights strong
 beats, long notes, accents, and terminal notes more heavily.
 
-### 5.2 Motif
+### 5.2 Terminal-role policy
+
+The public anchor-chord array assigns roles by position: `root`, `third`,
+`fifth`, and optional `colour`. The generator records the applied terminal
+policy and resulting `terminal_role` in the motif identity features.
+
+| Policy | Final-note selection |
+| --- | --- |
+| `root` | Root anchor tone in the requested register |
+| `stable` | Seeded selection between root and fifth |
+| `colour` | Seeded selection between third and optional colour tone |
+| `nearest_anchor` | Anchor tone with the smallest final sounding leap |
+| `weighted` | Seeded role draw: root 45%, fifth 30%, third 18%, colour 7% |
+| `random` | Seeded uniform draw from all available anchor tones |
+| `free` | Retain the generated final tone; Anchor membership is not forced |
+
+For all policies other than `free`, the final tone is `exact` relative to the
+Anchor chord. A missing requested role falls back to the available Anchor
+tones deterministically.
+
+### 5.3 Motif
 
 ```text
 Motif

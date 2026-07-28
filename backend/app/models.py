@@ -638,6 +638,7 @@ class MotifGenerateRequest(BaseModel):
     beam_width: int = Field(default=32, ge=1, le=128)
     candidate_count: int = Field(default=16, ge=1, le=32)
     evaluation_profile: Literal["balanced", "consonant", "lyrical", "rhythmic", "colourful"] = "balanced"
+    terminal_policy: Literal["root", "stable", "colour", "nearest_anchor", "weighted", "random", "free"] = "root"
     seed: int = 72801
 
     @field_validator("anchor_chord")

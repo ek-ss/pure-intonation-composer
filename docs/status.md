@@ -11,7 +11,7 @@ documents.
 ## Verification Baseline
 
 - 58 OpenAPI paths plus one WebSocket transport endpoint
-- 202 passing pytest tests, including G12 chord/progression, Vital Pack export,
+- 203 passing pytest tests, including G12 chord/progression, Vital Pack export,
   and Worker asset coverage
 - `ruff check app tests` passes
 - `mypy app` passes
