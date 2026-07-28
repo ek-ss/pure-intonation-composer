@@ -137,6 +137,15 @@ def _density(section: str, progress: float) -> float:
     return start_end[0] + (start_end[1] - start_end[0]) * progress
 
 
+def _voice_time_delta(voice_index: int, bar: int, density: float, section: str) -> float:
+    """Return a deterministic density-sensitive offset for one voice in one bar."""
+    convergence = .34 if section in {"resolution", "coda"} else 1.0
+    spread = (.018 + density * .085) * convergence
+    direction = -1 if (voice_index + bar) % 2 else 1
+    contour = ((bar * (voice_index + 2)) % 5 - 2) * density * .006
+    return round(direction * spread * (1 + voice_index % 3 / 3) + contour, 5)
+
+
 def generate_minimal_functional(config: dict[str, Any]) -> dict[str, object]:
     bars = int(config["duration_bars"])
     beats = int(config["beats_per_bar"])
@@ -203,13 +212,14 @@ def generate_minimal_functional(config: dict[str, Any]) -> dict[str, object]:
                 continue
             octave = -1 if voice_index == 0 else min(2, voice_index // 2)
             sounding = ratio * (Fraction(2) ** octave)
+            time_delta = _voice_time_delta(voice_index, bar, density, section)
             for step in range(steps_per_bar):
                 if not pattern[(bar * steps_per_bar + step) % cycle]:
                     continue
-                start = bar * beats + step / subdivisions
+                start = max(0, bar * beats + step / subdivisions + time_delta)
                 gate = 0.55 if section in {"development", "climax"} else 0.8
                 velocity = max(30, min(116, round(62 + density * 35 + (12 if step == 0 else 0) - voice_index * 2)))
-                events.append({"start_beat": round(start, 5), "duration_beats": gate / subdivisions, "voice_id": voice["id"], "voice_role": voice["role"], "chord_id": chord["id"], "function": chord["function"], "ratio": ratio_text(sounding), "velocity": velocity, "accent": step == 0})
+                events.append({"start_beat": round(start, 5), "duration_beats": gate / subdivisions, "time_delta_beats": time_delta, "voice_id": voice["id"], "voice_role": voice["role"], "chord_id": chord["id"], "function": chord["function"], "ratio": ratio_text(sounding), "velocity": velocity, "accent": step == 0})
                 hit_count += 1
         if section == "coda" and bar == bars - 1:
             events.append({"start_beat": bar * beats, "duration_beats": beats * 1.8, "voice_id": "drone", "voice_role": "drone", "chord_id": chord["id"], "function": "T", "ratio": "1/2", "velocity": 72, "accent": True})

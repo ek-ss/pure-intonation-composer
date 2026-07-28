@@ -47,6 +47,7 @@ from app.models import (
     PrimeExplorerRequest,
     MinimalFunctionalRequest,
     MinimalFunctionalMidiRequest,
+    VitalPackRequest,
     PrimeChordRequest,
     PrimeProgressionRequest,
     LatticeWalkRequest,
@@ -84,6 +85,7 @@ from app.lattice import (
 )
 from app.prime_explorer import discover_chords, explore as explore_prime_limit, progression_metrics
 from app.composition.minimal_functional import generate_minimal_functional
+from app.composition.vital_pack import vital_pack_profiles, generate_vital_pack
 from app.exporters.midi import MidiArrangementTrack, MidiDrumHit, MidiNote, arrangement_midi_bytes, drum_midi_bytes, microtonal_midi_bytes, midi_bytes
 from app.rhythm.drums import (
     LayerSpec,
@@ -926,6 +928,21 @@ def minimal_functional_midi(request: MinimalFunctionalMidiRequest) -> Response:
         return Response(data, media_type="audio/midi", headers={"Content-Disposition": "attachment; filename=minimal-functional-study.mid"})
     except (ValueError, ZeroDivisionError) as error:
         raise HTTPException(status_code=422, detail=str(error)) from error
+
+
+@app.get("/vital-pack-composer", include_in_schema=False)
+def vital_pack_composer() -> FileResponse:
+    return FileResponse(STATIC_DIR / "vital_pack_composer.html")
+
+
+@app.get("/api/instruments/vital-pack")
+def get_vital_pack_profiles() -> dict[str, object]:
+    return vital_pack_profiles()
+
+
+@app.post("/api/compose/vital-pack")
+def compose_vital_pack(request: VitalPackRequest) -> dict[str, object]:
+    return generate_vital_pack(request.model_dump())
 
 
 @app.post("/api/prime-limit/chords")

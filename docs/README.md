@@ -25,6 +25,7 @@ as implemented.
 | [harmonic_pitch_circle.md](harmonic_pitch_circle.md) | Implemented fifth-step chord-shape study page and G12 boundary |
 | [development_plan_prime_limit_harmonic_explorer.md](development_plan_prime_limit_harmonic_explorer.md) | Implemented G12 core and remaining prime-lattice explorer roadmap |
 | [minimal_functional_harmony_composer.md](minimal_functional_harmony_composer.md) | Implemented T/S/D minimal-process composer MVP and its explicit boundary |
+| [vital_pack_composer.md](vital_pack_composer.md) | Implemented Vital Pack Composer MVP and its DAW/export boundary |
 
 ## Roadmaps
 

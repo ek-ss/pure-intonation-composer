@@ -798,7 +798,27 @@ and a GM percussion track. Send generated `events` as `notes` and generated
 
 ---
 
-# 9. Export
+# 9. Vital Pack Composer
+
+## GET /api/instruments/vital-pack
+
+Returns the eight PI01–PI08 Vital roles, preset filenames, ranges, polyphony,
+and declared tuning policies.
+
+## POST /api/compose/vital-pack
+
+Generates a seeded role-aware Vital Pack song plan.
+
+```json
+{"seed":72801,"tempo_bpm":150,"length_bars":64,"tuning":"7-limit","preset_mode":"adaptive"}
+```
+
+The response includes `sections`, exact-ratio `harmony`, instrument `events`,
+`tuning_timeline`, semantic `automation`, and a `reaper_manifest`.
+
+---
+
+# 10. Export
 
 ## POST /api/export/midi
 
@@ -872,7 +892,7 @@ Echoes the payload back as structured JSON for saving.
 
 ---
 
-# 10. Real-Time Transport
+# 11. Real-Time Transport
 
 ## WebSocket /api/ws/transport
 
@@ -895,7 +915,7 @@ Responses:
 
 ---
 
-# 11. Roadmap Candidates
+# 12. Roadmap Candidates
 
 These capabilities are not part of the current API:
 

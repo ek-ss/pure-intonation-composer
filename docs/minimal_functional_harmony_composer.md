@@ -63,7 +63,9 @@ Tonic and finishes with a root drone; resolution and coda align voice phases.
 Each voice has a stable cycle length and phase offset. A Euclidean pattern is
 regenerated from the current form density. Voice count and density grow into
 the climax, then contract. The implementation preserves deterministic output
-for an identical request and seed.
+for an identical request and seed. Every voice also receives a deterministic
+`time_delta_beats` offset per bar: it grows with density to prevent repeated
+unison attacks, then contracts during Resolution and Coda.
 
 ## UI
 

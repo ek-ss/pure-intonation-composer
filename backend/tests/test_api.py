@@ -104,6 +104,8 @@ def test_minimal_functional_composer_page_and_generation() -> None:
     assert composition["metadata"]["tuning"] == "7-limit"
     assert len(composition["analysis"]) == 16
     assert composition["events"]
+    assert any(event["time_delta_beats"] != 0 for event in composition["events"])
+    assert len({event["time_delta_beats"] for event in composition["events"] if "time_delta_beats" in event}) > 2
     assert {chord["function"] for chord in composition["chords"]} <= {"T", "S", "D"}
     assert composition["analysis"][-1]["section"] == "coda"
     assert composition["analysis"][-1]["stability"] > composition["analysis"][-1]["tension"]
@@ -136,6 +138,26 @@ def test_minimal_functional_composer_page_and_generation() -> None:
     )
     assert midi.status_code == 200
     assert midi.content.startswith(b"MThd")
+
+
+def test_vital_pack_composer_profiles_and_generation() -> None:
+    page = client.get("/vital-pack-composer")
+    assert page.status_code == 200
+    assert "Vital Pack Composer" in page.text
+    assert 'id="vital-tracks"' in page.text
+    profiles = client.get("/api/instruments/vital-pack")
+    assert profiles.status_code == 200
+    assert len(profiles.json()["instruments"]) == 8
+    response = client.post(
+        "/api/compose/vital-pack",
+        json={"seed": 9, "length_bars": 16, "preset_mode": "adaptive"},
+    )
+    assert response.status_code == 200
+    plan = response.json()
+    assert sum(section["bars"] for section in plan["sections"]) == 16
+    assert any(event["instrument_id"] == "PI05" for event in plan["events"])
+    assert any(event["instrument_id"] == "DRUMS" for event in plan["events"])
+    assert plan["reaper_manifest"]["tuning_control_track"] == 11
 
 
 def test_prime_limit_explorer_page_and_search() -> None:

@@ -588,6 +588,15 @@ class MinimalFunctionalMidiRequest(BaseModel):
     base_frequency: float = Field(default=220, ge=20, le=2000)
 
 
+class VitalPackRequest(BaseModel):
+    seed: int = 72801
+    tempo_bpm: float = Field(default=150, ge=130, le=175)
+    length_bars: int = Field(default=64, ge=8, le=64)
+    tuning: Literal["5-limit", "7-limit"] = "7-limit"
+    preset_mode: Literal["adaptive", "showcase"] = "adaptive"
+    reference_frequency_hz: float = Field(default=440, ge=20, le=2000)
+
+
 class PrimeChordRequest(PrimeExplorerRequest):
     tone_count: int = Field(default=3, ge=2, le=6)
     candidate_limit: int = Field(default=24, ge=1, le=128)
