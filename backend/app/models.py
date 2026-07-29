@@ -592,13 +592,20 @@ class VitalPackRequest(BaseModel):
     seed: int = 72801
     tempo_bpm: float = Field(default=150, ge=130, le=175)
     length_bars: int = Field(default=64, ge=8, le=64)
+    section_count: int = Field(default=7, ge=3, le=12)
     tuning: Literal["5-limit", "7-limit"] = "7-limit"
     preset_mode: Literal["adaptive", "showcase"] = "adaptive"
     reference_frequency_hz: float = Field(default=440, ge=20, le=2000)
 
+    @model_validator(mode="after")
+    def sections_must_fit_song_length(self) -> VitalPackRequest:
+        if self.section_count > self.length_bars:
+            raise ValueError("section_count cannot exceed length_bars")
+        return self
+
 
 class VitalPackSectionRequest(VitalPackRequest):
-    section_index: int = Field(ge=0, le=6)
+    section_index: int = Field(ge=0, le=11)
     scope: Literal["harmony", "rhythm", "voicing", "instruments"] = "harmony"
 
 
@@ -662,6 +669,44 @@ class MotifNoteRequest(BaseModel):
     velocity: int = Field(default=92, ge=1, le=127)
     accent: bool = False
     chord_relation: Literal["exact", "near", "related", "contrast"] = "exact"
+
+
+class MotifVitalNodeRequest(BaseModel):
+    """A selected Development Tree node used as a song-level motif source."""
+
+    id: str = Field(min_length=1, max_length=120)
+    formal_role: Literal["theme", "a_prime", "build", "development", "climax", "recapitulation", "coda"]
+    target_chord: list[str] = Field(min_length=3, max_length=4)
+    notes: list[MotifNoteRequest] = Field(min_length=2, max_length=32)
+    transformation_chain: list[str] = Field(default_factory=list, max_length=16)
+    identity_retention: float | None = Field(default=None, ge=0, le=1)
+    source_motif_id: str | None = Field(default=None, max_length=120)
+
+    @field_validator("target_chord")
+    @classmethod
+    def target_chord_must_be_ratios(cls, values: list[str]) -> list[str]:
+        if any("/" not in value for value in values):
+            raise ValueError("target_chord tones must be ratios")
+        return values
+
+
+class MotifVitalPackRequest(VitalPackRequest):
+    """Arrange a selected Motif Development Tree through the Vital Pack."""
+
+    anchor_chord: list[str] = Field(min_length=3, max_length=4)
+    nodes: list[MotifVitalNodeRequest] = Field(min_length=1, max_length=32)
+    development_amount: float = Field(default=0.55, ge=0, le=1)
+    phase_shift_mode: Literal["off", "static", "progressive", "polymetric"] = "off"
+    phase_shift_beats: float = Field(default=0.5, ge=0, le=8)
+    phase_shift_increment: float = Field(default=0.125, ge=-2, le=2)
+    phase_shift_cycle_bars: int = Field(default=4, ge=1, le=32)
+
+    @field_validator("anchor_chord")
+    @classmethod
+    def anchor_chord_must_be_ratios(cls, values: list[str]) -> list[str]:
+        if any("/" not in value for value in values):
+            raise ValueError("anchor_chord tones must be ratios")
+        return values
 
 
 class MotifCompareRequest(BaseModel):

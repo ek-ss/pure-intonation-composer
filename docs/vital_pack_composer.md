@@ -23,6 +23,15 @@ profiles.
 - seeded section regeneration for harmony, rhythm, voicing, and instrument
   scopes. The regenerated section replaces its matching timing window in the
   browser plan.
+- Development Tree transfer from Motif Development: tree nodes map to the
+  3–12 section Vital form, drive harmony, PI04 lead motifs, PI05 bass, PI06
+  accents, PI07 pulses, and motif-synchronised drum detail; provenance remains
+  in project JSON and MPE MIDI source events.
+- checkbox selection of multiple motif candidates, deterministic
+  repetition-level development, and optional static/progressive/polymetric
+  PI04/PI07 motif phase lanes over shared harmony;
+- phase overlap, source-motif coverage, development-operation, and provenance
+  quality measurements.
 
 ## Outputs and Boundaries
 

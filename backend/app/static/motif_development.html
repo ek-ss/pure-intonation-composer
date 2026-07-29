@@ -25,13 +25,14 @@
         <label>Sections<select id="motif-sections" multiple size="5"><option value="theme" selected>Theme</option><option value="a_prime" selected>A′</option><option value="build">Build</option><option value="development" selected>Development</option><option value="climax">Climax</option><option value="recapitulation" selected>Recapitulation</option><option value="coda">Coda</option></select></label>
         <button id="motif-develop" class="primary">Develop form</button>
         <div class="button-row"><button id="motif-midi" class="quiet">MPE MIDI</button><button id="motif-json" class="quiet">JSON</button></div>
+        <button id="motif-send-vital" class="primary">Send Development Tree to Vital Pack</button>
       </section>
       <section class="panel motif-circle-panel"><div class="section-heading"><h2>Pitch Circle</h2><span id="motif-summary"></span></div><svg id="motif-circle" viewBox="0 0 620 620" role="img" aria-label="Motif pitch circle"></svg><div id="motif-legend" class="motif-legend"></div></section>
       <section class="panel motif-analysis-panel"><div class="section-heading"><h2>Identity and Distance</h2><span id="motif-affinity"></span></div><div id="motif-analysis" class="motif-analysis"></div></section>
       <section class="panel motif-notes-panel"><div class="section-heading"><h2>Motif Notes</h2><span id="motif-note-summary"></span></div><div id="motif-notes" class="motif-note-grid"></div></section>
-      <section class="panel motif-candidates-panel"><div class="section-heading"><h2>Exploration Candidates</h2><span id="motif-candidate-summary"></span></div><label class="check"><input id="motif-show-rejected" type="checkbox"> Show filtered candidates</label><div id="motif-candidates-list" class="motif-candidates"></div></section>
+      <section class="panel motif-candidates-panel"><div class="section-heading"><h2>Exploration Candidates</h2><span id="motif-candidate-summary"></span></div><label class="check"><input id="motif-show-rejected" type="checkbox"> Show filtered candidates</label><div class="button-row"><button id="motif-select-visible" class="quiet">Select visible for transfer</button><button id="motif-clear-transfer" class="quiet">Clear transfer selection</button><span id="motif-transfer-summary" class="hint">0 selected</span></div><div id="motif-candidates-list" class="motif-candidates"></div></section>
       <section class="panel motif-tree-panel"><div class="section-heading"><h2>Development Tree</h2><span id="motif-tree-summary"></span></div><div id="motif-tree" class="motif-tree"><p class="hint">Generate a motif, then develop its form.</p></div></section>
     </main>
-    <script src="/static/motif_development.js?v=20260729-motif-development-6"></script>
+    <script src="/static/motif_development.js?v=20260730-motif-development-8"></script>
   </body>
 </html>

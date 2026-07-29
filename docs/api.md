@@ -818,17 +818,62 @@ The response includes `sections`, exact-ratio `harmony`, instrument `events`,
 frequencies), a `.scl`-compatible `base_scale`, `sidechain_envelope`, semantic
 `automation`, quality measurements, and a `reaper_manifest`.
 
+## POST /api/compose/motif-vital-pack
+
+Arranges Development Tree nodes through the Vital Pack form and profiles. The
+request uses the normal Vital Pack options plus an anchor chord and selected
+Tree nodes. Each node provides its target chord, notes, formal role, and
+optional transformation/identity metadata.
+
+```json
+{
+  "seed": 72801,
+  "length_bars": 64,
+  "section_count": 9,
+  "anchor_chord": ["1/1", "5/4", "3/2", "7/4"],
+  "development_amount": 0.7,
+  "phase_shift_mode": "progressive",
+  "phase_shift_beats": 0.5,
+  "phase_shift_increment": 0.125,
+  "phase_shift_cycle_bars": 4,
+  "nodes": [{
+    "id": "motif-section-0",
+    "source_motif_id": "motif-72801",
+    "formal_role": "theme",
+    "target_chord": ["1/1", "5/4", "3/2"],
+    "notes": [
+      {"ratio":"1/1","onset_beat":0,"duration_beats":0.5,"velocity":104},
+      {"ratio":"5/4","onset_beat":0.5,"duration_beats":0.5,"velocity":92}
+    ]
+  }]
+}
+```
+
+The response is a normal Vital Pack plan with `metadata.composition_source`
+set to `motif-development-tree`, plus `motif_arrangement`. Pitched and drum
+events retain their Development Tree provenance and can be exported using the
+standard Vital Pack MIDI endpoint.
+
+`section_count` may be 3–12 and cannot exceed `length_bars`.
+`development_amount` controls repetition-level cyclic rotation, chord
+transposition, retrograde, chord projection, and rhythmic displacement.
+`phase_shift_mode` may be `off`, `static`, `progressive`, or `polymetric`.
+Phase-enabled responses include A/B lane metadata, a per-bar phase schedule,
+and overlap measurements.
+
 ## POST /api/compose/vital-pack/section
 
 Regenerates one numbered form section with a deterministic seed offset. Send
-the normal Vital Pack request plus `section_index` (0 through 6) and a scope
+the normal Vital Pack request plus `section_index` (0 through 11) and a scope
 of `harmony`, `rhythm`, `voicing`, or `instruments`. The returned section
 window includes its matching harmony, events, tuning/MTS events, automation,
 and sidechain envelope so a client can replace that window in its plan.
 
 ```json
-{"seed":72801,"length_bars":64,"section_index":3,"scope":"harmony"}
+{"seed":72801,"length_bars":64,"section_count":9,"section_index":3,"scope":"harmony"}
 ```
+
+`section_index` must be lower than the requested `section_count`.
 
 ## POST /api/compose/vital-pack/midi
 

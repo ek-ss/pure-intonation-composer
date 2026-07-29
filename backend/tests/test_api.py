@@ -163,6 +163,10 @@ def test_vital_pack_composer_profiles_and_generation() -> None:
     assert page.status_code == 200
     assert "Vital Pack Composer" in page.text
     assert 'id="vital-tracks"' in page.text
+    assert 'id="vital-use-motif"' in page.text
+    assert 'id="vital-sections"' in page.text
+    assert 'id="vital-development"' in page.text
+    assert 'id="vital-phase-mode"' in page.text
     profiles = client.get("/api/instruments/vital-pack")
     assert profiles.status_code == 200
     assert len(profiles.json()["instruments"]) == 8
@@ -180,6 +184,18 @@ def test_vital_pack_composer_profiles_and_generation() -> None:
     assert plan["sidechain_envelope"]
     assert plan["quality"]["bass_mono_ok"]
     assert all(4 <= len(section["active_instruments"]) <= 7 for section in plan["sections"])
+    compact_form = client.post(
+        "/api/compose/vital-pack",
+        json={"seed": 9, "length_bars": 16, "section_count": 5},
+    )
+    assert compact_form.status_code == 200
+    assert len(compact_form.json()["sections"]) == 5
+    assert sum(section["bars"] for section in compact_form.json()["sections"]) == 16
+    invalid_section = client.post(
+        "/api/compose/vital-pack/section",
+        json={"seed": 9, "length_bars": 16, "section_count": 5, "section_index": 5},
+    )
+    assert invalid_section.status_code == 422
     section = client.post(
         "/api/compose/vital-pack/section",
         json={"seed": 9, "length_bars": 16, "section_index": 3, "scope": "harmony"},
@@ -198,18 +214,88 @@ def test_vital_pack_composer_profiles_and_generation() -> None:
     assert midi.content.startswith(b"MThd")
 
 
+def test_motif_development_tree_can_arrange_vital_pack_song() -> None:
+    motif_request = {
+        "anchor_chord": ["1/1", "5/4", "3/2", "7/4"],
+        "note_count": 6,
+        "length_beats": 2,
+        "register": [60, 84],
+        "seed": 29,
+    }
+    motif = client.post("/api/motif/generate", json=motif_request).json()
+    development = client.post(
+        "/api/motif/develop",
+        json={
+            "anchor_chord": motif_request["anchor_chord"],
+            "source_notes": motif["notes"],
+            "harmony": [
+                ["1/1", "5/4", "3/2"],
+                ["3/2", "15/8", "9/4"],
+                ["4/3", "5/3", "2/1"],
+                ["1/1", "5/4", "3/2"],
+            ],
+            "section_roles": ["theme", "build", "climax", "recapitulation", "coda"],
+            "seed": 31,
+        },
+    )
+    assert development.status_code == 200
+    nodes = development.json()["motif_tree"]["nodes"]
+    for node in nodes:
+        node["source_motif_id"] = "motif-primary"
+    second_motif = {
+        **nodes[0],
+        "id": "motif-secondary-theme",
+        "source_motif_id": "motif-secondary",
+    }
+    response = client.post(
+        "/api/compose/motif-vital-pack",
+        json={
+            "seed": 37,
+            "length_bars": 18,
+            "section_count": 9,
+            "anchor_chord": motif_request["anchor_chord"],
+            "nodes": [*nodes, second_motif],
+            "development_amount": 0.85,
+            "phase_shift_mode": "progressive",
+            "phase_shift_beats": 0.5,
+            "phase_shift_increment": 0.125,
+        },
+    )
+    assert response.status_code == 200
+    plan = response.json()
+    assert plan["metadata"]["composition_source"] == "motif-development-tree"
+    assert len(plan["motif_arrangement"]["section_assignments"]) == 9
+    assert plan["quality"]["motif_provenance_ok"]
+    assert plan["quality"]["source_motif_count"] == 2
+    assert plan["quality"]["development_operation_count"] >= 3
+    assert plan["motif_arrangement"]["phase_shift"]["mode"] == "progressive"
+    assert plan["motif_arrangement"]["phase_shift"]["schedule"]
+    assert any(event["instrument_id"] == "PI04" and event["articulation"] == "lead_motif" for event in plan["events"])
+    assert any(event["instrument_id"] == "PI05" and event["articulation"] == "bass_root" for event in plan["events"])
+    assert any(event.get("phase_lane") == "a" for event in plan["events"])
+    assert any(event.get("phase_lane") == "b" for event in plan["events"])
+    assert any(event.get("development_operations") for event in plan["events"])
+    assert any(event["instrument_id"] == "DRUMS" and event.get("motif_id") for event in plan["events"])
+    midi = client.post("/api/compose/vital-pack/midi", json={"tempo_bpm": 150, "events": plan["events"]})
+    assert midi.status_code == 200
+    assert midi.content.startswith(b"MThd")
+
+
 def test_motif_generation_comparison_and_variation() -> None:
     page = client.get("/motif-development")
     assert page.status_code == 200
     assert "Motif Development" in page.text
     assert 'id="motif-circle"' in page.text
     assert 'id="motif-random-play"' in page.text
+    assert 'id="motif-send-vital"' in page.text
+    assert 'id="motif-select-visible"' in page.text
     script = client.get("/static/motif_development.js")
     assert script.status_code == 200
     assert "/api/motif/develop" in script.text
     assert "randomPlay" in script.text
     assert "renderCandidates" in script.text
     assert "await play()" in script.text
+    assert "sendToVital" in script.text
     request = {
         "anchor_chord": ["1/1", "5/4", "3/2", "7/4"],
         "note_count": 6,

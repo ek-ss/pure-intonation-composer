@@ -1088,8 +1088,12 @@ browser rendering, audio, and storage.
 
 The implemented core provides pitch/distance foundations, anchor-based seeded
 generation, signatures, comparison, initial transformations, section-level
-motif trees, and a linked Motif Development workbench. Arrangement-role
-transfer, Vital Pack mapping, persistent project IDs, and release validation
+motif trees, a linked Motif Development workbench, and a Development Tree to
+Vital Pack adapter. The adapter supports multiple selected motifs, assigns
+Tree roles to variable 3–12 section forms, applies adjustable
+repetition-level development, and emits provenance-bearing lead, bass, pulse,
+harmony, drum, and optional phase-shift events. Persistent project IDs,
+motif-specific section locks, convergent phase anchors, and release validation
 remain planned.
 
 See

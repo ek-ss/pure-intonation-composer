@@ -48,6 +48,7 @@ from app.models import (
     MinimalFunctionalRequest,
     MinimalFunctionalMidiRequest,
     VitalPackRequest,
+    MotifVitalPackRequest,
     VitalPackMidiRequest,
     VitalPackSectionRequest,
     MotifCompareRequest,
@@ -91,7 +92,7 @@ from app.lattice import (
 )
 from app.prime_explorer import discover_chords, explore as explore_prime_limit, progression_metrics
 from app.composition.minimal_functional import generate_minimal_functional
-from app.composition.vital_pack import PROFILES, generate_vital_pack, vital_pack_profiles
+from app.composition.vital_pack import PROFILES, generate_motif_vital_pack, generate_vital_pack, vital_pack_profiles
 from app.motif.engine import compare as compare_motif
 from app.motif.engine import develop as develop_motif
 from app.motif.engine import generate as generate_motif
@@ -960,9 +961,23 @@ def compose_vital_pack(request: VitalPackRequest) -> dict[str, object]:
     return generate_vital_pack(request.model_dump())
 
 
+@app.post("/api/compose/motif-vital-pack")
+def compose_motif_vital_pack(request: MotifVitalPackRequest) -> dict[str, object]:
+    """Arrange selected Motif Development Tree nodes with Vital Pack profiles."""
+    try:
+        return generate_motif_vital_pack(request.model_dump())
+    except (ValueError, ZeroDivisionError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+
 @app.post("/api/compose/vital-pack/section")
 def regenerate_vital_pack_section(request: VitalPackSectionRequest) -> dict[str, object]:
     plan = generate_vital_pack(request.model_dump() | {"seed": request.seed + request.section_index + 1})
+    if request.section_index >= len(plan["sections"]):
+        raise HTTPException(
+            status_code=422,
+            detail=f"section_index must be below section_count ({len(plan['sections'])})",
+        )
     section = plan["sections"][request.section_index]
     start = (int(section["start_bar"]) - 1) * 4
     end = start + int(section["bars"]) * 4

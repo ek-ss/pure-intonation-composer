@@ -70,8 +70,30 @@ def vital_pack_profiles() -> dict[str, object]:
     }
 
 
-def _sections(length: int) -> list[dict[str, Any]]:
-    raw = [bars / 64 * length for _, bars, _ in FORM]
+def _form_for_count(count: int) -> list[tuple[str, int, float, str]]:
+    """Return a deterministic form with unique labels and canonical templates."""
+    if count == len(FORM):
+        return [(name, bars, energy, name) for name, bars, energy in FORM]
+    middle = count - 2
+    core = FORM[1:-1]
+    selected = [
+        core[round(index * (len(core) - 1) / max(1, middle - 1))]
+        for index in range(middle)
+    ]
+    occurrences: dict[str, int] = {}
+    result = [(FORM[0][0], FORM[0][1], FORM[0][2], FORM[0][0])]
+    for name, bars, energy in selected:
+        occurrences[name] = occurrences.get(name, 0) + 1
+        suffix = f" {occurrences[name]}" if occurrences[name] > 1 else ""
+        result.append((f"{name}{suffix}", bars, energy, name))
+    result.append((FORM[-1][0], FORM[-1][1], FORM[-1][2], FORM[-1][0]))
+    return result
+
+
+def _sections(length: int, count: int = 7) -> list[dict[str, Any]]:
+    form = _form_for_count(count)
+    total_weight = sum(bars for _, bars, _, _ in form)
+    raw = [bars / total_weight * length for _, bars, _, _ in form]
     allocated = [max(1, round(value)) for value in raw]
     while sum(allocated) > length:
         index = max(
@@ -87,8 +109,14 @@ def _sections(length: int) -> list[dict[str, Any]]:
         allocated[index] += 1
     start = 0
     result: list[dict[str, Any]] = []
-    for (name, _bars, energy), actual in zip(FORM, allocated, strict=True):
-        result.append({"name": name, "start_bar": start + 1, "bars": actual, "energy": energy})
+    for (name, _bars, energy, template), actual in zip(form, allocated, strict=True):
+        result.append({
+            "name": name,
+            "template_name": template,
+            "start_bar": start + 1,
+            "bars": actual,
+            "energy": energy,
+        })
         start += actual
     return result
 
@@ -116,7 +144,7 @@ def generate_vital_pack(config: dict[str, Any]) -> dict[str, Any]:
     length = int(config["length_bars"])
     tempo = float(config["tempo_bpm"])
     mode = str(config["preset_mode"])
-    sections = _sections(length)
+    sections = _sections(length, int(config.get("section_count", 7)))
     events: list[dict[str, Any]] = []
     automation: list[dict[str, Any]] = []
     tuning: list[dict[str, Any]] = []
@@ -129,7 +157,7 @@ def generate_vital_pack(config: dict[str, Any]) -> dict[str, Any]:
             int(section["bars"]),
             float(section["energy"]),
         )
-        active = _active(name, mode)
+        active = _active(str(section.get("template_name", name)), mode)
         section["active_instruments"] = active
         for bar in range(start, start + bars):
             function = (
@@ -299,6 +327,7 @@ def generate_vital_pack(config: dict[str, Any]) -> dict[str, Any]:
             "seed": config["seed"],
             "tempo_bpm": tempo,
             "length_bars": length,
+            "section_count": len(sections),
             "tuning": config["tuning"],
             "preset_mode": mode,
         },
@@ -321,3 +350,394 @@ def generate_vital_pack(config: dict[str, Any]) -> dict[str, Any]:
         },
         "quality": quality,
     }
+
+
+MOTIF_ROLE_BY_TEMPLATE = {
+    "Intro": "theme",
+    "A": "theme",
+    "Build": "build",
+    "Drop 1": "climax",
+    "Break": "development",
+    "Final Drop": "recapitulation",
+    "Outro": "coda",
+}
+
+
+def _motif_nodes_for_section(
+    nodes: list[dict[str, Any]], role: str, index: int
+) -> list[dict[str, Any]]:
+    """Prefer matching formal roles while retaining all selected motif sources."""
+    matching = [node for node in nodes if node["formal_role"] == role]
+    remaining = [node for node in nodes if node not in matching]
+    ordered = matching + remaining
+    pivot = index % len(ordered)
+    return ordered[pivot:] + ordered[:pivot]
+
+
+def _developed_notes(
+    notes: list[dict[str, Any]],
+    chord: tuple[Fraction, ...],
+    repetition: int,
+    amount: float,
+    seed: int,
+) -> tuple[list[dict[str, Any]], list[str]]:
+    """Create deterministic repetition-level development without changing harmony."""
+    if repetition == 0 or amount <= 0:
+        return [dict(note) for note in notes], []
+    random = Random(seed + repetition * 7919)
+    developed = [dict(note) for note in notes]
+    operations: list[str] = []
+    if amount >= 0.18 and len(developed) > 2:
+        shift = 1 + random.randrange(max(1, len(developed) - 1))
+        developed = developed[shift:] + developed[:shift]
+        operations.append("cyclic_rotation")
+    if amount >= 0.38:
+        factor = chord[repetition % len(chord)] / chord[0]
+        for note in developed:
+            note["ratio"] = ratio_text(Fraction(note["ratio"]) * factor)
+        operations.append("chord_tone_transposition")
+    if amount >= 0.62 and repetition % 3 == 2:
+        pitches = [note["ratio"] for note in reversed(developed)]
+        for note, ratio in zip(developed, pitches, strict=True):
+            note["ratio"] = ratio
+        operations.append("retrograde_pitch")
+    if amount >= 0.78:
+        for note_index in range(1, len(developed), 3):
+            developed[note_index]["ratio"] = ratio_text(
+                chord[(note_index + repetition) % len(chord)]
+            )
+        operations.append("selective_chord_projection")
+    swing = round((random.random() - 0.5) * amount * 0.24, 5)
+    if abs(swing) >= 0.01:
+        for note_index, note in enumerate(developed):
+            if note_index % 2:
+                note["onset_beat"] = max(0, float(note["onset_beat"]) + swing)
+        operations.append("rhythmic_displacement")
+    return developed, operations
+
+
+def _phase_offset(config: dict[str, Any], bar_index: int) -> float:
+    mode = str(config.get("phase_shift_mode", "off"))
+    initial = float(config.get("phase_shift_beats", 0.5))
+    increment = float(config.get("phase_shift_increment", 0.125))
+    cycle = int(config.get("phase_shift_cycle_bars", 4))
+    if mode == "static":
+        return initial
+    if mode == "progressive":
+        return initial + bar_index * increment
+    if mode == "polymetric":
+        return initial + (bar_index % cycle) * increment
+    return 0.0
+
+
+def _motif_event(
+    instrument_id: str,
+    ratio: Fraction,
+    start: float,
+    duration: float,
+    velocity: int,
+    node: dict[str, Any],
+    note_index: int | None = None,
+    articulation: str = "motif",
+    *,
+    development_operations: list[str] | None = None,
+    phase_lane: str | None = None,
+    repetition: int = 0,
+) -> dict[str, Any]:
+    return {
+        "instrument_id": instrument_id,
+        "start_beat": round(start, 5),
+        "duration_beats": round(max(0.0625, duration), 5),
+        "velocity": velocity,
+        "ratio": ratio_text(ratio),
+        "articulation": articulation,
+        "motif_id": node["id"],
+        "formal_role": node["formal_role"],
+        "source_note_index": note_index,
+        "transformation_chain": node.get("transformation_chain", []),
+        "identity_retention": node.get("identity_retention"),
+        "target_chord": node["target_chord"],
+        "source_motif_id": node.get("source_motif_id") or node["id"],
+        "development_operations": development_operations or [],
+        "phase_lane": phase_lane,
+        "repetition": repetition,
+    }
+
+
+def generate_motif_vital_pack(config: dict[str, Any]) -> dict[str, Any]:
+    """Turn selected Development Tree nodes into a full Vital Pack song plan.
+
+    The ordinary Vital Pack generator remains the owner of form, profile metadata,
+    automation, and export contracts.  This adapter replaces its harmonic and
+    note-event layer with Tree-derived material so every melodic, bass, pulse,
+    and drum decision has a stable motif provenance.
+    """
+    base = generate_vital_pack(config)
+    nodes = list(config["nodes"])
+    reference = float(config.get("reference_frequency_hz", 440))
+    mode = str(config["preset_mode"])
+    harmony: list[dict[str, Any]] = []
+    events: list[dict[str, Any]] = []
+    assignments: list[dict[str, Any]] = []
+    phase_schedule: list[dict[str, Any]] = []
+    development_amount = float(config.get("development_amount", 0.55))
+    phase_mode = str(config.get("phase_shift_mode", "off"))
+
+    for section_index, section in enumerate(base["sections"]):
+        template = str(section.get("template_name", section["name"]))
+        desired_role = MOTIF_ROLE_BY_TEMPLATE[template]
+        section_nodes = _motif_nodes_for_section(nodes, desired_role, section_index)
+        primary = section_nodes[0]
+        chord = tuple(Fraction(value) for value in primary["target_chord"])
+        start = (int(section["start_bar"]) - 1) * 4
+        end = start + int(section["bars"]) * 4
+        energy = float(section["energy"])
+        active = _active(template, mode)
+        if "PI04" not in active:
+            active.append("PI04")
+        if phase_mode != "off" and "PI07" not in active:
+            active.append("PI07")
+        section["active_instruments"] = active
+        section["motif_node_id"] = primary["id"]
+        section["motif_formal_role"] = primary["formal_role"]
+        assignments.append({
+            "section_index": section_index,
+            "section_name": section["name"],
+            "motif_id": primary["id"],
+            "motif_ids": [node["id"] for node in section_nodes],
+            "source_motif_ids": sorted({
+                str(node.get("source_motif_id") or node["id"])
+                for node in section_nodes
+            }),
+            "formal_role": primary["formal_role"],
+            "target_chord": primary["target_chord"],
+        })
+
+        for bar_start in range(start, end, 4):
+            bar_index = (bar_start - start) // 4
+            selection_index = int(bar_index * development_amount) % len(section_nodes)
+            node = {
+                **section_nodes[selection_index],
+                "target_chord": primary["target_chord"],
+            }
+            source_notes = list(node["notes"])
+            developed_notes, operations = _developed_notes(
+                source_notes,
+                chord,
+                bar_index,
+                development_amount,
+                int(config["seed"]) + section_index * 101,
+            )
+            phrase_beats = max(
+                float(note["onset_beat"]) + float(note["duration_beats"])
+                for note in developed_notes
+            )
+            harmony.append({
+                "start_beat": bar_start,
+                "duration_beats": 4,
+                "functional_state": f"motif:{node['formal_role']}",
+                "root_ratio": ratio_text(chord[0]),
+                "tones": [ratio_text(tone) for tone in chord],
+                "tension": round(min(1, 0.18 + energy * 0.72), 3),
+                "motif_id": node["id"],
+                "formal_role": node["formal_role"],
+            })
+
+            for instrument_id in active:
+                if instrument_id in {"PI01", "PI02", "PI03", "PI08"}:
+                    octave = Fraction(2) if instrument_id in {"PI01", "PI02"} else Fraction(1)
+                    for voice, tone in enumerate(chord):
+                        events.append(_motif_event(
+                            instrument_id, tone * octave, bar_start, 3.72,
+                            round(48 + energy * 48), node, voice, "sustain",
+                            development_operations=operations,
+                            repetition=bar_index,
+                        ))
+                elif instrument_id == "PI05":
+                    events.append(_motif_event(
+                        instrument_id, chord[0] / 2, bar_start, 3.55,
+                        round(63 + energy * 36), node, 0, "bass_root",
+                        development_operations=operations,
+                        repetition=bar_index,
+                    ))
+                elif instrument_id == "PI04":
+                    phrase_start = float(bar_start)
+                    phrase_index = 0
+                    while phrase_start < bar_start + 4:
+                        phrase_notes, phrase_operations = _developed_notes(
+                            developed_notes,
+                            chord,
+                            bar_index + phrase_index,
+                            development_amount,
+                            int(config["seed"]) + section_index * 211,
+                        )
+                        combined_operations = list(dict.fromkeys(operations + phrase_operations))
+                        for note_index, note in enumerate(phrase_notes):
+                            onset = phrase_start + float(note["onset_beat"])
+                            if onset >= bar_start + 4:
+                                continue
+                            duration = min(float(note["duration_beats"]), bar_start + 4 - onset)
+                            events.append(_motif_event(
+                                instrument_id, Fraction(note["ratio"]) * 2, onset, duration,
+                                min(127, int(note["velocity"]) + 8), node, note_index, "lead_motif",
+                                development_operations=combined_operations,
+                                phase_lane="a" if phase_mode != "off" else None,
+                                repetition=bar_index + phrase_index,
+                            ))
+                        phrase_start += phrase_beats
+                        phrase_index += 1
+                elif instrument_id == "PI06" and (bar_start - start) % 8 == 0:
+                    terminal = developed_notes[-1]
+                    events.append(_motif_event(
+                        instrument_id, Fraction(terminal["ratio"]) * 4, bar_start + 3.5, 0.4,
+                        round(65 + energy * 45), node, len(developed_notes) - 1, "terminal_accent",
+                        development_operations=operations,
+                        repetition=bar_index,
+                    ))
+                elif instrument_id == "PI07":
+                    secondary = section_nodes[(selection_index + 1) % len(section_nodes)]
+                    phase_node = {**secondary, "target_chord": primary["target_chord"]}
+                    phase_notes, phase_operations = _developed_notes(
+                        list(secondary["notes"]),
+                        chord,
+                        bar_index + 1,
+                        development_amount,
+                        int(config["seed"]) + section_index * 307,
+                    )
+                    offset = _phase_offset(config, bar_index)
+                    time_scale = 15 / 16 if phase_mode == "polymetric" else 1.0
+                    if phase_mode != "off":
+                        phase_schedule.append({
+                            "section_index": section_index,
+                            "bar": bar_start // 4 + 1,
+                            "mode": phase_mode,
+                            "offset_beats": round(offset, 5),
+                            "time_scale": time_scale,
+                            "lane_a_motif_id": node["id"],
+                            "lane_b_motif_id": phase_node["id"],
+                        })
+                    for note_index, note in enumerate(phase_notes):
+                        local_onset = float(note["onset_beat"]) * time_scale
+                        onset = bar_start + (
+                            (local_onset + offset) % 4 if phase_mode != "off" else local_onset
+                        )
+                        if onset >= bar_start + 4:
+                            continue
+                        events.append(_motif_event(
+                            instrument_id, Fraction(note["ratio"]) * 2, onset, min(0.38, float(note["duration_beats"])),
+                            round(52 + energy * 52), phase_node, note_index,
+                            "phase_motif" if phase_mode != "off" else "motif_pulse",
+                            development_operations=phase_operations,
+                            phase_lane="b" if phase_mode != "off" else None,
+                            repetition=bar_index,
+                        ))
+                elif instrument_id == "DRUMS":
+                    hits: list[tuple[str, int, float, int]] = [
+                        ("kick", 36, float(bar_start), round(70 + energy * 42)),
+                        ("snare", 38, float(bar_start + 2), round(66 + energy * 45)),
+                    ]
+                    for note_index, note in enumerate(developed_notes):
+                        onset = bar_start + float(note["onset_beat"])
+                        if onset >= bar_start + 4:
+                            continue
+                        hits.append(("hat", 42, onset, round(48 + energy * 48)))
+                        if bool(note.get("accent")) and onset > bar_start + 0.25:
+                            hits.append(("perc", 39, onset, round(54 + energy * 44)))
+                    for layer, midi_note, onset, velocity in hits:
+                        events.append({
+                            "instrument_id": "DRUMS",
+                            "layer": layer,
+                            "note": midi_note,
+                            "start_beat": round(onset, 5),
+                            "duration_beats": 0.12,
+                            "velocity": velocity,
+                            "motif_id": node["id"],
+                            "source_motif_id": node.get("source_motif_id") or node["id"],
+                            "formal_role": node["formal_role"],
+                            "target_chord": node["target_chord"],
+                        })
+
+    events.sort(key=lambda event: (float(event["start_beat"]), str(event["instrument_id"])))
+    policy_by_instrument = {profile[0]: profile[5] for profile in PROFILES}
+    tuning = [
+        {
+            "time": event["start_beat"],
+            "instrument_id": event["instrument_id"],
+            "ratio": event["ratio"],
+            "policy": policy_by_instrument[event["instrument_id"]],
+            "cents_offset": 0,
+            "motif_id": event["motif_id"],
+        }
+        for event in events
+        if event.get("ratio") and event["instrument_id"] in policy_by_instrument
+    ]
+    mts_timeline = [
+        {**event, "frequency_hz": round(reference * float(Fraction(event["ratio"])), 6), "mode": "note_retune"}
+        for event in tuning
+    ]
+    sidechain = [
+        {"start_beat": event["start_beat"], "duration_beats": 0.5, "target_gain": 0.58, "curve": "exponential"}
+        for event in events
+        if event.get("layer") == "kick"
+    ]
+    active_wide = [
+        sum(
+            1
+            for instrument in section["active_instruments"]
+            if next((profile[6] for profile in PROFILES if profile[0] == instrument), False)
+        )
+        for section in base["sections"]
+    ]
+    retention = [float(node["identity_retention"]) for node in nodes if node.get("identity_retention") is not None]
+    lane_a_onsets = {event["start_beat"] for event in events if event.get("phase_lane") == "a"}
+    lane_b_onsets = {event["start_beat"] for event in events if event.get("phase_lane") == "b"}
+    phase_union = lane_a_onsets | lane_b_onsets
+    phase_overlap = len(lane_a_onsets & lane_b_onsets) / max(1, len(phase_union))
+    development_operations = {
+        operation
+        for event in events
+        for operation in event.get("development_operations", [])
+    }
+    source_motifs = {
+        str(node.get("source_motif_id") or node["id"])
+        for node in nodes
+    }
+    quality = dict(base["quality"])
+    quality.update({
+        "wide_sustained_max": max(active_wide, default=0),
+        "wide_sustained_ok": max(active_wide, default=0) <= 2,
+        "bass_mono_ok": True,
+        "motif_section_coverage": len(assignments),
+        "motif_identity_retention_mean": round(sum(retention) / len(retention), 5) if retention else 1.0,
+        "motif_provenance_ok": all(event.get("motif_id") for event in events),
+        "source_motif_count": len(source_motifs),
+        "development_operation_count": len(development_operations),
+        "phase_overlap_ratio": round(phase_overlap, 5),
+        "phase_distinct_ok": phase_mode == "off" or phase_overlap < 0.75,
+    })
+    base["metadata"] = {
+        **base["metadata"],
+        "title": "Motif Vital Pack Study",
+        "composition_source": "motif-development-tree",
+        "anchor_chord": list(config["anchor_chord"]),
+        "development_amount": development_amount,
+        "phase_shift_mode": phase_mode,
+    }
+    base["harmony"] = harmony
+    base["events"] = events
+    base["tuning_timeline"] = tuning
+    base["mts_timeline"] = mts_timeline
+    base["sidechain_envelope"] = sidechain
+    base["quality"] = quality
+    base["motif_arrangement"] = {
+        "section_assignments": assignments,
+        "nodes": nodes,
+        "development_amount": development_amount,
+        "development_operations": sorted(development_operations),
+        "phase_shift": {
+            "mode": phase_mode,
+            "schedule": phase_schedule,
+            "overlap_ratio": round(phase_overlap, 5),
+        },
+    }
+    return base
