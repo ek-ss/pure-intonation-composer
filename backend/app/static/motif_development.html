@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Motif Development | Pure Intonation Workbench</title>
+    <link rel="stylesheet" href="/static/style.css?v=20260728-motif-development-1">
+  </head>
+  <body class="motif-development-page">
+    <header class="topbar">
+      <div><p class="eyebrow">G14 · PRIME LATTICE THEME DEVELOPMENT</p><h1>Motif Development</h1><p class="page-subtitle">Anchor chord motifs, pitch-circle identity, and section-scale variation</p></div>
+      <span class="topbar-links"><a href="/">Workbench</a><a href="/lattice">Lattice Lab</a><a href="/harmonic-pitch-circle">Harmonic Pitch Circle</a><a href="/prime-limit-explorer">Prime Explorer</a><a href="/minimal-functional-composer">Minimal Composer</a><a href="/vital-pack-composer">Vital Pack</a><a href="/fractional-pop-composer">Fractional Pop</a><a href="/jpop-composer">J-Pop</a><a href="/docs" target="_blank" rel="noreferrer">API docs ↗</a></span>
+    </header>
+    <main class="motif-development-main">
+      <section class="panel motif-controls">
+        <div class="section-heading"><h2>Motif</h2><span id="motif-status" role="status">Ready</span></div>
+        <label>Anchor chord<input id="motif-anchor" value="1/1, 5/4, 3/2, 7/4"></label>
+        <div class="motif-field-grid"><label>Notes<input id="motif-count" type="number" min="4" max="8" value="6"></label><label>Maximum voices<select id="motif-polyphony"><option value="1">1 voice</option><option value="2">2 voices</option><option value="3">3 voices</option><option value="4">4 voices</option></select></label><label>Prime basis<input id="motif-primes" value="3, 5, 7"></label><label>Length beats<input id="motif-length" type="number" min=".5" max="16" step=".25" value="2"></label><label>Register low<input id="motif-low" type="number" min="0" max="126" value="60"></label><label>Register high<input id="motif-high" type="number" min="1" max="127" value="84"></label><label>Radius<input id="motif-radius" type="number" min="1" max="3" value="2"></label><label>Seed<input id="motif-seed" type="number" value="72801"></label><label>Candidates<input id="motif-candidates" type="number" min="1" max="32" value="16"></label><label>Evaluation<select id="motif-evaluation"><option value="balanced">Balanced</option><option value="consonant">Consonant</option><option value="lyrical">Lyrical</option><option value="rhythmic">Rhythmic</option><option value="colourful">Colourful</option></select></label></div>
+        <label>Rhythm<select id="motif-rhythm"><option value="random_exploration">Random duration exploration</option><option value="kawaii_syncopated">Kawaii syncopated</option><option value="even">Even</option></select></label>
+        <label>Rest density<div class="generator-range"><input id="motif-rest" type="range" min="0" max=".7" step=".02" value=".18"><output id="motif-rest-value">0.18</output></div></label>
+        <label>Terminal<select id="motif-terminal"><option value="root">Root</option><option value="stable">Stable (root / fifth)</option><option value="colour">Colour (third / colour)</option><option value="nearest_anchor">Nearest anchor</option><option value="weighted">Weighted anchor role</option><option value="random">Random anchor tone</option><option value="free">Free</option></select></label>
+        <button id="motif-generate" class="primary">Generate motif</button>
+        <div class="button-row"><button id="motif-random-play">Random play</button><button id="motif-play">Play motif</button><button id="motif-stop" class="quiet">Stop</button></div>
+        <hr>
+        <label>Development harmony<input id="motif-harmony" value="1/1,5/4,3/2 | 3/2,15/8,9/4 | 4/3,5/3,2/1 | 1/1,5/4,3/2"></label>
+        <label>Sections<select id="motif-sections" multiple size="5"><option value="theme" selected>Theme</option><option value="a_prime" selected>A′</option><option value="build">Build</option><option value="development" selected>Development</option><option value="climax">Climax</option><option value="recapitulation" selected>Recapitulation</option><option value="coda">Coda</option></select></label>
+        <button id="motif-develop" class="primary">Develop form</button>
+        <div class="button-row"><button id="motif-midi" class="quiet">MPE MIDI</button><button id="motif-json" class="quiet">JSON</button></div>
+        <button id="motif-send-vital" class="primary">Send Development Tree to Vital Pack</button>
+      </section>
+      <section class="panel motif-circle-panel"><div class="section-heading"><h2>Pitch Circle</h2><span id="motif-summary"></span></div><svg id="motif-circle" viewBox="0 0 620 620" role="img" aria-label="Motif pitch circle"></svg><div id="motif-legend" class="motif-legend"></div></section>
+      <section class="panel motif-analysis-panel"><div class="section-heading"><h2>Identity and Distance</h2><span id="motif-affinity"></span></div><div id="motif-analysis" class="motif-analysis"></div></section>
+      <section class="panel motif-notes-panel"><div class="section-heading"><h2>Motif Notes</h2><span id="motif-note-summary"></span></div><div id="motif-notes" class="motif-note-grid"></div></section>
+      <section class="panel motif-candidates-panel"><div class="section-heading"><h2>Exploration Candidates</h2><span id="motif-candidate-summary"></span></div><label class="check"><input id="motif-show-rejected" type="checkbox"> Show filtered candidates</label><div class="button-row"><button id="motif-select-visible" class="quiet">Select visible for transfer</button><button id="motif-clear-transfer" class="quiet">Clear transfer selection</button><span id="motif-transfer-summary" class="hint">0 selected</span></div><div id="motif-candidates-list" class="motif-candidates"></div></section>
+      <section class="panel motif-tree-panel"><div class="section-heading"><h2>Development Tree</h2><span id="motif-tree-summary"></span></div><div id="motif-tree" class="motif-tree"><p class="hint">Generate a motif, then develop its form.</p></div></section>
+    </main>
+    <script src="/static/motif_development.js?v=20260730-motif-development-12"></script>
+  </body>
+</html>

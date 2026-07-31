@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Pure Intonation Workbench</title>
-    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="/static/style.css?v=20260727-lattice-page-2">
   </head>
   <body>
     <header class="topbar">
@@ -12,7 +12,7 @@
         <p class="eyebrow">RATIONAL TUNING LAB</p>
         <h1>Pure Intonation Workbench</h1>
       </div>
-      <a href="/docs" target="_blank" rel="noreferrer">API docs ↗</a>
+      <span class="topbar-links"><a href="/lattice">Lattice Lab</a><a href="/harmonic-pitch-circle">Harmonic Pitch Circle</a><a href="/prime-limit-explorer">Prime Explorer</a><a href="/minimal-functional-composer">Minimal Composer</a><a href="/motif-development">Motif Development</a><a href="/vital-pack-composer">Vital Pack</a><a href="/fractional-pop-composer">Fractional Pop</a><a href="/jpop-composer">J-Pop</a><a href="/docs" target="_blank" rel="noreferrer">API docs ↗</a></span>
     </header>
 
     <main>
@@ -37,10 +37,48 @@
         </label>
         <label class="check"><input id="octave" type="checkbox" checked> 1オクターブ内に正規化</label>
         <button id="generate" class="primary">音階を生成</button>
+        <div class="button-row snap-row">
+          <select id="snap-mode" title="スナップ方式">
+            <option value="edo">EDO</option>
+            <option value="prime_limit">Prime limit</option>
+          </select>
+          <input id="snap-value" type="number" min="2" max="31" value="12" title="分割数 / 素数リミット">
+          <button id="snap-all" class="quiet" title="全音をスナップ">Snap</button>
+        </div>
       </section>
 
       <section class="panel visualizer">
-        <div class="section-heading"><h2>Pitch circle</h2><span id="scale-name">CPS(4,2)</span></div>
+        <div class="section-heading"><h2 id="visual-title">Pitch circle</h2><span id="scale-name">CPS(4,2)</span><span class="heading-tools"><label class="check inline lattice-keyboard-target"><input id="lattice-keyboard-target" type="checkbox"> Lattice Keyboard</label><label class="check inline" title="倍音ガイド"><input id="harmonics-toggle" type="checkbox"> 倍音</label><input id="harmonics-count" type="number" min="5" max="64" value="16" title="倍音数"></span><button id="graph-toggle" class="quiet" title="Graph view">Graph</button></div>
+        <div id="walk-controls" class="walk-controls" hidden>
+          <select id="graph-layout" title="レイアウト">
+            <option value="force">force-directed</option>
+            <option value="layered">layered grid</option>
+          </select>
+          <select id="grid-sort" title="レイヤー内の並び順" hidden>
+            <option value="lexicographic">lexicographic</option>
+            <option value="product">product</option>
+            <option value="pitch">pitch</option>
+          </select>
+          <select id="ratio-mode" title="ラベル">
+            <option value="harmonic">harmonic</option>
+            <option value="subharmonic">subharmonic</option>
+          </select>
+          <select id="walk-operation">
+            <option value="random_walk">random walk</option>
+            <option value="weighted_walk">weighted walk</option>
+            <option value="shortest_path">shortest path</option>
+          </select>
+          <input id="walk-steps" type="number" min="1" max="200" value="12" title="ステップ数">
+          <input id="walk-seed" type="number" value="42" title="シード">
+          <input id="walk-end" type="number" min="1" value="6" title="終点ノード (shortest path)" hidden>
+          <select id="walk-metric" hidden>
+            <option value="harmonic">harmonic</option>
+            <option value="monzo">monzo</option>
+            <option value="cent">cent</option>
+          </select>
+          <button id="walk-run" class="quiet">Walk</button>
+        </div>
+        <p id="grid-hint" class="hint" hidden>ダブルクリックで基準ノードを変更。</p>
         <canvas id="circle" width="720" height="720" aria-label="音程の円周表示"></canvas>
         <p class="hint">点をクリックして発音。PCキーボードは <kbd>A</kbd> から順に使えます。</p>
         <div class="legend" aria-label="調和度の凡例"><span class="selected">発音中</span><span class="strong">強い調和</span><span class="close">近い調和</span><span class="distant">遠い関係</span></div>
@@ -68,10 +106,471 @@
 
       <section class="panel pitches">
         <div class="section-heading"><h2>Intervals</h2><button id="scala" class="quiet">Scala を保存</button></div>
+        <div class="add-note"><input id="note-input" placeholder="5/4 · 748.2 · 5\12 · =2^(6/12)"><button id="note-add" class="quiet">追加</button></div>
         <div class="table-wrap"><table><thead><tr><th>Key</th><th>Ratio</th><th>Cents</th><th>Monzo</th><th></th></tr></thead><tbody id="pitches"></tbody></table></div>
+      </section>
+      <section class="panel timeline">
+        <div class="section-heading"><h2>Timeline</h2><span id="timeline-length"></span><span class="button-row"><button id="timeline-play" class="quiet" title="Replay recording">▶</button><button id="timeline-clear" class="quiet" title="Clear recording">Clear</button><button id="record" class="quiet" title="Record performance">Record</button></span></div>
+        <div id="timeline-events" class="timeline-events" aria-live="polite"></div>
+      </section>
+
+      <section class="panel scales">
+        <div class="section-heading"><h2>Scales</h2><span id="scales-status" role="status"></span></div>
+        <div class="compose-grid">
+          <div>
+            <label>名前
+              <input id="scale-save-name" value="My Scale">
+            </label>
+            <div class="button-row">
+              <button id="scale-save">現在の音階を保存</button>
+              <button id="scala-import">Scala をインポート</button>
+            </div>
+            <input id="scala-file" type="file" accept=".scl" hidden>
+          </div>
+          <div id="scale-list" class="scale-list" aria-live="polite"></div>
+        </div>
+      </section>
+
+      <section class="panel compose">
+        <div class="section-heading"><h2>Compose</h2><span id="compose-status" role="status"></span></div>
+        <div class="compose-grid">
+          <div>
+            <label>因子（カンマ区切り）
+              <input id="harmony-factors" value="1, 3, 5, 7" inputmode="numeric">
+            </label>
+            <label>組合せの数 <output id="harmony-choose-value">2</output>
+              <input id="harmony-choose" type="range" min="1" max="4" value="2">
+            </label>
+            <label>長さ
+              <input id="harmony-length" type="number" min="1" max="64" value="8">
+            </label>
+            <label>シード
+              <input id="harmony-seed" type="number" value="42">
+            </label>
+            <label>距離メトリクス
+              <select id="harmony-metric">
+                <option value="harmonic">harmonic</option>
+                <option value="monzo">monzo</option>
+                <option value="cent">cent</option>
+              </select>
+            </label>
+            <button id="compose-generate" class="primary">和声進行を生成</button>
+          </div>
+          <div>
+            <label>ベース戦略
+              <select id="bass-strategy">
+                <option value="hybrid">hybrid</option>
+                <option value="mirror">mirror</option>
+                <option value="root">root</option>
+                <option value="fifth">fifth</option>
+              </select>
+            </label>
+            <label>旋律の声部数
+              <input id="melody-voices" type="number" min="1" max="4" value="1">
+            </label>
+            <label>旋律の輪郭
+              <select id="melody-contour">
+                <option value="arch">arch</option>
+                <option value="ascending">ascending</option>
+                <option value="descending">descending</option>
+                <option value="free">free</option>
+              </select>
+            </label>
+            <div class="button-row">
+              <button id="bass-generate">ベース生成</button>
+              <button id="melody-generate">旋律生成</button>
+            </div>
+          </div>
+          <div>
+            <label>テンポ (BPM)
+              <input id="tempo" type="number" min="40" max="240" value="96">
+            </label>
+            <div class="button-row">
+              <button id="progression-play">▶ 再生</button>
+              <button id="progression-stop" class="quiet">停止</button>
+            </div>
+            <div class="button-row">
+              <button id="export-midi">MIDI</button>
+              <button id="export-json">JSON</button>
+              <button id="render-wav">WAV レンダリング</button>
+            </div>
+            <label class="check"><input id="midi-pitch-bend" type="checkbox"> ピッチベンドで正確な音程</label>
+            <p id="render-status" class="hint"></p>
+            <audio id="render-player" controls hidden></audio>
+          </div>
+        </div>
+        <div class="compose-rhythm">
+          <div class="section-heading">
+            <h3>Rhythm Orchestration</h3>
+            <span id="compose-rhythm-status" role="status"></span>
+          </div>
+          <div id="compose-rhythm-source" class="segmented" aria-label="リズムソース">
+            <button type="button" class="active" data-value="layers">Rhythm layers</button>
+            <button type="button" data-value="generate">Generate</button>
+          </div>
+          <div class="compose-rhythm-settings">
+            <label>Bars
+              <input id="compose-rhythm-bars" type="number" min="1" max="128" value="8">
+            </label>
+            <label>Seed
+              <input id="compose-rhythm-seed" type="number" value="42">
+            </label>
+            <button id="compose-rhythm-clear" class="quiet">Clear rhythm</button>
+          </div>
+          <div id="compose-rhythm-layers">
+            <div id="compose-rhythm-mode" class="segmented" aria-label="割り当てモード">
+              <button type="button" class="active" data-value="chord-tones">Chord tones</button>
+              <button type="button" data-value="roles">Roles</button>
+              <button type="button" data-value="hybrid">Hybrid</button>
+            </div>
+            <div class="table-wrap compose-rhythm-table">
+              <table>
+                <thead><tr><th>Source</th><th>On</th><th>Solo</th><th>Target</th><th>Policy</th><th>Overflow</th><th>Gate</th><th>Vel</th><th>Oct</th><th>Articulation</th><th>Collision</th></tr></thead>
+                <tbody id="compose-rhythm-mappings"></tbody>
+              </table>
+            </div>
+            <button id="compose-rhythm-apply" class="primary">Apply rhythm</button>
+          </div>
+          <div id="compose-rhythm-generate" hidden>
+            <div class="table-wrap compose-rhythm-generator-table">
+              <table>
+                <thead><tr><th>Role</th><th>On</th><th>Strategy</th><th>Profile</th><th>Density</th><th>Syncopation</th></tr></thead>
+                <tbody>
+                  <tr data-generator-role="harmony">
+                    <td>Harmony</td>
+                    <td><input class="rhythm-generator-enabled" type="checkbox" checked aria-label="Harmony rhythm"></td>
+                    <td><select class="rhythm-generator-strategy" aria-label="Harmony strategy"><option value="transition-aware">transition-aware</option><option value="semi-markov">semi-markov</option><option value="interlocking">interlocking</option><option value="ratio-derived">ratio-derived</option></select></td>
+                    <td><select class="rhythm-generator-profile" aria-label="Harmony profile"><option value="grounded">grounded</option><option value="interlocking">interlocking</option><option value="sparse">sparse</option><option value="flowing">flowing</option></select></td>
+                    <td><div class="generator-range"><input class="rhythm-generator-density" type="range" min="0.05" max="0.9" step="0.05" value="0.25" aria-label="Harmony density"><output>0.25</output></div></td>
+                    <td><div class="generator-range"><input class="rhythm-generator-sync" type="range" min="0" max="1" step="0.05" value="0.15" aria-label="Harmony syncopation"><output>0.15</output></div></td>
+                  </tr>
+                  <tr data-generator-role="bass">
+                    <td>Bass</td>
+                    <td><input class="rhythm-generator-enabled" type="checkbox" checked aria-label="Bass rhythm"></td>
+                    <td><select class="rhythm-generator-strategy" aria-label="Bass strategy"><option value="semi-markov">semi-markov</option><option value="transition-aware">transition-aware</option><option value="interlocking">interlocking</option><option value="ratio-derived">ratio-derived</option></select></td>
+                    <td><select class="rhythm-generator-profile" aria-label="Bass profile"><option value="grounded">grounded</option><option value="interlocking">interlocking</option><option value="sparse">sparse</option><option value="flowing">flowing</option></select></td>
+                    <td><div class="generator-range"><input class="rhythm-generator-density" type="range" min="0.05" max="0.9" step="0.05" value="0.35" aria-label="Bass density"><output>0.35</output></div></td>
+                    <td><div class="generator-range"><input class="rhythm-generator-sync" type="range" min="0" max="1" step="0.05" value="0.25" aria-label="Bass syncopation"><output>0.25</output></div></td>
+                  </tr>
+                  <tr data-generator-role="melody">
+                    <td>Melody</td>
+                    <td><input class="rhythm-generator-enabled" type="checkbox" checked aria-label="Melody rhythm"></td>
+                    <td><select class="rhythm-generator-strategy" aria-label="Melody strategy"><option value="semi-markov">semi-markov</option><option value="transition-aware">transition-aware</option><option value="interlocking">interlocking</option><option value="ratio-derived">ratio-derived</option></select></td>
+                    <td><select class="rhythm-generator-profile" aria-label="Melody profile"><option value="flowing">flowing</option><option value="grounded">grounded</option><option value="interlocking">interlocking</option><option value="sparse">sparse</option></select></td>
+                    <td><div class="generator-range"><input class="rhythm-generator-density" type="range" min="0.05" max="0.9" step="0.05" value="0.50" aria-label="Melody density"><output>0.50</output></div></td>
+                    <td><div class="generator-range"><input class="rhythm-generator-sync" type="range" min="0" max="1" step="0.05" value="0.55" aria-label="Melody syncopation"><output>0.55</output></div></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <button id="compose-rhythm-native" class="primary">Generate rhythm</button>
+          </div>
+        </div>
+        <div id="progression" class="progression" aria-live="polite"></div>
+      </section>
+
+      <section id="composition-roll-panel" class="panel composition-roll-panel" hidden>
+        <div class="section-heading">
+          <h2>Composition Roll</h2>
+          <span id="roll-status" role="status"></span>
+          <span class="roll-controls" aria-label="表示レイヤー">
+            <label class="check inline"><input id="roll-harmony" type="checkbox" checked> Harmony</label>
+            <label class="check inline"><input id="roll-bass" type="checkbox" checked> Bass</label>
+            <label class="check inline"><input id="roll-melody" type="checkbox" checked> Melody</label>
+          </span>
+        </div>
+        <canvas id="composition-roll" width="1400" height="560" aria-label="和声、ベース、旋律のcentsタイムライン"></canvas>
+        <p id="roll-inspector" class="hint" aria-live="polite"></p>
+      </section>
+
+      <section id="lattice-panel" class="panel lattice" tabindex="0">
+        <div class="section-heading"><h2>Lattice Lab <span class="experimental">Experimental</span></h2><span id="lattice-status" role="status"></span></div>
+        <div class="compose-grid">
+          <div>
+            <label>生成子（カンマ区切り）
+              <input id="lattice-generators" value="3, 5">
+            </label>
+            <label>指数の最小
+              <input id="lattice-min" value="-2, -2">
+            </label>
+            <label>指数の最大
+              <input id="lattice-max" value="2, 2">
+            </label>
+            <label>衝突ポリシー
+              <select id="lattice-collision">
+                <option value="keep">keep all</option>
+                <option value="merge">merge</option>
+              </select>
+            </label>
+            <button id="lattice-scale" class="primary">格子を生成</button>
+          </div>
+          <div>
+            <label>ルート音
+              <input id="lattice-root" value="1/1">
+            </label>
+            <div class="lattice-chord-options">
+              <label>和音の音数
+                <input id="lattice-chord-size" type="number" min="1" max="16" value="3">
+              </label>
+              <label>和音シード
+                <input id="lattice-chord-seed" type="number" value="42">
+              </label>
+            </div>
+            <button id="lattice-chord-generate" class="primary">和音を生成</button>
+            <label>和音ベクトル（根音相対、1行に1音）
+              <textarea id="lattice-diffs" rows="4">0, -1
+-1, 0</textarea>
+            </label>
+            <div class="button-row">
+              <button id="lattice-harmony">ハーモニーを再構成</button>
+              <button id="lattice-send-compose" class="quiet">Compose に送る</button>
+            </div>
+            <label>並べ替え
+              <select id="lattice-order">
+                <option value="original">user-entered</option>
+                <option value="ascending">ascending cents</option>
+                <option value="nearest">nearest-neighbor path</option>
+                <option value="lexicographic">generator-priority</option>
+              </select>
+            </label>
+          </div>
+          <div>
+            <label>和声進行の差分ベクトル（1行に1ステップ）
+              <textarea id="lattice-progression-diffs" rows="4">1, 0
+0, 1</textarea>
+            </label>
+            <div class="button-row">
+              <button id="lattice-progression">和声進行を生成</button>
+              <button id="lattice-progression-play" class="quiet">▶ 進行再生</button>
+              <button id="lattice-progression-compose" class="quiet">Compose に送る</button>
+            </div>
+          </div>
+          <div>
+            <label>ウォークの許可ステップ（1行に1ベクトル）
+              <textarea id="lattice-allowed" rows="4">1, 0
+0, 1
+-1, 0
+0, -1</textarea>
+            </label>
+            <label>長さ
+              <input id="lattice-walk-length" type="number" min="1" max="512" value="16">
+            </label>
+            <label>シード
+              <input id="lattice-walk-seed" type="number" value="42">
+            </label>
+            <label>境界ポリシー
+              <select id="lattice-boundary">
+                <option value="reflect">reflect</option>
+                <option value="stop">stop</option>
+                <option value="wrap">wrap</option>
+                <option value="resample">resample</option>
+              </select>
+            </label>
+            <div class="button-row">
+              <button id="lattice-walk">ウォーク</button>
+              <button id="lattice-walk-play" class="quiet">▶ 和声ウォーク再生</button>
+              <button id="lattice-walk-compose" class="quiet">Compose に送る</button>
+            </div>
+          </div>
+        </div>
+        <div class="lattice-keyboard-bar">
+          <span>Lattice Keyboard</span>
+          <div id="lattice-keyboard" class="keyboard lattice-keyboard" aria-label="Lattice harmony keyboard"></div>
+        </div>
+        <div class="lattice-pitch-circle">
+          <div class="section-heading"><h3>Lattice Pitch circle</h3><span id="lattice-circle-status"></span></div>
+          <canvas id="lattice-circle" width="560" height="560" aria-label="Lattice keyboard tones on a pitch circle"></canvas>
+        </div>
+        <p id="lattice-inspector" class="hint"></p>
+        <div class="lattice-view">
+          <div>
+            <div class="axis-selects">X <select id="lattice-axis-x"></select> Y <select id="lattice-axis-y"></select></div>
+            <canvas id="lattice-canvas" width="560" height="560" aria-label="指数格子の投影"></canvas>
+          </div>
+          <div class="table-wrap lattice-table">
+            <table><thead><tr><th>Vector</th><th>Raw</th><th>Norm</th><th>Oct</th><th>Cents</th><th>Grp</th></tr></thead><tbody id="lattice-points"></tbody></table>
+          </div>
+        </div>
+      </section>
+
+      <section id="arrange-panel" class="panel arrange" tabindex="0">
+        <div class="section-heading"><h2>Arrange <span class="experimental">Experimental</span></h2><span id="arrange-status" role="status"></span></div>
+        <div class="compose-grid">
+          <div>
+            <label>ジャンルプロファイル
+              <select id="arrange-profile"></select>
+            </label>
+            <label>小節数（空欄でプロファイル既定）
+              <input id="arrange-bars" type="number" min="1" max="128" value="16">
+            </label>
+            <label>拍子
+              <select id="arrange-meter">
+                <option value="">profile default</option>
+                <option value="2">2/4</option>
+                <option value="3">3/4</option>
+                <option value="4" selected>4/4</option>
+                <option value="6">6/4</option>
+              </select>
+            </label>
+            <label>テンポ（空欄でプロファイル中央値）
+              <input id="arrange-tempo" type="number" min="30" max="300" placeholder="auto">
+            </label>
+            <label>シード
+              <input id="arrange-seed" type="number" value="42">
+            </label>
+            <button id="arrange-generate" class="primary">アレンジを生成</button>
+          </div>
+          <div>
+            <label>Energy <input id="arrange-energy" type="range" min="0" max="1" step="0.05" value="0.5"></label>
+            <label>Density <input id="arrange-density" type="range" min="0" max="1" step="0.05" value="0.5"></label>
+            <label>Syncopation <input id="arrange-syncopation" type="range" min="0" max="1" step="0.05" value="0.5"></label>
+            <label>Harmonic complexity <input id="arrange-complexity" type="range" min="0" max="1" step="0.05" value="0.5"></label>
+            <label>Repetition <input id="arrange-repetition" type="range" min="0" max="1" step="0.05" value="0.5"></label>
+            <label>Section contrast <input id="arrange-contrast" type="range" min="0" max="1" step="0.05" value="0.5"></label>
+            <label>Humanization <input id="arrange-humanize" type="range" min="0" max="1" step="0.05" value="0"></label>
+            <label class="check inline"><input id="arrange-melody-enabled" type="checkbox" checked> Melody</label>
+            <label class="check inline"><input id="arrange-drums-enabled" type="checkbox" checked> Drums</label>
+            <label>Harmony performance
+              <select id="arrange-harmony-mode">
+                <option value="auto">Auto</option>
+                <option value="block">Block</option>
+                <option value="arpeggio">Arpeggio</option>
+                <option value="stride">Stride</option>
+              </select>
+            </label>
+            <label>Rate (subdivisions)
+              <input id="arrange-harmony-rate" type="number" min="1" max="16" value="2">
+            </label>
+            <label>Arpeggio order
+              <select id="arrange-arpeggio-order">
+                <option value="up">Up</option>
+                <option value="down">Down</option>
+                <option value="up_down">Up / Down</option>
+                <option value="outside_in">Outside / In</option>
+                <option value="seeded">Seeded</option>
+              </select>
+            </label>
+            <label>Stride / Bass
+              <select id="arrange-stride-conflict">
+                <option value="yield">Yield</option>
+                <option value="coordinate">Coordinate</option>
+                <option value="double">Double</option>
+              </select>
+            </label>
+          </div>
+          <div>
+            <label>スケール（カンマ区切りの比）
+              <textarea id="arrange-scale" rows="3">1/1, 9/8, 5/4, 4/3, 3/2, 5/3, 7/4, 15/8</textarea>
+            </label>
+            <button id="arrange-use-scale" class="quiet" type="button">現在のスケールを使う</button>
+            <label>和音ボキャブラリー（JSON）
+              <textarea id="arrange-chords" rows="10">[
+  {"id": "tonic", "name": "Just major triad", "mode": "absolute",
+   "tones": ["1/1", "5/4", "3/2"], "tags": ["stable"]},
+  {"id": "color", "name": "Suspended color", "mode": "ratio_template",
+   "tones": ["1/1", "4/3", "3/2", "7/4"], "allowed_root_degrees": [0, 3, 4],
+   "tags": ["color", "suspended"]},
+  {"id": "diatonic", "name": "Diatonic triad", "mode": "degree_template",
+   "tones": [0, 2, 4], "allowed_root_degrees": [0, 1, 3, 4], "tags": ["stable"]}
+]</textarea>
+            </label>
+          </div>
+        </div>
+        <div class="button-row">
+          <button id="arrange-play">▶ 再生</button>
+          <button id="arrange-stop" class="quiet">停止</button>
+          <button id="arrange-midi">MIDI</button>
+          <button id="arrange-json">JSON</button>
+          <button id="arrange-render">Render WAV</button>
+        </div>
+        <canvas id="arrange-form-canvas" width="1400" height="180" aria-label="フォームとエネルギー曲線"></canvas>
+        <div class="lattice-view">
+          <div class="table-wrap">
+            <table><thead><tr><th>Part</th><th>Instrument</th><th>Register</th><th>Events</th></tr></thead><tbody id="arrange-parts"></tbody></table>
+          </div>
+          <div class="table-wrap">
+            <table><thead><tr><th>#</th><th>Section</th><th>Chord</th><th>Performance</th><th>Root</th><th>Tones</th><th>VL¢</th></tr></thead><tbody id="arrange-progression"></tbody></table>
+          </div>
+        </div>
+        <p id="arrange-trace" class="hint" aria-live="polite"></p>
+      </section>
+
+      <section id="phase-panel" class="panel phase" tabindex="0">
+        <div class="section-heading"><h2>Phase <span class="experimental">Experimental</span></h2><span id="phase-status" role="status"></span></div>
+        <div class="compose-grid">
+          <div>
+            <label>Chord clock
+              <select id="phase-mode">
+                <option value="shared_chord_clock">Shared</option>
+                <option value="independent_chord_clock">Independent</option>
+              </select>
+            </label>
+            <label>Phase process
+              <select id="phase-process">
+                <option value="static">Static</option>
+                <option value="discrete">Discrete</option>
+                <option value="polymetric" selected>Polymetric</option>
+                <option value="convergent">Convergent</option>
+              </select>
+            </label>
+            <label>Overlap
+              <select id="phase-overlap">
+                <option value="strict_full_chord">Strict</option>
+                <option value="adaptive_voicing">Adaptive</option>
+              </select>
+            </label>
+          </div>
+          <div>
+            <label>A cycle <input id="phase-a-cycle" type="number" min="2" max="128" value="16"></label>
+            <label>A pulses <input id="phase-a-pulses" type="number" min="1" max="128" value="4"></label>
+            <label>A rotation <input id="phase-a-rotation" type="number" min="-127" max="127" value="0"></label>
+          </div>
+          <div>
+            <label>B cycle <input id="phase-b-cycle" type="number" min="2" max="128" value="15"></label>
+            <label>B pulses <input id="phase-b-pulses" type="number" min="1" max="128" value="5"></label>
+            <label>B rotation <input id="phase-b-rotation" type="number" min="-127" max="127" value="2"></label>
+          </div>
+        </div>
+        <div class="button-row">
+          <button id="phase-generate" class="primary phase-primary">位相シフトを生成</button>
+          <button id="phase-play">▶ 再生</button>
+          <button id="phase-stop" class="quiet">停止</button>
+          <button id="phase-midi">MIDI</button>
+          <button id="phase-json">JSON</button>
+          <button id="phase-render">Render WAV</button>
+        </div>
+        <canvas id="phase-roll" width="1400" height="240" aria-label="位相シフト二重レーン"></canvas>
+        <div class="table-wrap phase-table">
+          <table>
+            <thead><tr><th>Bar</th><th>Rhythm offset</th><th>Chord offset</th></tr></thead>
+            <tbody id="phase-schedule"></tbody>
+          </table>
+        </div>
+        <p id="phase-metrics" class="hint" aria-live="polite"></p>
+      </section>
+
+      <section class="panel rhythm">
+        <div class="section-heading"><h2>Rhythm</h2><span id="rhythm-status" role="status"></span></div>
+        <div class="drum-controls">
+          <label>Bars
+            <input id="drum-bars" type="number" min="1" max="32" value="8">
+          </label>
+          <label>シード
+            <input id="drum-seed" type="number" value="42">
+          </label>
+          <div class="button-row">
+            <button id="drums-generate" class="primary">ドラムを生成</button>
+            <button id="drums-play">▶ 再生</button>
+            <button id="drums-stop" class="quiet">停止</button>
+            <button id="drums-export-midi">MIDI</button>
+            <button id="drums-export-json">JSON</button>
+          </div>
+        </div>
+        <div id="drum-layers" class="drum-layers"></div>
+        <p id="drum-metrics" class="hint"></p>
       </section>
     </main>
     <template id="key-template"><button class="key"><span class="key-name"></span><span class="ratio"></span></button></template>
-    <script src="/static/app.js"></script>
+    <script src="/static/app.js?v=20260727-lattice-page-2"></script>
   </body>
 </html>

@@ -10,6 +10,13 @@ Version: 0.1
 
 This document specifies the musical algorithms used by the Pure Intonation Composer.
 
+> **Status:** design specification. The CPS/Euler–Fokker generators, harmonic
+> graph, transition scoring, bass/melody/voice-leading engines, Euclidean
+> rhythm, state graphs, phase shifting, humanization, and Compose-native
+> Semi-Markov/interlocking rhythm are implemented. The form generator, global
+> texture-density conductor, and spatialization are planned work. See
+> [status.md](status.md) for the audited boundary.
+
 Unlike conventional DAWs or algorithmic composition systems based on equal temperament, this project defines music as motion through harmonic state spaces generated from integer frequency ratios.
 
 Every musical layer is represented as a state machine.
@@ -284,17 +291,22 @@ Phase
 Velocity Profile
 ```
 
-Supported generators
+Implemented drum processes
 
-Euclidean Rhythm
+* Euclidean rhythm
+* manual pattern editing
+* Hamming-distance state graphs
+* discrete phase offsets
+* seeded timing/velocity humanization
 
-Markov Chain
+Implemented Compose pitch-rhythm processes
 
-Manual Pattern
+* transition-aware harmonic durations
+* seeded Semi-Markov onset generation
+* interlocking onset allocation
+* experimental ratio-derived cycles
 
-Random Pattern
-
-Procedural Pattern
+Coordinated state transitions, fills, and preset libraries remain planned.
 
 ---
 
@@ -342,7 +354,12 @@ Optional tempo-independent phase drift may also be enabled.
 
 The form generator controls macro-scale evolution.
 
-Supported forms
+This remains planned. Its first concrete implementation is specified by the
+[Genre Arrangement Pipeline](development_plan_genre_arrangement.md), which
+adds exact section lengths, energy curves, genre profiles, and locked-section
+regeneration.
+
+Candidate forms
 
 ABA
 
@@ -454,11 +471,11 @@ Square
 
 Additive
 
+Future support
+
 FM
 
 Noise
-
-Future support
 
 Physical modeling
 

@@ -10,7 +10,16 @@ Version: 0.1
 
 This document defines the canonical data model used throughout the project.
 
-Every module must exchange data using these models.
+> **Status:** design specification. Ratios, scales, harmonic graphs, melody,
+> bass, rhythm patterns, and render settings are implemented. Presets,
+> effect chains, projects, and SQL storage are planned work. The REST API
+> exchanges a practical subset of these models — see [api.md](api.md) for
+> the exact wire shapes and [status.md](status.md) for implementation
+> boundaries.
+
+These models define the intended public and persistence boundaries. Internal
+code currently uses a mix of dataclasses, Pydantic request models, and plain
+response dictionaries that map to the implemented subset.
 
 The models are independent of
 
@@ -254,7 +263,75 @@ continuity_score
 
 ---
 
-# 12. DrumHit
+# 12. CompositionClock
+
+```text
+beats_per_bar
+
+subdivisions_per_beat
+
+tempo_bpm
+
+bars
+
+ticks_per_beat
+```
+
+---
+
+# 13. CompositionTrack
+
+```text
+id
+
+role
+
+voice_index
+
+chord_tone_index
+```
+
+---
+
+# 14. CompositionRhythmGenerator
+
+```text
+target
+
+strategy
+
+profile
+
+density
+
+syncopation
+```
+
+---
+
+# 15. RhythmicNoteEvent
+
+```text
+track_id
+
+chord_index
+
+ratio
+
+start_tick
+
+duration_ticks
+
+velocity
+
+articulation
+
+source_layer
+```
+
+---
+
+# 16. DrumHit
 
 ```text
 instrument
@@ -268,7 +345,7 @@ probability
 
 ---
 
-# 13. DrumPattern
+# 17. DrumPattern
 
 ```text
 id
@@ -284,7 +361,7 @@ density
 
 ---
 
-# 14. DrumState
+# 18. DrumState
 
 ```text
 pattern
@@ -296,7 +373,7 @@ transition_probability
 
 ---
 
-# 15. RhythmLayer
+# 19. RhythmLayer
 
 ```text
 generator
@@ -310,7 +387,7 @@ patterns[]
 
 ---
 
-# 16. FormSection
+# 20. FormSection
 
 ```text
 name
@@ -330,7 +407,7 @@ tempo
 
 ---
 
-# 17. Composition
+# 21. Composition
 
 Top-level object.
 
@@ -352,7 +429,7 @@ seed
 
 ---
 
-# 18. AudioPreset
+# 22. AudioPreset
 
 ```text
 name
@@ -368,7 +445,7 @@ effects
 
 ---
 
-# 19. EffectChain
+# 23. EffectChain
 
 ```text
 reverb
@@ -384,7 +461,7 @@ eq
 
 ---
 
-# 20. RenderSettings
+# 24. RenderSettings
 
 ```text
 sample_rate
@@ -400,7 +477,7 @@ dither
 
 ---
 
-# 21. Project
+# 25. Project
 
 Represents one saved project.
 
@@ -422,7 +499,7 @@ modified
 
 ---
 
-# 22. Metadata
+# 26. Metadata
 
 ```text
 title
@@ -438,25 +515,25 @@ description
 
 ---
 
-# 23. Serialization
+# 27. Serialization
 
-All objects must support
+Implemented exchange boundaries
 
-JSON
+* JSON request and response payloads
+* Pydantic validation for REST request models
+* Dataclass and dictionary serialization for the implemented domain objects
+* Composition JSON export from the workbench
 
-YAML
+Planned persistence boundaries
 
-Pydantic
-
-Future
-
-SQLite
-
-PostgreSQL
+* Versioned project JSON import, validation, and migration
+* YAML only where a human-authored configuration format is useful
+* SQLite or another on-disk store for local persistence
+* PostgreSQL only if a remote multi-user deployment requires it
 
 ---
 
-# 24. Validation
+# 28. Validation
 
 All ratios
 
@@ -477,7 +554,7 @@ All UUIDs
 
 ---
 
-# 25. Immutability
+# 29. Immutability
 
 Musical objects are immutable.
 
@@ -485,7 +562,7 @@ Editing produces new objects rather than modifying existing ones.
 
 ---
 
-# 26. Versioning
+# 30. Versioning
 
 Every serialized file contains
 
@@ -496,3 +573,118 @@ Every serialized file contains
 ```
 
 Backward compatibility should be maintained whenever possible.
+
+---
+
+# 31. Genre Arrangement Models (Planned)
+
+The genre arrangement pipeline adds the following versioned project models.
+Their detailed contract is defined in
+[development_plan_genre_arrangement.md](development_plan_genre_arrangement.md).
+
+```text
+BasicChord
+  id
+  name
+  mode
+  tones
+  root_degree
+  allowed_root_degrees
+  tone_vectors
+  tags
+
+GenreProfile
+  id
+  display_name
+  schema_version
+  tempo_range
+  allowed_meters
+  default_form
+  harmony
+  rhythm
+  parts
+  arrangement
+  render
+
+ArrangementSection
+  id
+  role
+  start_bar
+  bars
+  energy_start
+  energy_end
+  harmony_density
+  part_presence
+
+ArrangementProject
+  schema_version
+  metadata
+  source_scale
+  chord_vocabulary
+  requested_profile
+  resolved_profile
+  seed
+  form
+  harmony_progression
+  clock
+  tracks
+  events
+  automation
+  mix
+  render_settings
+  decision_trace
+```
+
+`ArrangementProject` extends the conceptual `Project` boundary rather than
+introducing a second persistence format. Exact ratio and lattice-coordinate
+provenance must survive JSON round-trips.
+
+---
+
+# 32. Harmonic Phase-Shift Models (Planned)
+
+The G11 phase extension preserves an immutable source `ArrangementProject` and
+adds two rhythmic views of its chord progression. See
+[development_plan_harmonic_phase_shift.md](development_plan_harmonic_phase_shift.md)
+for the complete invariants.
+
+```text
+PhaseStreamSpec
+  id
+  track_ids
+  generated_roles
+  rhythm
+  chord_durations
+  register
+  gain
+  pan
+
+PhasePlan
+  process
+  initial_offset_steps
+  increment_steps
+  update_interval_bars
+  direction
+  convergence_points
+  maximum_supercycle_bars
+
+PhaseShiftArrangementProject
+  schema_version
+  source_arrangement_digest
+  source_progression
+  resolved_phase_profile
+  streams
+  phase_schedule
+  convergence_points
+  overlap_windows
+  tracks
+  events
+  metrics
+  decision_trace
+  midi
+  mix
+  render_settings
+```
+
+Both streams must retain source chord ids and visit indices. JSON import must
+reject a phase project whose source digest or event provenance is inconsistent.

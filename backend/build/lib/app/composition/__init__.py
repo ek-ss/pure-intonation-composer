@@ -1,0 +1,1 @@
+"""Deterministic musical composition algorithms."""

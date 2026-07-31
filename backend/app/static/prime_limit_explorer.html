@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Prime-Limit Harmonic Explorer | Pure Intonation Workbench</title>
+    <link rel="stylesheet" href="/static/style.css?v=20260728-prime-transfer-2">
+  </head>
+  <body class="prime-explorer-page">
+    <header class="topbar">
+      <div><p class="eyebrow">G12 · PRIME-LATTICE SCALE SEARCH</p><h1>Prime-Limit Harmonic Explorer</h1><p class="page-subtitle">Exact exponent vectors, octave-reduced pitch classes, and generated scales</p></div>
+      <span class="topbar-links"><a href="/">Workbench</a><a href="/lattice">Lattice Lab</a><a href="/harmonic-pitch-circle">Harmonic Pitch Circle</a><a href="/minimal-functional-composer">Minimal Composer</a><a href="/motif-development">Motif Development</a><a href="/vital-pack-composer">Vital Pack</a><a href="/fractional-pop-composer">Fractional Pop</a><a href="/jpop-composer">J-Pop</a><a href="/docs" target="_blank" rel="noreferrer">API docs ↗</a></span>
+    </header>
+    <main class="prime-explorer-main">
+      <section class="panel prime-controls">
+        <div class="section-heading"><h2>Search</h2><span id="prime-status" role="status">Ready</span></div>
+        <label>Prime basis<input id="prime-basis" value="3, 5, 7" inputmode="numeric"></label>
+        <div class="prime-field-grid">
+          <label>Exponent limit <output id="exponent-value">2</output><input id="exponent-limit" type="range" min="0" max="5" value="2"></label>
+          <label>Weighted height <output id="height-value">4</output><input id="height-limit" type="range" min="0" max="12" value="4"></label>
+        </div>
+        <label>Cluster tolerance <output id="tolerance-value">8 cents</output><input id="tolerance" type="range" min="1" max="50" value="8"></label>
+        <label>Target notes <output id="target-value">12</output><input id="target-count" type="range" min="1" max="24" value="12"></label>
+        <button id="prime-explore" class="primary">Explore scale</button>
+        <hr>
+        <label>Reference frequency <output id="prime-base-value">220 Hz</output><input id="prime-base-frequency" type="range" min="110" max="440" value="220"></label>
+        <label>Waveform<select id="prime-waveform"><option value="sine">Sine</option><option value="triangle">Triangle</option><option value="sawtooth">Sawtooth</option></select></label>
+        <div class="button-row"><button id="play-scale">Play scale</button><button id="stop-prime-audio" class="quiet">Stop</button></div>
+      </section>
+      <section class="panel prime-circle-panel">
+        <div class="section-heading"><h2>Continuous Pitch Circle</h2><span id="prime-summary"></span></div>
+        <svg id="prime-circle" viewBox="0 0 720 720" role="img" aria-label="Octave-reduced prime-lattice pitch classes"></svg>
+        <div class="prime-legend"><span class="selected">Selected scale</span><span>Other pitch classes</span><span id="prime-gap-summary"></span></div>
+      </section>
+      <section class="panel prime-inspector">
+        <div class="section-heading"><h2>Inspector</h2><span id="prime-selection-title">Select a pitch class</span></div>
+        <dl id="prime-detail" class="chord-detail"></dl>
+        <button id="play-selected" class="quiet" disabled>Play selected</button>
+      </section>
+      <section class="panel prime-scale-panel">
+        <div class="section-heading"><h2>Generated Scale</h2><span id="prime-metrics"></span></div>
+        <div class="table-wrap"><table><thead><tr><th>#</th><th>Vector</th><th>Ratio</th><th>Cents</th><th>Sources</th><th></th></tr></thead><tbody id="prime-scale-rows"></tbody></table></div>
+      </section>
+      <section class="panel prime-clusters-panel">
+        <div class="section-heading"><h2>Pitch-class Clusters</h2><span id="prime-cluster-count"></span></div>
+        <div class="table-wrap"><table><thead><tr><th>Cents</th><th>Representative</th><th>Vector</th><th>Sources</th></tr></thead><tbody id="prime-cluster-rows"></tbody></table></div>
+      </section>
+      <section class="panel prime-chords-panel">
+        <div class="section-heading"><h2>Chord Discovery</h2><span id="prime-chord-summary"></span></div>
+        <div class="prime-chord-controls"><label>Voices<select id="prime-chord-size"><option value="3">Triads</option><option value="4">Tetrads</option></select></label><label>Root shift [a, b, c]<input id="prime-root-vector" value="0, 0, 0" inputmode="numeric" aria-describedby="prime-root-hint"></label><label>Candidates<input id="prime-candidate-limit" type="number" min="1" max="128" value="24"></label><label>Rank<select id="prime-ranking-mode"><option value="compact">Compact</option><option value="low_height">Low height</option><option value="wide">Wide</option><option value="consonant">Consonant</option><option value="balanced">Balanced</option></select></label><button id="prime-discover-chords">Discover chords</button></div>
+        <p id="prime-root-hint" class="hint">For basis 3, 5, 7: [a, b, c] means 3^a * 5^b * 7^c.</p>
+        <div id="prime-chord-candidates" class="prime-chord-candidates"></div>
+      </section>
+      <section class="panel prime-lattice-panel">
+        <div class="section-heading"><h2>Authoritative Lattice</h2><span>Selected chord overlay</span></div>
+        <div class="prime-harmony-views">
+          <div><div class="axis-selects">X <select id="prime-axis-x"></select> Y <select id="prime-axis-y"></select></div><svg id="prime-lattice" viewBox="0 0 720 420" role="img" aria-label="Prime exponent lattice projection"></svg></div>
+          <div class="prime-chord-circle-view"><h3>Continuous Pitch Circle</h3><svg id="prime-lattice-circle" viewBox="0 0 480 480" role="img" aria-label="Selected chord on continuous pitch circle"></svg><p id="prime-lattice-circle-summary" class="hint">Choose Play in Chord Discovery</p></div>
+        </div>
+      </section>
+      <section class="panel prime-progression-panel">
+        <div class="section-heading"><h2>Progression</h2><span id="prime-progression-summary">Add chord candidates</span><a class="quiet prime-minimal-link" href="/minimal-functional-composer">Minimal Composer</a></div>
+        <div class="button-row"><button id="prime-play-progression">Play progression</button><button id="prime-clear-progression" class="quiet">Clear</button><button id="prime-send-minimal" class="quiet">Send to Minimal Composer</button><button id="prime-save-session" class="quiet">Save local</button><button id="prime-load-session" class="quiet">Load local</button><button id="prime-export-json" class="quiet">Export JSON</button><button id="prime-export-svg" class="quiet">Export SVG</button></div>
+        <div id="prime-progression" class="prime-progression"></div>
+        <div class="table-wrap"><table><thead><tr><th>From</th><th>To</th><th>Common</th><th>Johnson</th><th>Voice leading</th></tr></thead><tbody id="prime-transition-rows"></tbody></table></div>
+      </section>
+    </main>
+    <script src="/static/prime_limit_explorer.js?v=20260728-prime-transfer-2"></script>
+  </body>
+</html>
