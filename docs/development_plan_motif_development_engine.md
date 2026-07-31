@@ -5,7 +5,7 @@
 **Version:** 0.1
 **Status:** Experimental core implemented; remaining delivery phases planned
 **Source specification:** PIC-MDE-SPEC-001
-**Primary tuning model:** 7-limit just intonation
+**Primary tuning model:** configurable odd-prime basis with implicit octave prime 2
 
 ## 1. Purpose
 
@@ -41,7 +41,8 @@ Harmony adaptation  Variation engine
 
 Theme and variation are compared in two distinct pitch spaces:
 
-1. prime-lattice coordinates represented by `2^o 3^a 5^b 7^c`;
+1. prime-lattice coordinates represented by `2^o` times a configurable
+   product such as `3^a 7^b 13^c`;
 2. octave-cyclic pitch-circle position.
 
 These dimensions remain separate so that comma shifts, octave displacement,
@@ -54,12 +55,27 @@ The initial P1-P6 backend core and an initial P8 workbench are implemented at
 `/motif-development`. Available endpoints are `/api/motif/generate`,
 `/api/motif/compare`, `/api/motif/variation`, and `/api/motif/develop`.
 
-The current implementation supports bounded 7-limit generation, signatures,
+The current implementation supports bounded configurable-prime generation, signatures,
 component distances, initial pitch/rhythm transformations, deterministic
 section development, browser audition, and generic pitch-bend MIDI/JSON
-export. It does not yet provide persistent motif IDs, DTW insertion/deletion
-alignment, per-attribute locks, Prime Explorer/Lattice transfer, or
-Arrangement/Vital Pack role adapters.
+export, plus Development Tree transfer into Vital Pack.
+
+The default exploration basis is `[3,5,7]`, while the workbench accepts one
+to five unique odd primes such as `[3,7,13]`. Prime 2 remains implicit for
+octave placement. For basis `P` and radius `R`, candidate exponent deltas
+satisfy `sum(abs(delta_i)) <= R`; no unselected prime is introduced by motif
+generation, harmony stacks, lattice transpose, neighbour substitution,
+Development Tree generation, or Vital transfer.
+
+The browser workbench reconciles Development harmony after motif generation.
+If a custom basis excludes a prime used by the previous harmony text, it
+constructs four rotating three- or four-tone chords from the valid Anchor and
+generated motif pool. This keeps **Send Development Tree to Vital Pack**
+basis-safe while the API continues to reject invalid direct requests.
+
+Persistent motif IDs, DTW insertion/deletion alignment, per-attribute locks,
+and direct Prime Explorer/Lattice transfer remain outside the current
+boundary.
 
 The implementation must reuse:
 
@@ -347,7 +363,7 @@ Each candidate retains these normalized evaluation components:
 | --- | --- |
 | Harmony | Anchor affinity, exact/near membership, and terminal stability |
 | Melody | Pitch-circle step share and contour-turn restraint |
-| Rhythm | Duration entropy, syncopation, and controlled duration contrast |
+| Rhythm | Duration entropy, syncopation, controlled duration contrast, and a moderate rest ratio |
 | Identity | Exact terminal, non-static opening intervals, and 7-limit colour |
 | Novelty | Distance from earlier candidates in the same exploration batch |
 | Complexity | Prime-exponent pressure, applied as a penalty |
@@ -364,6 +380,28 @@ Rhythm signatures retain onset intervals, duration ratios, accents, rests,
 syncopation, and metrical positions. Generation sources include fixed
 templates, Euclidean patterns, short-long and question-answer grammars,
 user-supplied rhythms, and adaptation to drum or pulse grids.
+
+The implemented generator exposes `rest_density` from 0 to 0.7. It preserves
+each rhythmic cell onset and shortens the sounding gate, then serializes the
+derived gaps and normalized rest ratio. Browser audition and MIDI therefore
+use real silence rather than a display-only rest marker. Candidate evaluation
+rewards moderate breathing and filters excessive silence.
+
+### 7.1 Polyphonic motif steps
+
+`max_polyphony` selects one to four simultaneous voices. The first ratio of
+each step remains the contour-bearing motif tone; zero to three
+`harmony_tones` form a bounded chord stack at the same onset and duration.
+Companion selection ranks pure-interval consonance, anchor-chord relation,
+and current chord affinity. Accented and terminal steps realize the requested
+maximum when enough legal register candidates exist, while intervening steps
+may thin to fewer voices.
+
+Lattice transpose and pitch retrograde operate on the whole stack.
+Chord projection remaps companion voices to the target chord, and scale
+constraint snaps every voice rather than only the contour tone. Development
+Tree and Vital events carry `source_note_index` and `stack_voice`, so MIDI and
+audio preserve simultaneous attacks without losing motif provenance.
 
 A variation must preserve at least two configured rhythmic identity features,
 such as the opening cell, longest-note position, rest position, strong-beat

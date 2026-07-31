@@ -155,6 +155,7 @@ def generate_arrangement(request: ArrangeGenerateRequest) -> dict[str, Any]:
         slots,
         controls.harmonic_complexity,
         controls.repetition,
+        controls.root_variety,
         request.seed,
     )
     for message in progression_notes:
@@ -270,6 +271,7 @@ def generate_arrangement(request: ArrangeGenerateRequest) -> dict[str, Any]:
                 "syncopation": controls.syncopation,
                 "harmonic_complexity": controls.harmonic_complexity,
                 "repetition": controls.repetition,
+                "root_variety": controls.root_variety,
                 "section_contrast": controls.section_contrast,
                 "humanization": controls.humanization,
                 "melody_enabled": controls.melody_enabled,

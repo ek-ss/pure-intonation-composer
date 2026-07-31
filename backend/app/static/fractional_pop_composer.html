@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Fractional Pop Composer | Pure Intonation Workbench</title>
+    <link rel="stylesheet" href="/static/style.css?v=20260731-fractional-pop-1">
+  </head>
+  <body class="fractional-pop-page">
+    <header class="topbar">
+      <div><p class="eyebrow">VITAL PACK VARIATION · FRACTIONAL-RATIO POP</p><h1>Fractional Pop Composer</h1><p class="page-subtitle">Pop form, hooks, rhythm, and Vital roles from an exact-ratio scale</p></div>
+      <span class="topbar-links"><a href="/">Workbench</a><a href="/lattice">Lattice Lab</a><a href="/harmonic-pitch-circle">Harmonic Pitch Circle</a><a href="/prime-limit-explorer">Prime Explorer</a><a href="/minimal-functional-composer">Minimal Composer</a><a href="/motif-development">Motif Development</a><a href="/vital-pack-composer">Vital Pack</a><a href="/jpop-composer">J-Pop</a><a href="/docs" target="_blank" rel="noreferrer">API docs &#8599;</a></span>
+    </header>
+    <main class="fractional-pop-main">
+      <section class="panel fractional-pop-controls">
+        <div class="section-heading"><h2>Pop Composition</h2><span id="fractional-pop-status" role="status">Ready</span></div>
+        <label>Scale preset<select id="fractional-pop-scale-preset"><option value="bright">Bright 5-limit</option><option value="minor">Minor 5-limit</option><option value="color">7-limit color</option><option value="custom">Custom</option></select></label>
+        <label>Fractional-ratio scale<textarea id="fractional-pop-scale" rows="4">1/1, 9/8, 5/4, 4/3, 3/2, 5/3, 15/8</textarea></label>
+        <div class="fractional-pop-field-grid"><label>Base Hz<input id="fractional-pop-base" type="number" min="20" max="2000" value="220"></label><label>Tempo<input id="fractional-pop-tempo" type="number" min="90" max="130" value="112"></label><label>Bars<input id="fractional-pop-bars" type="number" min="8" max="64" step="4" value="20"></label><label>Seed<input id="fractional-pop-seed" type="number" value="31415"></label></div>
+        <label>Pop color<select id="fractional-pop-color"><option value="bright">Bright I / IV / V / vi</option><option value="bittersweet">Bittersweet I / ii / IV / vi</option><option value="open">Open I / IV / V</option></select></label>
+        <label>Keys performance<select id="fractional-pop-performance"><option value="auto">Auto</option><option value="block">Block chords</option><option value="arpeggio">Arpeggio</option><option value="stride">Stride</option></select></label>
+        <label>Chord rate<select id="fractional-pop-rate"><option value="1">Quarter</option><option value="2" selected>Eighth</option><option value="4">Sixteenth</option></select></label>
+        <label>Energy <output id="fractional-pop-energy-value">0.60</output><input id="fractional-pop-energy" type="range" min="0" max="1" step=".05" value=".60"></label>
+        <label>Density <output id="fractional-pop-density-value">0.60</output><input id="fractional-pop-density" type="range" min="0" max="1" step=".05" value=".60"></label>
+        <label>Syncopation <output id="fractional-pop-sync-value">0.40</output><input id="fractional-pop-sync" type="range" min="0" max="1" step=".05" value=".40"></label>
+        <label>Harmonic color <output id="fractional-pop-complexity-value">0.50</output><input id="fractional-pop-complexity" type="range" min="0" max="1" step=".05" value=".50"></label>
+        <label>Repetition <output id="fractional-pop-repetition-value">0.60</output><input id="fractional-pop-repetition" type="range" min="0" max="1" step=".05" value=".60"></label>
+        <label>Root movement <output id="fractional-pop-root-variety-value">0.85</output><input id="fractional-pop-root-variety" type="range" min="0" max="1" step=".05" value=".85"></label>
+        <label>Section contrast <output id="fractional-pop-contrast-value">0.70</output><input id="fractional-pop-contrast" type="range" min="0" max="1" step=".05" value=".70"></label>
+        <div class="fractional-pop-toggles"><label class="check inline"><input id="fractional-pop-melody" type="checkbox" checked> Hook melody</label><label class="check inline"><input id="fractional-pop-drums" type="checkbox" checked> Drums</label></div>
+        <button id="fractional-pop-generate" class="primary">Generate pop song</button>
+        <button id="fractional-pop-random" class="quiet">New seed and generate</button>
+        <div class="button-row"><button id="fractional-pop-play">Play</button><button id="fractional-pop-stop" class="quiet">Stop</button></div>
+        <div class="button-row"><button id="fractional-pop-midi" class="quiet">MPE MIDI</button><button id="fractional-pop-wav" class="quiet">Render WAV</button><button id="fractional-pop-json" class="quiet">Project JSON</button></div>
+      </section>
+      <section class="panel fractional-pop-form-panel">
+        <div class="section-heading"><h2>Pop Form</h2><span id="fractional-pop-summary"></span></div>
+        <canvas id="fractional-pop-form" width="1200" height="210" aria-label="Pop song form and event density"></canvas>
+        <div id="fractional-pop-metrics" class="vital-policies"></div>
+      </section>
+      <section class="panel fractional-pop-scale-panel">
+        <div class="section-heading"><h2>Ratio Scale</h2><span id="fractional-pop-scale-summary"></span></div>
+        <svg id="fractional-pop-circle" viewBox="0 0 520 520" role="img" aria-label="Fractional-ratio pitch circle"></svg>
+      </section>
+      <section class="panel fractional-pop-progression-panel">
+        <div class="section-heading"><h2>Pop Progression</h2><span id="fractional-pop-progression-summary"></span></div>
+        <div class="table-wrap fractional-pop-table"><table><thead><tr><th>#</th><th>Section</th><th>Chord</th><th>Style</th><th>Root</th><th>Fractional tones</th></tr></thead><tbody id="fractional-pop-progression"></tbody></table></div>
+      </section>
+      <section class="panel fractional-pop-parts-panel">
+        <div class="section-heading"><h2>Vital Roles</h2><div class="heading-tools"><span id="fractional-pop-parts-summary"></span><a id="fractional-pop-drum-pack" class="vital-pack-download" href="/static/vital_presets/PI%20Vital%20Pop%20Drums.zip" download>Download drum pack</a></div></div>
+        <div id="fractional-pop-parts" class="vital-tracks"></div>
+      </section>
+    </main>
+    <script src="/static/fractional_pop_composer.js?v=20260731-fractional-pop-1"></script>
+  </body>
+</html>

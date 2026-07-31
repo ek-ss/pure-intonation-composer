@@ -595,6 +595,13 @@ class VitalPackRequest(BaseModel):
     section_count: int = Field(default=7, ge=3, le=12)
     tuning: Literal["5-limit", "7-limit"] = "7-limit"
     preset_mode: Literal["adaptive", "showcase"] = "adaptive"
+    tonal_character: Literal["major", "minor", "mixed"] = "mixed"
+    mode_strength: float = Field(default=0.75, ge=0, le=1)
+    progression_contrast: float = Field(default=0.55, ge=0, le=1)
+    piano_run_enabled: bool = True
+    piano_part_mode: Literal["scale_run", "motif"] = "scale_run"
+    piano_run_activity: float = Field(default=0.5, ge=0, le=1)
+    piano_run_density: float = Field(default=0.65, ge=0, le=1)
     reference_frequency_hz: float = Field(default=440, ge=20, le=2000)
 
     @model_validator(mode="after")
@@ -607,6 +614,15 @@ class VitalPackRequest(BaseModel):
 class VitalPackSectionRequest(VitalPackRequest):
     section_index: int = Field(ge=0, le=11)
     scope: Literal["harmony", "rhythm", "voicing", "instruments"] = "harmony"
+
+
+class JPopRequest(BaseModel):
+    seed: int = 81_301
+    tempo_bpm: float = Field(default=118, ge=90, le=160)
+    cycles: int = Field(default=2, ge=1, le=3)
+    base_frequency: float = Field(default=220, ge=20, le=2000)
+    vocal_activity: float = Field(default=0.78, ge=0.2, le=1)
+    chorus_shift_depth: int = Field(default=1, ge=1, le=2)
 
 
 class VitalPackMidiEventRequest(BaseModel):
@@ -630,8 +646,21 @@ class VitalPackMidiRequest(BaseModel):
     base_frequency: float = Field(default=220, ge=20, le=2000)
 
 
+def _validated_motif_prime_basis(values: list[int]) -> list[int]:
+    if len(set(values)) != len(values):
+        raise ValueError("prime_basis must contain unique primes")
+    for value in values:
+        if value == 2 or value < 3 or any(
+            value % divisor == 0
+            for divisor in range(2, int(value**0.5) + 1)
+        ):
+            raise ValueError("prime_basis must contain odd prime numbers")
+    return values
+
+
 class MotifGenerateRequest(BaseModel):
     anchor_chord: list[str] = Field(min_length=3, max_length=4)
+    prime_basis: list[int] = Field(default_factory=lambda: [3, 5, 7], min_length=1, max_length=5)
     note_count: int = Field(default=6, ge=4, le=8)
     length_beats: float = Field(default=2, gt=0, le=16)
     register_midi: tuple[int, int] = Field(
@@ -642,6 +671,8 @@ class MotifGenerateRequest(BaseModel):
     max_lattice_radius: int = Field(default=2, ge=1, le=3)
     circle_profile: Literal["mostly_stepwise", "mixed"] = "mostly_stepwise"
     rhythm_profile: Literal["even", "kawaii_syncopated", "random_exploration"] = "kawaii_syncopated"
+    rest_density: float = Field(default=0.18, ge=0, le=0.7)
+    max_polyphony: int = Field(default=1, ge=1, le=4)
     beam_width: int = Field(default=32, ge=1, le=128)
     candidate_count: int = Field(default=16, ge=1, le=32)
     evaluation_profile: Literal["balanced", "consonant", "lyrical", "rhythmic", "colourful"] = "balanced"
@@ -654,6 +685,11 @@ class MotifGenerateRequest(BaseModel):
         if any("/" not in value for value in values):
             raise ValueError("anchor_chord tones must be ratios")
         return values
+
+    @field_validator("prime_basis")
+    @classmethod
+    def prime_basis_must_be_odd_primes(cls, values: list[int]) -> list[int]:
+        return _validated_motif_prime_basis(values)
 
     @model_validator(mode="after")
     def register_must_be_ordered(self) -> MotifGenerateRequest:
@@ -669,6 +705,14 @@ class MotifNoteRequest(BaseModel):
     velocity: int = Field(default=92, ge=1, le=127)
     accent: bool = False
     chord_relation: Literal["exact", "near", "related", "contrast"] = "exact"
+    harmony_tones: list[str] = Field(default_factory=list, max_length=3)
+
+    @field_validator("harmony_tones")
+    @classmethod
+    def harmony_tones_must_be_ratios(cls, values: list[str]) -> list[str]:
+        if any("/" not in value for value in values):
+            raise ValueError("harmony tones must be ratios")
+        return values
 
 
 class MotifVitalNodeRequest(BaseModel):
@@ -694,8 +738,11 @@ class MotifVitalPackRequest(VitalPackRequest):
     """Arrange a selected Motif Development Tree through the Vital Pack."""
 
     anchor_chord: list[str] = Field(min_length=3, max_length=4)
+    prime_basis: list[int] = Field(default_factory=lambda: [3, 5, 7], min_length=1, max_length=5)
     nodes: list[MotifVitalNodeRequest] = Field(min_length=1, max_length=32)
     development_amount: float = Field(default=0.55, ge=0, le=1)
+    motif_activity: float = Field(default=0.68, ge=0.2, le=1)
+    motif_rest_style: Literal["breathing", "sparse", "driving"] = "breathing"
     phase_shift_mode: Literal["off", "static", "progressive", "polymetric"] = "off"
     phase_shift_beats: float = Field(default=0.5, ge=0, le=8)
     phase_shift_increment: float = Field(default=0.125, ge=-2, le=2)
@@ -708,15 +755,27 @@ class MotifVitalPackRequest(VitalPackRequest):
             raise ValueError("anchor_chord tones must be ratios")
         return values
 
+    @field_validator("prime_basis")
+    @classmethod
+    def prime_basis_must_be_odd_primes(cls, values: list[int]) -> list[int]:
+        return _validated_motif_prime_basis(values)
+
 
 class MotifCompareRequest(BaseModel):
     anchor_chord: list[str] = Field(min_length=3, max_length=4)
+    prime_basis: list[int] = Field(default_factory=lambda: [3, 5, 7], min_length=1, max_length=5)
     source_notes: list[MotifNoteRequest] = Field(min_length=2, max_length=32)
     target_notes: list[MotifNoteRequest] = Field(min_length=2, max_length=32)
+
+    @field_validator("prime_basis")
+    @classmethod
+    def prime_basis_must_be_odd_primes(cls, values: list[int]) -> list[int]:
+        return _validated_motif_prime_basis(values)
 
 
 class MotifVariationRequest(BaseModel):
     anchor_chord: list[str] = Field(min_length=3, max_length=4)
+    prime_basis: list[int] = Field(default_factory=lambda: [3, 5, 7], min_length=1, max_length=5)
     source_notes: list[MotifNoteRequest] = Field(min_length=2, max_length=32)
     target_chord: list[str] = Field(min_length=3, max_length=4)
     source_motif_id: str = Field(default="inline-motif", min_length=1, max_length=80)
@@ -724,13 +783,24 @@ class MotifVariationRequest(BaseModel):
     allowed_transformations: list[Literal["lattice_transpose", "neighbour_substitution", "retrograde_pitch", "rhythmic_diminution", "chord_tone_projection"]] = Field(default_factory=list)
     seed: int = 72802
 
+    @field_validator("prime_basis")
+    @classmethod
+    def prime_basis_must_be_odd_primes(cls, values: list[int]) -> list[int]:
+        return _validated_motif_prime_basis(values)
+
 
 class MotifDevelopRequest(BaseModel):
     anchor_chord: list[str] = Field(min_length=3, max_length=4)
+    prime_basis: list[int] = Field(default_factory=lambda: [3, 5, 7], min_length=1, max_length=5)
     source_notes: list[MotifNoteRequest] = Field(min_length=2, max_length=32)
     harmony: list[list[str]] = Field(min_length=4, max_length=32)
     section_roles: list[Literal["theme", "a_prime", "build", "development", "climax", "recapitulation", "coda"]] = Field(default_factory=list)
     seed: int = 72803
+
+    @field_validator("prime_basis")
+    @classmethod
+    def prime_basis_must_be_odd_primes(cls, values: list[int]) -> list[int]:
+        return _validated_motif_prime_basis(values)
 
     @field_validator("harmony")
     @classmethod

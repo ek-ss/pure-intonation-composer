@@ -472,6 +472,38 @@ timeline (form, harmony, drums, bass, comping, melody, texture). Exact ratios
 are preserved until playback, MIDI encoding, or rendering. See
 `development_plan_genre_arrangement.md` for the full contract.
 
+The browser client at `/fractional-pop-composer` specializes this pipeline for
+pop composition from an exact fractional-ratio scale. It builds
+degree-template chord vocabulary from the selected scale, uses the `pop`
+profile, and maps generated tracks to Vital-oriented roles. The canonical
+event timeline is sent unchanged to the MIDI and render endpoints. See
+`fractional_pop_composer.md` for the page workflow and tuning guarantees.
+
+The dedicated `/jpop-composer` client uses `POST /api/compose/jpop` for an
+A-melody/B-melody/chorus form with section-specific exact-ratio rules. See
+`jpop_composer.md` for its musical and Vital integration contract.
+
+## POST /api/compose/jpop
+
+```json
+{
+  "seed": 81301,
+  "tempo_bpm": 118,
+  "cycles": 2,
+  "base_frequency": 220,
+  "vocal_activity": 0.78,
+  "chorus_shift_depth": 1
+}
+```
+
+`cycles` is 1-3 and `chorus_shift_depth` is 1-2. The response contains
+`metadata`, `sections`, bar-level `harmony`, canonical `events`, PI13-PI16
+`profiles`, vocal metrics, quality counters, and a REAPER-oriented preset
+manifest. Harmony entries include exact `root_ratio`, `tones`, the applied
+rule, and a `(3,5,13)` `lattice_vector`. PI16 events also carry `lyric` and
+`phrase_id` guide metadata. Send the returned events unchanged to
+`POST /api/compose/vital-pack/midi` for pitch-bend MIDI export.
+
 ## GET /api/arrange/profiles
 
 Lists the built-in genre profiles (`pop`, `ambient`, `alternative_rock`,
@@ -496,7 +528,8 @@ and part roles.
   "clock": { "tempo_bpm": null, "beats_per_bar": 4, "subdivisions_per_beat": 4, "bars": 16 },
   "form": null,
   "controls": { "energy": 0.5, "density": 0.5, "syncopation": 0.5,
-    "harmonic_complexity": 0.5, "repetition": 0.5, "section_contrast": 0.5,
+    "harmonic_complexity": 0.5, "repetition": 0.5, "root_variety": 0.0,
+    "section_contrast": 0.5,
     "humanization": 0.0, "melody_enabled": true, "drums_enabled": true },
   "harmony_performance": {
     "mode": "arpeggio", "allowed_modes": ["arpeggio"],
@@ -802,21 +835,44 @@ and a GM percussion track. Send generated `events` as `notes` and generated
 
 ## GET /api/instruments/vital-pack
 
-Returns the eight PI01–PI08 Vital roles, preset filenames, ranges, polyphony,
-and declared tuning policies.
+Returns PI01–PI12 plus the external `PIANO` scale-run role, with filenames,
+ranges, polyphony, and declared tuning policies. PI09–PI12 are Vital-based
+kick, snare, closed hat, and percussion profiles with fixed trigger notes 36,
+38, 42, and 39 and `fixed_drum_note` tuning policy.
 
 ## POST /api/compose/vital-pack
 
 Generates a seeded role-aware Vital Pack song plan.
 
 ```json
-{"seed":72801,"tempo_bpm":150,"length_bars":64,"tuning":"7-limit","preset_mode":"adaptive"}
+{"seed":72801,"tempo_bpm":150,"length_bars":64,"tuning":"7-limit","preset_mode":"adaptive","tonal_character":"major","mode_strength":0.85,"progression_contrast":0.7,"piano_run_enabled":true,"piano_part_mode":"scale_run","piano_run_activity":0.5,"piano_run_density":0.65}
 ```
 
 The response includes `sections`, exact-ratio `harmony`, instrument `events`,
 `tuning_timeline`, `mts_timeline` (a JSON retuning timeline with absolute
 frequencies), a `.scl`-compatible `base_scale`, `sidechain_envelope`, semantic
 `automation`, quality measurements, and a `reaper_manifest`.
+
+`tonal_character` is `major`, `minor`, or `mixed`. `mode_strength` (0–1)
+controls how consistently bars retain their section's requested mode instead
+of borrowing the opposite-mode colour. `progression_contrast` (0–1) moves
+from tonic-heavy primary chords toward more PD/D motion, substitute degrees,
+root changes, and seventh colour. Section endings enforce D→I/i cadential
+motion.
+
+Ordinary Vital plans use pure-ratio major and minor palettes including
+I/vi/iii/IV/ii/V/V7 and i/bIII/bVI/iv/ii-dim/V/v/bVII. Harmony events expose
+`tonal_character`, `section_tonal_target`, and `degree`. Quality output
+reports major/minor ratios, mode clarity, unique chords, functional
+transitions, and `harmony_variety_score`.
+
+`piano_run_enabled` adds an independent external-piano track.
+`piano_part_mode` is `scale_run` for ordinary song plans. The `motif` mode is
+available when Development Tree material is supplied to the motif endpoint.
+`piano_run_activity` (0–1) controls the probability of a run entering in each
+bar, while `piano_run_density` (0–1) moves from sparse quarter-note motion to
+denser eighth/sixteenth-note motion. Runs select seeded ascending, descending,
+turnaround, or zigzag contours and resolve to the harmonic root at cadences.
 
 ## POST /api/compose/motif-vital-pack
 
@@ -831,7 +887,13 @@ optional transformation/identity metadata.
   "length_bars": 64,
   "section_count": 9,
   "anchor_chord": ["1/1", "5/4", "3/2", "7/4"],
+  "prime_basis": [3, 5, 7],
+  "tonal_character": "minor",
+  "mode_strength": 0.9,
+  "progression_contrast": 0.75,
   "development_amount": 0.7,
+  "motif_activity": 0.68,
+  "motif_rest_style": "breathing",
   "phase_shift_mode": "progressive",
   "phase_shift_beats": 0.5,
   "phase_shift_increment": 0.125,
@@ -842,7 +904,7 @@ optional transformation/identity metadata.
     "formal_role": "theme",
     "target_chord": ["1/1", "5/4", "3/2"],
     "notes": [
-      {"ratio":"1/1","onset_beat":0,"duration_beats":0.5,"velocity":104},
+      {"ratio":"1/1","harmony_tones":["5/4","3/2"],"onset_beat":0,"duration_beats":0.5,"velocity":104},
       {"ratio":"5/4","onset_beat":0.5,"duration_beats":0.5,"velocity":92}
     ]
   }]
@@ -854,12 +916,42 @@ set to `motif-development-tree`, plus `motif_arrangement`. Pitched and drum
 events retain their Development Tree provenance and can be exported using the
 standard Vital Pack MIDI endpoint.
 
+`motif_arrangement.motif_scale` contains the octave-normalized scale extracted
+from the selected Development Tree nodes. Every returned harmony chord and
+pitched accompaniment event uses this scale. Harmony events also expose the
+motif tones selected for that bar, retained common tones, and motif-tone
+coverage. `base_scale` mirrors the motif scale for Scala export.
+
 `section_count` may be 3–12 and cannot exceed `length_bars`.
 `development_amount` controls repetition-level cyclic rotation, chord
 transposition, retrograde, chord projection, and rhythmic displacement.
+`motif_activity` (0.2–1.0) controls how often PI04/PI07 motif lanes enter.
+`motif_rest_style` may be `breathing`, `sparse`, or `driving`; every style
+inserts structured lane rests, limits a lane to three consecutive active
+bars, and reserves periodic full motif-breath bars. The complete decisions
+are returned in `motif_arrangement.activity.schedule`, with active ratios,
+full-rest count, and matching quality measurements.
+`prime_basis` is retained from Motif Development and written into both
+`metadata` and `motif_arrangement`; the motif-derived scale, chords, PI04/PI07
+stacks, and other pitched events remain inside that basis.
+For motif-derived scales, tonal character does not inject ratios outside the
+scale. Instead it ranks available chord tones by proximity to the pure major
+third (386.31 cents) or minor third (315.64 cents). Contrast expands the
+root-candidate range and reduces common-tone locking. Harmony events expose
+the target and realized modal-third error.
 `phase_shift_mode` may be `off`, `static`, `progressive`, or `polymetric`.
 Phase-enabled responses include A/B lane metadata, a per-bar phase schedule,
 and overlap measurements.
+
+The same piano controls apply to Development Tree arrangements.
+`piano_part_mode: "scale_run"` traverses exact `Fraction` ratios from
+`motif_arrangement.motif_scale`; octave placement may change, but its
+octave-normalized pitch class never leaves that set.
+`piano_part_mode: "motif"` renders the assigned node's developed motif,
+including its rests and simultaneous `harmony_tones`, on the PIANO track.
+Both modes leave full motif-breath bars silent and retain motif provenance.
+Quality output separates `piano_scale_run_notes` and `piano_motif_notes` and
+reports `piano_run_scale_conformance`.
 
 ## POST /api/compose/vital-pack/section
 
@@ -877,17 +969,18 @@ and sidechain envelope so a client can replace that window in its plan.
 
 ## POST /api/compose/vital-pack/midi
 
-Converts Vital Pack `events` into a type-1 MIDI arrangement: PI01–PI08 retain
-their own tracks, pitch events receive per-note pitch bend, and drum events
-use the GM percussion channel.
+Converts Vital Pack `events` into a type-1 MIDI arrangement: PI01–PI12 and
+`PIANO` retain their own tracks, pitch events receive per-note pitch bend, and
+PI09–PI12 drum events retain their fixed trigger notes. Legacy `DRUMS` events
+remain accepted for imported projects.
 
 ---
 
 # 10. Motif Development Engine
 
-The Motif Development Engine is an experimental 7-limit thematic-development
-API. It accepts inline anchor chords and motifs; project persistence and
-Prime Explorer/Lattice transfer are planned follow-up work.
+The Motif Development Engine is an experimental configurable-prime
+thematic-development API. It accepts inline anchor chords and motifs; project
+persistence and Prime Explorer/Lattice transfer are planned follow-up work.
 
 ## POST /api/motif/generate
 
@@ -899,12 +992,15 @@ features, and chord affinity.
 ```json
 {
   "anchor_chord": ["1/1", "5/4", "3/2", "7/4"],
+  "prime_basis": [3, 5, 7],
   "note_count": 6,
+  "max_polyphony": 3,
   "length_beats": 2,
   "register": [60, 84],
   "max_lattice_radius": 2,
   "circle_profile": "mostly_stepwise",
   "rhythm_profile": "random_exploration",
+  "rest_density": 0.18,
   "beam_width": 32,
   "candidate_count": 16,
   "evaluation_profile": "balanced",
@@ -915,7 +1011,35 @@ features, and chord affinity.
 
 `rhythm_profile` may be `even`, `kawaii_syncopated`, or
 `random_exploration`. The latter allocates each note duration on a sixteenth
-note grid using the supplied seed; the durations always sum to `length_beats`.
+note grid using the supplied seed. `rest_density` (0–0.7, default 0.18)
+shortens the sounding gate inside those rhythmic cells. The response exposes
+the resulting gaps in both top-level `rests` and
+`rhythm_signature.rests`, plus a normalized
+`rhythm_signature.rest_ratio`. A value of zero restores fully connected note
+cells.
+
+`prime_basis` contains one to five unique odd primes. Prime 2 is implicit and
+is used only for octave/register placement. The default is `[3,5,7]`; a basis
+such as `[3,7,13]` restricts exploration to
+`3^a * 7^b * 13^c`. Anchor, harmony, motif, and companion-tone ratios may use
+only 2 and the selected primes. `max_lattice_radius` bounds the L1 norm of the
+exponent delta, so radius 2 accepts `(2,0,0)` and `(1,-1,0)` but not
+`(2,2,0)`. Each generated note exposes `exponent_delta`; the response records
+both `prime_basis` and the serialized `monzo_basis: [2, ...prime_basis]`.
+When the workbench detects that the existing Development harmony contains an
+excluded prime after a basis change, it rebuilds four compatible chords from
+the current Anchor and generated motif tones before calling
+`/api/motif/develop`. Direct API calls remain strict and return 422 for
+basis-incompatible harmony.
+
+`max_polyphony` may be 1–4. One preserves a monophonic motif. Higher values
+allow each motif step to add consonance-ranked companion pitches while never
+exceeding the requested simultaneous voice count. The main contour pitch
+remains in `note.ratio`; companion voices are stored in
+`note.harmony_tones`. `polyphony_signature` reports per-step voice counts,
+mean polyphony, and the realized maximum. Browser audition, Development Tree
+events, JSON, microtonal MIDI, and Vital Pack transfer all render the complete
+stack.
 
 The endpoint explores `candidate_count` adjacent deterministic seeds (1-32),
 applies hard filters, and returns the best result at the top level plus a

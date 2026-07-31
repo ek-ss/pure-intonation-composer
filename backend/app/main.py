@@ -47,6 +47,7 @@ from app.models import (
     PrimeExplorerRequest,
     MinimalFunctionalRequest,
     MinimalFunctionalMidiRequest,
+    JPopRequest,
     VitalPackRequest,
     MotifVitalPackRequest,
     VitalPackMidiRequest,
@@ -92,7 +93,14 @@ from app.lattice import (
 )
 from app.prime_explorer import discover_chords, explore as explore_prime_limit, progression_metrics
 from app.composition.minimal_functional import generate_minimal_functional
-from app.composition.vital_pack import PROFILES, generate_motif_vital_pack, generate_vital_pack, vital_pack_profiles
+from app.composition.jpop import generate_jpop
+from app.composition.vital_pack import (
+    DRUM_PROFILES,
+    PROFILES,
+    generate_motif_vital_pack,
+    generate_vital_pack,
+    vital_pack_profiles,
+)
 from app.motif.engine import compare as compare_motif
 from app.motif.engine import develop as develop_motif
 from app.motif.engine import generate as generate_motif
@@ -951,6 +959,16 @@ def vital_pack_composer() -> FileResponse:
     return FileResponse(STATIC_DIR / "vital_pack_composer.html")
 
 
+@app.get("/fractional-pop-composer", include_in_schema=False)
+def fractional_pop_composer() -> FileResponse:
+    return FileResponse(STATIC_DIR / "fractional_pop_composer.html")
+
+
+@app.get("/jpop-composer", include_in_schema=False)
+def jpop_composer() -> FileResponse:
+    return FileResponse(STATIC_DIR / "jpop_composer.html")
+
+
 @app.get("/api/instruments/vital-pack")
 def get_vital_pack_profiles() -> dict[str, object]:
     return vital_pack_profiles()
@@ -959,6 +977,11 @@ def get_vital_pack_profiles() -> dict[str, object]:
 @app.post("/api/compose/vital-pack")
 def compose_vital_pack(request: VitalPackRequest) -> dict[str, object]:
     return generate_vital_pack(request.model_dump())
+
+
+@app.post("/api/compose/jpop")
+def compose_jpop(request: JPopRequest) -> dict[str, object]:
+    return generate_jpop(request.model_dump())
 
 
 @app.post("/api/compose/motif-vital-pack")
@@ -982,7 +1005,7 @@ def regenerate_vital_pack_section(request: VitalPackSectionRequest) -> dict[str,
     start = (int(section["start_bar"]) - 1) * 4
     end = start + int(section["bars"]) * 4
     replacement_ids = (
-        ["DRUMS"]
+        [profile[0] for profile in DRUM_PROFILES]
         if request.scope == "rhythm"
         else [item[0] for item in PROFILES] if request.scope == "voicing" else None
     )
@@ -1022,7 +1045,8 @@ def regenerate_vital_pack_section(request: VitalPackSectionRequest) -> dict[str,
         "sidechain_envelope": [
             event
             for event in plan["sidechain_envelope"]
-            if "DRUMS" in selected_ids and start <= event["start_beat"] < end
+            if ({"DRUMS", "PI09"} & set(selected_ids))
+            and start <= event["start_beat"] < end
         ],
     }
 
@@ -1030,7 +1054,13 @@ def regenerate_vital_pack_section(request: VitalPackSectionRequest) -> dict[str,
 @app.post("/api/compose/vital-pack/midi")
 def vital_pack_midi(request: VitalPackMidiRequest) -> Response:
     try:
-        track_names = ["PI01", "PI02", "PI03", "PI04", "PI05", "PI06", "PI07", "PI08", "DRUMS"]
+        track_names = [
+            "PI01", "PI02", "PI03", "PI04", "PI05",
+            "PI06", "PI07", "PI08", "PIANO",
+            *(profile[0] for profile in DRUM_PROFILES),
+            "PI13", "PI14", "PI15", "PI16",
+            "DRUMS",
+        ]
         tracks = []
         for name in track_names:
             matching = [event for event in request.events if event.instrument_id == name]
@@ -1049,7 +1079,7 @@ def vital_pack_midi(request: VitalPackMidiRequest) -> Response:
 
 @app.post("/api/motif/generate")
 def motif_generate(request: MotifGenerateRequest) -> dict[str, object]:
-    """Generate a deterministic 7-limit motif from a three- or four-note anchor chord."""
+    """Generate a deterministic prime-basis motif from a three- or four-note anchor chord."""
     try:
         return generate_motif(request.model_dump())
     except (ValueError, ZeroDivisionError) as error:
@@ -1062,7 +1092,12 @@ def motif_compare(request: MotifCompareRequest) -> dict[str, object]:
     try:
         source = [note.model_dump() for note in request.source_notes]
         target = [note.model_dump() for note in request.target_notes]
-        return compare_motif(source, target, [parse_ratio(value) for value in request.anchor_chord])
+        return compare_motif(
+            source,
+            target,
+            [parse_ratio(value) for value in request.anchor_chord],
+            tuple(request.prime_basis),
+        )
     except (ValueError, ZeroDivisionError) as error:
         raise HTTPException(status_code=422, detail=str(error)) from error
 

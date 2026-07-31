@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Fractional J-Pop Composer | Pure Intonation Workbench</title>
+    <link rel="stylesheet" href="/static/style.css?v=20260801-jpop-1">
+  </head>
+  <body class="jpop-page">
+    <header class="topbar">
+      <div><p class="eyebrow">A-MELODY · B-MELODY · CHORUS</p><h1>Fractional J-Pop Composer</h1><p class="page-subtitle">Section-specific pure-ratio harmony, vocal guide, and Vital instruments</p></div>
+      <span class="topbar-links"><a href="/">Workbench</a><a href="/lattice">Lattice Lab</a><a href="/harmonic-pitch-circle">Harmonic Pitch Circle</a><a href="/prime-limit-explorer">Prime Explorer</a><a href="/minimal-functional-composer">Minimal Composer</a><a href="/motif-development">Motif Development</a><a href="/vital-pack-composer">Vital Pack</a><a href="/fractional-pop-composer">Fractional Pop</a><a href="/docs" target="_blank" rel="noreferrer">API docs &#8599;</a></span>
+    </header>
+    <main class="jpop-main">
+      <section class="panel jpop-controls">
+        <div class="section-heading"><h2>Song Plan</h2><span id="jpop-status" role="status">Ready</span></div>
+        <div class="jpop-field-grid"><label>Tempo<input id="jpop-tempo" type="number" min="90" max="160" value="118"></label><label>Cycles<select id="jpop-cycles"><option value="1">1</option><option value="2" selected>2</option><option value="3">3</option></select></label><label>Base Hz<input id="jpop-base" type="number" min="20" max="2000" value="220"></label><label>Seed<input id="jpop-seed" type="number" value="81301"></label></div>
+        <label>Vocal activity <output id="jpop-vocal-value">0.78</output><input id="jpop-vocal" type="range" min=".2" max="1" step=".02" value=".78"></label>
+        <label>13-limit shift depth<select id="jpop-shift"><option value="1" selected>1 step</option><option value="2">2 steps</option></select></label>
+        <button id="jpop-generate" class="primary">Generate J-Pop</button>
+        <button id="jpop-random" class="quiet">New seed and generate</button>
+        <div class="button-row"><button id="jpop-play">Play excerpt</button><button id="jpop-stop" class="quiet">Stop</button></div>
+        <div class="button-row"><button id="jpop-midi" class="quiet">MPE MIDI</button><button id="jpop-json" class="quiet">Project JSON</button></div>
+        <div class="jpop-downloads"><a href="/static/vital_presets/PI%20JPop%20Vital%20Instruments.zip" download>J-Pop Vital pack</a><a href="/static/vital_presets/PI%20Vital%20Pop%20Drums.zip" download>Vital drum pack</a></div>
+      </section>
+      <section class="panel jpop-form-panel">
+        <div class="section-heading"><h2>J-Pop Form</h2><span id="jpop-summary"></span></div>
+        <canvas id="jpop-form" width="1200" height="210" aria-label="J-Pop form and section energy"></canvas>
+        <div id="jpop-metrics" class="vital-policies"></div>
+      </section>
+      <section class="panel jpop-rules-panel">
+        <div class="section-heading"><h2>Section Harmony</h2><span>Exact fractional ratios</span></div>
+        <div class="jpop-rule-grid">
+          <article class="jpop-rule a"><strong>Aメロ</strong><b>Pure fifth lattice</b><code>3^a</code><span id="jpop-a-count"></span></article>
+          <article class="jpop-rule b"><strong>Bメロ</strong><b>Pure minor third</b><code>6/5</code><span id="jpop-b-count"></span></article>
+          <article class="jpop-rule chorus"><strong>サビ</strong><b>13-limit fifth shift</b><code>3^a × 13^c</code><span id="jpop-chorus-count"></span></article>
+        </div>
+      </section>
+      <section class="panel jpop-progression-panel">
+        <div class="section-heading"><h2>Harmonic Plan</h2><span id="jpop-harmony-summary"></span></div>
+        <div class="table-wrap jpop-table"><table><thead><tr><th>Bar</th><th>Section</th><th>Rule</th><th>Root</th><th>Vector (3,5,13)</th><th>Tones</th></tr></thead><tbody id="jpop-progression"></tbody></table></div>
+      </section>
+      <section class="panel jpop-vocal-panel">
+        <div class="section-heading"><h2>Vocal Guide</h2><span id="jpop-vocal-summary"></span></div>
+        <canvas id="jpop-vocal-roll" width="1200" height="260" aria-label="Generated vocal melody roll"></canvas>
+      </section>
+      <section class="panel jpop-parts-panel">
+        <div class="section-heading"><h2>Vital Roles</h2><span id="jpop-parts-summary"></span></div>
+        <div id="jpop-parts" class="vital-tracks"></div>
+      </section>
+    </main>
+    <script src="/static/jpop_composer.js?v=20260801-jpop-1"></script>
+  </body>
+</html>

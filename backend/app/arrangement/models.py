@@ -81,6 +81,7 @@ class ArrangementControlsInput(BaseModel):
     syncopation: float = Field(default=0.5, ge=0, le=1)
     harmonic_complexity: float = Field(default=0.5, ge=0, le=1)
     repetition: float = Field(default=0.5, ge=0, le=1)
+    root_variety: float = Field(default=0.0, ge=0, le=1)
     section_contrast: float = Field(default=0.5, ge=0, le=1)
     humanization: float = Field(default=0.0, ge=0, le=1)
     melody_enabled: bool = True

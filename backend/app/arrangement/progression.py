@@ -47,6 +47,7 @@ def generate_progression(
     slots: list[tuple[ArrangementSection, int, int]],
     harmonic_complexity: float,
     repetition: float,
+    root_variety: float,
     seed: int,
 ) -> tuple[list[ProgressionSlot], list[str]]:
     """Bounded seeded beam search over the chord-transition graph."""
@@ -78,6 +79,7 @@ def generate_progression(
             position,
             harmonic_complexity,
             repetition,
+            root_variety,
             random,
         )
         candidates.sort(key=lambda item: (item[0], item[1]))
@@ -124,6 +126,7 @@ def _score_slot(
     position: int,
     harmonic_complexity: float,
     repetition: float,
+    root_variety: float,
     random: Random,
 ) -> list[tuple[float, list[int]]]:
     weights = profile.harmony.weights
@@ -149,6 +152,8 @@ def _score_slot(
                 ):
                     cost += weights.repetition * (1 - repetition)
                     cost += (1 - repetition) * (1.5 + weights.common_tone)
+                recent_roots = [instances[index].root for index in sequence[-3:]]
+                cost += root_variety * recent_roots.count(instance.root) * 1.1
             cost += weights.complexity * abs(instance.complexity - complexity_target) / 6
             cost += weights.section_energy * abs(instance.tension - energy * 0.8)
             if is_section_final:

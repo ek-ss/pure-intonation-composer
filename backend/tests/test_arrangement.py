@@ -114,6 +114,51 @@ def test_profiles_produce_different_arrangements() -> None:
     assert len(set(event_counts.values())) > 1
 
 
+def test_fractional_pop_material_stays_in_selected_ratio_scale() -> None:
+    ratios = ["1/1", "8/7", "6/5", "5/4", "4/3", "3/2", "12/7", "7/4"]
+    roots = [0, 3, 4, 5]
+    vocabulary = [
+        {
+            "id": f"pop_degree_{root}",
+            "name": f"Degree {root + 1} triad",
+            "mode": "degree_template",
+            "tones": [0, 2, 4],
+            "root_degree": root,
+            "tags": ["stable", "cadential"] if root == 4 else ["stable"],
+        }
+        for root in roots
+    ]
+    response = client.post(
+        "/api/arrange/generate",
+        json=generate_payload(
+            "pop",
+            scale={"ratios": ratios, "base_frequency": 220},
+            chord_vocabulary=vocabulary,
+            controls={"root_variety": 0.85},
+            seed=31415,
+        ),
+    )
+    assert response.status_code == 200, response.json()
+
+    def octave_class(value: str) -> Fraction:
+        ratio = Fraction(value)
+        while ratio < 1:
+            ratio *= 2
+        while ratio >= 2:
+            ratio /= 2
+        return ratio
+
+    scale_classes = {octave_class(ratio) for ratio in ratios}
+    pitched_events = [
+        event for event in response.json()["events"] if event["kind"] == "note"
+    ]
+    assert pitched_events
+    assert {
+        octave_class(event["ratio"]) for event in pitched_events
+    }.issubset(scale_classes)
+    assert len({slot["root"] for slot in response.json()["harmony_progression"]}) >= 3
+
+
 @pytest.mark.parametrize("mode", ["block", "arpeggio", "stride"])
 def test_harmony_performance_modes(mode: str) -> None:
     performance: dict[str, object] = {

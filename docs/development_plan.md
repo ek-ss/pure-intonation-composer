@@ -1072,7 +1072,7 @@ for the implemented contract and MVP boundary.
 
 Status
 
-* Proposed
+* Experimental implementation
 
 G14 generates a short motif from a three- or four-note anchor chord and
 develops it through a complete form. It compares theme identity independently
@@ -1092,7 +1092,23 @@ motif trees, a linked Motif Development workbench, and a Development Tree to
 Vital Pack adapter. The adapter supports multiple selected motifs, assigns
 Tree roles to variable 3–12 section forms, applies adjustable
 repetition-level development, and emits provenance-bearing lead, bass, pulse,
-harmony, drum, and optional phase-shift events. Persistent project IDs,
+motif-derived scale and chord progressions, drum, and optional phase-shift
+events. Motif generation now exposes adjustable note-gate rests and includes
+rest ratio in rhythmic evaluation. Each motif step may also carry a bounded
+one- to four-voice chord stack; its main tone retains the melodic contour
+while companion voices survive transformation, MIDI, and Vital transfer.
+Its prime basis is selectable, allowing subsets such as `[3,7,13]`; prime 2
+remains implicit for octave placement and every generated or transformed
+ratio is validated against the selected basis.
+The Vital adapter adds seeded
+`breathing`/`sparse`/`driving` activity schedules, a three-bar maximum
+continuous motif run, periodic full motif rests, and activity quality gates.
+Vital harmony now exposes Major/Minor/Mixed character, modal strength, and
+progression contrast. Ordinary plans select functional substitute chords;
+motif-derived plans score available scale tones against pure major/minor
+third targets and expand root motion without leaving the motif scale.
+Accompaniment and Scala export share the extracted motif pitch material.
+Persistent project IDs,
 motif-specific section locks, convergent phase anchors, and release validation
 remain planned.
 
@@ -1100,6 +1116,57 @@ See
 [development_plan_motif_development_engine.md](development_plan_motif_development_engine.md)
 for the canonical G14 specification, models, APIs, delivery phases,
 performance gates, and acceptance criteria.
+
+## G15. Fractional-Ratio Pop Composer
+
+Status
+
+* Experimental implementation
+
+G15 adds a dedicated pop-composition surface over the G11 Genre Arrangement
+Pipeline. A preset or user-authored fractional-ratio scale is expanded into
+scale-degree triads, suspended voicings, and seventh chords; the pop profile
+then produces a complete form with harmony, bass, hook melody, drums, and
+texture. Register changes may use powers of two, while every pitched event
+retains a pitch class from the selected exact-ratio scale.
+
+The workbench exposes bright, bittersweet, and open harmonic colors,
+block/arpeggio/stride keyboard realizations, seeded variation, macro rhythm
+and form controls, form and pitch-circle visualization, chord audition, and
+Vital-oriented part names. The former external drum kit is split into
+downloadable PI09–PI12 Vital kick, snare, closed-hat, and percussion presets,
+with separate canonical tracks and fixed drum trigger notes. Its canonical
+ArrangementProject 1.1 timeline is shared by browser playback and JSON,
+pitch-bend MIDI, and WAV exports.
+
+See [fractional_pop_composer.md](fractional_pop_composer.md) for the user
+workflow, exact-ratio contract, role map, and integration boundary.
+
+## G16. Fractional J-Pop Composer
+
+Status
+
+* Experimental implementation
+
+G16 specializes exact-ratio arrangement for an A-melody, B-melody, and chorus
+J-Pop form. A-melody harmony is constructed on the pure-fifth `3^a` lattice,
+B-melody harmony explicitly contains the pure minor third `6/5`, and chorus
+roots shift on the 13-limit lattice `3^a * 13^c` while retaining a pure fifth
+inside each chord. One to three form cycles, vocal activity, seed, tempo, and
+13-axis shift depth are user controls.
+
+The implementation includes a bar-level harmonic plan, form/energy and vocal
+roll visualizations, Web Audio audition, deterministic JSON, pitch-bend MIDI,
+structured drums, bass and hook parts, and a rest-aware vocal guide with guide
+syllables. PI13-PI16 Vital presets cover fifth keys, minor-third pluck,
+13-limit chorus lead, and vocal guide; PI09-PI12 remain the drum kit.
+
+The vocal output is an exact-ratio MIDI guide rather than rendered human
+singing. Future work may add phoneme timing, lyric import, singer range
+constraints, section regeneration, stems, and direct DAW/Vital automation.
+
+See [jpop_composer.md](jpop_composer.md) for the musical contract, controls,
+Vital role map, and export workflow.
 
 ---
 
