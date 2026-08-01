@@ -1201,14 +1201,60 @@ Responses:
 
 ---
 
-# 13. Roadmap Candidates
+# 13. Instrument-Constrained Composition Explorer
+
+## GET /api/composition-explorer/profiles
+
+Returns the PI01-PI21 semantic profiles, default palettes for each supported
+style, style labels, and default evaluation weights.
+
+## POST /api/composition-explorer/explore
+
+Generates, evaluates, and clusters 4-64 reproducible song candidates. The
+default request generates 32 candidates and six representatives.
+
+```json
+{
+  "style": "kawaii_fractional_future_pop",
+  "seed": 42810,
+  "candidate_count": 32,
+  "cluster_count": 6,
+  "tempo_bpm": 150,
+  "length_bars": 64,
+  "base_frequency": 220,
+  "scale_ratios": ["1/1", "9/8", "6/5", "5/4", "4/3", "3/2", "13/8", "5/3", "7/4"],
+  "instrument_palette": [
+    {"id": "PI21"}, {"id": "PI20"}, {"id": "PI19"},
+    {"id": "PI18"}, {"id": "PI17"}, {"id": "PI12"},
+    {"id": "PI11"}, {"id": "PI10"}, {"id": "PI09"}, {"id": "PI06"}
+  ],
+  "missing_role_policy": "warn",
+  "form_temperature": 0.55,
+  "harmony_temperature": 0.65,
+  "part_temperature": 0.5,
+  "rhythm_temperature": 0.6,
+  "locked_components": ["melody"],
+  "evaluation_weights": {"harmonic_interest": 1.2}
+}
+```
+
+`style` accepts `fractional_pop`, `fractional_jpop`, or
+`kawaii_fractional_future_pop`. `length_bars` must be divisible by four.
+Empty `instrument_palette` uses the selected style's default palette.
+
+The response contains candidate summaries, k-medoids cluster membership, and
+full representative plans. Each representative contains the CompositionGenome,
+form, exact-ratio harmony, section instrument assignments, score events,
+feature vector, and evaluation scores.
+
+# 14. Roadmap Candidates
 
 These capabilities are not part of the current API:
 
 - `/api/v1` route versioning
 - Authentication for remote multi-user deployment
 - Instrument presets and project persistence
-- Form generator, full `/compose` one-shot endpoint
+- Transfer of explorer representatives into dedicated composer pages
 - Server-Sent Events (`/events`)
 - WebMIDI/MPE/MTS and OSC integration
 

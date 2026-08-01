@@ -49,6 +49,7 @@ from app.models import (
     MinimalFunctionalMidiRequest,
     JPopRequest,
     KawaiiFuturePopRequest,
+    CompositionExploreRequest,
     VitalPackRequest,
     MotifVitalPackRequest,
     VitalPackMidiRequest,
@@ -96,6 +97,7 @@ from app.prime_explorer import discover_chords, explore as explore_prime_limit, 
 from app.composition.minimal_functional import generate_minimal_functional
 from app.composition.jpop import generate_jpop
 from app.composition.kawaii_future_pop import generate_kawaii_future_pop
+from app.composition.explorer import explore_compositions, explorer_profiles
 from app.composition.vital_pack import (
     DRUM_PROFILES,
     PROFILES,
@@ -1054,6 +1056,11 @@ def kawaii_future_pop() -> FileResponse:
     return FileResponse(STATIC_DIR / "kawaii_future_pop.html")
 
 
+@app.get("/composition-explorer", include_in_schema=False)
+def composition_explorer() -> FileResponse:
+    return FileResponse(STATIC_DIR / "composition_explorer.html")
+
+
 @app.get("/api/instruments/vital-pack")
 def get_vital_pack_profiles() -> dict[str, object]:
     return vital_pack_profiles()
@@ -1072,6 +1079,21 @@ def compose_jpop(request: JPopRequest) -> dict[str, object]:
 @app.post("/api/compose/kawaii-future-pop")
 def compose_kawaii_future_pop(request: KawaiiFuturePopRequest) -> dict[str, object]:
     return generate_kawaii_future_pop(request.model_dump())
+
+
+@app.get("/api/composition-explorer/profiles")
+def get_composition_explorer_profiles() -> dict[str, object]:
+    return explorer_profiles()
+
+
+@app.post("/api/composition-explorer/explore")
+def explore_instrument_constrained_compositions(
+    request: CompositionExploreRequest,
+) -> dict[str, object]:
+    try:
+        return explore_compositions(request.model_dump())
+    except (ValueError, ZeroDivisionError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
 
 
 @app.post("/api/compose/motif-vital-pack")

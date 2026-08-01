@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Composition Explorer | Pure Intonation Workbench</title>
+    <link rel="stylesheet" href="/static/style.css?v=20260801-explorer-1">
+    <link rel="stylesheet" href="/static/composition_explorer.css?v=20260801-explorer-1">
+  </head>
+  <body class="composition-explorer-page">
+    <header class="topbar">
+      <div><p class="eyebrow">INSTRUMENT-FIRST · MULTI-CANDIDATE COMPOSITION</p><h1>Composition Explorer</h1><p class="page-subtitle">Vital preset constraints, structural variation, evaluation, and clustered audition</p></div>
+      <span class="topbar-links"><a href="/">Workbench</a><a href="/lattice">Lattice Lab</a><a href="/harmonic-pitch-circle">Harmonic Pitch Circle</a><a href="/prime-limit-explorer">Prime Explorer</a><a href="/minimal-functional-composer">Minimal Composer</a><a href="/motif-development">Motif Development</a><a href="/vital-pack-composer">Vital Pack</a><a href="/fractional-pop-composer">Fractional Pop</a><a href="/jpop-composer">J-Pop</a><a href="/kawaii-future-pop">Kawaii Future Pop</a><a href="/docs" target="_blank" rel="noreferrer">API docs &#8599;</a></span>
+    </header>
+    <main class="composition-explorer-main">
+      <section class="panel explorer-controls">
+        <div class="section-heading"><h2>Composition Genome</h2><span id="explorer-status" role="status">Loading profiles...</span></div>
+        <label>Style<select id="explorer-style"><option value="fractional_pop">Fractional Pop</option><option value="fractional_jpop">Fractional J-Pop</option><option value="kawaii_fractional_future_pop" selected>Kawaii Fractional Future Pop</option></select></label>
+        <label>Fractional-ratio scale<textarea id="explorer-scale" rows="4">1/1, 9/8, 6/5, 5/4, 4/3, 3/2, 13/8, 5/3, 7/4</textarea></label>
+        <div class="explorer-field-grid"><label>Tempo<input id="explorer-tempo" type="number" min="70" max="200" value="150"></label><label>Bars<input id="explorer-bars" type="number" min="24" max="96" step="4" value="64"></label><label>Candidates<input id="explorer-candidates" type="number" min="4" max="64" value="32"></label><label>Clusters<input id="explorer-cluster-count" type="number" min="2" max="12" value="6"></label><label>Base Hz<input id="explorer-base" type="number" min="20" max="2000" value="220"></label><label>Seed<input id="explorer-seed" type="number" value="42810"></label></div>
+        <label>Missing bass<select id="explorer-missing-role"><option value="warn">Warn and omit</option><option value="substitute">Use low-mid substitute</option><option value="omit">Omit silently</option></select></label>
+        <fieldset class="explorer-temperatures"><legend>Exploration temperature</legend><label>Form <output id="explorer-form-value">0.55</output><input id="explorer-form" type="range" min="0" max="1.5" step=".05" value=".55"></label><label>Harmony <output id="explorer-harmony-value">0.65</output><input id="explorer-harmony" type="range" min="0" max="1.5" step=".05" value=".65"></label><label>Part assignment <output id="explorer-parts-value">0.50</output><input id="explorer-parts" type="range" min="0" max="1.5" step=".05" value=".50"></label><label>Rhythm <output id="explorer-rhythm-value">0.60</output><input id="explorer-rhythm" type="range" min="0" max="1.5" step=".05" value=".60"></label></fieldset>
+        <fieldset><legend>Lock across candidates</legend><div class="explorer-locks"><label><input type="checkbox" value="form">Form</label><label><input type="checkbox" value="harmony">Harmony</label><label><input type="checkbox" value="melody">Melody</label><label><input type="checkbox" value="rhythm">Rhythm</label><label><input type="checkbox" value="arrangement">Parts</label></div></fieldset>
+        <button id="explorer-generate" class="primary">Explore compositions</button>
+        <button id="explorer-random" class="quiet">New seed and explore</button>
+      </section>
+
+      <section class="panel explorer-instruments">
+        <div class="section-heading"><h2>Vital Preset Constraints</h2><span id="explorer-instrument-summary"></span></div>
+        <div class="button-row"><button id="explorer-style-palette" class="quiet">Use style palette</button><button id="explorer-select-all" class="quiet">Select all</button><button id="explorer-clear" class="quiet">Clear</button></div>
+        <div id="explorer-instrument-list" class="explorer-instrument-list"></div>
+        <div id="explorer-capability-report" class="explorer-capability-report"></div>
+      </section>
+
+      <section class="panel explorer-results">
+        <div class="section-heading"><h2>Cluster Representatives</h2><span id="explorer-result-summary">Generate candidates to compare distinct song families</span></div>
+        <div id="explorer-cluster-grid" class="explorer-cluster-grid"></div>
+      </section>
+
+      <section class="panel explorer-detail">
+        <div class="section-heading"><h2>Selected Composition</h2><span id="explorer-selection-summary">No representative selected</span></div>
+        <canvas id="explorer-form-canvas" width="1200" height="220" aria-label="Selected generated song form"></canvas>
+        <div class="explorer-detail-actions"><button id="explorer-play">Play representative</button><button id="explorer-stop" class="quiet">Stop</button><button id="explorer-like" class="quiet">Like</button><button id="explorer-dislike" class="quiet">Dislike</button><button id="explorer-json" class="quiet">Project JSON</button></div>
+        <div class="explorer-detail-grid"><div><h3>Evaluation</h3><div id="explorer-scores" class="explorer-score-list"></div></div><div><h3>Instrument Plan</h3><div id="explorer-assignments" class="table-wrap"></div></div></div>
+      </section>
+    </main>
+    <script src="/static/composition_explorer.js?v=20260801-explorer-1"></script>
+  </body>
+</html>

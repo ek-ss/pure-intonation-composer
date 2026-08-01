@@ -1196,6 +1196,34 @@ pitch-bend MIDI, and downloadable instrument packs.
 See [kawaii_future_pop.md](kawaii_future_pop.md) for controls, mathematical
 constraints, vocal policy, Vital mapping, and DAW workflow.
 
+## G18. Instrument-Constrained Composition Explorer
+
+Status
+
+* Experimental implementation
+
+G18 provides a common broad-search layer for G15-G17. A versioned
+CompositionGenome separates Form, Harmony, Melody, Rhythm, Arrangement, and
+Performance seeds, and locks make selected layers identical across candidate
+generation. Style-specific probabilistic grammars replace one fixed form in
+the explorer, while a bounded top-K harmony beam is sampled with an adjustable
+temperature.
+
+PI01-PI21 profiles supply roles, ranges, polyphony, articulation, section
+affinity, and tuning policy before score generation. The selected palette is
+therefore a musical constraint. Section assignments and exact-ratio score
+events are generated only for selected IDs, with explicit bass warning,
+omission, and substitution policies.
+
+The explorer generates 4-64 candidates, extracts a shared symbolic feature
+vector, calculates interpretable heuristic scores, and applies deterministic
+k-medoids. Each cluster exposes a representative selected from both quality
+and centrality. Browser audition, JSON export, component locks, and local
+Like/Dislike weight adaptation are implemented at `/composition-explorer`.
+
+See [composition_explorer.md](composition_explorer.md) for the data flow,
+controls, evaluation features, and current boundaries.
+
 ---
 
 # 4. Historical Milestones

@@ -1,0 +1,77 @@
+.composition-explorer-main {
+  grid-template-columns: 310px minmax(0, 1fr);
+  align-items: start;
+}
+.explorer-controls {
+  grid-column: 1;
+  grid-row: 1 / span 3;
+  position: sticky;
+  top: 16px;
+  max-height: calc(100vh - 32px);
+  overflow: auto;
+}
+.explorer-instruments,
+.explorer-results,
+.explorer-detail { grid-column: 2; min-width: 0; }
+.explorer-field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.explorer-field-grid label { margin-bottom: 4px; }
+.explorer-controls fieldset { border: 1px solid var(--line); margin: 0 0 15px; padding: 10px; }
+.explorer-controls legend { color: var(--muted); padding: 0 6px; font-size: .76rem; }
+.explorer-temperatures label { margin-bottom: 9px; }
+.explorer-temperatures output { color: var(--accent); float: right; }
+.explorer-locks { display: flex; flex-wrap: wrap; gap: 7px 14px; }
+.explorer-locks label { display: flex; align-items: center; gap: 5px; margin: 0; color: var(--text); }
+.explorer-instrument-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; }
+.explorer-instrument {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 3px 8px;
+  align-items: start;
+  min-height: 82px;
+  margin: 0;
+  padding: 9px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #111622;
+  color: var(--text);
+}
+.explorer-instrument input { grid-row: 1 / span 3; margin-top: 3px; }
+.explorer-instrument strong { font-size: .78rem; }
+.explorer-instrument span,
+.explorer-instrument small { color: var(--muted); font-size: .68rem; overflow-wrap: anywhere; }
+.explorer-instrument:has(input:checked) { border-color: var(--accent); background: #17251f; }
+.explorer-capability-report { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.explorer-capability-report span { border: 1px solid var(--line); border-radius: 5px; padding: 4px 7px; color: var(--muted); font-size: .7rem; }
+.explorer-capability-report .warning { color: #ffe8a0; border-color: #7d7048; }
+.explorer-cluster-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+.explorer-cluster-card { display: grid; gap: 8px; min-height: 170px; padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: #111622; text-align: left; }
+.explorer-cluster-card.active { border-color: #ffd47e; background: #2b2830; }
+.explorer-cluster-card header { display: flex; justify-content: space-between; gap: 8px; }
+.explorer-cluster-card strong { font-size: .82rem; }
+.explorer-cluster-card small,
+.explorer-cluster-card span { color: var(--muted); font-size: .7rem; }
+.explorer-cluster-score { color: #ffd47e !important; font-variant-numeric: tabular-nums; }
+.explorer-mini-form { display: flex; height: 30px; overflow: hidden; border: 1px solid var(--line); }
+.explorer-mini-form i { display: block; min-width: 3px; height: 100%; background: var(--section-color); }
+.explorer-detail-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 18px; }
+#explorer-form-canvas { width: 100%; max-width: none; height: 220px; aspect-ratio: auto; margin: 0; border: 1px solid var(--line); background: #111622; }
+.explorer-detail-grid { display: grid; grid-template-columns: minmax(220px, .7fr) minmax(0, 1.3fr); gap: 22px; }
+.explorer-detail-grid h3 { margin: 0 0 10px; color: var(--muted); font-size: .78rem; }
+.explorer-score-list { display: grid; gap: 6px; }
+.explorer-score-row { display: grid; grid-template-columns: minmax(120px, 1fr) 90px 42px; gap: 7px; align-items: center; color: var(--muted); font-size: .72rem; }
+.explorer-score-track { height: 7px; background: #242c3f; overflow: hidden; }
+.explorer-score-track i { display: block; height: 100%; background: var(--score-color, var(--accent)); }
+.explorer-score-row output { color: var(--text); text-align: right; font-variant-numeric: tabular-nums; }
+#explorer-status.error { color: #ffb0ad; }
+#explorer-status.loading { color: #ffe8a0; }
+@media (max-width: 900px) {
+  .composition-explorer-main { grid-template-columns: 260px minmax(0, 1fr); }
+  .explorer-detail-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 720px) {
+  .composition-explorer-main { display: flex; flex-direction: column; }
+  .explorer-controls { position: static; max-height: none; overflow: visible; }
+  .explorer-controls,.explorer-instruments,.explorer-results,.explorer-detail { width: 100%; }
+  .explorer-instrument-list,.explorer-cluster-grid { grid-template-columns: 1fr; }
+  .explorer-score-row { grid-template-columns: minmax(110px, 1fr) 75px 38px; }
+}

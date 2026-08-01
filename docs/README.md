@@ -27,6 +27,7 @@ as implemented.
 | [minimal_functional_harmony_composer.md](minimal_functional_harmony_composer.md) | Implemented T/S/D minimal-process composer MVP and its explicit boundary |
 | [vital_pack_composer.md](vital_pack_composer.md) | Implemented Vital Pack Composer MVP and its DAW/export boundary |
 | [motif_vital_arrangement.md](motif_vital_arrangement.md) | Implemented Development Tree to Vital Pack song-arrangement bridge |
+| [composition_explorer.md](composition_explorer.md) | Implemented instrument-constrained multi-candidate composition explorer |
 | [development_plan_motif_development_engine.md](development_plan_motif_development_engine.md) | Proposed G14 motif generation, variation, and formal-development specification |
 
 ## Roadmaps

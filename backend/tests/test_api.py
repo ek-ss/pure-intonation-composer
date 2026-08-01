@@ -57,6 +57,7 @@ def test_primary_pages_link_to_every_other_workbench() -> None:
         "/fractional-pop-composer": "/fractional-pop-composer",
         "/jpop-composer": "/jpop-composer",
         "/kawaii-future-pop": "/kawaii-future-pop",
+        "/composition-explorer": "/composition-explorer",
     }
     for page, current in pages.items():
         response = client.get(page)
@@ -64,6 +65,123 @@ def test_primary_pages_link_to_every_other_workbench() -> None:
         for destination in set(pages.values()) - {current}:
             assert f'href="{destination}"' in response.text
         assert 'href="/docs"' in response.text
+
+
+def test_composition_explorer_page_and_profiles() -> None:
+    page = client.get("/composition-explorer")
+    assert page.status_code == 200
+    assert "Composition Explorer" in page.text
+    for control in (
+        "explorer-style",
+        "explorer-instrument-list",
+        "explorer-candidates",
+        "explorer-cluster-count",
+        "explorer-generate",
+        "explorer-cluster-grid",
+        "explorer-form-canvas",
+        "explorer-like",
+        "explorer-dislike",
+    ):
+        assert f'id="{control}"' in page.text
+    script = client.get("/static/composition_explorer.js")
+    assert script.status_code == 200
+    assert "/api/composition-explorer/explore" in script.text
+    assert "pure-intonation.composition-explorer-feedback" in script.text
+    profiles = client.get("/api/composition-explorer/profiles")
+    assert profiles.status_code == 200
+    payload = profiles.json()
+    assert len(payload["instruments"]) == 21
+    assert payload["style_defaults"]["kawaii_fractional_future_pop"][-1] == "PI21"
+
+
+def test_instrument_first_composition_exploration_is_clustered_and_deterministic() -> None:
+    request = {
+        "style": "kawaii_fractional_future_pop",
+        "seed": 42810,
+        "candidate_count": 8,
+        "cluster_count": 3,
+        "tempo_bpm": 150,
+        "length_bars": 32,
+        "base_frequency": 220,
+        "scale_ratios": ["1/1", "9/8", "6/5", "5/4", "4/3", "3/2", "13/8", "5/3", "7/4"],
+        "instrument_palette": [
+            {"id": instrument_id}
+            for instrument_id in (
+                "PI21",
+                "PI20",
+                "PI19",
+                "PI18",
+                "PI17",
+                "PI12",
+                "PI11",
+                "PI10",
+                "PI09",
+                "PI06",
+            )
+        ],
+        "missing_role_policy": "warn",
+        "form_temperature": 0.8,
+        "harmony_temperature": 0.8,
+        "part_temperature": 0.7,
+        "rhythm_temperature": 0.7,
+    }
+    first = client.post("/api/composition-explorer/explore", json=request)
+    second = client.post("/api/composition-explorer/explore", json=request)
+    assert first.status_code == 200
+    assert first.json() == second.json()
+    result = first.json()
+    assert result["candidate_count"] == 8
+    assert result["cluster_count"] == 3
+    assert len(result["representatives"]) == 3
+    assert sum(cluster["size"] for cluster in result["clusters"]) == 8
+    assert "No bass preset" in result["warnings"][0]
+    assert len(
+        {
+            tuple((section["role"], section["bars"]) for section in candidate["sections"])
+            for candidate in result["candidates"]
+        }
+    ) >= 2
+    assert len(
+        {
+            tuple(slot["root_degree"] for slot in song["harmony"])
+            for song in result["representatives"]
+        }
+    ) == 3
+    selected = {item["id"] for item in request["instrument_palette"]}
+    for song in result["representatives"]:
+        assert song["events"]
+        assert {event["instrument_id"] for event in song["events"]} <= selected
+        assert 0 <= song["scores"]["overall"] <= 1
+        assert song["genome"]["component_seeds"]["form"]
+        assert any(item["instrument_id"] == "PI18" for item in song["assignments"])
+
+
+def test_composition_explorer_component_locks_and_bass_substitution() -> None:
+    response = client.post(
+        "/api/composition-explorer/explore",
+        json={
+            "style": "fractional_pop",
+            "seed": 711,
+            "candidate_count": 6,
+            "cluster_count": 2,
+            "length_bars": 32,
+            "instrument_palette": [{"id": "PI18"}, {"id": "PI19"}, {"id": "PI09"}],
+            "missing_role_policy": "substitute",
+            "locked_components": ["form"],
+        },
+    )
+    assert response.status_code == 200
+    result = response.json()
+    form_seeds = {candidate["genome"]["component_seeds"]["form"] for candidate in result["candidates"]}
+    assert len(form_seeds) == 1
+    forms = {tuple(candidate["section_roles"]) for candidate in result["candidates"]}
+    assert len(forms) == 1
+    assert any("root support" in warning for warning in result["warnings"])
+    assert any(
+        item["part_role"] == "bass" and item["instrument_id"] == "PI18"
+        for song in result["representatives"]
+        for item in song["assignments"]
+    )
 
 
 def test_lattice_lab_page() -> None:

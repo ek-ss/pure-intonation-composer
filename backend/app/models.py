@@ -659,6 +659,93 @@ class KawaiiFuturePopRequest(BaseModel):
         return values
 
 
+class InstrumentSelectionRequest(BaseModel):
+    id: str = Field(pattern=r"^PI(?:0[1-9]|1[0-9]|2[0-1])$")
+    preferred_roles: list[str] = Field(default_factory=list, max_length=6)
+    priority: float = Field(default=0.7, ge=0, le=1)
+
+
+class CompositionExploreRequest(BaseModel):
+    style: Literal[
+        "fractional_pop",
+        "fractional_jpop",
+        "kawaii_fractional_future_pop",
+    ] = "kawaii_fractional_future_pop"
+    seed: int = 42810
+    candidate_count: int = Field(default=32, ge=4, le=64)
+    cluster_count: int = Field(default=6, ge=2, le=12)
+    tempo_bpm: float = Field(default=150, ge=70, le=200)
+    length_bars: int = Field(default=64, ge=24, le=96)
+    base_frequency: float = Field(default=220, ge=20, le=2000)
+    scale_ratios: list[str] = Field(
+        default_factory=lambda: [
+            "1/1",
+            "9/8",
+            "6/5",
+            "5/4",
+            "4/3",
+            "3/2",
+            "13/8",
+            "5/3",
+            "7/4",
+        ],
+        min_length=5,
+        max_length=16,
+    )
+    instrument_palette: list[InstrumentSelectionRequest] = Field(default_factory=list, max_length=21)
+    missing_role_policy: Literal["warn", "omit", "substitute"] = "warn"
+    form_temperature: float = Field(default=0.55, ge=0, le=1.5)
+    harmony_temperature: float = Field(default=0.65, ge=0, le=1.5)
+    part_temperature: float = Field(default=0.5, ge=0, le=1.5)
+    rhythm_temperature: float = Field(default=0.6, ge=0, le=1.5)
+    locked_components: list[
+        Literal["form", "harmony", "melody", "rhythm", "arrangement", "performance"]
+    ] = Field(default_factory=list, max_length=6)
+    evaluation_weights: dict[str, float] = Field(default_factory=dict)
+
+    @field_validator("scale_ratios")
+    @classmethod
+    def explorer_scale_ratios_must_be_positive(cls, values: list[str]) -> list[str]:
+        parsed: list[Fraction] = []
+        for value in values:
+            try:
+                ratio = Fraction(value)
+            except (ValueError, ZeroDivisionError) as error:
+                raise ValueError(f"invalid scale ratio: {value}") from error
+            if ratio <= 0:
+                raise ValueError("scale ratios must be positive")
+            while ratio < 1:
+                ratio *= 2
+            while ratio >= 2:
+                ratio /= 2
+            parsed.append(ratio)
+        if len(set(parsed)) != len(parsed):
+            raise ValueError("scale ratios must be unique after octave reduction")
+        if Fraction(1) not in parsed:
+            raise ValueError("scale ratios must contain 1/1")
+        return values
+
+    @field_validator("evaluation_weights")
+    @classmethod
+    def explorer_evaluation_weights_must_be_bounded(
+        cls, values: dict[str, float]
+    ) -> dict[str, float]:
+        if any(value < 0.1 or value > 3 for value in values.values()):
+            raise ValueError("evaluation weights must be between 0.1 and 3.0")
+        return values
+
+    @model_validator(mode="after")
+    def explorer_shape_must_be_valid(self) -> CompositionExploreRequest:
+        if self.length_bars % 4:
+            raise ValueError("length_bars must be divisible by four")
+        if self.cluster_count > self.candidate_count:
+            raise ValueError("cluster_count cannot exceed candidate_count")
+        ids = [selection.id for selection in self.instrument_palette]
+        if len(ids) != len(set(ids)):
+            raise ValueError("instrument_palette must contain unique preset IDs")
+        return self
+
+
 class VitalPackMidiEventRequest(BaseModel):
     instrument_id: str = Field(min_length=1, max_length=32)
     start_beat: float = Field(ge=0, le=10_000)
