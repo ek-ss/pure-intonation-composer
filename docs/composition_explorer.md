@@ -13,7 +13,7 @@ than names applied after composition.
 ## Workflow
 
 1. Select a style and exact-ratio scale.
-2. Select the PI01-PI21 presets that may appear in the score.
+2. Select the PI01-PI22 presets that may appear in the score.
 3. Set Form, Harmony, Part assignment, and Rhythm temperatures.
 4. Optionally lock a component across all candidates.
 5. Generate 4-64 candidates. The default is 32 candidates in 6 clusters.

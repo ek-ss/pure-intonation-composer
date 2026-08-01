@@ -29,15 +29,17 @@ PROFILES = (
     ),
     ("PI08", "PI 08 Wide JI Pad.vital", "feature_pad", (43, 84), 4, "common_tone_lock", True),
     (
-        "PIANO",
-        "External piano / GM Acoustic Grand",
+        "PI22",
+        "PI 22 Fractional Piano.vital",
         "piano_material",
-        (57, 96),
-        1,
+        (48, 96),
+        8,
         "per_note_exact",
         False,
     ),
 )
+
+PIANO_ID = "PI22"
 
 DRUM_PROFILES = (
     ("PI09", "PI 09 Pop Kick.vital", "kick", 36, "pop_kick"),
@@ -240,7 +242,7 @@ def _palette_chord(
 
 def vital_pack_profiles() -> dict[str, object]:
     return {
-        "schema_version": "0.1",
+        "schema_version": "0.2",
         "pack": "Pure Intonation Vital Pack",
         "synth_version": "1.6.4",
         "instruments": [
@@ -373,8 +375,8 @@ def generate_vital_pack(config: dict[str, Any]) -> dict[str, Any]:
             float(section["energy"]),
         )
         active = _active(str(section.get("template_name", name)), mode)
-        if piano_run_enabled and "PIANO" not in active:
-            active.append("PIANO")
+        if piano_run_enabled and PIANO_ID not in active:
+            active.append(PIANO_ID)
         section_mode = (
             random.choice(("major", "minor"))
             if tonal_character == "mixed"
@@ -440,7 +442,7 @@ def generate_vital_pack(config: dict[str, Any]) -> dict[str, Any]:
                                     }
                                 )
                     continue
-                if instrument == "PIANO":
+                if instrument == PIANO_ID:
                     run = _piano_scale_run(
                         PIANO_SCALES[actual_mode],
                         chord,
@@ -454,20 +456,20 @@ def generate_vital_pack(config: dict[str, Any]) -> dict[str, Any]:
                     for note_index, piano_note in enumerate(run):
                         ratio = piano_note["ratio"]
                         events.append({
-                            "instrument_id": "PIANO",
+                            "instrument_id": PIANO_ID,
                             "start_beat": piano_note["start_beat"],
                             "duration_beats": piano_note["duration_beats"],
                             "ratio": ratio_text(ratio),
                             "velocity": piano_note["velocity"],
                             "articulation": "piano_scale_run",
-                            "voice_id": f"PIANO-{note_index + 1}",
+                            "voice_id": f"{PIANO_ID}-{note_index + 1}",
                             "tuning_policy": "per_note_exact",
                             "run_contour": piano_note["contour"],
                             "piano_material": "scale_run",
                         })
                         tuning.append({
                             "time": piano_note["start_beat"],
-                            "instrument_id": "PIANO",
+                            "instrument_id": PIANO_ID,
                             "ratio": ratio_text(ratio),
                             "policy": "per_note_exact",
                             "cents_offset": 0,
@@ -585,7 +587,7 @@ def generate_vital_pack(config: dict[str, Any]) -> dict[str, Any]:
         for section in sections
     ]
     bell_events = [event for event in events if event["instrument_id"] == "PI06"]
-    piano_events = [event for event in events if event["instrument_id"] == "PIANO"]
+    piano_events = [event for event in events if event["instrument_id"] == PIANO_ID]
     unique_chords = {tuple(item["tones"]) for item in harmony}
     major_bars = sum(item["tonal_character"] == "major" for item in harmony)
     minor_bars = sum(item["tonal_character"] == "minor" for item in harmony)
@@ -1102,8 +1104,8 @@ def generate_motif_vital_pack(config: dict[str, Any]) -> dict[str, Any]:
             active.append("PI04")
         if phase_mode != "off" and "PI07" not in active:
             active.append("PI07")
-        if piano_run_enabled and "PIANO" not in active:
-            active.append("PIANO")
+        if piano_run_enabled and PIANO_ID not in active:
+            active.append(PIANO_ID)
         section["active_instruments"] = active
         section["motif_node_id"] = primary["id"]
         section["motif_formal_role"] = primary["formal_role"]
@@ -1200,7 +1202,7 @@ def generate_motif_vital_pack(config: dict[str, Any]) -> dict[str, Any]:
                         development_operations=operations,
                         repetition=bar_index,
                     ))
-                elif instrument_id == "PIANO":
+                elif instrument_id == PIANO_ID:
                     full_breath = (
                         not bar_activity["lane_a_active"]
                         and not bar_activity["lane_b_active"]
@@ -1244,7 +1246,7 @@ def generate_motif_vital_pack(config: dict[str, Any]) -> dict[str, Any]:
                                     [note["ratio"], *note.get("harmony_tones", [])]
                                 ):
                                     event = _motif_event(
-                                        "PIANO",
+                                        PIANO_ID,
                                         Fraction(ratio),
                                         onset,
                                         duration,
@@ -1283,7 +1285,7 @@ def generate_motif_vital_pack(config: dict[str, Any]) -> dict[str, Any]:
                         )
                         for note_index, note in enumerate(run):
                             event = _motif_event(
-                                "PIANO",
+                                PIANO_ID,
                                 note["ratio"],
                                 note["start_beat"],
                                 note["duration_beats"],
@@ -1504,7 +1506,7 @@ def generate_motif_vital_pack(config: dict[str, Any]) -> dict[str, Any]:
         if event.get("ratio")
     }
     piano_events = [
-        event for event in events if event["instrument_id"] == "PIANO"
+        event for event in events if event["instrument_id"] == PIANO_ID
     ]
     piano_motif_events = [
         event

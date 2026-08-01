@@ -860,7 +860,7 @@ and a GM percussion track. Send generated `events` as `notes` and generated
 
 ## GET /api/instruments/vital-pack
 
-Returns PI01–PI12 plus the external `PIANO` scale-run role, with filenames,
+Returns PI01–PI12 plus the downloadable `PI22` Fractional Piano role, with filenames,
 ranges, polyphony, and declared tuning policies. PI09–PI12 are Vital-based
 kick, snare, closed hat, and percussion profiles with fixed trigger notes 36,
 38, 42, and 39 and `fixed_drum_note` tuning policy.
@@ -891,7 +891,7 @@ I/vi/iii/IV/ii/V/V7 and i/bIII/bVI/iv/ii-dim/V/v/bVII. Harmony events expose
 reports major/minor ratios, mode clarity, unique chords, functional
 transitions, and `harmony_variety_score`.
 
-`piano_run_enabled` adds an independent external-piano track.
+`piano_run_enabled` adds an independent PI22 Fractional Piano track.
 `piano_part_mode` is `scale_run` for ordinary song plans. The `motif` mode is
 available when Development Tree material is supplied to the motif endpoint.
 `piano_run_activity` (0–1) controls the probability of a run entering in each
@@ -973,7 +973,7 @@ The same piano controls apply to Development Tree arrangements.
 `motif_arrangement.motif_scale`; octave placement may change, but its
 octave-normalized pitch class never leaves that set.
 `piano_part_mode: "motif"` renders the assigned node's developed motif,
-including its rests and simultaneous `harmony_tones`, on the PIANO track.
+including its rests and simultaneous `harmony_tones`, on the PI22 track.
 Both modes leave full motif-breath bars silent and retain motif provenance.
 Quality output separates `piano_scale_run_notes` and `piano_motif_notes` and
 reports `piano_run_scale_conformance`.
@@ -995,7 +995,7 @@ and sidechain envelope so a client can replace that window in its plan.
 ## POST /api/compose/vital-pack/midi
 
 Converts Vital Pack `events` into a type-1 MIDI arrangement: PI01–PI12 and
-`PIANO` retain their own tracks, pitch events receive per-note pitch bend, and
+`PI22` retain their own tracks, pitch events receive per-note pitch bend, and
 PI09–PI12 drum events retain their fixed trigger notes. Legacy `DRUMS` events
 remain accepted for imported projects.
 
@@ -1205,7 +1205,7 @@ Responses:
 
 ## GET /api/composition-explorer/profiles
 
-Returns the PI01-PI21 semantic profiles, default palettes for each supported
+Returns the PI01-PI22 semantic profiles, default palettes for each supported
 style, style labels, and default evaluation weights.
 
 ## POST /api/composition-explorer/explore

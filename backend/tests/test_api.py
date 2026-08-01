@@ -90,8 +90,12 @@ def test_composition_explorer_page_and_profiles() -> None:
     profiles = client.get("/api/composition-explorer/profiles")
     assert profiles.status_code == 200
     payload = profiles.json()
-    assert len(payload["instruments"]) == 21
+    assert len(payload["instruments"]) == 22
     assert payload["style_defaults"]["kawaii_fractional_future_pop"][-1] == "PI21"
+    piano = next(profile for profile in payload["instruments"] if profile["id"] == "PI22")
+    assert piano["roles"][:2] == ["keys", "harmony"]
+    assert piano["preset_file"] == "PI 22 Fractional Piano.vital"
+    assert "PI22" in payload["style_defaults"]["fractional_pop"]
 
 
 def test_instrument_first_composition_exploration_is_clustered_and_deterministic() -> None:
@@ -333,14 +337,26 @@ def test_vital_pack_composer_profiles_and_generation() -> None:
     assert 'id="vital-piano-mode"' in page.text
     assert 'id="vital-piano-activity"' in page.text
     assert 'id="vital-piano-density"' in page.text
+    assert 'id="vital-piano-pack"' in page.text
     assert 'id="vital-drum-pack"' in page.text
     profiles = client.get("/api/instruments/vital-pack")
     assert profiles.status_code == 200
     assert len(profiles.json()["instruments"]) == 13
     assert any(
-        profile["id"] == "PIANO" and profile["role"] == "piano_material"
+        profile["id"] == "PI22" and profile["role"] == "piano_material"
         for profile in profiles.json()["instruments"]
     )
+    piano_preset = client.get("/static/vital_presets/PI%2022%20Fractional%20Piano.vital")
+    assert piano_preset.status_code == 200
+    piano_payload = piano_preset.json()
+    assert piano_payload["preset_name"] == "PI 22 Fractional Piano"
+    assert piano_payload["preset_style"] == "Keys"
+    assert piano_payload["settings"]["osc_1_unison_voices"] == 1
+    assert piano_payload["settings"]["osc_2_transpose"] == 12
+    assert piano_payload["settings"]["velocity_track"] > 0
+    piano_pack = client.get("/static/vital_presets/PI%20Fractional%20Piano.zip")
+    assert piano_pack.status_code == 200
+    assert piano_pack.content.startswith(b"PK")
     drum_profiles = {
         profile["id"]: profile
         for profile in profiles.json()["instruments"]
@@ -369,7 +385,7 @@ def test_vital_pack_composer_profiles_and_generation() -> None:
     assert sum(section["bars"] for section in plan["sections"]) == 16
     assert any(event["instrument_id"] == "PI05" for event in plan["events"])
     assert {"PI09", "PI10", "PI11", "PI12"} <= {event["instrument_id"] for event in plan["events"]}
-    piano_events = [event for event in plan["events"] if event["instrument_id"] == "PIANO"]
+    piano_events = [event for event in plan["events"] if event["instrument_id"] == "PI22"]
     assert piano_events
     assert all(event["articulation"] == "piano_scale_run" for event in piano_events)
     assert plan["quality"]["piano_run_notes"] == len(piano_events)
@@ -433,7 +449,7 @@ def test_vital_pack_composer_profiles_and_generation() -> None:
             "piano_run_enabled": False,
         },
     ).json()
-    assert not any(event["instrument_id"] == "PIANO" for event in piano_off["events"])
+    assert not any(event["instrument_id"] == "PI22" for event in piano_off["events"])
     dense_piano = client.post(
         "/api/compose/vital-pack",
         json={
@@ -823,7 +839,7 @@ def test_motif_development_tree_can_arrange_vital_pack_song() -> None:
     assert {
         octave_class(event["ratio"])
         for event in plan["events"]
-        if event["instrument_id"] == "PIANO"
+        if event["instrument_id"] == "PI22"
     } <= {Fraction(value) for value in motif_scale}
 
     motif_piano_response = client.post(
@@ -845,7 +861,7 @@ def test_motif_development_tree_can_arrange_vital_pack_song() -> None:
     assert motif_piano_response.status_code == 200
     motif_piano_plan = motif_piano_response.json()
     motif_piano_events = [
-        event for event in motif_piano_plan["events"] if event["instrument_id"] == "PIANO"
+        event for event in motif_piano_plan["events"] if event["instrument_id"] == "PI22"
     ]
     assert motif_piano_events
     assert motif_piano_plan["metadata"]["piano_part_mode"] == "motif"

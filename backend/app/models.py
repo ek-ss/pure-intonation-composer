@@ -660,7 +660,7 @@ class KawaiiFuturePopRequest(BaseModel):
 
 
 class InstrumentSelectionRequest(BaseModel):
-    id: str = Field(pattern=r"^PI(?:0[1-9]|1[0-9]|2[0-1])$")
+    id: str = Field(pattern=r"^PI(?:0[1-9]|1[0-9]|2[0-2])$")
     preferred_roles: list[str] = Field(default_factory=list, max_length=6)
     priority: float = Field(default=0.7, ge=0, le=1)
 
@@ -692,7 +692,7 @@ class CompositionExploreRequest(BaseModel):
         min_length=5,
         max_length=16,
     )
-    instrument_palette: list[InstrumentSelectionRequest] = Field(default_factory=list, max_length=21)
+    instrument_palette: list[InstrumentSelectionRequest] = Field(default_factory=list, max_length=22)
     missing_role_policy: Literal["warn", "omit", "substitute"] = "warn"
     form_temperature: float = Field(default=0.55, ge=0, le=1.5)
     harmony_temperature: float = Field(default=0.65, ge=0, le=1.5)

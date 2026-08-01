@@ -16,6 +16,7 @@ def _profile(
     section_affinity: tuple[str, ...],
     *,
     drum_note: int | None = None,
+    preset_file: str | None = None,
 ) -> dict[str, Any]:
     return {
         "id": preset_id,
@@ -28,6 +29,7 @@ def _profile(
         "section_affinity": list(section_affinity),
         "tuning_policy": "fixed_trigger" if drum_note is not None else "per_note_exact",
         "drum_note": drum_note,
+        "preset_file": preset_file,
     }
 
 
@@ -116,13 +118,20 @@ INSTRUMENT_PROFILES: dict[str, dict[str, Any]] = {
         "PI21", "Sparkle Bell", ("accent", "countermelody"), (60, 108), 6,
         "bell", "high", ("chorus", "drop", "final"),
     ),
+    "PI22": _profile(
+        "PI22", "Fractional Piano", ("keys", "harmony", "arpeggio"), (48, 96), 8,
+        "keys", "wide", ("intro", "verse", "a", "b", "chorus", "instrumental", "final"),
+        preset_file="PI 22 Fractional Piano.vital",
+    ),
 }
 
 
 STYLE_DEFAULT_PALETTES = {
-    "fractional_pop": ("PI01", "PI04", "PI05", "PI06", "PI09", "PI10", "PI11", "PI12"),
+    "fractional_pop": (
+        "PI01", "PI04", "PI05", "PI06", "PI09", "PI10", "PI11", "PI12", "PI22",
+    ),
     "fractional_jpop": (
-        "PI05", "PI09", "PI10", "PI11", "PI12", "PI13", "PI14", "PI15", "PI16",
+        "PI05", "PI09", "PI10", "PI11", "PI12", "PI13", "PI14", "PI15", "PI16", "PI22",
     ),
     "kawaii_fractional_future_pop": (
         "PI05", "PI06", "PI09", "PI10", "PI11", "PI12", "PI17", "PI18", "PI19",

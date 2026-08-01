@@ -57,6 +57,7 @@ function renderCapabilities() {
   if (![...roles].some(role => ["harmony", "rhythmic_harmony", "pad"].includes(role))) notices.push(["No dedicated harmony", true]);
   ["vocal", "harmony", "pulse", "accent", "kick", "snare", "hat", "perc"].filter(role => roles.has(role)).forEach(role => notices.push([role, false]));
   ex("explorer-capability-report").innerHTML = notices.map(([label, warning]) => `<span class="${warning ? "warning" : ""}">${label}</span>`).join("");
+  ex("explorer-preset-downloads").innerHTML = profiles.filter(profile => profile.preset_file).map(profile => `<a href="/static/vital_presets/${encodeURIComponent(profile.preset_file)}" download>${profile.id} .vital</a>`).join("");
 }
 async function generate() {
   try {

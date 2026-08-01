@@ -60,7 +60,7 @@ role, and target chord in `motif_arrangement.section_assignments`.
 - PI05: target-chord root bass;
 - PI06: terminal-motif accents;
 - PI07: motif-onset pulse;
-- PIANO: independent ascending, descending, turnaround, or zigzag scale runs
+- PI22: independent ascending, descending, turnaround, or zigzag scale runs
   drawn only from the extracted motif scale;
 - DRUMS: kick/snare grid with hats and accents derived from motif onsets.
 
@@ -70,7 +70,7 @@ statements and schedules silent lead/pulse bars. Motif-derived hats and
 percussion follow the PI04 activity decision, while the kick/snare backbone
 can continue through a motif breath.
 
-`Piano part` enables the external piano lane. `Piano material` selects either
+`Piano part` enables the PI22 Fractional Piano lane. `Piano material` selects either
 `Scale run` or `Transferred motif`. Scale runs use the exact fractional-ratio
 classes in the extracted motif scale; only their octave placement changes.
 Transferred motif mode performs the selected node's developed notes,
@@ -78,7 +78,7 @@ including source rests and simultaneous `harmony_tones`. `Piano activity`
 controls how often either material enters. `Piano density` controls scale-run
 subdivision or the maximum number of motif statements in a bar. Full
 motif-breath bars remain silent, and every emitted pitch retains Development
-Tree provenance. MIDI export places the events on a separate `PIANO` track
+Tree provenance. MIDI export places the events on a separate `PI22` track
 for assignment to a microtonal-capable piano instrument.
 
 All generated events include motif provenance where applicable: `motif_id`,

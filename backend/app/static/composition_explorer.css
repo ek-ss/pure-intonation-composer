@@ -43,6 +43,8 @@
 .explorer-capability-report { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
 .explorer-capability-report span { border: 1px solid var(--line); border-radius: 5px; padding: 4px 7px; color: var(--muted); font-size: .7rem; }
 .explorer-capability-report .warning { color: #ffe8a0; border-color: #7d7048; }
+.explorer-preset-downloads { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 10px; }
+.explorer-preset-downloads a { border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; color: var(--text); background: #242c3f; font-size: .7rem; text-decoration: none; }
 .explorer-cluster-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
 .explorer-cluster-card { display: grid; gap: 8px; min-height: 170px; padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: #111622; text-align: left; }
 .explorer-cluster-card.active { border-color: #ffd47e; background: #2b2830; }

@@ -1209,7 +1209,7 @@ generation. Style-specific probabilistic grammars replace one fixed form in
 the explorer, while a bounded top-K harmony beam is sampled with an adjustable
 temperature.
 
-PI01-PI21 profiles supply roles, ranges, polyphony, articulation, section
+PI01-PI22 profiles supply roles, ranges, polyphony, articulation, section
 affinity, and tuning policy before score generation. The selected palette is
 therefore a musical constraint. Section assignments and exact-ratio score
 events are generated only for selected IDs, with explicit bass warning,
@@ -1223,6 +1223,12 @@ Like/Dislike weight adaptation are implemented at `/composition-explorer`.
 
 See [composition_explorer.md](composition_explorer.md) for the data flow,
 controls, evaluation features, and current boundaries.
+
+PI22 Fractional Piano extends the instrument-first profile set with a
+velocity-responsive piano-like Vital preset. Vital Pack scale runs and
+transferred motif piano events now target PI22 rather than an unnamed external
+piano track. The reproducible preset builder and DAW setup are documented in
+[vital_fractional_piano.md](vital_fractional_piano.md).
 
 ---
 

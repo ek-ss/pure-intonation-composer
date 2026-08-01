@@ -1178,6 +1178,7 @@ def vital_pack_midi(request: VitalPackMidiRequest) -> Response:
             "PI06",
             "PI07",
             "PI08",
+            "PI22",
             "PIANO",
             *(profile[0] for profile in DRUM_PROFILES),
             "PI13",

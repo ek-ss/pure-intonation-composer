@@ -3,13 +3,13 @@
 ## Status
 
 Implemented experimental arrangement environment at `/vital-pack-composer`,
-based on the Pure Intonation Vital Pack specification, its eight pitched Vital
-profiles, four Vital drum profiles, and an external piano scale-run role.
+based on the Pure Intonation Vital Pack specification, its eight core pitched
+Vital profiles, four Vital drum profiles, and the PI22 Fractional Piano.
 
 ## Implemented
 
 - `GET /api/instruments/vital-pack`: PI01–PI12 preset profiles plus the
-  external `PIANO` role; PI09–PI12 are kick, snare, closed hat, and percussion;
+  downloadable `PI22` piano role; PI09–PI12 are kick, snare, closed hat, and percussion;
 - `POST /api/compose/vital-pack`: seeded 8–64 bar song plan at 130–175 BPM;
 - Major, Minor, or Mixed tonal character with adjustable mode strength and
   progression contrast;
@@ -46,7 +46,7 @@ profiles, four Vital drum profiles, and an external piano scale-run role.
 - polyphonic motif-step transfer: PI04/PI07 render one- to four-voice
   `harmony_tones` stacks with shared timing, per-voice velocity taper, scale
   constraint, transformation provenance, and microtonal MIDI output.
-- optional `PIANO` part with adjustable activity and density. `Scale run`
+- optional `PI22` part with adjustable activity and density. `Scale run`
   uses ascending, descending, turnaround, or zigzag contours, leaves
   whole-bar phrase rests, and lands on the root at cadences. Ordinary plans
   use the active Major/Minor scale; Development Tree plans use exact
@@ -96,8 +96,8 @@ outside this browser/API application.
 
 Adaptive mode uses role-appropriate subsets of the pitched Vital presets.
 Showcase mode activates all pitched Vital profiles for inspection. The
-independent `PIANO` role is included when `Piano scale run` is enabled and
-should be assigned to a microtonal-capable piano instrument in the DAW.
+independent `PI22` role is included when `Piano part` is enabled and now maps
+directly to the downloadable Fractional Piano Vital preset.
 
 PI09–PI12 replace the former external `DRUMS` sampler track. Their Vital files
 are downloadable from Fractional Pop Composer, and generated MIDI and REAPER

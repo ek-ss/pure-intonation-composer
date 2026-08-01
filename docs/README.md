@@ -28,6 +28,7 @@ as implemented.
 | [vital_pack_composer.md](vital_pack_composer.md) | Implemented Vital Pack Composer MVP and its DAW/export boundary |
 | [motif_vital_arrangement.md](motif_vital_arrangement.md) | Implemented Development Tree to Vital Pack song-arrangement bridge |
 | [composition_explorer.md](composition_explorer.md) | Implemented instrument-constrained multi-candidate composition explorer |
+| [vital_fractional_piano.md](vital_fractional_piano.md) | PI22 piano-like Vital preset, builder, integration, and DAW workflow |
 | [development_plan_motif_development_engine.md](development_plan_motif_development_engine.md) | Proposed G14 motif generation, variation, and formal-development specification |
 
 ## Roadmaps
