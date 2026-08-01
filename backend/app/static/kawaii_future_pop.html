@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Kawaii Fractional Future Pop | Pure Intonation Workbench</title>
+    <link rel="stylesheet" href="/static/style.css?v=20260801-kfp-1">
+  </head>
+  <body class="kfp-page">
+    <header class="topbar">
+      <div><p class="eyebrow">KAWAII FUTURE BASS · POP · MINIMAL</p><h1>Kawaii Fractional Future Pop</h1><p class="page-subtitle">Exact-ratio vocals, phase cells, sidechained drops, and Vital instruments</p></div>
+      <span class="topbar-links"><a href="/">Workbench</a><a href="/lattice">Lattice Lab</a><a href="/harmonic-pitch-circle">Harmonic Pitch Circle</a><a href="/prime-limit-explorer">Prime Explorer</a><a href="/minimal-functional-composer">Minimal Composer</a><a href="/motif-development">Motif Development</a><a href="/vital-pack-composer">Vital Pack</a><a href="/fractional-pop-composer">Fractional Pop</a><a href="/jpop-composer">J-Pop</a><a href="/docs" target="_blank" rel="noreferrer">API docs &#8599;</a></span>
+    </header>
+    <main class="kfp-main">
+      <section class="panel kfp-controls">
+        <div class="section-heading"><h2>Song DNA</h2><span id="kfp-status" role="status">Ready</span></div>
+        <label>Ratio palette<select id="kfp-preset"><option value="sparkle" selected>13-limit sparkle</option><option value="pastel">7-limit pastel</option><option value="lattice">3 × 7 × 13 lattice</option><option value="custom">Custom</option></select></label>
+        <label>Fractional-ratio scale<textarea id="kfp-scale" rows="4">1/1, 9/8, 6/5, 5/4, 4/3, 3/2, 13/8, 5/3, 7/4</textarea></label>
+        <div class="kfp-field-grid"><label>Tempo<input id="kfp-tempo" type="number" min="120" max="180" value="154"></label><label>Cycles<select id="kfp-cycles"><option value="1" selected>1</option><option value="2">2</option></select></label><label>Base Hz<input id="kfp-base" type="number" min="20" max="2000" value="220"></label><label>Seed<input id="kfp-seed" type="number" value="260801"></label></div>
+        <label>Minimalism <output id="kfp-minimal-value">0.68</output><input id="kfp-minimal" type="range" min="0" max="1" step=".02" value=".68"></label>
+        <label>Drop intensity <output id="kfp-drop-value">0.86</output><input id="kfp-drop" type="range" min=".2" max="1" step=".02" value=".86"></label>
+        <label>Vocal activity <output id="kfp-vocal-value">0.72</output><input id="kfp-vocal" type="range" min=".2" max="1" step=".02" value=".72"></label>
+        <div class="kfp-field-grid"><label>Phase shift<select id="kfp-phase"><option value="0">Off</option><option value="1" selected>1/4 beat</option><option value="2">1/2 beat</option><option value="3">3/4 beat</option></select></label><label>Vocal style<select id="kfp-vocal-style"><option value="hooky" selected>Hooky</option><option value="airy">Airy</option><option value="chopped">Chopped</option></select></label></div>
+        <button id="kfp-generate" class="primary">Generate hybrid song</button>
+        <button id="kfp-random" class="quiet">New seed and generate</button>
+        <div class="button-row"><button id="kfp-play">Play first drop</button><button id="kfp-stop" class="quiet">Stop</button></div>
+        <div class="button-row"><button id="kfp-midi" class="quiet">MPE MIDI</button><button id="kfp-json" class="quiet">Project JSON</button></div>
+        <div class="kfp-downloads"><a href="/static/vital_presets/PI%20Kawaii%20Future%20Pop%20Vital%20Pack.zip" download>Kawaii Vital pack</a><a href="/static/vital_presets/PI%20Vital%20Pop%20Drums.zip" download>Vital drum pack</a></div>
+      </section>
+      <section class="panel kfp-form-panel">
+        <div class="section-heading"><h2>Hybrid Form</h2><span id="kfp-summary"></span></div>
+        <canvas id="kfp-form" width="1200" height="210" aria-label="Kawaii future pop form and energy"></canvas>
+        <div id="kfp-metrics" class="vital-policies"></div>
+      </section>
+      <section class="panel kfp-circle-panel">
+        <div class="section-heading"><h2>Ratio Palette</h2><span id="kfp-scale-summary"></span></div>
+        <svg id="kfp-circle" viewBox="0 0 520 520" role="img" aria-label="Exact-ratio pitch circle"></svg>
+      </section>
+      <section class="panel kfp-concept-panel">
+        <div class="section-heading"><h2>Hybrid Layers</h2><span>One shared ratio scale</span></div>
+        <div class="kfp-layer-map"><article class="pop"><strong>Pop</strong><span>Verse / Pre</span><code>I · V · vi · IV</code></article><article class="future"><strong>Future Bass</strong><span>Drop</span><code>3 voices → 4 voices + pump</code></article><article class="minimal"><strong>Minimal</strong><span>Break</span><code id="kfp-phase-label">phase +1/4 beat</code></article><article class="vocal"><strong>Vocal</strong><span>Hook / rest / chop</span><code id="kfp-vocal-label">hooky</code></article></div>
+      </section>
+      <section class="panel kfp-progression-panel">
+        <div class="section-heading"><h2>Exact Harmony</h2><span id="kfp-harmony-summary"></span></div>
+        <div class="table-wrap kfp-table"><table><thead><tr><th>Bar</th><th>Section</th><th>Rule</th><th>Voicing</th><th>Root</th><th>Tones</th></tr></thead><tbody id="kfp-progression"></tbody></table></div>
+      </section>
+      <section class="panel kfp-roll-panel">
+        <div class="section-heading"><h2>Vocal + Minimal Process</h2><span id="kfp-roll-summary"></span></div>
+        <canvas id="kfp-roll" width="1200" height="280" aria-label="Vocal and minimal pulse roll"></canvas>
+      </section>
+      <section class="panel kfp-parts-panel">
+        <div class="section-heading"><h2>Vital Roles</h2><span id="kfp-parts-summary"></span></div>
+        <div id="kfp-parts" class="vital-tracks"></div>
+      </section>
+    </main>
+    <script src="/static/kawaii_future_pop.js?v=20260801-kfp-1"></script>
+  </body>
+</html>

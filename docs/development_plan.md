@@ -1168,6 +1168,34 @@ constraints, section regeneration, stems, and direct DAW/Vital automation.
 See [jpop_composer.md](jpop_composer.md) for the musical contract, controls,
 Vital role map, and export workflow.
 
+## G17. Kawaii Fractional Future Pop
+
+Status
+
+* Experimental implementation
+
+G17 combines kawaii future bass, pop, minimal repetition, phase shift, exact
+fractional-ratio scales, and a rest-aware vocal guide. The canonical form uses
+Verse/Pre/Drop pop development around an eight-bar Minimal Break and Final
+Drop. All pitched parts share one editable 7-12 tone ratio palette; register
+changes are powers of two.
+
+Drop generation introduces consonant and open three-tone stacks before adding
+a fourth voice and reserving the strongest 13-limit color for the final two
+bars. It also adds syncopated half-time drums, sparkle accents, and an explicit
+sidechain envelope. The Minimal Break reduces
+the harmony to a repeated three-tone cell in A/B lanes with a selectable
+0-3 subdivision phase offset. Hooky, airy, and chopped vocal policies control
+phrase density, note gates, repeated hooks, and intentional rest sections.
+
+PI17-PI21 Vital presets cover Candy Pluck, Future Chord Stack, Fractional
+Vocal Guide, Minimal Pulse, and Sparkle Bell. The page provides form, Pitch
+Circle, exact harmony, and vocal/minimal-roll views, Drop audition, JSON,
+pitch-bend MIDI, and downloadable instrument packs.
+
+See [kawaii_future_pop.md](kawaii_future_pop.md) for controls, mathematical
+constraints, vocal policy, Vital mapping, and DAW workflow.
+
 ---
 
 # 4. Historical Milestones

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from fractions import Fraction
 from typing import Literal
 
 from pydantic import AliasChoices, BaseModel, Field, field_validator, model_validator
@@ -183,9 +184,7 @@ class ComposeRhythmLayerRequest(BaseModel):
 
     @field_validator("velocities")
     @classmethod
-    def compose_velocities_must_be_valid(
-        cls, values: list[int] | None
-    ) -> list[int] | None:
+    def compose_velocities_must_be_valid(cls, values: list[int] | None) -> list[int] | None:
         if values is not None and any(not 0 <= value <= 127 for value in values):
             raise ValueError("velocities must be between 0 and 127")
         return values
@@ -201,9 +200,9 @@ class ComposeRhythmLayerRequest(BaseModel):
 class ComposeRhythmMappingRequest(BaseModel):
     source_layer: str = Field(min_length=1, max_length=32)
     target: str = Field(min_length=1, max_length=40)
-    policy: Literal[
-        "fixed-index", "voice-led", "rotate-per-chord", "register-spread"
-    ] = "fixed-index"
+    policy: Literal["fixed-index", "voice-led", "rotate-per-chord", "register-spread"] = (
+        "fixed-index"
+    )
     overflow: Literal["drop", "wrap", "clamp"] = "drop"
     gate: float = Field(default=0.9, gt=0, le=16)
     register_octave: int = Field(default=0, ge=-4, le=4)
@@ -217,11 +216,7 @@ class ComposeRhythmMappingRequest(BaseModel):
         if value in {"harmony", "bass", "mute"}:
             return value
         prefix, separator, index = value.partition(":")
-        if (
-            prefix not in {"melody", "chord_tone"}
-            or separator != ":"
-            or not index.isdigit()
-        ):
+        if prefix not in {"melody", "chord_tone"} or separator != ":" or not index.isdigit():
             raise ValueError("target must be harmony, bass, mute, melody:i, or chord_tone:i")
         return value
 
@@ -236,9 +231,9 @@ class ComposeRhythmApplyRequest(BaseModel):
 
 class ComposeRhythmGeneratorRequest(BaseModel):
     target: str = Field(min_length=1, max_length=40)
-    strategy: Literal[
-        "transition-aware", "semi-markov", "interlocking", "ratio-derived"
-    ] = "transition-aware"
+    strategy: Literal["transition-aware", "semi-markov", "interlocking", "ratio-derived"] = (
+        "transition-aware"
+    )
     profile: Literal["grounded", "interlocking", "sparse", "flowing"] = "grounded"
     density: float = Field(default=0.35, ge=0.02, le=0.95)
     syncopation: float = Field(default=0.35, ge=0, le=1)
@@ -249,23 +244,17 @@ class ComposeRhythmGeneratorRequest(BaseModel):
         if value in {"harmony", "bass"}:
             return value
         prefix, separator, index = value.partition(":")
-        if (
-            prefix not in {"melody", "chord_tone"}
-            or separator != ":"
-            or not index.isdigit()
-        ):
-            raise ValueError(
-                "target must be harmony, bass, melody:i, or chord_tone:i"
-            )
+        if prefix not in {"melody", "chord_tone"} or separator != ":" or not index.isdigit():
+            raise ValueError("target must be harmony, bass, melody:i, or chord_tone:i")
         return value
 
 
 class ComposeRhythmGenerateRequest(BaseModel):
     clock: CompositionClockRequest = Field(default_factory=CompositionClockRequest)
     composition: CompositionPitchesRequest
-    strategy: Literal[
-        "transition-aware", "semi-markov", "interlocking", "ratio-derived"
-    ] = "transition-aware"
+    strategy: Literal["transition-aware", "semi-markov", "interlocking", "ratio-derived"] = (
+        "transition-aware"
+    )
     profile: Literal["grounded", "interlocking", "sparse", "flowing"] = "grounded"
     density: float = Field(default=0.35, ge=0.02, le=0.95)
     syncopation: float = Field(default=0.35, ge=0, le=1)
@@ -288,14 +277,8 @@ class ComposeRhythmGenerateRequest(BaseModel):
             if value in {"harmony", "bass"}:
                 continue
             prefix, separator, index = value.partition(":")
-            if (
-                prefix not in {"melody", "chord_tone"}
-                or separator != ":"
-                or not index.isdigit()
-            ):
-                raise ValueError(
-                    "targets must contain harmony, bass, melody:i, or chord_tone:i"
-                )
+            if prefix not in {"melody", "chord_tone"} or separator != ":" or not index.isdigit():
+                raise ValueError("targets must contain harmony, bass, melody:i, or chord_tone:i")
         return values
 
     @field_validator("generators")
@@ -425,7 +408,9 @@ class DrumGenerateRequest(BaseModel):
     max_analysis_steps: int = Field(default=512, ge=1, le=4096)
 
 
-def _resolve_velocities(pattern: list[int], velocity: int, velocities: list[int] | None) -> list[int]:
+def _resolve_velocities(
+    pattern: list[int], velocity: int, velocities: list[int] | None
+) -> list[int]:
     if velocities is None:
         return [velocity] * len(pattern)
     if len(velocities) != len(pattern):
@@ -560,12 +545,12 @@ class MinimalFunctionalRequest(BaseModel):
     voice_count: int = Field(default=5, ge=3, le=8)
     seed: int = 12345
     tuning: Literal["12-tet", "5-limit", "7-limit"] = "5-limit"
-    climax_start: float = Field(default=.62, ge=.45, le=.80)
-    resolution_start: float = Field(default=.78, ge=.65, le=.92)
+    climax_start: float = Field(default=0.62, ge=0.45, le=0.80)
+    resolution_start: float = Field(default=0.78, ge=0.65, le=0.92)
     prime_progression: list[dict[str, object]] = Field(default_factory=list, max_length=128)
     function_chord_ids: dict[str, list[str] | str] = Field(default_factory=dict)
     include_drums: bool = True
-    drum_density: float = Field(default=.55, ge=0, le=1)
+    drum_density: float = Field(default=0.55, ge=0, le=1)
 
     @model_validator(mode="after")
     def form_boundaries_must_be_ordered(self) -> MinimalFunctionalRequest:
@@ -625,6 +610,55 @@ class JPopRequest(BaseModel):
     chorus_shift_depth: int = Field(default=1, ge=1, le=2)
 
 
+class KawaiiFuturePopRequest(BaseModel):
+    seed: int = 26_0801
+    tempo_bpm: float = Field(default=154, ge=120, le=180)
+    cycles: int = Field(default=1, ge=1, le=2)
+    base_frequency: float = Field(default=220, ge=20, le=2000)
+    scale_ratios: list[str] = Field(
+        default_factory=lambda: [
+            "1/1",
+            "9/8",
+            "6/5",
+            "5/4",
+            "4/3",
+            "3/2",
+            "13/8",
+            "5/3",
+            "7/4",
+        ],
+        min_length=7,
+        max_length=12,
+    )
+    minimalism: float = Field(default=0.68, ge=0, le=1)
+    drop_intensity: float = Field(default=0.86, ge=0.2, le=1)
+    vocal_activity: float = Field(default=0.72, ge=0.2, le=1)
+    phase_shift_steps: int = Field(default=1, ge=0, le=3)
+    vocal_style: Literal["hooky", "airy", "chopped"] = "hooky"
+
+    @field_validator("scale_ratios")
+    @classmethod
+    def kawaii_scale_ratios_must_be_positive(cls, values: list[str]) -> list[str]:
+        parsed: list[Fraction] = []
+        for value in values:
+            try:
+                ratio = Fraction(value)
+            except (ValueError, ZeroDivisionError) as error:
+                raise ValueError(f"invalid scale ratio: {value}") from error
+            if ratio <= 0:
+                raise ValueError("scale ratios must be positive")
+            while ratio < 1:
+                ratio *= 2
+            while ratio >= 2:
+                ratio /= 2
+            parsed.append(ratio)
+        if len(set(parsed)) != len(parsed):
+            raise ValueError("scale ratios must be unique after octave reduction")
+        if Fraction(1) not in parsed:
+            raise ValueError("scale ratios must contain 1/1")
+        return values
+
+
 class VitalPackMidiEventRequest(BaseModel):
     instrument_id: str = Field(min_length=1, max_length=32)
     start_beat: float = Field(ge=0, le=10_000)
@@ -650,9 +684,10 @@ def _validated_motif_prime_basis(values: list[int]) -> list[int]:
     if len(set(values)) != len(values):
         raise ValueError("prime_basis must contain unique primes")
     for value in values:
-        if value == 2 or value < 3 or any(
-            value % divisor == 0
-            for divisor in range(2, int(value**0.5) + 1)
+        if (
+            value == 2
+            or value < 3
+            or any(value % divisor == 0 for divisor in range(2, int(value**0.5) + 1))
         ):
             raise ValueError("prime_basis must contain odd prime numbers")
     return values
@@ -675,8 +710,12 @@ class MotifGenerateRequest(BaseModel):
     max_polyphony: int = Field(default=1, ge=1, le=4)
     beam_width: int = Field(default=32, ge=1, le=128)
     candidate_count: int = Field(default=16, ge=1, le=32)
-    evaluation_profile: Literal["balanced", "consonant", "lyrical", "rhythmic", "colourful"] = "balanced"
-    terminal_policy: Literal["root", "stable", "colour", "nearest_anchor", "weighted", "random", "free"] = "root"
+    evaluation_profile: Literal["balanced", "consonant", "lyrical", "rhythmic", "colourful"] = (
+        "balanced"
+    )
+    terminal_policy: Literal[
+        "root", "stable", "colour", "nearest_anchor", "weighted", "random", "free"
+    ] = "root"
     seed: int = 72801
 
     @field_validator("anchor_chord")
@@ -719,7 +758,9 @@ class MotifVitalNodeRequest(BaseModel):
     """A selected Development Tree node used as a song-level motif source."""
 
     id: str = Field(min_length=1, max_length=120)
-    formal_role: Literal["theme", "a_prime", "build", "development", "climax", "recapitulation", "coda"]
+    formal_role: Literal[
+        "theme", "a_prime", "build", "development", "climax", "recapitulation", "coda"
+    ]
     target_chord: list[str] = Field(min_length=3, max_length=4)
     notes: list[MotifNoteRequest] = Field(min_length=2, max_length=32)
     transformation_chain: list[str] = Field(default_factory=list, max_length=16)
@@ -779,8 +820,18 @@ class MotifVariationRequest(BaseModel):
     source_notes: list[MotifNoteRequest] = Field(min_length=2, max_length=32)
     target_chord: list[str] = Field(min_length=3, max_length=4)
     source_motif_id: str = Field(default="inline-motif", min_length=1, max_length=80)
-    formal_role: Literal["a_prime", "build", "development", "climax", "recapitulation", "coda"] = "a_prime"
-    allowed_transformations: list[Literal["lattice_transpose", "neighbour_substitution", "retrograde_pitch", "rhythmic_diminution", "chord_tone_projection"]] = Field(default_factory=list)
+    formal_role: Literal["a_prime", "build", "development", "climax", "recapitulation", "coda"] = (
+        "a_prime"
+    )
+    allowed_transformations: list[
+        Literal[
+            "lattice_transpose",
+            "neighbour_substitution",
+            "retrograde_pitch",
+            "rhythmic_diminution",
+            "chord_tone_projection",
+        ]
+    ] = Field(default_factory=list)
     seed: int = 72802
 
     @field_validator("prime_basis")
@@ -794,7 +845,9 @@ class MotifDevelopRequest(BaseModel):
     prime_basis: list[int] = Field(default_factory=lambda: [3, 5, 7], min_length=1, max_length=5)
     source_notes: list[MotifNoteRequest] = Field(min_length=2, max_length=32)
     harmony: list[list[str]] = Field(min_length=4, max_length=32)
-    section_roles: list[Literal["theme", "a_prime", "build", "development", "climax", "recapitulation", "coda"]] = Field(default_factory=list)
+    section_roles: list[
+        Literal["theme", "a_prime", "build", "development", "climax", "recapitulation", "coda"]
+    ] = Field(default_factory=list)
     seed: int = 72803
 
     @field_validator("prime_basis")

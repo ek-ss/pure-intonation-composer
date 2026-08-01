@@ -48,6 +48,7 @@ from app.models import (
     MinimalFunctionalRequest,
     MinimalFunctionalMidiRequest,
     JPopRequest,
+    KawaiiFuturePopRequest,
     VitalPackRequest,
     MotifVitalPackRequest,
     VitalPackMidiRequest,
@@ -94,6 +95,7 @@ from app.lattice import (
 from app.prime_explorer import discover_chords, explore as explore_prime_limit, progression_metrics
 from app.composition.minimal_functional import generate_minimal_functional
 from app.composition.jpop import generate_jpop
+from app.composition.kawaii_future_pop import generate_kawaii_future_pop
 from app.composition.vital_pack import (
     DRUM_PROFILES,
     PROFILES,
@@ -105,7 +107,15 @@ from app.motif.engine import compare as compare_motif
 from app.motif.engine import develop as develop_motif
 from app.motif.engine import generate as generate_motif
 from app.motif.engine import vary as vary_motif
-from app.exporters.midi import MidiArrangementTrack, MidiDrumHit, MidiNote, arrangement_midi_bytes, drum_midi_bytes, microtonal_midi_bytes, midi_bytes
+from app.exporters.midi import (
+    MidiArrangementTrack,
+    MidiDrumHit,
+    MidiNote,
+    arrangement_midi_bytes,
+    drum_midi_bytes,
+    microtonal_midi_bytes,
+    midi_bytes,
+)
 from app.rhythm.drums import (
     LayerSpec,
     accent_velocities,
@@ -194,10 +204,23 @@ def pitch_payload(ratios: list[Fraction]) -> dict[str, object]:
 
 def render_request(request: RenderRequest) -> bytes:
     return render_wav(
-        [NoteEvent(parse_ratio(event.ratio), event.start_seconds, event.duration_seconds, event.velocity) for event in request.events],
+        [
+            NoteEvent(
+                parse_ratio(event.ratio),
+                event.start_seconds,
+                event.duration_seconds,
+                event.velocity,
+            )
+            for event in request.events
+        ],
         request.base_frequency,
         request.waveform,
-        Envelope(request.attack_seconds, request.decay_seconds, request.sustain_level, request.release_seconds),
+        Envelope(
+            request.attack_seconds,
+            request.decay_seconds,
+            request.sustain_level,
+            request.release_seconds,
+        ),
         request.sample_rate,
         request.delay_seconds,
         request.reverb_amount,
@@ -212,7 +235,9 @@ def health() -> dict[str, str]:
 @app.post("/api/cps")
 def cps(request: CPSRequest) -> dict[str, object]:
     try:
-        return pitch_payload(generate_cps(request.factors, request.choose, request.kind, request.octave_reduce))
+        return pitch_payload(
+            generate_cps(request.factors, request.choose, request.kind, request.octave_reduce)
+        )
     except ValueError as error:
         raise HTTPException(status_code=422, detail=str(error)) from error
 
@@ -277,13 +302,20 @@ def harmonic_graph(request: HarmonicGraphRequest) -> dict[str, object]:
             "node_count": len(graph.nodes),
             "edge_count": len(graph.edges),
             "nodes": [
-                {"index": index, "factors": node.factors, "ratio": ratio_text(node.ratio), "sub_ratio": ratio_text(reduce_to_octave(2 / node.ratio))}
+                {
+                    "index": index,
+                    "factors": node.factors,
+                    "ratio": ratio_text(node.ratio),
+                    "sub_ratio": ratio_text(reduce_to_octave(2 / node.ratio)),
+                }
                 for index, node in enumerate(graph.nodes)
             ],
             "edges": [{"source": left, "target": right} for left, right in graph.edges],
         }
         if request.layout == "reference_layered_grid":
-            layout = reference_layered_grid_layout(graph, request.reference or 0, sort_mode=request.sort_mode)
+            layout = reference_layered_grid_layout(
+                graph, request.reference or 0, sort_mode=request.sort_mode
+            )
             payload["layout"] = {
                 "kind": "reference_layered_grid",
                 "reference": layout.reference,
@@ -291,7 +323,14 @@ def harmonic_graph(request: HarmonicGraphRequest) -> dict[str, object]:
                 "positions": [{"x": x, "y": y} for x, y in layout.positions],
                 "shared_counts": list(layout.shared_counts),
                 "distances": list(layout.distances),
-                "layers": [{"shared": shared, "distance": max(layout.distances) - shared, "nodes": list(members)} for shared, members in layout.layers],
+                "layers": [
+                    {
+                        "shared": shared,
+                        "distance": max(layout.distances) - shared,
+                        "nodes": list(members),
+                    }
+                    for shared, members in layout.layers
+                ],
                 "edge_directions": list(layout.edge_directions),
             }
         if request.operation == "shortest_path":
@@ -301,7 +340,9 @@ def harmonic_graph(request: HarmonicGraphRequest) -> dict[str, object]:
         elif request.operation == "random_walk":
             payload["walk"] = random_walk(graph, request.start, request.steps, request.seed)
         elif request.operation == "weighted_walk":
-            payload["walk"] = weighted_walk(graph, request.start, request.steps, request.seed, request.metric)
+            payload["walk"] = weighted_walk(
+                graph, request.start, request.steps, request.seed, request.metric
+            )
         return payload
     except ValueError as error:
         raise HTTPException(status_code=422, detail=str(error)) from error
@@ -411,10 +452,7 @@ def compose_melody(request: MelodyRequest) -> dict[str, object]:
         return {
             "seed": request.seed,
             "voices": [
-                [
-                    {"ratio": ratio_text(note), "cents": round(cents(note), 5)}
-                    for note in voice
-                ]
+                [{"ratio": ratio_text(note), "cents": round(cents(note), 5)} for note in voice]
                 for voice in melody.voices
             ],
         }
@@ -593,7 +631,9 @@ def rhythm_optimize_rotations(request: OptimizeRotationsRequest) -> dict[str, ob
         specs = [layer.to_spec() for layer in request.layers]
         results = optimize_rotations(specs, request.max_analysis_steps)
         return {
-            "analysis_length": analysis_length([spec.steps for spec in specs], request.max_analysis_steps),
+            "analysis_length": analysis_length(
+                [spec.steps for spec in specs], request.max_analysis_steps
+            ),
             "layers": [
                 {
                     "name": result.name,
@@ -629,7 +669,9 @@ def drums_generate(request: DrumGenerateRequest) -> dict[str, object]:
         if len({spec.name for spec in specs}) != len(specs):
             raise ValueError("layer names must be unique")
         if request.optimize:
-            rotations = [result.rotation for result in optimize_rotations(specs, request.max_analysis_steps)]
+            rotations = [
+                result.rotation for result in optimize_rotations(specs, request.max_analysis_steps)
+            ]
         else:
             rotations = [(spec.rotation or 0) % spec.steps for spec in specs]
         layers: list[dict[str, object]] = []
@@ -705,7 +747,11 @@ def render_audio(request: RenderRequest) -> Response:
     """Offline-render rational notes to a downloadable WAV stream."""
     try:
         audio = render_request(request)
-        return Response(audio, media_type="audio/wav", headers={"Content-Disposition": "attachment; filename=composition.wav"})
+        return Response(
+            audio,
+            media_type="audio/wav",
+            headers={"Content-Disposition": "attachment; filename=composition.wav"},
+        )
     except (ValueError, ZeroDivisionError) as error:
         raise HTTPException(status_code=422, detail=str(error)) from error
 
@@ -736,7 +782,11 @@ def get_rendered_audio(job_id: str) -> Response:
         raise HTTPException(status_code=404, detail="render job not found")
     if job.status != "completed" or job.audio is None:
         raise HTTPException(status_code=409, detail=f"render job is {job.status}")
-    return Response(job.audio, media_type="audio/wav", headers={"Content-Disposition": "attachment; filename=composition.wav"})
+    return Response(
+        job.audio,
+        media_type="audio/wav",
+        headers={"Content-Disposition": "attachment; filename=composition.wav"},
+    )
 
 
 @app.websocket("/api/ws/transport")
@@ -752,7 +802,9 @@ async def transport(websocket: WebSocket) -> None:
                 state = {"play": "playing", "pause": "paused", "stop": "stopped"}[command]
                 await websocket.send_json({"type": "transport", "state": state})
             elif command == "improvise":
-                await websocket.send_json({"type": "improvise", "state": state, "seed": message.get("seed", 0)})
+                await websocket.send_json(
+                    {"type": "improvise", "state": state, "seed": message.get("seed", 0)}
+                )
             else:
                 await websocket.send_json({"type": "error", "message": "unknown transport command"})
     except WebSocketDisconnect:
@@ -763,12 +815,24 @@ async def transport(websocket: WebSocket) -> None:
 def export_midi(request: MidiRequest) -> Response:
     """Export rational notes as a standard MIDI type-0 file."""
     try:
-        notes = [MidiNote(parse_ratio(note.ratio), note.start_beats, note.duration_beats, note.velocity) for note in request.notes]
+        notes = [
+            MidiNote(parse_ratio(note.ratio), note.start_beats, note.duration_beats, note.velocity)
+            for note in request.notes
+        ]
         if request.pitch_bend:
-            data = microtonal_midi_bytes(notes, request.base_frequency, request.ticks_per_beat, request.pitch_bend_range_semitones)
+            data = microtonal_midi_bytes(
+                notes,
+                request.base_frequency,
+                request.ticks_per_beat,
+                request.pitch_bend_range_semitones,
+            )
         else:
             data = midi_bytes(notes, request.base_frequency, request.ticks_per_beat)
-        return Response(data, media_type="audio/midi", headers={"Content-Disposition": "attachment; filename=composition.mid"})
+        return Response(
+            data,
+            media_type="audio/midi",
+            headers={"Content-Disposition": "attachment; filename=composition.mid"},
+        )
     except (ValueError, ZeroDivisionError) as error:
         raise HTTPException(status_code=422, detail=str(error)) from error
 
@@ -806,7 +870,11 @@ def export_rhythm_midi(request: RhythmMidiRequest) -> Response:
                 if active
             )
         data = drum_midi_bytes(hits, request.ticks_per_beat)
-        return Response(data, media_type="audio/midi", headers={"Content-Disposition": "attachment; filename=rhythm.mid"})
+        return Response(
+            data,
+            media_type="audio/midi",
+            headers={"Content-Disposition": "attachment; filename=rhythm.mid"},
+        )
     except (ValueError, ZeroDivisionError) as error:
         raise HTTPException(status_code=422, detail=str(error)) from error
 
@@ -943,13 +1011,25 @@ def minimal_functional_generate(request: MinimalFunctionalRequest) -> dict[str, 
 @app.post("/api/minimal-functional/midi")
 def minimal_functional_midi(request: MinimalFunctionalMidiRequest) -> Response:
     try:
-        notes = tuple(MidiNote(parse_ratio(note.ratio), note.start_beats, note.duration_beats, note.velocity) for note in request.notes)
+        notes = tuple(
+            MidiNote(parse_ratio(note.ratio), note.start_beats, note.duration_beats, note.velocity)
+            for note in request.notes
+        )
         drums = tuple(MidiDrumHit(hit.note, hit.start_beat, hit.velocity) for hit in request.drums)
         data = arrangement_midi_bytes(
-            [MidiArrangementTrack("Harmony", notes=notes), MidiArrangementTrack("Drums", drums=drums)],
-            request.tempo_bpm, request.beats_per_bar, base_frequency=request.base_frequency,
+            [
+                MidiArrangementTrack("Harmony", notes=notes),
+                MidiArrangementTrack("Drums", drums=drums),
+            ],
+            request.tempo_bpm,
+            request.beats_per_bar,
+            base_frequency=request.base_frequency,
         )
-        return Response(data, media_type="audio/midi", headers={"Content-Disposition": "attachment; filename=minimal-functional-study.mid"})
+        return Response(
+            data,
+            media_type="audio/midi",
+            headers={"Content-Disposition": "attachment; filename=minimal-functional-study.mid"},
+        )
     except (ValueError, ZeroDivisionError) as error:
         raise HTTPException(status_code=422, detail=str(error)) from error
 
@@ -969,6 +1049,11 @@ def jpop_composer() -> FileResponse:
     return FileResponse(STATIC_DIR / "jpop_composer.html")
 
 
+@app.get("/kawaii-future-pop", include_in_schema=False)
+def kawaii_future_pop() -> FileResponse:
+    return FileResponse(STATIC_DIR / "kawaii_future_pop.html")
+
+
 @app.get("/api/instruments/vital-pack")
 def get_vital_pack_profiles() -> dict[str, object]:
     return vital_pack_profiles()
@@ -984,6 +1069,11 @@ def compose_jpop(request: JPopRequest) -> dict[str, object]:
     return generate_jpop(request.model_dump())
 
 
+@app.post("/api/compose/kawaii-future-pop")
+def compose_kawaii_future_pop(request: KawaiiFuturePopRequest) -> dict[str, object]:
+    return generate_kawaii_future_pop(request.model_dump())
+
+
 @app.post("/api/compose/motif-vital-pack")
 def compose_motif_vital_pack(request: MotifVitalPackRequest) -> dict[str, object]:
     """Arrange selected Motif Development Tree nodes with Vital Pack profiles."""
@@ -995,7 +1085,9 @@ def compose_motif_vital_pack(request: MotifVitalPackRequest) -> dict[str, object
 
 @app.post("/api/compose/vital-pack/section")
 def regenerate_vital_pack_section(request: VitalPackSectionRequest) -> dict[str, object]:
-    plan = generate_vital_pack(request.model_dump() | {"seed": request.seed + request.section_index + 1})
+    plan = generate_vital_pack(
+        request.model_dump() | {"seed": request.seed + request.section_index + 1}
+    )
     if request.section_index >= len(plan["sections"]):
         raise HTTPException(
             status_code=422,
@@ -1007,7 +1099,9 @@ def regenerate_vital_pack_section(request: VitalPackSectionRequest) -> dict[str,
     replacement_ids = (
         [profile[0] for profile in DRUM_PROFILES]
         if request.scope == "rhythm"
-        else [item[0] for item in PROFILES] if request.scope == "voicing" else None
+        else [item[0] for item in PROFILES]
+        if request.scope == "voicing"
+        else None
     )
     selected_events = [
         event
@@ -1045,8 +1139,7 @@ def regenerate_vital_pack_section(request: VitalPackSectionRequest) -> dict[str,
         "sidechain_envelope": [
             event
             for event in plan["sidechain_envelope"]
-            if ({"DRUMS", "PI09"} & set(selected_ids))
-            and start <= event["start_beat"] < end
+            if ({"DRUMS", "PI09"} & set(selected_ids)) and start <= event["start_beat"] < end
         ],
     }
 
@@ -1055,10 +1148,25 @@ def regenerate_vital_pack_section(request: VitalPackSectionRequest) -> dict[str,
 def vital_pack_midi(request: VitalPackMidiRequest) -> Response:
     try:
         track_names = [
-            "PI01", "PI02", "PI03", "PI04", "PI05",
-            "PI06", "PI07", "PI08", "PIANO",
+            "PI01",
+            "PI02",
+            "PI03",
+            "PI04",
+            "PI05",
+            "PI06",
+            "PI07",
+            "PI08",
+            "PIANO",
             *(profile[0] for profile in DRUM_PROFILES),
-            "PI13", "PI14", "PI15", "PI16",
+            "PI13",
+            "PI14",
+            "PI15",
+            "PI16",
+            "PI17",
+            "PI18",
+            "PI19",
+            "PI20",
+            "PI21",
             "DRUMS",
         ]
         tracks = []
@@ -1066,13 +1174,34 @@ def vital_pack_midi(request: VitalPackMidiRequest) -> Response:
             matching = [event for event in request.events if event.instrument_id == name]
             if not matching:
                 continue
-            tracks.append(MidiArrangementTrack(
-                name,
-                notes=tuple(MidiNote(parse_ratio(event.ratio), event.start_beat, event.duration_beats, event.velocity) for event in matching if event.ratio),
-                drums=tuple(MidiDrumHit(event.note, event.start_beat, event.velocity) for event in matching if event.note is not None),
-            ))
-        data = arrangement_midi_bytes(tracks, request.tempo_bpm, 4, base_frequency=request.base_frequency)
-        return Response(data, media_type="audio/midi", headers={"Content-Disposition": "attachment; filename=vital-pack-arrangement.mid"})
+            tracks.append(
+                MidiArrangementTrack(
+                    name,
+                    notes=tuple(
+                        MidiNote(
+                            parse_ratio(event.ratio),
+                            event.start_beat,
+                            event.duration_beats,
+                            event.velocity,
+                        )
+                        for event in matching
+                        if event.ratio
+                    ),
+                    drums=tuple(
+                        MidiDrumHit(event.note, event.start_beat, event.velocity)
+                        for event in matching
+                        if event.note is not None
+                    ),
+                )
+            )
+        data = arrangement_midi_bytes(
+            tracks, request.tempo_bpm, 4, base_frequency=request.base_frequency
+        )
+        return Response(
+            data,
+            media_type="audio/midi",
+            headers={"Content-Disposition": "attachment; filename=vital-pack-arrangement.mid"},
+        )
     except (ValueError, ZeroDivisionError) as error:
         raise HTTPException(status_code=422, detail=str(error)) from error
 
@@ -1128,9 +1257,15 @@ def motif_develop(request: MotifDevelopRequest) -> dict[str, object]:
 def prime_limit_chords(request: PrimeChordRequest) -> dict[str, object]:
     try:
         return discover_chords(
-            tuple(request.primes), request.exponent_limit, request.height_limit,
-            request.tolerance_cents, request.target_count, request.tone_count, request.candidate_limit,
-            request.ranking_mode, tuple(request.root_vector),
+            tuple(request.primes),
+            request.exponent_limit,
+            request.height_limit,
+            request.tolerance_cents,
+            request.target_count,
+            request.tone_count,
+            request.candidate_limit,
+            request.ranking_mode,
+            tuple(request.root_vector),
         )
     except ValueError as error:
         raise HTTPException(status_code=422, detail=str(error)) from error
@@ -1241,8 +1376,7 @@ def _lattice_harmony_sequence(
                 "tones": [
                     {
                         "vector": [
-                            coordinate + offset
-                            for coordinate, offset in zip(vector, tone.vector)
+                            coordinate + offset for coordinate, offset in zip(vector, tone.vector)
                         ],
                         "offset": list(tone.vector),
                         "raw_ratio": ratio_text(tone.raw_ratio),

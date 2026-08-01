@@ -56,6 +56,7 @@ def test_primary_pages_link_to_every_other_workbench() -> None:
         "/vital-pack-composer": "/vital-pack-composer",
         "/fractional-pop-composer": "/fractional-pop-composer",
         "/jpop-composer": "/jpop-composer",
+        "/kawaii-future-pop": "/kawaii-future-pop",
     }
     for page, current in pages.items():
         response = client.get(page)
@@ -487,6 +488,137 @@ def test_fractional_jpop_composer_generation_and_assets() -> None:
     assert pack.status_code == 200
     assert pack.content.startswith(b"PK")
     assert client.post("/api/compose/jpop", json={"chorus_shift_depth": 3}).status_code == 422
+
+
+def test_kawaii_fractional_future_pop_generation_and_assets() -> None:
+    page = client.get("/kawaii-future-pop")
+    assert page.status_code == 200
+    assert "Kawaii Fractional Future Pop" in page.text
+    for control_id in (
+        "kfp-scale",
+        "kfp-minimal",
+        "kfp-drop",
+        "kfp-vocal",
+        "kfp-phase",
+        "kfp-vocal-style",
+        "kfp-form",
+        "kfp-circle",
+        "kfp-roll",
+        "kfp-midi",
+        "kfp-json",
+    ):
+        assert f'id="{control_id}"' in page.text
+    script = client.get("/static/kawaii_future_pop.js")
+    assert script.status_code == 200
+    assert 'fetch("/api/compose/kawaii-future-pop"' in script.text
+    assert 'fetch("/api/compose/vital-pack/midi"' in script.text
+    assert "PI21 Sparkle Bell" in script.text
+
+    request = {
+        "seed": 260801,
+        "tempo_bpm": 154,
+        "cycles": 1,
+        "base_frequency": 220,
+        "scale_ratios": [
+            "1/1",
+            "9/8",
+            "6/5",
+            "5/4",
+            "4/3",
+            "3/2",
+            "13/8",
+            "5/3",
+            "7/4",
+        ],
+        "minimalism": 0.68,
+        "drop_intensity": 0.86,
+        "vocal_activity": 0.72,
+        "phase_shift_steps": 1,
+        "vocal_style": "hooky",
+    }
+    response = client.post("/api/compose/kawaii-future-pop", json=request)
+    assert response.status_code == 200
+    plan = response.json()
+    assert plan["metadata"]["length_bars"] == 44
+    assert [section["role"] for section in plan["sections"]] == [
+        "intro",
+        "verse",
+        "pre",
+        "drop",
+        "minimal",
+        "drop",
+        "outro",
+    ]
+    assert plan["scale"]["prime_limit"] == 13
+    assert plan["quality"]["minimal_bars"] == 8
+    assert plan["quality"]["drop_bars"] == 16
+    assert plan["quality"]["drop_three_voice_bars"] == 8
+    assert plan["quality"]["maximum_drop_tension"] == 0.68
+    assert plan["quality"]["sidechain_triggers"] > 0
+    assert plan["quality"]["vocal_rest_bars"] > 0
+    assert plan["minimal_process"]["phase_shift_beats"] == 0.25
+    minimal_events = [event for event in plan["events"] if event["instrument_id"] == "PI20"]
+    assert {event["phase_lane"] for event in minimal_events} == {"A", "B"}
+    assert any(event["instrument_id"] == "PI19" for event in plan["events"])
+    assert any(event["instrument_id"] == "PI18" for event in plan["events"])
+    assert any(event["instrument_id"] == "PI21" for event in plan["events"])
+    for section in (item for item in plan["sections"] if item["role"] == "drop"):
+        chords = [chord for chord in plan["harmony"] if chord["section_id"] == section["id"]]
+        assert [chord["voice_count"] for chord in chords] == [3, 3, 3, 3, 4, 4, 4, 4]
+        assert [chord["voicing_stage"] for chord in chords] == [
+            "triad-entry",
+            "triad-entry",
+            "triad-open",
+            "triad-open",
+            "four-voice-open",
+            "four-voice-open",
+            "four-voice-color",
+            "four-voice-color",
+        ]
+        tensions = [chord["tension"] for chord in chords]
+        assert tensions == sorted(tensions)
+
+    def pitch_class(value: str) -> Fraction:
+        ratio = Fraction(value)
+        while ratio < 1:
+            ratio *= 2
+        while ratio >= 2:
+            ratio /= 2
+        return ratio
+
+    scale = {pitch_class(value) for value in plan["scale"]["ratios"]}
+    assert all(pitch_class(event["ratio"]) in scale for event in plan["events"] if "ratio" in event)
+    assert client.post("/api/compose/kawaii-future-pop", json=request).json() == plan
+
+    midi = client.post(
+        "/api/compose/vital-pack/midi",
+        json={
+            "events": plan["events"],
+            "tempo_bpm": plan["metadata"]["tempo_bpm"],
+            "base_frequency": plan["metadata"]["base_frequency"],
+        },
+    )
+    assert midi.status_code == 200
+    assert midi.content.startswith(b"MThd")
+    presets = {
+        17: ("Candy%20Pluck", "Pluck"),
+        18: ("Future%20Chord%20Stack", "Synth"),
+        19: ("Fractional%20Vocal%20Guide", "Lead"),
+        20: ("Minimal%20Pulse", "Sequence"),
+        21: ("Sparkle%20Bell", "Bell"),
+    }
+    for number, (filename, style) in presets.items():
+        preset = client.get(f"/static/vital_presets/PI%20{number}%20{filename}.vital")
+        assert preset.status_code == 200
+        assert preset.json()["preset_style"] == style
+    pack = client.get("/static/vital_presets/PI%20Kawaii%20Future%20Pop%20Vital%20Pack.zip")
+    assert pack.status_code == 200
+    assert pack.content.startswith(b"PK")
+    invalid = client.post(
+        "/api/compose/kawaii-future-pop",
+        json={"scale_ratios": ["1/1", "2/1", "3/2", "5/4", "7/4", "9/8", "13/8"]},
+    )
+    assert invalid.status_code == 422
 
 
 def test_motif_development_tree_can_arrange_vital_pack_song() -> None:

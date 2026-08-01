@@ -504,6 +504,31 @@ rule, and a `(3,5,13)` `lattice_vector`. PI16 events also carry `lyric` and
 `phrase_id` guide metadata. Send the returned events unchanged to
 `POST /api/compose/vital-pack/midi` for pitch-bend MIDI export.
 
+## POST /api/compose/kawaii-future-pop
+
+```json
+{
+  "seed": 260801,
+  "tempo_bpm": 154,
+  "cycles": 1,
+  "base_frequency": 220,
+  "scale_ratios": ["1/1", "9/8", "6/5", "5/4", "4/3", "3/2", "13/8", "5/3", "7/4"],
+  "minimalism": 0.68,
+  "drop_intensity": 0.86,
+  "vocal_activity": 0.72,
+  "phase_shift_steps": 1,
+  "vocal_style": "hooky"
+}
+```
+
+The scale requires 7-12 unique ratios after octave reduction and must include
+`1/1`. `phase_shift_steps` is 0-3 quarter-beat subdivisions. `vocal_style`
+accepts `hooky`, `airy`, or `chopped`. The response contains exact-ratio
+`scale`, `sections`, bar-level `harmony`, canonical `events`, PI17-PI21
+`profiles`, `minimal_process`, `sidechain_envelope`, vocal metadata, and
+quality counters. The same event list can be sent to
+`POST /api/compose/vital-pack/midi`.
+
 ## GET /api/arrange/profiles
 
 Lists the built-in genre profiles (`pop`, `ambient`, `alternative_rock`,
