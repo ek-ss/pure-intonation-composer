@@ -1,6 +1,6 @@
 # Implementation Status
 
-**Last audited:** 2026-08-01
+**Last audited:** 2026-08-07
 **Branch:** `main`
 
 This is the canonical status document for Pure Intonation Composer. It is
@@ -10,8 +10,8 @@ documents.
 
 ## Verification Baseline
 
-- 63 OpenAPI paths plus one WebSocket transport endpoint
-- 212 passing pytest tests, including G12 chord/progression, Vital Pack export,
+- 75 OpenAPI paths plus one WebSocket transport endpoint
+- 226 passing pytest tests, including G12 chord/progression, Vital Pack export,
   fractional-pop scale-membership, fractional J-Pop harmony/Vital export,
   kawaii future-pop phase/vocal/Vital coverage, and Worker asset coverage
 - `ruff check app tests` passes
@@ -38,7 +38,9 @@ manual rather than part of continuous integration.
 | Fractional Pop Composer | Experimental implementation | Dedicated exact-ratio pop page with 5-limit/7-limit/custom scales, generated scale-degree chord vocabulary, bright/bittersweet/open harmonic colors, pop form and rhythm controls, downloadable PI09–PI12 Vital drums, separate drum tracks, form/pitch-circle/progression views, audition, Project JSON, pitch-bend MIDI, and WAV at `/fractional-pop-composer` | DAW/Vital automation, editable chord templates, saved projects, stems, structured listening tests, automated browser regression |
 | Fractional J-Pop Composer | Experimental implementation | Dedicated A-melody/B-melody/chorus page; pure-fifth A harmony, `6/5` B harmony, 13-limit chorus root shifts, structured rhythm/bass/hook, rest-aware vocal guide, PI13–PI16 downloadable Vital presets, form/harmony/vocal views, Web Audio, JSON, and pitch-bend MIDI at `/jpop-composer` | Human vocal synthesis, lyric import, singer-range constraints, section regeneration, stems, automated browser regression |
 | Kawaii Fractional Future Pop | Experimental implementation | Dedicated kawaii future-bass/pop/minimal page; editable 7/13-limit ratio palettes, Verse/Pre/Drop form, sidechain Drop stacks, A/B phase-shift cells, hooky/airy/chopped vocal guide, PI17–PI21 Vital presets, Pitch Circle, arrangement rolls, JSON, and pitch-bend MIDI at `/kawaii-future-pop` | Human vocal synthesis, phoneme/lyric import, rendered sidechain DSP, stems, section regeneration, structured listening tests |
-| Instrument-Constrained Composition Explorer | Experimental implementation | Common CompositionGenome for three fractional-pop styles; hierarchical seeds and locks; probabilistic form grammar; temperature-sampled top-K harmony; PI01-PI22 capability constraints including Fractional Piano; part score generation; symbolic feature/evaluation vectors; 4-64 candidate deterministic k-medoids; representative audition, JSON, and browser-local preference learning at `/composition-explorer` | Rendered-audio evaluation, MIDI/WAV/stems, transfer into dedicated composers, shared user profiles, automated browser screenshot regression |
+| Instrument-Constrained Composition Explorer | Experimental implementation | Common CompositionGenome for three fractional-pop styles plus ratio-controlled Mixed Style; hierarchical seeds and locks; probabilistic form grammar; temperature-sampled top-K harmony; PI01-PI22 capability constraints including Fractional Piano; part score generation; symbolic feature/evaluation vectors; 4-64 candidate deterministic k-medoids; representative audition, type-1 pitch-bend MIDI, JSON, and browser-local preference learning at `/composition-explorer` | Rendered-audio evaluation, WAV/stems, transfer into dedicated composers, shared user profiles, automated browser screenshot regression |
+| Bohlen-Pierce Pure Intonation | Experimental implementation | Exact `3/1` normalization; scale presets and exact editor; tritave circle and 5×7 lattice; 13-EDT comparison; constrained chord metrics/search; tension-curve progression; Harmony/Bass/Melody/Rhythm/Drone composition; odd-harmonic audition; JSON/MPE MIDI/WAV/Scala at `/compose/bohlen-pierce` | Persistent projects, editable metric weights in the GUI, large-lattice performance study, automated browser regression |
+| Mixed Meter Drum Section | Experimental implementation | Pattern library and validated custom cycles; Stable/Tension/Pre-resolution/Resolved forms; phase timeline; section/tension-aware density; per-track controls; deterministic events and humanization; playback; JSON/type-1 MIDI/WAV; Compose timeline transfer at `/compose/mixed-meter-drums` | Direct event-to-Compose orchestration mapping, interactive hit editing/locks, saved preset library, automated browser regression |
 | Harmonic Phase-Shift Composition | Experimental MVP | Shared and independent chord clocks; static/discrete/polymetric/convergent phase; distinctness and overlap metrics; strict/adaptive resolution; convergence markers; dual-lane workbench; MIDI/JSON/WAV | HP5 fractional drift, track-role assignment UI, overlap matrix audition, automated browser regression, structured listening evaluation |
 | Visualization | Implemented core | Pitch Circle, force graph, reference-layered grid, walk overlays, harmonic stack highlighting, time-proportional Composition Roll | Voice-leading connectors, zoom/pan, per-voice mobile mode, persisted view state, automated browser regression |
 | Harmonic Pitch Circle | Implemented | Standalone fifth-step chord-shape study page; fifth/chromatic circles, 32 chord patterns, numeric pitch-set detail, Johnson-distance history, and Web Audio block-chord audition | Enharmonic spelling policy, shape export, persistent histories |

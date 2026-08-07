@@ -2,6 +2,7 @@ const ex = id => document.getElementById(id);
 const state = { profiles: [], defaults: {}, result: null, selected: null, context: null, nodes: [] };
 const SECTION_COLORS = { intro: "#59728f", verse: "#98e7ca", a: "#98e7ca", a_variation: "#69c9aa", pre: "#e3a8ff", b: "#e3a8ff", chorus: "#ffd47e", drop: "#ff9daf", final: "#ffbd70", bridge: "#86b9ff", instrumental: "#86b9ff", minimal: "#9ea8b8", break: "#b1a3ce", outro: "#6d7a8f" };
 const SCORE_LABELS = { structural_coherence: "Structural coherence", section_contrast: "Section contrast", harmonic_interest: "Harmonic interest", tension_smoothness: "Tension smoothness", melodic_identity: "Melodic identity", rhythmic_identity: "Rhythmic identity", repetition_balance: "Repetition balance", ratio_color_usage: "Ratio color usage", instrumentation_fit: "Instrumentation fit", overall: "Overall" };
+const MIX_CONTROLS = { fractional_pop: "pop", fractional_jpop: "jpop", kawaii_fractional_future_pop: "kawaii" };
 
 function status(message, kind = "") { ex("explorer-status").textContent = message; ex("explorer-status").className = kind; }
 function selectedIds() { return [...document.querySelectorAll(".explorer-instrument input:checked")].map(node => node.value); }
@@ -15,11 +16,24 @@ function feedback() {
   try { return JSON.parse(localStorage.getItem("pure-intonation.composition-explorer-feedback") || "{}") || {}; }
   catch (_) { return {}; }
 }
+function styleMix(normalized = true) {
+  const values = Object.fromEntries(Object.entries(MIX_CONTROLS).map(([style, suffix]) => [style, Number(ex(`explorer-mix-${suffix}`).value)]));
+  const total = Object.values(values).reduce((sum, value) => sum + value, 0);
+  if (normalized && ex("explorer-style").value === "mixed" && total <= 0) throw new Error("Set at least one Style Mix ratio above zero.");
+  return normalized && total > 0 ? Object.fromEntries(Object.entries(values).map(([style, value]) => [style, value / total])) : values;
+}
+function instrumentPriority(id) {
+  if (ex("explorer-style").value !== "mixed") return .7;
+  const mix = styleMix();
+  const affinity = Object.entries(mix).reduce((sum, [style, weight]) => sum + (state.defaults[style]?.includes(id) ? weight : 0), 0);
+  return Math.min(1, .35 + affinity * .65);
+}
 function request() {
   const ids = selectedIds();
   if (!ids.length) throw new Error("Select at least one Vital preset.");
   return {
     style: ex("explorer-style").value,
+    style_mix: styleMix(),
     seed: Number(ex("explorer-seed").value),
     candidate_count: Number(ex("explorer-candidates").value),
     cluster_count: Number(ex("explorer-cluster-count").value),
@@ -27,7 +41,7 @@ function request() {
     length_bars: Number(ex("explorer-bars").value),
     base_frequency: Number(ex("explorer-base").value),
     scale_ratios: ratios(),
-    instrument_palette: ids.map(id => ({ id, preferred_roles: [], priority: .7 })),
+    instrument_palette: ids.map(id => ({ id, preferred_roles: [], priority: instrumentPriority(id) })),
     missing_role_policy: ex("explorer-missing-role").value,
     form_temperature: Number(ex("explorer-form").value),
     harmony_temperature: Number(ex("explorer-harmony").value),
@@ -43,9 +57,22 @@ function renderProfiles() {
   applyStylePalette();
 }
 function applyStylePalette() {
-  const defaults = new Set(state.defaults[ex("explorer-style").value] || []);
+  const style = ex("explorer-style").value;
+  const rawMix = styleMix(false);
+  const palette = style === "mixed"
+    ? Object.entries(rawMix).flatMap(([item, weight]) => weight > 0 ? state.defaults[item] || [] : [])
+    : state.defaults[style] || [];
+  const defaults = new Set(palette);
   document.querySelectorAll(".explorer-instrument input").forEach(node => { node.checked = defaults.has(node.value); });
   renderCapabilities();
+}
+function updateStyleMix(applyPalette = false) {
+  ex("explorer-style-mix").hidden = ex("explorer-style").value !== "mixed";
+  if (applyPalette) applyStylePalette();
+}
+function renderStyleMixValues() {
+  const values = styleMix(false), total = Object.values(values).reduce((sum, value) => sum + value, 0);
+  Object.entries(MIX_CONTROLS).forEach(([style, suffix]) => { ex(`explorer-mix-${suffix}-value`).textContent = `${total > 0 ? Math.round(values[style] / total * 100) : 0}%`; });
 }
 function renderCapabilities() {
   const selected = new Set(selectedIds());
@@ -152,6 +179,16 @@ function rate(direction) {
 function download() {
   if (!state.selected) return; const blob = new Blob([JSON.stringify(state.selected, null, 2)], { type: "application/json" }), link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = `${state.selected.id}.json`; link.click(); setTimeout(() => URL.revokeObjectURL(link.href), 1000);
 }
+async function midi() {
+  if (!state.selected) return;
+  try {
+    const song = state.selected;
+    status(`Exporting ${song.id} MIDI...`, "loading");
+    const response = await fetch("/api/compose/vital-pack/midi", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ events: song.events, tempo_bpm: song.metadata.tempo_bpm, base_frequency: song.metadata.base_frequency }) });
+    if (!response.ok) { const data = await response.json(); throw new Error(typeof data.detail === "string" ? data.detail : "MIDI export failed."); }
+    const link = document.createElement("a"); link.href = URL.createObjectURL(await response.blob()); link.download = `${song.id}.mid`; document.body.append(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(link.href), 1500); status(`${song.id} MPE MIDI exported`);
+  } catch (error) { status(error.message, "error"); }
+}
 async function init() {
   try {
     const response = await fetch("/api/composition-explorer/profiles"), data = await response.json(); if (!response.ok) throw new Error("Could not load Vital profiles.");
@@ -159,10 +196,11 @@ async function init() {
   } catch (error) { status(error.message, "error"); }
 }
 ["form", "harmony", "parts", "rhythm"].forEach(name => { ex(`explorer-${name}`).oninput = () => { ex(`explorer-${name}-value`).textContent = Number(ex(`explorer-${name}`).value).toFixed(2); }; });
-ex("explorer-style").onchange = applyStylePalette; ex("explorer-style-palette").onclick = applyStylePalette;
+Object.values(MIX_CONTROLS).forEach(suffix => { const input = ex(`explorer-mix-${suffix}`); input.oninput = renderStyleMixValues; input.onchange = () => { if (ex("explorer-style").value === "mixed") applyStylePalette(); }; });
+ex("explorer-style").onchange = () => updateStyleMix(true); ex("explorer-style-palette").onclick = applyStylePalette;
 ex("explorer-select-all").onclick = () => { document.querySelectorAll(".explorer-instrument input").forEach(node => { node.checked = true; }); renderCapabilities(); };
 ex("explorer-clear").onclick = () => { document.querySelectorAll(".explorer-instrument input").forEach(node => { node.checked = false; }); renderCapabilities(); };
 ex("explorer-generate").onclick = () => void generate(); ex("explorer-random").onclick = () => { ex("explorer-seed").value = String(Math.floor(Math.random() * 1_000_000_000)); void generate(); };
-ex("explorer-play").onclick = () => void play(); ex("explorer-stop").onclick = () => { stop(); status("Stopped"); }; ex("explorer-like").onclick = () => rate(1); ex("explorer-dislike").onclick = () => rate(-1); ex("explorer-json").onclick = download;
+ex("explorer-play").onclick = () => void play(); ex("explorer-stop").onclick = () => { stop(); status("Stopped"); }; ex("explorer-like").onclick = () => rate(1); ex("explorer-dislike").onclick = () => rate(-1); ex("explorer-midi").onclick = () => void midi(); ex("explorer-json").onclick = download;
 window.addEventListener("resize", () => { if (state.selected) renderForm(state.selected); });
 void init();

@@ -369,6 +369,17 @@ API: `POST /api/arrange/phase-shift`; its result is accepted by
 
 ---
 
+## 2.12 Bohlen-Pierce and Mixed Meter
+
+`/compose/bohlen-pierce` provides an exact-ratio `3/1`-equave workflow from
+scale and circle/lattice exploration through chord ranking, tension-guided
+progressions, short arrangements, and JSON/MPE MIDI/WAV/tritave-Scala export.
+
+`/compose/mixed-meter-drums` turns cycles such as `3+5+7+5` into a
+Stable→Tension→Pre-resolution→Resolved drum form with per-track density and
+tension response, A/B audition, JSON, time-signature MIDI, WAV, and Compose
+timeline transfer.
+
 # 3. API Overview
 
 Base URL `http://127.0.0.1:8000`; all bodies JSON; errors are
@@ -382,6 +393,8 @@ Base URL `http://127.0.0.1:8000`; all bodies JSON; errors are
 | Graph | `POST /api/harmonic-graph` (build + walks + layered layout) |
 | Composition | `POST /api/compose/harmony`, `/api/compose/voice-leading`, `/api/compose/bass`, `/api/compose/melody`, `/api/compose/rhythm/apply`, `/api/compose/rhythm/generate` |
 | Rhythm | `POST /api/rhythm/euclidean`, `/api/rhythm/state-graph`, `/api/rhythm/phase-shift`, `/api/rhythm/humanize`, `/api/rhythm/optimize-rotations`, `/api/rhythm/analyze`, `/api/drums/generate` |
+| Mixed meter | `GET /api/rhythm/mixed-meter/patterns`, `POST /api/rhythm/mixed-meter/validate`, `/generate`, `/preview`, `/export/midi` |
+| Bohlen-Pierce | `POST /api/bp/scales/generate`, `/chords/search`, `/progressions/search`, `/compose/generate`, `/render/audio`, `/export/midi`, `/export/scala` |
 | Lattice lab | `POST /api/exponent-lattice/scale`, `/api/exponent-lattice/harmony`, `/api/exponent-lattice/chord`, `/api/exponent-lattice/progression`, `/api/exponent-lattice/walk`, `/api/exponent-lattice/analyze` |
 | Arrangement | `GET /api/arrange/profiles`, `POST /api/arrange/generate`, `/api/arrange/migrate`, `/api/arrange/phase-shift`, `/api/arrange/midi`, `/api/arrange/render` |
 | Rendering | `POST /api/render/wav`, `POST /api/render/jobs`, `GET /api/render/jobs/{id}`, `GET /api/render/jobs/{id}/audio` |

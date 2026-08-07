@@ -19,6 +19,9 @@
 .explorer-controls legend { color: var(--muted); padding: 0 6px; font-size: .76rem; }
 .explorer-temperatures label { margin-bottom: 9px; }
 .explorer-temperatures output { color: var(--accent); float: right; }
+.explorer-style-mix[hidden] { display: none; }
+.explorer-style-mix label { margin-bottom: 9px; }
+.explorer-style-mix output { color: #ffd47e; float: right; }
 .explorer-locks { display: flex; flex-wrap: wrap; gap: 7px 14px; }
 .explorer-locks label { display: flex; align-items: center; gap: 5px; margin: 0; color: var(--text); }
 .explorer-instrument-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; }

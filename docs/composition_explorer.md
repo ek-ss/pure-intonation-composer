@@ -13,14 +13,17 @@ than names applied after composition.
 ## Workflow
 
 1. Select a style and exact-ratio scale.
+   `Mixed Style` exposes independent Fractional Pop, Fractional J-Pop, and
+   Kawaii Future Pop weights.
 2. Select the PI01-PI22 presets that may appear in the score.
 3. Set Form, Harmony, Part assignment, and Rhythm temperatures.
 4. Optionally lock a component across all candidates.
 5. Generate 4-64 candidates. The default is 32 candidates in 6 clusters.
 6. Compare and audition one quality-weighted representative per cluster.
 7. Like or dislike representatives to adjust future evaluation weights.
-8. Export a representative, including its genome, harmony, assignments,
-   features, evaluation, and score events, as JSON.
+8. Export a representative as PI-separated pitch-bend MIDI or Project JSON.
+   JSON includes its genome, harmony, assignments, features, evaluation, and
+   score events.
 
 Ratings and learned weights are stored in browser `localStorage` under
 `pure-intonation.composition-explorer-feedback`. They are sent with the next
@@ -38,12 +41,22 @@ are sampled in four-bar blocks while preserving the requested total length.
 The selected presets influence the grammar: for example, a pulse-capable
 preset enables Minimal sections.
 
+Mixed Style normalizes the three user weights. It samples one source form
+grammar per candidate from that distribution, while harmony targets are the
+weighted mean of all three styles' 12-TET semitone targets. This lets one song
+retain a coherent form while its root motion occupies a genuinely blended
+harmonic space. Every section records `form_style`; the genome and metadata
+record the normalized `style_mix`.
+
 Harmony uses a bounded beam of root-degree sequences. The final sequence is
 sampled from the top candidates using a temperature-weighted Boltzmann
-distribution instead of always selecting the minimum-cost path. Costs include
-style targets, root motion, repetition, and section cadences. Chord size is
-bounded by the selected harmony preset. PI18 begins its section with three
-voices before four-voice stacks are permitted.
+distribution instead of always selecting the minimum-cost path. Style target
+numbers are 12-TET semitone offsets, not scale-array indexes: each target is
+converted to `2^(n/12)` and matched to the nearest ratio in the supplied scale.
+Target, root-motion, and cadence distances are measured in cents, so denser
+scales retain the same target intervals. Costs also include repetition and
+section cadences. Chord size is bounded by the selected harmony preset. PI18
+begins its section with three voices before four-voice stacks are permitted.
 
 ## Instrument-First Assignment
 
@@ -51,6 +64,11 @@ Each PI profile declares semantic roles, MIDI range, maximum polyphony,
 articulation, spectral band, section affinities, and tuning policy. A
 section-level assignment score combines role affinity, section fit, range,
 polyphony, and user priority. Generated events use only selected preset IDs.
+
+The Mixed Style default palette is the union of presets used by every style
+whose weight is above zero. A preset's assignment priority rises with the
+combined weight of the styles whose standard palettes contain it. Manually
+selected presets remain hard constraints on which instruments may be used.
 
 `Missing bass` provides three policies:
 
@@ -81,7 +99,7 @@ bars from the first Chorus, Drop, or Final section of the representative.
 - Evaluation is symbolic and metadata-based; it does not yet analyze rendered
   Vital audio spectra.
 - Learned weights are local to one browser profile and are not synchronized.
-- The explorer exports Project JSON. Direct MIDI, WAV, stems, and transfer back
-  into each dedicated composer remain follow-up work.
+- The explorer exports type-1 pitch-bend MIDI and Project JSON. WAV, stems,
+  and transfer back into each dedicated composer remain follow-up work.
 - The existing dedicated composers retain their current fixed-generation APIs.
   The explorer is the shared broad-search surface.

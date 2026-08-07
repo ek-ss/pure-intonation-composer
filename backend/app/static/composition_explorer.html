@@ -5,17 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Composition Explorer | Pure Intonation Workbench</title>
     <link rel="stylesheet" href="/static/style.css?v=20260801-explorer-1">
-    <link rel="stylesheet" href="/static/composition_explorer.css?v=20260801-explorer-1">
+    <link rel="stylesheet" href="/static/composition_explorer.css?v=20260802-style-mix-1">
   </head>
   <body class="composition-explorer-page">
     <header class="topbar">
       <div><p class="eyebrow">INSTRUMENT-FIRST · MULTI-CANDIDATE COMPOSITION</p><h1>Composition Explorer</h1><p class="page-subtitle">Vital preset constraints, structural variation, evaluation, and clustered audition</p></div>
-      <span class="topbar-links"><a href="/">Workbench</a><a href="/lattice">Lattice Lab</a><a href="/harmonic-pitch-circle">Harmonic Pitch Circle</a><a href="/prime-limit-explorer">Prime Explorer</a><a href="/minimal-functional-composer">Minimal Composer</a><a href="/motif-development">Motif Development</a><a href="/vital-pack-composer">Vital Pack</a><a href="/fractional-pop-composer">Fractional Pop</a><a href="/jpop-composer">J-Pop</a><a href="/kawaii-future-pop">Kawaii Future Pop</a><a href="/docs" target="_blank" rel="noreferrer">API docs &#8599;</a></span>
+      <span class="topbar-links"><a href="/">Workbench</a><a href="/lattice">Lattice Lab</a><a href="/harmonic-pitch-circle">Harmonic Pitch Circle</a><a href="/prime-limit-explorer">Prime Explorer</a><a href="/minimal-functional-composer">Minimal Composer</a><a href="/motif-development">Motif Development</a><a href="/vital-pack-composer">Vital Pack</a><a href="/fractional-pop-composer">Fractional Pop</a><a href="/jpop-composer">J-Pop</a><a href="/kawaii-future-pop">Kawaii Future Pop</a><a href="/compose/bohlen-pierce">Bohlen-Pierce</a><a href="/compose/mixed-meter-drums">Mixed Meter</a><a href="/docs" target="_blank" rel="noreferrer">API docs &#8599;</a></span>
     </header>
     <main class="composition-explorer-main">
       <section class="panel explorer-controls">
         <div class="section-heading"><h2>Composition Genome</h2><span id="explorer-status" role="status">Loading profiles...</span></div>
-        <label>Style<select id="explorer-style"><option value="fractional_pop">Fractional Pop</option><option value="fractional_jpop">Fractional J-Pop</option><option value="kawaii_fractional_future_pop" selected>Kawaii Fractional Future Pop</option></select></label>
+        <label>Style<select id="explorer-style"><option value="fractional_pop">Fractional Pop</option><option value="fractional_jpop">Fractional J-Pop</option><option value="kawaii_fractional_future_pop" selected>Kawaii Fractional Future Pop</option><option value="mixed">Mixed Style</option></select></label>
+        <fieldset id="explorer-style-mix" class="explorer-style-mix" hidden><legend>Style mix</legend><label>Fractional Pop <output id="explorer-mix-pop-value">34%</output><input id="explorer-mix-pop" type="range" min="0" max="100" step="1" value="34"></label><label>Fractional J-Pop <output id="explorer-mix-jpop-value">33%</output><input id="explorer-mix-jpop" type="range" min="0" max="100" step="1" value="33"></label><label>Kawaii Future Pop <output id="explorer-mix-kawaii-value">33%</output><input id="explorer-mix-kawaii" type="range" min="0" max="100" step="1" value="33"></label></fieldset>
         <label>Fractional-ratio scale<textarea id="explorer-scale" rows="4">1/1, 9/8, 6/5, 5/4, 4/3, 3/2, 13/8, 5/3, 7/4</textarea></label>
         <div class="explorer-field-grid"><label>Tempo<input id="explorer-tempo" type="number" min="70" max="200" value="150"></label><label>Bars<input id="explorer-bars" type="number" min="24" max="96" step="4" value="64"></label><label>Candidates<input id="explorer-candidates" type="number" min="4" max="64" value="32"></label><label>Clusters<input id="explorer-cluster-count" type="number" min="2" max="12" value="6"></label><label>Base Hz<input id="explorer-base" type="number" min="20" max="2000" value="220"></label><label>Seed<input id="explorer-seed" type="number" value="42810"></label></div>
         <label>Missing bass<select id="explorer-missing-role"><option value="warn">Warn and omit</option><option value="substitute">Use low-mid substitute</option><option value="omit">Omit silently</option></select></label>
@@ -41,10 +42,10 @@
       <section class="panel explorer-detail">
         <div class="section-heading"><h2>Selected Composition</h2><span id="explorer-selection-summary">No representative selected</span></div>
         <canvas id="explorer-form-canvas" width="1200" height="220" aria-label="Selected generated song form"></canvas>
-        <div class="explorer-detail-actions"><button id="explorer-play">Play representative</button><button id="explorer-stop" class="quiet">Stop</button><button id="explorer-like" class="quiet">Like</button><button id="explorer-dislike" class="quiet">Dislike</button><button id="explorer-json" class="quiet">Project JSON</button></div>
+        <div class="explorer-detail-actions"><button id="explorer-play">Play representative</button><button id="explorer-stop" class="quiet">Stop</button><button id="explorer-like" class="quiet">Like</button><button id="explorer-dislike" class="quiet">Dislike</button><button id="explorer-midi" class="quiet">MPE MIDI</button><button id="explorer-json" class="quiet">Project JSON</button></div>
         <div class="explorer-detail-grid"><div><h3>Evaluation</h3><div id="explorer-scores" class="explorer-score-list"></div></div><div><h3>Instrument Plan</h3><div id="explorer-assignments" class="table-wrap"></div></div></div>
       </section>
     </main>
-    <script src="/static/composition_explorer.js?v=20260801-explorer-1"></script>
+    <script src="/static/composition_explorer.js?v=20260802-style-mix-1"></script>
   </body>
 </html>

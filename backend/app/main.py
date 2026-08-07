@@ -146,6 +146,31 @@ from app.scales import delete_scale, get_scale, list_scales, save_scale
 from app.tuning.analysis import cents, monzo
 from app.tuning.ratios import parse_interval, parse_ratio, ratio_text, reduce_to_octave
 from app.tuning.snap import snap_ratio
+from app.bp import (
+    BPChordSearchRequest,
+    BPComposeRequest,
+    BPExportRequest,
+    BPProgressionRequest,
+    BPRenderRequest,
+    BPScaleRequest,
+    chord_search as bp_chord_search,
+    compose as bp_compose,
+    export_midi as bp_export_midi,
+    export_scala as bp_export_scala,
+    generate_scale as bp_generate_scale,
+    progression_search as bp_progression_search,
+    render_audio as bp_render_audio,
+)
+from app.rhythm.mixed_meter import (
+    MixedMeterExportRequest,
+    MixedMeterGenerateRequest,
+    MixedMeterValidateRequest,
+    export_midi as mixed_meter_export_midi,
+    generate as generate_mixed_meter,
+    pattern_library as mixed_meter_pattern_library,
+    render_wav as render_mixed_meter_wav,
+    validate_pattern as validate_mixed_meter_pattern,
+)
 
 app = FastAPI(title="Pure Intonation Workbench API", version="0.1.0")
 STATIC_DIR = Path(__file__).parent / "static"
@@ -1059,6 +1084,110 @@ def kawaii_future_pop() -> FileResponse:
 @app.get("/composition-explorer", include_in_schema=False)
 def composition_explorer() -> FileResponse:
     return FileResponse(STATIC_DIR / "composition_explorer.html")
+
+
+@app.get("/compose/bohlen-pierce", include_in_schema=False)
+def bohlen_pierce_workbench() -> FileResponse:
+    return FileResponse(STATIC_DIR / "bohlen_pierce.html")
+
+
+@app.get("/compose/mixed-meter-drums", include_in_schema=False)
+def mixed_meter_drum_section() -> FileResponse:
+    return FileResponse(STATIC_DIR / "mixed_meter_drums.html")
+
+
+@app.post("/api/bp/scales/generate")
+def generate_bohlen_pierce_scale(request: BPScaleRequest) -> dict[str, object]:
+    try:
+        return bp_generate_scale(request)
+    except (ValueError, ZeroDivisionError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+
+@app.post("/api/bp/chords/search")
+def search_bohlen_pierce_chords(request: BPChordSearchRequest) -> dict[str, object]:
+    try:
+        return bp_chord_search(request)
+    except (ValueError, ZeroDivisionError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+
+@app.post("/api/bp/progressions/search")
+def search_bohlen_pierce_progressions(request: BPProgressionRequest) -> dict[str, object]:
+    try:
+        return bp_progression_search(request)
+    except (ValueError, ZeroDivisionError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+
+@app.post("/api/bp/compose/generate")
+def generate_bohlen_pierce_composition(request: BPComposeRequest) -> dict[str, object]:
+    try:
+        return bp_compose(request)
+    except (ValueError, ZeroDivisionError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+
+@app.post("/api/bp/render/audio")
+def render_bohlen_pierce_audio(request: BPRenderRequest) -> Response:
+    try:
+        return Response(bp_render_audio(request), media_type="audio/wav", headers={"Content-Disposition": "attachment; filename=bohlen-pierce.wav"})
+    except (ValueError, ZeroDivisionError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+
+@app.post("/api/bp/export/midi")
+def export_bohlen_pierce_midi(request: BPExportRequest) -> Response:
+    try:
+        return Response(bp_export_midi(request), media_type="audio/midi", headers={"Content-Disposition": "attachment; filename=bohlen-pierce-mpe.mid"})
+    except (ValueError, ZeroDivisionError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+
+@app.post("/api/bp/export/scala")
+def export_bohlen_pierce_scala(payload: dict[str, object]) -> Response:
+    try:
+        pitches = cast(list[dict[str, object]], payload.get("pitches", []))
+        return Response(bp_export_scala(pitches, str(payload.get("name", "Pure BP scale"))), media_type="text/plain", headers={"Content-Disposition": "attachment; filename=bohlen-pierce.scl"})
+    except (ValueError, ZeroDivisionError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+
+@app.get("/api/rhythm/mixed-meter/patterns")
+def get_mixed_meter_patterns() -> dict[str, object]:
+    return mixed_meter_pattern_library()
+
+
+@app.post("/api/rhythm/mixed-meter/validate")
+def validate_mixed_meter(request: MixedMeterValidateRequest) -> dict[str, object]:
+    try:
+        return validate_mixed_meter_pattern(request)
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+
+@app.post("/api/rhythm/mixed-meter/generate")
+def generate_mixed_meter_drums(request: MixedMeterGenerateRequest) -> dict[str, object]:
+    try:
+        return generate_mixed_meter(request)
+    except (ValueError, ZeroDivisionError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+
+@app.post("/api/rhythm/mixed-meter/preview")
+def preview_mixed_meter_drums(request: MixedMeterExportRequest) -> Response:
+    try:
+        return Response(render_mixed_meter_wav(request.project), media_type="audio/wav", headers={"Content-Disposition": "attachment; filename=mixed-meter-drums.wav"})
+    except (ValueError, ZeroDivisionError, KeyError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+
+@app.post("/api/rhythm/mixed-meter/export/midi")
+def export_mixed_meter_midi(request: MixedMeterExportRequest) -> Response:
+    try:
+        return Response(mixed_meter_export_midi(request), media_type="audio/midi", headers={"Content-Disposition": "attachment; filename=mixed-meter-drums.mid"})
+    except (ValueError, ZeroDivisionError, KeyError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
 
 
 @app.get("/api/instruments/vital-pack")

@@ -137,6 +137,10 @@ STYLE_DEFAULT_PALETTES = {
         "PI05", "PI06", "PI09", "PI10", "PI11", "PI12", "PI17", "PI18", "PI19",
         "PI20", "PI21",
     ),
+    "mixed": (
+        "PI01", "PI04", "PI05", "PI06", "PI09", "PI10", "PI11", "PI12", "PI13",
+        "PI14", "PI15", "PI16", "PI17", "PI18", "PI19", "PI20", "PI21", "PI22",
+    ),
 }
 
 

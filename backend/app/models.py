@@ -665,12 +665,20 @@ class InstrumentSelectionRequest(BaseModel):
     priority: float = Field(default=0.7, ge=0, le=1)
 
 
+class CompositionStyleMixRequest(BaseModel):
+    fractional_pop: float = Field(default=0.34, ge=0, le=1)
+    fractional_jpop: float = Field(default=0.33, ge=0, le=1)
+    kawaii_fractional_future_pop: float = Field(default=0.33, ge=0, le=1)
+
+
 class CompositionExploreRequest(BaseModel):
     style: Literal[
         "fractional_pop",
         "fractional_jpop",
         "kawaii_fractional_future_pop",
+        "mixed",
     ] = "kawaii_fractional_future_pop"
+    style_mix: CompositionStyleMixRequest = Field(default_factory=CompositionStyleMixRequest)
     seed: int = 42810
     candidate_count: int = Field(default=32, ge=4, le=64)
     cluster_count: int = Field(default=6, ge=2, le=12)
@@ -690,7 +698,7 @@ class CompositionExploreRequest(BaseModel):
             "7/4",
         ],
         min_length=5,
-        max_length=16,
+        max_length=24,
     )
     instrument_palette: list[InstrumentSelectionRequest] = Field(default_factory=list, max_length=22)
     missing_role_policy: Literal["warn", "omit", "substitute"] = "warn"
@@ -743,6 +751,8 @@ class CompositionExploreRequest(BaseModel):
         ids = [selection.id for selection in self.instrument_palette]
         if len(ids) != len(set(ids)):
             raise ValueError("instrument_palette must contain unique preset IDs")
+        if self.style == "mixed" and sum(self.style_mix.model_dump().values()) <= 0:
+            raise ValueError("mixed style requires at least one positive style weight")
         return self
 
 

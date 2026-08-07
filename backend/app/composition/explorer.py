@@ -21,7 +21,14 @@ STYLE_NAMES = {
     "fractional_pop": "Fractional Pop",
     "fractional_jpop": "Fractional J-Pop",
     "kawaii_fractional_future_pop": "Kawaii Fractional Future Pop",
+    "mixed": "Mixed Fractional Style",
 }
+
+BASE_STYLES = (
+    "fractional_pop",
+    "fractional_jpop",
+    "kawaii_fractional_future_pop",
+)
 
 FORM_GRAMMARS: dict[str, tuple[tuple[str, ...], ...]] = {
     "fractional_pop": (
@@ -149,10 +156,53 @@ def _weighted_choice(random: Random, items: list[Any], costs: list[float], tempe
     return items[-1]
 
 
+def _style_weights(config: dict[str, Any]) -> dict[str, float]:
+    style = str(config["style"])
+    if style != "mixed":
+        return {item: float(item == style) for item in BASE_STYLES}
+    raw = dict(config.get("style_mix") or {})
+    weights = {item: max(0.0, float(raw.get(item, 0.0))) for item in BASE_STYLES}
+    total = sum(weights.values())
+    if total <= 0:
+        raise ValueError("mixed style requires at least one positive style weight")
+    return {item: value / total for item, value in weights.items()}
+
+
+def _choose_style(random: Random, weights: dict[str, float]) -> str:
+    target = random.random() * sum(weights.values())
+    cursor = 0.0
+    for style in BASE_STYLES:
+        cursor += weights[style]
+        if cursor >= target:
+            return style
+    return BASE_STYLES[-1]
+
+
+def _default_instrument_selections(
+    style: str, weights: dict[str, float]
+) -> list[dict[str, Any]]:
+    if style != "mixed":
+        return [{"id": item} for item in STYLE_DEFAULT_PALETTES[style]]
+    result: list[dict[str, Any]] = []
+    for instrument_id in STYLE_DEFAULT_PALETTES["mixed"]:
+        affinity = sum(
+            weights[item]
+            for item in BASE_STYLES
+            if instrument_id in STYLE_DEFAULT_PALETTES[item]
+        )
+        if affinity > 0:
+            result.append(
+                {"id": instrument_id, "priority": min(1.0, 0.35 + affinity * 0.65)}
+            )
+    return result
+
+
 def _instrument_palette(config: dict[str, Any]) -> tuple[list[dict[str, Any]], list[str]]:
     selections = list(config.get("instrument_palette") or [])
     if not selections:
-        selections = [{"id": item} for item in STYLE_DEFAULT_PALETTES[str(config["style"])]]
+        selections = _default_instrument_selections(
+            str(config["style"]), _style_weights(config)
+        )
     profiles: list[dict[str, Any]] = []
     warnings: list[str] = []
     seen: set[str] = set()
@@ -194,12 +244,14 @@ def _instrument_palette(config: dict[str, Any]) -> tuple[list[dict[str, Any]], l
 
 def _form(
     style: str,
+    style_weights: dict[str, float],
     length_bars: int,
     temperature: float,
     random: Random,
     profiles: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
-    grammar = FORM_GRAMMARS[style]
+    form_style = _choose_style(random, style_weights) if style == "mixed" else style
+    grammar = FORM_GRAMMARS[form_style]
     variant = 0 if random.random() > temperature else random.randrange(len(grammar))
     roles = list(grammar[variant])
     available_roles = {role for profile in profiles for role in profile["roles"]}
@@ -232,13 +284,20 @@ def _form(
                 "bars": bars,
                 "energy": round(energy, 3),
                 "grammar_variant": variant,
+                "form_style": form_style,
             }
         )
         cursor += bars
     return sections
 
 
-def _root_target(style: str, role: str, local_bar: int, scale_size: int) -> int:
+def _root_target_semitones(
+    style: str,
+    role: str,
+    local_bar: int,
+    style_weights: dict[str, float] | None = None,
+) -> float:
+    """Return the style target as a 12-TET semitone offset from the tonic."""
     pop = (0, 4, 5, 3)
     patterns = {
         "fractional_pop": pop,
@@ -255,12 +314,35 @@ def _root_target(style: str, role: str, local_bar: int, scale_size: int) -> int:
             "final": (0, 5, 3, 4),
         }.get(role, pop),
     }
-    pattern = patterns[style]
-    return pattern[local_bar % len(pattern)] % scale_size
+    if style != "mixed":
+        pattern = patterns[style]
+        return float(pattern[local_bar % len(pattern)])
+    weights = style_weights or {item: 1 / len(BASE_STYLES) for item in BASE_STYLES}
+    return sum(
+        weights[item] * patterns[item][local_bar % len(patterns[item])]
+        for item in BASE_STYLES
+    )
+
+
+def _target_ratio(semitones: float) -> float:
+    return 2 ** (semitones / 12)
+
+
+def _octave_cents_distance(left: Fraction | float, right: Fraction | float) -> float:
+    distance = abs(1200 * log2(float(left) / float(right))) % 1200
+    return min(distance, 1200 - distance)
+
+
+def _nearest_scale_degree(scale: tuple[Fraction, ...], target: float) -> int:
+    return min(
+        range(len(scale)),
+        key=lambda degree: (_octave_cents_distance(scale[degree], target), degree),
+    )
 
 
 def _harmony(
     style: str,
+    style_weights: dict[str, float],
     scale: tuple[Fraction, ...],
     sections: list[dict[str, Any]],
     temperature: float,
@@ -279,16 +361,21 @@ def _harmony(
         for roots, cost in beam:
             previous = roots[-1] if roots else 0
             for degree in range(len(scale)):
-                circular = min(abs(degree - previous), len(scale) - abs(degree - previous))
-                target = _root_target(style, str(section["role"]), local_bar, len(scale))
-                target_distance = min(abs(degree - target), len(scale) - abs(degree - target))
+                circular = _octave_cents_distance(scale[degree], scale[previous]) / 100
+                target_semitones = _root_target_semitones(
+                    style, str(section["role"]), local_bar, style_weights
+                )
+                target_ratio = _target_ratio(target_semitones)
+                target_distance = _octave_cents_distance(
+                    scale[degree], target_ratio
+                ) / 100
                 repetition = 0.7 if degree == previous else 0.0
                 motion_target = 1.0 + float(section["energy"]) * 1.8
                 movement = abs(circular - motion_target) * 0.12
                 target_cost = target_distance * (0.52 - temperature * 0.30)
                 cadence = 0.0
                 if local_bar == int(section["bars"]) - 1:
-                    cadence = min(degree, len(scale) - degree) * 0.55
+                    cadence = _octave_cents_distance(scale[degree], 1.0) / 100 * 0.55
                 candidates.append((roots + [degree], cost + repetition + movement + target_cost + cadence))
         candidates.sort(key=lambda item: item[1])
         beam = candidates[:width]
@@ -302,17 +389,20 @@ def _harmony(
         for local_bar in range(int(section["bars"])):
             degree = roots[bar]
             role = str(section["role"])
+            target_semitones = _root_target_semitones(
+                style, role, local_bar, style_weights
+            )
+            target_ratio = _target_ratio(target_semitones)
             voice_count = 3
             if role in {"chorus", "drop", "final"} and maximum_voices >= 4:
                 voice_count = 3 if local_bar < max(2, int(section["bars"]) // 3) else 4
             voice_count = min(maximum_voices, voice_count)
             offsets = (0, 2, 4, 6)[:voice_count]
             tones = [scale[(degree + offset) % len(scale)] for offset in offsets]
-            root_motion = 0 if not slots else min(
-                abs(degree - int(slots[-1]["root_degree"])),
-                len(scale) - abs(degree - int(slots[-1]["root_degree"])),
-            )
-            tension = _clamp(float(section["energy"]) * 0.55 + root_motion / len(scale) * 0.8)
+            root_motion = 0.0 if not slots else _octave_cents_distance(
+                scale[degree], scale[int(slots[-1]["root_degree"])]
+            ) / 600
+            tension = _clamp(float(section["energy"]) * 0.55 + root_motion * 0.8)
             slots.append(
                 {
                     "bar": bar + 1,
@@ -320,6 +410,9 @@ def _harmony(
                     "section_role": role,
                     "root_degree": degree,
                     "root_ratio": _ratio_text(scale[degree]),
+                    "style_target_semitones_12tet": round(target_semitones, 4),
+                    "style_target_ratio": round(target_ratio, 8),
+                    "style_target_degree": _nearest_scale_degree(scale, target_ratio),
                     "tones": [_ratio_text(tone) for tone in tones],
                     "voice_count": voice_count,
                     "tension": round(tension, 3),
@@ -521,7 +614,10 @@ def _features(
     assignments: list[dict[str, Any]], events: list[dict[str, Any]], profiles: list[dict[str, Any]],
 ) -> dict[str, float]:
     roots = [int(slot["root_degree"]) for slot in harmony]
-    root_motion = [min(abs(a - b), len(scale) - abs(a - b)) for a, b in zip(roots, roots[1:])]
+    root_motion = [
+        _octave_cents_distance(scale[a], scale[b]) / 600
+        for a, b in zip(roots, roots[1:])
+    ]
     energies = [float(section["energy"]) for section in sections]
     tensions = [float(slot["tension"]) for slot in harmony]
     melodic = [event for event in events if event["part_role"] in {"lead", "vocal"}]
@@ -622,14 +718,15 @@ def _candidate(config: dict[str, Any], index: int, profiles: list[dict[str, Any]
         for name in ("form", "harmony", "melody", "rhythm", "arrangement", "performance")
     }
     scale = _parse_scale(list(config["scale_ratios"]))
+    style_weights = _style_weights(config)
     form_random = Random(component_seeds["form"])
     harmony_random = Random(component_seeds["harmony"])
     arrangement_random = Random(component_seeds["arrangement"])
     event_random = Random(component_seeds["melody"] ^ component_seeds["rhythm"])
-    sections = _form(str(config["style"]), int(config["length_bars"]), float(config["form_temperature"]), form_random, profiles)
+    sections = _form(str(config["style"]), style_weights, int(config["length_bars"]), float(config["form_temperature"]), form_random, profiles)
     harmony_profiles = [profile for profile in profiles if set(profile["roles"]) & {"harmony", "rhythmic_harmony", "pad", "arpeggio"}]
     maximum_voices = max((int(profile["max_polyphony"]) for profile in harmony_profiles), default=2)
-    harmony = _harmony(str(config["style"]), scale, sections, float(config["harmony_temperature"]), harmony_random, maximum_voices)
+    harmony = _harmony(str(config["style"]), style_weights, scale, sections, float(config["harmony_temperature"]), harmony_random, maximum_voices)
     assignments = _assign_parts(sections, profiles, float(config["part_temperature"]), arrangement_random)
     events = _events(scale, sections, harmony, assignments, profiles, event_random, float(config["base_frequency"]), float(config["rhythm_temperature"]))
     features = _features(scale, sections, harmony, assignments, events, profiles)
@@ -640,6 +737,7 @@ def _candidate(config: dict[str, Any], index: int, profiles: list[dict[str, Any]
         "genome": {
             "version": 1,
             "style": config["style"],
+            "style_mix": style_weights,
             "master_seed": master,
             "candidate_index": index,
             "component_seeds": component_seeds,
@@ -654,6 +752,8 @@ def _candidate(config: dict[str, Any], index: int, profiles: list[dict[str, Any]
         "metadata": {
             "style": config["style"],
             "style_name": STYLE_NAMES[str(config["style"])],
+            "style_mix": style_weights,
+            "form_style": sections[0]["form_style"],
             "tempo_bpm": config["tempo_bpm"],
             "length_bars": config["length_bars"],
             "base_frequency": config["base_frequency"],
@@ -682,6 +782,7 @@ def explore_compositions(config: dict[str, Any]) -> dict[str, Any]:
     return {
         "schema_version": "1.0",
         "style": config["style"],
+        "style_mix": _style_weights(config),
         "seed": config["seed"],
         "candidate_count": len(candidates),
         "cluster_count": len(clusters),

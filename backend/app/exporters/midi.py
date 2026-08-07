@@ -137,7 +137,7 @@ def arrangement_midi_bytes(
     bend. Channel allocation is global: simultaneous notes that need different
     bends never share a channel, and channel 10 is reserved for GM percussion.
     """
-    if not 30 <= tempo_bpm <= 300 or beats_per_bar not in {2, 3, 4, 6}:
+    if not 30 <= tempo_bpm <= 300 or not 2 <= beats_per_bar <= 13:
         raise ValueError("arrangement MIDI clock settings are invalid")
     if not 24 <= ticks_per_beat <= 960 or not 20 <= base_frequency <= 2000:
         raise ValueError("arrangement MIDI tuning settings are invalid")

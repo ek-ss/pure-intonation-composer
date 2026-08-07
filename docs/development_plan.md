@@ -1359,3 +1359,27 @@ Distributed rendering
 AI-assisted composition
 
 Adaptive harmonic models
+
+---
+
+## G19. Bohlen-Pierce Pure Intonation Workbench
+
+**Status:** Experimental implementation complete.
+
+G19 adds an exact-ratio `3/1`-equave environment independent of the octave
+workbenches. Its delivered scope is scale construction, tritave circle and
+5×7 lattice inspection, 13-EDT comparison, multi-metric chord discovery,
+tension-guided progression search, short multi-part composition, odd-harmonic
+audition, and JSON/MPE MIDI/WAV/tritave-Scala export. See
+[bohlen_pierce_workbench.md](bohlen_pierce_workbench.md) for the operational
+contract and remaining persistence/performance work.
+
+## G20. Mixed Meter Drum Section
+
+**Status:** Experimental implementation complete.
+
+G20 adds a meter-cycle library and custom grouping validation, deterministic
+Stable→Tension→Pre-resolution→Resolved form generation, phase tracking,
+section- and tension-sensitive per-track density, timeline playback, and
+JSON/type-1 MIDI/WAV output. It also defines and implements a shared Compose
+timeline transfer boundary. See [mixed_meter_drums.md](mixed_meter_drums.md).

@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Bohlen-Pierce Pure Intonation Workbench</title>
+    <link rel="stylesheet" href="/static/style.css?v=20260807-bp-1">
+    <link rel="stylesheet" href="/static/experimental_workbenches.css?v=20260807-bp-1">
+  </head>
+  <body>
+    <header class="topbar">
+      <div><p class="eyebrow">3:1 EQUAVE · ODD-HARMONIC PURE INTONATION</p><h1>Bohlen-Pierce Workbench</h1><p class="page-subtitle">Scale, chord, progression, composition, and spectral audition</p></div>
+      <span class="topbar-links"><a href="/">Workbench</a><a href="/lattice">Lattice Lab</a><a href="/harmonic-pitch-circle">Harmonic Pitch Circle</a><a href="/prime-limit-explorer">Prime Explorer</a><a href="/minimal-functional-composer">Minimal Composer</a><a href="/motif-development">Motif Development</a><a href="/vital-pack-composer">Vital Pack</a><a href="/fractional-pop-composer">Fractional Pop</a><a href="/jpop-composer">J-Pop</a><a href="/kawaii-future-pop">Kawaii Future Pop</a><a href="/composition-explorer">Explorer</a><a href="/compose/mixed-meter-drums">Mixed Meter</a><a href="/docs" target="_blank" rel="noreferrer">API docs &#8599;</a></span>
+    </header>
+    <main class="experiment-main bp-main">
+      <section class="panel bp-scale-panel">
+        <div class="experiment-heading"><h2>Scale Space</h2><span id="bp-status" class="experiment-status" role="status">Ready</span></div>
+        <label>Preset<select id="bp-preset"><option value="core">Pure 3:5:7 core</option><option value="bounded-lattice" selected>Extended 7-limit BP</option><option value="generator-chain">3-5 generator chain</option><option value="harmonic-odd">Harmonic odd set</option><option value="13-edt">13-EDT comparison</option><option value="manual">Manual ratios</option></select></label>
+        <div class="experiment-grid-2"><label>Prime limit<select id="bp-prime-limit"><option>5</option><option selected>7</option><option>11</option><option>13</option></select></label><label>Maximum pitches<input id="bp-max-pitches" type="number" min="3" max="49" value="13"></label><label>5 exponent min<input id="bp-b-min" type="number" min="-8" max="8" value="-2"></label><label>5 exponent max<input id="bp-b-max" type="number" min="-8" max="8" value="2"></label><label>7 exponent min<input id="bp-c-min" type="number" min="-8" max="8" value="-2"></label><label>7 exponent max<input id="bp-c-max" type="number" min="-8" max="8" value="2"></label><label>Tenney limit<input id="bp-tenney" type="number" min="1" max="40" step=".5" value="12"></label><label>Root Hz<input id="bp-root-frequency" type="number" min="20" max="2000" value="220"></label></div>
+        <label>Manual ratios<textarea id="bp-manual-ratios" rows="3">1/1, 5/3, 7/3</textarea></label>
+        <div class="experiment-actions"><button id="bp-scale-generate" class="primary">Generate scale</button><button id="bp-undo" class="quiet" title="Undo scale edit">Undo</button><button id="bp-redo" class="quiet" title="Redo scale edit">Redo</button></div>
+        <div class="bp-ratio-editor"><label>Append exact ratio<input id="bp-ratio-input" value="25/21" placeholder="25/21 or 3^-1*5^2"></label><button id="bp-ratio-add" class="quiet">Add</button></div>
+        <div class="experiment-actions"><button id="bp-multiply-5" class="quiet">Selected × 5/3</button><button id="bp-multiply-7" class="quiet">Selected × 7/3</button><button id="bp-multiply-9-7" class="quiet">Selected × 9/7</button></div>
+        <div class="experiment-heading"><h3>Pitch List</h3><span id="bp-scale-summary"></span></div>
+        <div id="bp-pitch-list" class="experiment-list bp-pitch-list"></div>
+      </section>
+
+      <section class="panel bp-visual-panel">
+        <div class="experiment-heading"><h2>Tritave Visualization</h2><span>1/1 to 3/1 · clockwise</span></div>
+        <div id="bp-view-tabs" class="experiment-segmented"><button class="active" data-view="circle">Pitch Circle</button><button data-view="lattice">5 × 7 Lattice</button></div>
+        <div class="experiment-actions"><label><input id="bp-show-edt" type="checkbox" checked>13-EDT</label><label><input id="bp-show-edges" type="checkbox" checked>Ratio edges</label><label><input id="bp-show-registers" type="checkbox" checked>Register rings</label></div>
+        <canvas id="bp-pitch-canvas" class="experiment-canvas" width="1000" height="620" aria-label="Bohlen-Pierce tritave pitch visualization"></canvas>
+      </section>
+
+      <aside class="panel bp-inspector-panel">
+        <div class="experiment-heading"><h2>Chord Explorer</h2><span id="bp-chord-summary">Generate a scale first</span></div>
+        <div class="experiment-grid-2"><label>Voices<input id="bp-voices" type="number" min="2" max="6" value="3"></label><label>Results<input id="bp-chord-results" type="number" min="1" max="100" value="24"></label><label>Max width<input id="bp-chord-width" type="number" min=".05" max="1" step=".05" value=".75"></label><label>Max height<input id="bp-chord-height" type="number" min="1" max="80" value="18"></label><label>Max prime distance<input id="bp-prime-distance" type="number" min="1" max="64" value="16"></label><label>Minimum odd overlap<input id="bp-min-overlap" type="number" min="0" max="1" step=".05" value="0"></label><label><input id="bp-root-fixed" type="checkbox">Fix 1/1 root</label><label><input id="bp-duplicates" type="checkbox">Allow duplicate tones</label></div>
+        <details><summary>Ranking weights</summary><div class="experiment-grid-2"><label>Harmonicity<input id="bp-weight-harmonicity" type="number" min="0" max="1" step=".05" value=".25"></label><label>Odd overlap<input id="bp-weight-overlap" type="number" min="0" max="1" step=".05" value=".25"></label><label>Root clarity<input id="bp-weight-root" type="number" min="0" max="1" step=".05" value=".15"></label><label>Compactness<input id="bp-weight-compactness" type="number" min="0" max="1" step=".05" value=".10"></label><label>Roughness penalty<input id="bp-weight-roughness" type="number" min="0" max="1" step=".05" value=".15"></label><label>Complexity penalty<input id="bp-weight-complexity" type="number" min="0" max="1" step=".05" value=".10"></label></div></details>
+        <div class="experiment-actions"><button id="bp-chord-search" class="primary">Search chords</button><button id="bp-chord-play" class="quiet">Play selected</button><button id="bp-chord-clear" class="quiet">Clear chord</button></div>
+        <div id="bp-selected-chord" class="experiment-metrics"></div>
+        <div id="bp-chord-list" class="experiment-list bp-chord-list"></div>
+      </aside>
+
+      <section class="panel bp-progression-panel">
+        <div class="experiment-heading"><h2>Progression Graph</h2><span id="bp-progression-summary">No progression</span></div>
+        <div class="bp-tension-editor"><div class="experiment-grid-3"><label>Length<input id="bp-progression-length" type="number" min="4" max="16" value="8"></label><label>Method<select id="bp-progression-method"><option value="beam-search">Tension curve</option><option value="cycle">Cycle</option><option value="contrast-resolution" selected>Contrast and resolution</option><option value="random-walk">Constrained random walk</option></select></label><label>Seed<input id="bp-seed" type="number" value="357"></label></div><label>Target tension<textarea id="bp-tension" rows="3">0.10, 0.25, 0.50, 0.80, 1.00, 0.70, 0.35, 0.10</textarea></label></div>
+        <div class="experiment-actions"><button id="bp-progression-generate" class="primary">Generate progression</button><button id="bp-progression-play" class="quiet">Play progression</button><button id="bp-stop" class="quiet">Stop</button></div>
+        <div id="bp-progression-lane" class="experiment-lane"></div>
+        <canvas id="bp-tension-canvas" class="experiment-small-canvas" width="1200" height="190" aria-label="Target and actual tension curves"></canvas>
+      </section>
+
+      <section class="panel bp-compose-panel">
+        <div class="experiment-heading"><h2>BP Composition Generator</h2><span id="bp-compose-summary">Harmony · Bass · Melody · Rhythm · Drone</span></div>
+        <div class="experiment-grid-3"><label>Form<select id="bp-form"><option value="loop">Loop</option><option value="AB">AB</option><option value="ABA">ABA</option><option value="verse-chorus">Verse / Chorus</option><option value="tension-resolution" selected>Tension / Resolution</option></select></label><label>Bars<input id="bp-bars" type="number" min="4" max="64" value="16"></label><label>Tempo<input id="bp-tempo" type="number" min="40" max="240" value="108"></label><label>Chord density<input id="bp-chord-density" type="range" min="0" max="1" step=".05" value=".72"></label><label>Melody density<input id="bp-melody-density" type="range" min="0" max="1" step=".05" value=".55"></label><label>Rhythm density<input id="bp-rhythm-density" type="range" min="0" max="1" step=".05" value=".50"></label><label>Timbre<select id="bp-timbre"><option value="odd-harmonic" selected>Odd Harmonic Reed</option><option value="hollow-pluck">Hollow Pluck</option><option value="soft-square">Soft Square</option><option value="sine">Pure Sine</option><option value="full-harmonic">Full Harmonic</option></select></label><label>Audition tuning<select id="bp-audition-tuning"><option value="pure">Pure BP</option><option value="13-edt">13-EDT</option><option value="12-edo">12-EDO approximation</option></select></label><label><input id="bp-drone" type="checkbox" checked>Include drone</label></div>
+        <div class="experiment-actions"><button id="bp-compose-generate" class="primary">Generate composition</button><button id="bp-compose-play" class="quiet">Play</button><button id="bp-midi" class="quiet">MPE MIDI</button><button id="bp-wav" class="quiet">WAV</button><button id="bp-scala" class="quiet">Scala</button><button id="bp-json" class="quiet">Project JSON</button><button id="bp-import" class="quiet">Import JSON</button><input id="bp-import-file" class="experiment-file" type="file" accept="application/json"></div>
+        <canvas id="bp-arrangement-canvas" class="experiment-small-canvas" width="1200" height="220" aria-label="Bohlen-Pierce composition arrangement"></canvas>
+        <div id="bp-composition-metrics" class="experiment-metrics"></div>
+      </section>
+    </main>
+    <script src="/static/bohlen_pierce.js?v=20260807-bp-1"></script>
+  </body>
+</html>

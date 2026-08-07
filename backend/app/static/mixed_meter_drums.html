@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Mixed Meter Drum Section</title>
+    <link rel="stylesheet" href="/static/style.css?v=20260807-mm-1">
+    <link rel="stylesheet" href="/static/experimental_workbenches.css?v=20260807-mm-1">
+  </head>
+  <body>
+    <header class="topbar">
+      <div><p class="eyebrow">MIXED METER · STRUCTURAL RHYTHM</p><h1>Mixed Meter Drums</h1><p class="page-subtitle">Stable → Tension → Pre-resolution → Resolved</p></div>
+      <span class="topbar-links"><a href="/">Workbench</a><a href="/lattice">Lattice Lab</a><a href="/harmonic-pitch-circle">Harmonic Pitch Circle</a><a href="/prime-limit-explorer">Prime Explorer</a><a href="/minimal-functional-composer">Minimal Composer</a><a href="/motif-development">Motif Development</a><a href="/vital-pack-composer">Vital Pack</a><a href="/fractional-pop-composer">Fractional Pop</a><a href="/jpop-composer">J-Pop</a><a href="/kawaii-future-pop">Kawaii Future Pop</a><a href="/composition-explorer">Explorer</a><a href="/compose/bohlen-pierce">Bohlen-Pierce</a><a href="/docs" target="_blank" rel="noreferrer">API docs &#8599;</a></span>
+    </header>
+    <main class="experiment-main mm-main">
+      <section class="panel mm-controls">
+        <div class="experiment-heading"><h2>Generator</h2><span id="mm-status" class="experiment-status" role="status">Loading library</span></div>
+        <label>Form<select id="mm-form"><option value="two_stage_resolution" selected>Two-stage resolution</option><option value="direct_resolution">Direct resolution</option><option value="custom">Custom section form</option></select></label>
+        <label id="mm-custom-form-wrap" hidden>Section sequence<input id="mm-custom-form" value="stable,tension,tension,pre_resolution,resolved"></label>
+        <div class="experiment-grid-2"><label>Tempo<input id="mm-tempo" type="number" min="40" max="260" value="120"></label><label>Seed<input id="mm-seed" type="number" value="3575"></label><label>Tension repeats<input id="mm-tension-repeats" type="number" min="1" max="8" value="2"></label><label>Stable repeats<input id="mm-stable-repeats" type="number" min="1" max="8" value="1"></label><label>Resolved repeats<input id="mm-resolved-repeats" type="number" min="1" max="8" value="1"></label><label>Subdivision<select id="mm-subdivision"><option value="1">Quarter</option><option value="2" selected>Eighth</option><option value="4">Sixteenth</option></select></label></div>
+        <label>Density profile<select id="mm-density-profile"><option value="chorus_impact" selected>Chorus impact</option><option value="build_up">Build up</option><option value="skeletal_tension">Skeletal tension</option><option value="manual">Manual</option></select></label>
+        <label>Quick start<select id="mm-quick-start"><option value="prime" selected>Prime Expansion</option><option value="gentle">Gentle Shift</option><option value="phase">Phase Walk</option><option value="held">Held Offset</option><option value="symmetric">Symmetric Long Cycle</option></select></label>
+        <label>Variation <output id="mm-variation-out">0.25</output><input id="mm-variation" type="range" min="0" max="1" step=".05" value=".25"></label>
+        <label>Syncopation <output id="mm-syncopation-out">0.20</output><input id="mm-syncopation" type="range" min="0" max="1" step=".05" value=".20"></label>
+        <label>Humanize <output id="mm-humanize-out">0.10</output><input id="mm-humanize" type="range" min="0" max="1" step=".05" value=".10"></label>
+        <label><input id="mm-allow-unaligned" type="checkbox">Advanced: allow unaligned cycles</label>
+        <div class="experiment-actions"><button id="mm-generate" class="primary">Generate drum section</button><button id="mm-apply-preset" class="quiet">Apply quick start</button><button id="mm-random-seed" class="quiet">New seed</button></div>
+        <div id="mm-project-metrics" class="experiment-metrics"></div>
+      </section>
+
+      <section class="panel mm-library">
+        <div class="experiment-heading"><h2>Pattern Library</h2><span id="mm-pattern-summary">Select a cycle</span></div>
+        <div id="mm-pattern-grid" class="mm-pattern-grid"></div>
+        <div class="experiment-actions"><button id="mm-favorite" class="quiet">Favorite selected</button><button id="mm-duplicate" class="quiet">Duplicate as custom</button><span>Double-click a pattern to audition</span></div>
+        <details><summary>Custom pattern</summary><div class="experiment-grid-3"><label>Name<input id="mm-custom-name" value="Custom cycle"></label><label>Denominator<select id="mm-custom-denominator"><option value="4" selected>Quarter note</option><option value="8">Eighth note</option></select></label><label>Meters<input id="mm-custom-meters" value="3,5,7,5"></label><label>Groupings<input id="mm-custom-groups" value="3 | 2+3 | 2+2+3 | 3+2"></label></div><div class="experiment-actions"><button id="mm-use-custom" class="quiet">Validate and use</button></div><div id="mm-validation" class="experiment-metrics"></div></details>
+      </section>
+
+      <section class="panel mm-timeline">
+        <div class="experiment-heading"><h2>Rhythm Timeline</h2><span id="mm-timeline-summary">No generated section</span></div>
+        <canvas id="mm-timeline-canvas" class="experiment-canvas" width="1400" height="520" aria-label="Mixed-meter drum event timeline" title="Click a hit to lock or unlock it"></canvas>
+        <div class="experiment-actions"><button id="mm-play" class="primary">Play</button><button id="mm-pause" class="quiet">Pause</button><button id="mm-stop" class="quiet">Stop</button><label><input id="mm-loop" type="checkbox">Loop</label></div>
+      </section>
+
+      <section class="panel mm-mixer">
+        <div class="experiment-heading"><h2>Track Mixer</h2><span>Density · tension response · mute / solo</span></div>
+        <div id="mm-track-list"></div>
+      </section>
+
+      <section class="panel mm-export">
+        <div class="experiment-heading"><h2>Export and Transfer</h2><span>Deterministic project data</span></div>
+        <div class="experiment-actions"><button id="mm-midi" class="primary">MIDI</button><button id="mm-wav" class="quiet">WAV preview</button><button id="mm-json" class="quiet">Export JSON</button><button id="mm-import" class="quiet">Import JSON</button><button id="mm-transfer" class="quiet">Send timeline to Compose</button><input id="mm-import-file" class="experiment-file" type="file" accept="application/json"></div>
+        <div class="experiment-actions"><button id="mm-store-a" class="quiet">Store A</button><button id="mm-play-a" class="quiet">Play A</button><button id="mm-store-b" class="quiet">Store B</button><button id="mm-play-b" class="quiet">Play B</button><span id="mm-ab-status" class="experiment-status">A/B empty</span></div>
+        <div id="mm-density-report"></div>
+      </section>
+    </main>
+    <script src="/static/mixed_meter_drums.js?v=20260807-mm-1"></script>
+  </body>
+</html>

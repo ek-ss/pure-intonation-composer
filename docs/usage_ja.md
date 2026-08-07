@@ -206,6 +206,17 @@ API: `POST /api/exponent-lattice/scale`、`/harmony`、`/chord`、
 
 ---
 
+## 2.12 Bohlen-Pierce / Mixed Meter
+
+`/compose/bohlen-pierce`では、`3/1`を周期とする純正比スケールを作り、
+Pitch Circle・5×7格子・和音ランキング・緊張曲線付き進行・短い編曲を
+一続きに生成できます。JSON、MPE MIDI、WAV、トリターブScalaを出力します。
+
+`/compose/mixed-meter-drums`では、`3+5+7+5`などの拍子周期を選び、
+Stable→Tension→Pre-resolution→Resolvedのドラムフォームを生成します。
+各トラックの密度や緊張応答を調整でき、JSON、拍子情報付きMIDI、WAV、
+Compose共通タイムラインを出力できます。
+
 # 3. API概要
 
 ベースURLは `http://127.0.0.1:8000` です。すべてのリクエストボディはJSONです。音楽入力が不正な場合は、HTTPステータス422とともに `{"detail": "…"}` 形式のエラーが返されます。
@@ -218,6 +229,8 @@ API: `POST /api/exponent-lattice/scale`、`/harmony`、`/chord`、
 | グラフ | `POST /api/harmonic-graph`（構築、walk、layered layout） |
 | 作曲 | `POST /api/compose/harmony`、`/api/compose/voice-leading`、`/api/compose/bass`、`/api/compose/melody`、`/api/compose/rhythm/apply`、`/api/compose/rhythm/generate` |
 | リズム | `POST /api/rhythm/euclidean`、`/api/rhythm/state-graph`、`/api/rhythm/phase-shift`、`/api/rhythm/humanize` |
+| Mixed Meter | `GET /api/rhythm/mixed-meter/patterns`、`POST /api/rhythm/mixed-meter/validate`、`/generate`、`/preview`、`/export/midi` |
+| Bohlen-Pierce | `POST /api/bp/scales/generate`、`/chords/search`、`/progressions/search`、`/compose/generate`、`/render/audio`、`/export/midi`、`/export/scala` |
 | Lattice Lab | `POST /api/exponent-lattice/scale`、`/api/exponent-lattice/harmony`、`/api/exponent-lattice/chord`、`/api/exponent-lattice/progression`、`/api/exponent-lattice/walk`、`/api/exponent-lattice/analyze` |
 | レンダリング | `POST /api/render/wav`、`POST /api/render/jobs`、`GET /api/render/jobs/{id}`、`GET /api/render/jobs/{id}/audio` |
 | エクスポート | `POST /api/export/midi`、`/api/export/rhythm/midi`、`/api/export/scala`、`/api/export/json` |

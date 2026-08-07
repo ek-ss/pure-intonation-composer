@@ -29,6 +29,8 @@ as implemented.
 | [motif_vital_arrangement.md](motif_vital_arrangement.md) | Implemented Development Tree to Vital Pack song-arrangement bridge |
 | [composition_explorer.md](composition_explorer.md) | Implemented instrument-constrained multi-candidate composition explorer |
 | [vital_fractional_piano.md](vital_fractional_piano.md) | PI22 piano-like Vital preset, builder, integration, and DAW workflow |
+| [bohlen_pierce_workbench.md](bohlen_pierce_workbench.md) | Implemented 3:1-equave scale, chord, progression, composition, and export workbench |
+| [mixed_meter_drums.md](mixed_meter_drums.md) | Implemented mixed-meter drum form, density, phase, playback, and export workbench |
 | [development_plan_motif_development_engine.md](development_plan_motif_development_engine.md) | Proposed G14 motif generation, variation, and formal-development specification |
 
 ## Roadmaps

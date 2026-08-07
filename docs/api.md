@@ -1215,7 +1215,12 @@ default request generates 32 candidates and six representatives.
 
 ```json
 {
-  "style": "kawaii_fractional_future_pop",
+  "style": "mixed",
+  "style_mix": {
+    "fractional_pop": 0.25,
+    "fractional_jpop": 0.25,
+    "kawaii_fractional_future_pop": 0.5
+  },
   "seed": 42810,
   "candidate_count": 32,
   "cluster_count": 6,
@@ -1223,11 +1228,7 @@ default request generates 32 candidates and six representatives.
   "length_bars": 64,
   "base_frequency": 220,
   "scale_ratios": ["1/1", "9/8", "6/5", "5/4", "4/3", "3/2", "13/8", "5/3", "7/4"],
-  "instrument_palette": [
-    {"id": "PI21"}, {"id": "PI20"}, {"id": "PI19"},
-    {"id": "PI18"}, {"id": "PI17"}, {"id": "PI12"},
-    {"id": "PI11"}, {"id": "PI10"}, {"id": "PI09"}, {"id": "PI06"}
-  ],
+  "instrument_palette": [],
   "missing_role_policy": "warn",
   "form_temperature": 0.55,
   "harmony_temperature": 0.65,
@@ -1238,16 +1239,58 @@ default request generates 32 candidates and six representatives.
 }
 ```
 
-`style` accepts `fractional_pop`, `fractional_jpop`, or
-`kawaii_fractional_future_pop`. `length_bars` must be divisible by four.
-Empty `instrument_palette` uses the selected style's default palette.
+`style` accepts `fractional_pop`, `fractional_jpop`,
+`kawaii_fractional_future_pop`, or `mixed`. Mixed-style weights range from
+zero to one, must contain at least one positive value, and are normalized by
+the server. `length_bars` must be divisible by four.
+`scale_ratios` accepts 5-24 unique octave-normalized ratios. Empty
+`instrument_palette` uses the selected style's default palette.
+
+Style progression targets are interpreted as 12-TET semitone offsets. For
+example, target `5` means `2^(5/12)` (500 cents), independently of the number
+of supplied scale tones. The generator selects and reports the nearest scale
+degree; harmony entries expose `style_target_semitones_12tet`,
+`style_target_ratio`, and `style_target_degree` for inspection.
 
 The response contains candidate summaries, k-medoids cluster membership, and
 full representative plans. Each representative contains the CompositionGenome,
 form, exact-ratio harmony, section instrument assignments, score events,
 feature vector, and evaluation scores.
 
-# 14. Roadmap Candidates
+The browser sends the selected representative's unchanged `events`, tempo,
+and base frequency to `POST /api/compose/vital-pack/midi`. The resulting
+standard MIDI type-1 file preserves PI instrument tracks, drum notes, and
+per-note pitch bends for exact fractional ratios.
+
+# 14. Bohlen-Pierce Pure Intonation
+
+`POST /api/bp/scales/generate` creates exact-ratio tritave scales from core,
+bounded-lattice, generator-chain, odd-harmonic, 13-EDT, or manual input.
+Manual strings accept fractions and products such as `3^-1*5^2`.
+
+`POST /api/bp/chords/search` evaluates constrained 2-6 voice combinations.
+`POST /api/bp/progressions/search` selects 4-16 chords against a supplied
+tension curve. `POST /api/bp/compose/generate` produces Harmony, Bass, Melody,
+Rhythm, and optional Drone events.
+
+`POST /api/bp/export/midi`, `POST /api/bp/render/audio`, and
+`POST /api/bp/export/scala` return MPE-style MIDI, WAV, and tritave Scala data.
+
+# 15. Mixed Meter Drum Section
+
+`GET /api/rhythm/mixed-meter/patterns` returns the pattern library, density
+profiles, and default track settings. `POST /api/rhythm/mixed-meter/validate`
+checks meter/grouping arithmetic and optional unaligned cycles.
+
+`POST /api/rhythm/mixed-meter/generate` accepts form, pattern, section,
+density, track, humanization, and seed controls and returns bars, phase,
+events, density diagnostics, and a Compose-compatible timeline.
+
+`POST /api/rhythm/mixed-meter/export/midi` returns type-1 percussion MIDI with
+section markers and per-bar time signatures. `POST
+/api/rhythm/mixed-meter/preview` returns a rendered WAV preview.
+
+# 16. Roadmap Candidates
 
 These capabilities are not part of the current API:
 

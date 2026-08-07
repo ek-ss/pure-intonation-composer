@@ -2,6 +2,7 @@ from fractions import Fraction
 
 from fastapi.testclient import TestClient
 
+from app.composition.explorer import _nearest_scale_degree, _root_target_semitones
 from app.main import app
 
 client = TestClient(app)
@@ -58,6 +59,8 @@ def test_primary_pages_link_to_every_other_workbench() -> None:
         "/jpop-composer": "/jpop-composer",
         "/kawaii-future-pop": "/kawaii-future-pop",
         "/composition-explorer": "/composition-explorer",
+        "/compose/bohlen-pierce": "/compose/bohlen-pierce",
+        "/compose/mixed-meter-drums": "/compose/mixed-meter-drums",
     }
     for page, current in pages.items():
         response = client.get(page)
@@ -67,12 +70,37 @@ def test_primary_pages_link_to_every_other_workbench() -> None:
         assert 'href="/docs"' in response.text
 
 
+def test_experimental_composition_workbench_pages() -> None:
+    bp_page = client.get("/compose/bohlen-pierce")
+    assert bp_page.status_code == 200
+    for control in ("bp-scale-generate", "bp-pitch-canvas", "bp-chord-search", "bp-progression-generate", "bp-compose-generate", "bp-midi", "bp-wav", "bp-scala"):
+        assert f'id="{control}"' in bp_page.text
+    bp_script = client.get("/static/bohlen_pierce.js")
+    assert bp_script.status_code == 200
+    assert "/api/bp/chords/search" in bp_script.text
+    assert "/api/bp/compose/generate" in bp_script.text
+
+    mixed_page = client.get("/compose/mixed-meter-drums")
+    assert mixed_page.status_code == 200
+    for control in ("mm-pattern-grid", "mm-custom-meters", "mm-track-list", "mm-timeline-canvas", "mm-midi", "mm-wav", "mm-transfer"):
+        assert f'id="{control}"' in mixed_page.text
+    mixed_script = client.get("/static/mixed_meter_drums.js")
+    assert mixed_script.status_code == 200
+    assert "/api/rhythm/mixed-meter/generate" in mixed_script.text
+    assert "mixed-meter-compose-timeline" in mixed_script.text
+    assert "mixed-meter-compose-timeline" in client.get("/static/app.js").text
+
+
 def test_composition_explorer_page_and_profiles() -> None:
     page = client.get("/composition-explorer")
     assert page.status_code == 200
     assert "Composition Explorer" in page.text
     for control in (
         "explorer-style",
+        "explorer-style-mix",
+        "explorer-mix-pop",
+        "explorer-mix-jpop",
+        "explorer-mix-kawaii",
         "explorer-instrument-list",
         "explorer-candidates",
         "explorer-cluster-count",
@@ -81,21 +109,95 @@ def test_composition_explorer_page_and_profiles() -> None:
         "explorer-form-canvas",
         "explorer-like",
         "explorer-dislike",
+        "explorer-midi",
     ):
         assert f'id="{control}"' in page.text
     script = client.get("/static/composition_explorer.js")
     assert script.status_code == 200
     assert "/api/composition-explorer/explore" in script.text
+    assert "/api/compose/vital-pack/midi" in script.text
+    assert "style_mix" in script.text
     assert "pure-intonation.composition-explorer-feedback" in script.text
     profiles = client.get("/api/composition-explorer/profiles")
     assert profiles.status_code == 200
     payload = profiles.json()
     assert len(payload["instruments"]) == 22
     assert payload["style_defaults"]["kawaii_fractional_future_pop"][-1] == "PI21"
+    assert payload["styles"]["mixed"] == "Mixed Fractional Style"
+    assert "PI22" in payload["style_defaults"]["mixed"]
     piano = next(profile for profile in payload["instruments"] if profile["id"] == "PI22")
     assert piano["roles"][:2] == ["keys", "harmony"]
     assert piano["preset_file"] == "PI 22 Fractional Piano.vital"
     assert "PI22" in payload["style_defaults"]["fractional_pop"]
+
+
+def test_composition_explorer_style_targets_are_12_tet_intervals() -> None:
+    twelve_tet = tuple(
+        Fraction(2 ** (step / 12)).limit_denominator(1_000_000)
+        for step in range(12)
+    )
+    twenty_four_tet = tuple(
+        Fraction(2 ** (step / 24)).limit_denominator(1_000_000)
+        for step in range(24)
+    )
+
+    target_semitones = _root_target_semitones("fractional_pop", "verse", 2)
+    target_ratio = 2 ** (target_semitones / 12)
+
+    assert target_semitones == 5
+    assert _nearest_scale_degree(twelve_tet, target_ratio) == 5
+    assert _nearest_scale_degree(twenty_four_tet, target_ratio) == 10
+
+
+def test_composition_explorer_mixes_styles_by_normalized_weight() -> None:
+    weights = {
+        "fractional_pop": 0.25,
+        "fractional_jpop": 0.25,
+        "kawaii_fractional_future_pop": 0.5,
+    }
+    assert _root_target_semitones("mixed", "drop", 1, weights) == 4.5
+
+    request = {
+        "style": "mixed",
+        "style_mix": {
+            "fractional_pop": 0.5,
+            "fractional_jpop": 0.5,
+            "kawaii_fractional_future_pop": 1,
+        },
+        "seed": 4812,
+        "candidate_count": 4,
+        "cluster_count": 2,
+        "length_bars": 24,
+        "instrument_palette": [],
+    }
+    first = client.post("/api/composition-explorer/explore", json=request)
+    second = client.post("/api/composition-explorer/explore", json=request)
+    assert first.status_code == 200
+    assert first.json() == second.json()
+    result = first.json()
+    assert result["style_mix"] == weights
+    assert "PI01" in {profile["id"] for profile in result["instrument_profiles"]}
+    assert "PI17" in {profile["id"] for profile in result["instrument_profiles"]}
+    for song in result["representatives"]:
+        assert song["genome"]["style_mix"] == weights
+        assert song["metadata"]["form_style"] in weights
+        assert {
+            section["form_style"] for section in song["sections"]
+        } == {song["metadata"]["form_style"]}
+        assert all("style_target_ratio" in chord for chord in song["harmony"])
+
+    invalid = client.post(
+        "/api/composition-explorer/explore",
+        json={
+            "style": "mixed",
+            "style_mix": {
+                "fractional_pop": 0,
+                "fractional_jpop": 0,
+                "kawaii_fractional_future_pop": 0,
+            },
+        },
+    )
+    assert invalid.status_code == 422
 
 
 def test_instrument_first_composition_exploration_is_clustered_and_deterministic() -> None:
@@ -158,6 +260,18 @@ def test_instrument_first_composition_exploration_is_clustered_and_deterministic
         assert 0 <= song["scores"]["overall"] <= 1
         assert song["genome"]["component_seeds"]["form"]
         assert any(item["instrument_id"] == "PI18" for item in song["assignments"])
+    representative = result["representatives"][0]
+    midi = client.post(
+        "/api/compose/vital-pack/midi",
+        json={
+            "events": representative["events"],
+            "tempo_bpm": representative["metadata"]["tempo_bpm"],
+            "base_frequency": representative["metadata"]["base_frequency"],
+        },
+    )
+    assert midi.status_code == 200
+    assert midi.headers["content-type"] == "audio/midi"
+    assert midi.content.startswith(b"MThd")
 
 
 def test_composition_explorer_component_locks_and_bass_substitution() -> None:

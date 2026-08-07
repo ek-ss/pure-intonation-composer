@@ -250,7 +250,7 @@ el("timeline-play").onclick=()=>{
 syncGeneratorFields(); generate();
 
 // ---- Compose: harmony / bass / melody / export / render ----
-const composeState = { chords: [], bass: [], melody: [], rhythm: null, scheduled: [], activeStep: null, playhead: null, playheadTick: null, playheadFrame: null, graph: null, graphInput: null };
+const composeState = { chords: [], bass: [], melody: [], rhythm: null, mixedMeterTimeline: null, scheduled: [], activeStep: null, playhead: null, playheadTick: null, playheadFrame: null, graph: null, graphInput: null };
 function setComposeStatus(text, kind = "") { const s = el("compose-status"); s.textContent = text; s.className = kind; }
 function ratioValue(ratio) { const [n, d] = ratio.split("/").map(Number); return n / d; }
 function ratioMul(ratio, factor) { const [n, d] = ratio.split("/").map(Number); let num = n * factor, den = d; const g = gcd(num, den); num /= g; den /= g; while (num >= den * 2) den *= 2; while (num < den) num *= 2; return `${num}/${den}`; }
@@ -504,7 +504,7 @@ el("export-midi").onclick = async () => {
 el("export-json").onclick = async () => {
   try {
     requireChords();
-    const composition = { schema_version: 2, seed: Number(el("harmony-seed").value), tempo: Number(el("tempo").value), chords: composeState.chords, bass: composeState.bass, melody: composeState.melody, rhythm: composeState.rhythm };
+    const composition = { schema_version: 2, seed: Number(el("harmony-seed").value), tempo: Number(el("tempo").value), chords: composeState.chords, bass: composeState.bass, melody: composeState.melody, rhythm: composeState.rhythm, mixed_meter_timeline: composeState.mixedMeterTimeline };
     const data = await postJson("/api/export/json", { name: "Pure Intonation Composition", composition });
     download(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }), "composition.json");
     setComposeStatus("JSON を保存しました", "");
@@ -1237,6 +1237,20 @@ function importLatticeLabSession() {
   sessionStorage.removeItem("lattice-compose-harmonies");
 }
 importLatticeLabSession();
+function importMixedMeterTimeline() {
+  const saved = sessionStorage.getItem("mixed-meter-compose-timeline");
+  if (!saved) return;
+  try {
+    const timeline = JSON.parse(saved);
+    if (!timeline?.clock || !Array.isArray(timeline.bars)) throw new Error("invalid timeline");
+    composeState.mixedMeterTimeline = timeline;
+    el("tempo").value = timeline.clock.tempo_bpm;
+    setComposeStatus(`Mixed Meter: ${timeline.bars.length} bars received. JSON export will preserve the shared timeline.`, "");
+    document.querySelector(".compose").scrollIntoView({ behavior: "smooth" });
+  } catch { setComposeStatus("Mixed Meter timeline を読み込めませんでした。", "error"); }
+  sessionStorage.removeItem("mixed-meter-compose-timeline");
+}
+importMixedMeterTimeline();
 el("lattice-send-compose").onclick = () => {
   if (!latticeState.tones.length) { setLatticeStatus("先にハーモニーを再構成してください。", "error"); return; }
   const rootVector = latticeState.offsets[0]?.map(() => 0) || [];
