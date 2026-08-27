@@ -18,10 +18,12 @@ than names applied after composition.
 2. Select the PI01-PI22 presets that may appear in the score.
 3. Set Form, Harmony, Part assignment, and Rhythm temperatures.
 4. Optionally lock a component across all candidates.
-5. Generate 4-64 candidates. The default is 32 candidates in 6 clusters.
-6. Compare and audition one quality-weighted representative per cluster.
-7. Like or dislike representatives to adjust future evaluation weights.
-8. Export a representative as PI-separated pitch-bend MIDI or Project JSON.
+5. Optionally enable Mixed Meter Drums. Generate a meter project for each
+   candidate, or import/transfer one exact project from the Mixed Meter page.
+6. Generate 4-64 candidates. The default is 32 candidates in 6 clusters.
+7. Compare and audition one quality-weighted representative per cluster.
+8. Like or dislike representatives to adjust future evaluation weights.
+9. Export a representative as PI-separated pitch-bend MIDI or Project JSON.
    JSON includes its genome, harmony, assignments, features, evaluation, and
    score events.
 
@@ -81,11 +83,37 @@ Drum profiles retain fixed MIDI trigger notes. Pitched parts retain exact
 fractional ratios and are octave-positioned inside each preset's declared
 range.
 
+## Mixed Meter Drum Integration
+
+Mixed Meter is an optional drum layer beneath the Explorer's form, harmony,
+and instrument-first arrangement. It has two source modes:
+
+- `Generate per candidate` derives a Mixed Meter seed from each candidate's
+  hierarchical Rhythm seed. Pattern, form, density profile, repeats,
+  subdivision, variation, syncopation, and humanization remain reproducible.
+- `Imported project` tiles one exact Mixed Meter project across every
+  candidate. Use **Send to Composition Explorer** on the Mixed Meter page or
+  import its lossless Project JSON. The Explorer adopts the imported tempo.
+
+`Replace native drums` removes the Explorer's ordinary drum events before
+mapping the Mixed Meter kick, snare, hat, tom, crash, and percussion roles to
+compatible selected PI drum presets. `Layer with native drums` retains both.
+The source cycle is repeated in quarter-beat coordinates and truncated at the
+song boundary; its section phases do not replace the Explorer's song sections.
+
+Candidate Project JSON preserves the complete source project and the tiled
+bar/section timeline. The feature vector adds meter variety, phase
+displacement, and metric resolution. These affect rhythmic/structural scores
+and k-medoids distance, so candidates can differ by metric behavior rather
+than only by notes and instrumentation. MIDI export writes the resulting time
+signature changes and semantic song-section markers to the conductor track.
+
 ## Evaluation And Clustering
 
 The feature vector measures form variety, section contrast, root variety and
 motion, tension smoothness, harmony repetition, melodic density, rest space,
-syncopation, drum density, instrument coverage, and part turnover. These feed
+syncopation, drum density, meter variety, meter displacement, metric
+resolution, instrument coverage, and part turnover. These feed
 separate heuristic scores for structure, harmony, melody, rhythm, repetition,
 ratio color, and instrument fit.
 
@@ -100,6 +128,7 @@ bars from the first Chorus, Drop, or Final section of the representative.
   Vital audio spectra.
 - Learned weights are local to one browser profile and are not synchronized.
 - The explorer exports type-1 pitch-bend MIDI and Project JSON. WAV, stems,
-  and transfer back into each dedicated composer remain follow-up work.
+  and transfer back into the three dedicated melodic composers remain
+  follow-up work.
 - The existing dedicated composers retain their current fixed-generation APIs.
   The explorer is the shared broad-search surface.

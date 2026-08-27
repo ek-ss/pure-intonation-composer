@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>MIDI Creator Toolkit | Pure Intonation Workbench</title>
+    <link rel="stylesheet" href="/static/style.css?v=20260808-midi-toolkit-1">
+    <link rel="stylesheet" href="/static/midi_toolkit.css?v=20260811-midi-prime-white-keys-1">
+  </head>
+  <body class="midi-toolkit-page">
+    <header class="topbar">
+      <div><p class="eyebrow">PERFORMANCE CAPTURE · MOTIF WORKFLOW</p><h1>MIDI Creator Toolkit</h1><p class="page-subtitle">Keyboard performance, exact-ratio mapping, motif handoff, and MPE export</p></div>
+      <span class="topbar-links"><a href="/">Workbench</a><a href="/lattice">Lattice Lab</a><a href="/harmonic-pitch-circle">Harmonic Pitch Circle</a><a href="/prime-limit-explorer">Prime Explorer</a><a href="/minimal-functional-composer">Minimal Composer</a><a href="/motif-development">Motif Development</a><a href="/vital-pack-composer">Vital Pack</a><a href="/fractional-pop-composer">Fractional Pop</a><a href="/jpop-composer">J-Pop</a><a href="/kawaii-future-pop">Kawaii Future Pop</a><a href="/composition-explorer">Explorer</a><a href="/compose/bohlen-pierce">Bohlen-Pierce</a><a href="/compose/mixed-meter-drums">Mixed Meter</a><a href="/docs" target="_blank" rel="noreferrer">API docs &#8599;</a></span>
+    </header>
+    <main class="midi-toolkit-main">
+      <section class="panel midi-capture-panel">
+        <div class="section-heading"><h2>Input &amp; Capture</h2><span id="midi-toolkit-status" role="status">Ready</span></div>
+        <button id="midi-toolkit-connect" class="primary">Connect MIDI</button>
+        <div class="midi-field-grid">
+          <label>Input<select id="midi-toolkit-input"><option value="">No device</option></select></label>
+          <label>Channel<select id="midi-toolkit-channel"><option value="0">All</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option><option value="16">16</option></select></label>
+          <label>Tempo<input id="midi-toolkit-tempo" type="number" min="30" max="300" value="120"></label>
+          <label>Count-in<select id="midi-toolkit-count-in"><option value="0">Off</option><option value="1" selected>1 bar</option><option value="2">2 bars</option></select></label>
+        </div>
+        <div class="midi-switches"><label><input id="midi-toolkit-thru" type="checkbox" checked>Audio thru</label><label><input id="midi-toolkit-overdub" type="checkbox">Overdub</label></div>
+        <label>Monitor tuning<select id="midi-toolkit-thru-tuning"><option value="scale" selected>Selected exact-ratio scale</option><option value="equal">12-tone equal temperament</option></select></label>
+        <div class="button-row"><button id="midi-toolkit-record">Record</button><button id="midi-toolkit-stop" class="quiet">Stop</button><button id="midi-toolkit-clear" class="quiet">Clear</button><button id="midi-toolkit-demo" class="quiet">Demo phrase</button></div>
+        <div class="midi-monitor"><span id="midi-toolkit-note">--</span><strong id="midi-toolkit-capture-count">0 notes</strong><small id="midi-toolkit-clock">0.00 beats</small></div>
+        <div id="midi-toolkit-keyboard" class="midi-screen-keyboard" aria-label="White-key scale keyboard"></div>
+        <div class="midi-key-hint"><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd><kbd>F</kbd><kbd>G</kbd><kbd>H</kbd><kbd>J</kbd><kbd>K</kbd><kbd>L</kbd><kbd>;</kbd></div>
+        <p class="hint midi-white-key-hint">White keys only: each key advances exactly one scale degree. Black keys are ignored.</p>
+      </section>
+
+      <section class="panel midi-roll-panel">
+        <div class="section-heading"><h2>Performance Roll</h2><span id="midi-toolkit-roll-summary">No performance</span></div>
+        <canvas id="midi-toolkit-roll" width="1100" height="420" aria-label="Captured and processed MIDI piano roll"></canvas>
+        <div class="midi-roll-legend"><span class="raw">Captured</span><span class="mapped">Exact-ratio motif</span><span class="accent">Accent</span></div>
+      </section>
+
+      <section class="panel midi-process-panel">
+        <div class="section-heading"><h2>Motif Processing</h2><span id="midi-toolkit-process-status">Unprocessed</span></div>
+        <div class="midi-scale-heading"><label>Scale library<select id="midi-toolkit-scale-library"><option value="">Loading scales...</option></select></label><button id="midi-toolkit-scale-refresh" class="quiet" type="button">Refresh</button></div>
+        <p id="midi-toolkit-scale-meta" class="hint">Loading scale assignments...</p>
+        <details class="midi-scale-generator"><summary>Generate prime-lattice scale</summary><div class="midi-field-grid"><label>Prime basis<input id="midi-toolkit-prime-basis" value="3, 5, 7" inputmode="numeric"></label><label>Exponent limit <output id="midi-toolkit-exponent-value">2</output><input id="midi-toolkit-exponent-limit" type="range" min="0" max="5" value="2"></label><label>Weighted height <output id="midi-toolkit-height-value">4</output><input id="midi-toolkit-height-limit" type="range" min="0" max="12" value="4"></label><label>Cluster tolerance <output id="midi-toolkit-tolerance-value">8 cents</output><input id="midi-toolkit-tolerance" type="range" min="1" max="50" value="8"></label><label>Target notes <output id="midi-toolkit-target-value">12</output><input id="midi-toolkit-target-count" type="range" min="3" max="24" value="12"></label></div><button id="midi-toolkit-scale-generate" type="button">Explore &amp; assign</button></details>
+        <label>Assigned fractional ratios<textarea id="midi-toolkit-scale" rows="3">1/1, 9/8, 6/5, 5/4, 4/3, 3/2, 13/8, 5/3, 7/4</textarea></label>
+        <div class="midi-field-grid">
+          <label>Root MIDI<input id="midi-toolkit-root" type="number" min="0" max="127" value="60"></label>
+          <label>Base Hz<input id="midi-toolkit-base" type="number" min="20" max="2000" step=".001" value="261.626"></label>
+          <label>Equave<input id="midi-toolkit-equave" value="2/1" readonly></label>
+          <label>Grid<select id="midi-toolkit-grid"><option value="1">Quarter</option><option value="2">Eighth</option><option value="3">Triplet</option><option value="4" selected>Sixteenth</option><option value="6">Sextuplet</option><option value="8">32nd</option><option value="12">12 per beat</option><option value="16">64th</option></select></label>
+          <label>Maximum voices<select id="midi-toolkit-polyphony"><option value="1">1 voice</option><option value="2">2 voices</option><option value="3" selected>3 voices</option><option value="4">4 voices</option></select></label>
+          <label>Minimum gate<input id="midi-toolkit-min-gate" type="number" min=".03" max="4" step=".03125" value=".125"></label>
+          <label>Anchor tones<select id="midi-toolkit-anchor-size"><option value="3">3</option><option value="4" selected>4</option></select></label>
+        </div>
+        <label>Quantize strength <output id="midi-toolkit-strength-value">85%</output><input id="midi-toolkit-strength" type="range" min="0" max="1" step=".05" value=".85"></label>
+        <label>Swing <output id="midi-toolkit-swing-value">0%</output><input id="midi-toolkit-swing" type="range" min="0" max=".5" step=".025" value="0"></label>
+        <label class="midi-inline-check"><input id="midi-toolkit-trim" type="checkbox" checked>Trim leading silence</label>
+        <button id="midi-toolkit-process" class="primary">Build exact-ratio motif</button>
+        <div class="midi-transform-row" role="toolbar" aria-label="Performance transformations"><button data-transpose="-12" title="Transpose down seven scale degrees">-7°</button><button data-transpose="-1" title="Transpose down one scale degree">-1°</button><button data-transpose="1" title="Transpose up one scale degree">+1°</button><button data-transpose="12" title="Transpose up seven scale degrees">+7°</button><button id="midi-toolkit-reverse">Reverse</button><button id="midi-toolkit-normalize">Normalize velocity</button></div>
+      </section>
+
+      <section class="panel midi-analysis-panel">
+        <div class="section-heading"><h2>Live Pitch Circle</h2><span id="midi-toolkit-circle-summary">No active notes</span></div>
+        <div id="midi-toolkit-circle-mode" class="midi-circle-segmented" role="group" aria-label="Pitch circle period"><button type="button" class="active" data-circle-equave="2" aria-pressed="true">Octave 2/1</button><button type="button" data-circle-equave="3" aria-pressed="false">Tritave 3/1</button></div>
+        <svg id="midi-toolkit-pitch-circle" viewBox="0 0 360 360" role="img" aria-label="Currently sounding notes on pitch circle"></svg>
+        <div id="midi-toolkit-circle-legend" class="midi-circle-legend" aria-label="Pitch circle legend"><span class="fundamental">Sounding tone</span><span class="third-harmonic">3rd harmonic · 3f</span></div>
+        <div class="midi-analysis-divider"></div>
+        <div class="section-heading"><h2>Composition Analysis</h2><span id="midi-toolkit-analysis-summary">Waiting</span></div>
+        <div id="midi-toolkit-analysis" class="midi-analysis-grid"></div>
+      </section>
+
+      <section class="panel midi-motif-panel">
+        <div class="section-heading"><h2>Motif Stack</h2><span id="midi-toolkit-motif-summary">No motif</span></div>
+        <div id="midi-toolkit-motif" class="midi-motif-grid"></div>
+      </section>
+
+      <section class="panel midi-output-panel">
+        <div class="section-heading"><h2>Playback, Export &amp; Handoff</h2><span id="midi-toolkit-output-status">Ready</span></div>
+        <div class="button-row"><button id="midi-toolkit-play" class="primary">Play motif</button><button id="midi-toolkit-play-raw" class="quiet">Play captured</button><button id="midi-toolkit-play-stop" class="quiet">Stop</button><button id="midi-toolkit-midi" class="quiet">MPE MIDI</button><button id="midi-toolkit-json" class="quiet">Project JSON</button><button id="midi-toolkit-import" class="quiet">Import JSON</button><input id="midi-toolkit-import-file" type="file" accept="application/json" hidden></div>
+        <div class="button-row"><button id="midi-toolkit-send-motif">Send to Motif Development</button><button id="midi-toolkit-send-vital">Send theme to Vital Pack</button></div>
+      </section>
+    </main>
+    <script src="/static/midi_toolkit.js?v=20260811-midi-prime-white-keys-1"></script>
+  </body>
+</html>

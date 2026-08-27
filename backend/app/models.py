@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from fractions import Fraction
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import AliasChoices, BaseModel, Field, field_validator, model_validator
 
@@ -351,6 +351,93 @@ class MidiRequest(BaseModel):
     pitch_bend_range_semitones: int = Field(default=2, ge=1, le=48)
 
 
+class MidiToolkitNoteRequest(BaseModel):
+    midi_note: int = Field(ge=0, le=127)
+    start_beats: float = Field(ge=0, le=256)
+    duration_beats: float = Field(gt=0, le=64)
+    velocity: int = Field(default=96, ge=1, le=127)
+    channel: int = Field(default=1, ge=1, le=16)
+
+
+class MidiToolkitProcessRequest(BaseModel):
+    notes: list[MidiToolkitNoteRequest] = Field(min_length=1, max_length=4096)
+    tempo_bpm: float = Field(default=120, ge=30, le=300)
+    root_midi: int = Field(default=60, ge=0, le=127)
+    keyboard_mapping: Literal["white_keys_scale"] = "white_keys_scale"
+    scale_id: str = Field(default="custom", min_length=1, max_length=80)
+    scale_name: str = Field(default="Custom scale", min_length=1, max_length=120)
+    equave_ratio: str = Field(default="2/1", pattern=r"^\d+/\d+$")
+    scale_ratios: list[str] = Field(
+        default_factory=lambda: [
+            "1/1",
+            "9/8",
+            "6/5",
+            "5/4",
+            "4/3",
+            "3/2",
+            "5/3",
+            "7/4",
+            "15/8",
+        ],
+        min_length=3,
+        max_length=32,
+    )
+    quantize_division: Literal[1, 2, 3, 4, 6, 8, 12, 16] = 4
+    quantize_strength: float = Field(default=0.85, ge=0, le=1)
+    swing: float = Field(default=0, ge=0, le=0.5)
+    maximum_polyphony: int = Field(default=3, ge=1, le=4)
+    minimum_duration_beats: float = Field(default=0.125, gt=0, le=4)
+    trim_start: bool = True
+    anchor_size: int = Field(default=4, ge=3, le=4)
+
+    @model_validator(mode="after")
+    def toolkit_scale_must_be_valid(self) -> MidiToolkitProcessRequest:
+        try:
+            equave = Fraction(self.equave_ratio)
+        except (ValueError, ZeroDivisionError) as error:
+            raise ValueError("equave ratio must be a positive fraction") from error
+        if equave <= 1:
+            raise ValueError("equave ratio must be greater than 1/1")
+        white_keys = {0, 2, 4, 5, 7, 9, 11}
+        if self.keyboard_mapping == "white_keys_scale":
+            if self.root_midi % 12 not in white_keys:
+                raise ValueError("root_midi must be a white key for white_keys_scale mapping")
+            if any(note.midi_note % 12 not in white_keys for note in self.notes):
+                raise ValueError("white_keys_scale mapping accepts white MIDI keys only")
+        normalized: list[Fraction] = []
+        odd_primes: set[int] = set()
+        for value in self.scale_ratios:
+            try:
+                ratio = Fraction(value)
+            except (ValueError, ZeroDivisionError) as error:
+                raise ValueError(f"invalid scale ratio: {value}") from error
+            if ratio <= 0:
+                raise ValueError("scale ratios must be positive")
+            while ratio < 1:
+                ratio *= equave
+            while ratio >= equave:
+                ratio /= equave
+            normalized.append(ratio)
+            for part in (ratio.numerator, ratio.denominator):
+                remainder = part
+                divisor = 2
+                while divisor * divisor <= remainder:
+                    while remainder % divisor == 0:
+                        if divisor != 2:
+                            odd_primes.add(divisor)
+                        remainder //= divisor
+                    divisor += 1
+                if remainder > 1 and remainder != 2:
+                    odd_primes.add(remainder)
+        if len(set(normalized)) != len(normalized):
+            raise ValueError("scale ratios must be unique after equave reduction")
+        if Fraction(1) not in normalized:
+            raise ValueError("scale ratios must contain 1/1")
+        if len(odd_primes) > 5:
+            raise ValueError("scale ratios may use at most five odd prime factors")
+        return self
+
+
 class DrumLayerRequest(BaseModel):
     name: str = Field(min_length=1, max_length=32)
     steps: int = Field(ge=1, le=64)
@@ -671,6 +758,38 @@ class CompositionStyleMixRequest(BaseModel):
     kawaii_fractional_future_pop: float = Field(default=0.33, ge=0, le=1)
 
 
+class CompositionMixedMeterRequest(BaseModel):
+    enabled: bool = False
+    source: Literal["generate", "import"] = "generate"
+    integration_mode: Literal["replace_drums", "layer_drums"] = "replace_drums"
+    pattern_id: str = Field(default="MM_3575", min_length=1, max_length=64)
+    form: Literal["direct_resolution", "two_stage_resolution"] = "two_stage_resolution"
+    density_profile: Literal[
+        "manual", "build_up", "skeletal_tension", "chorus_impact"
+    ] = "chorus_impact"
+    tension_repeats: int = Field(default=2, ge=1, le=8)
+    stable_repeats: int = Field(default=1, ge=1, le=8)
+    resolved_repeats: int = Field(default=1, ge=1, le=8)
+    subdivision: Literal[1, 2, 4] = 2
+    variation: float = Field(default=0.25, ge=0, le=1)
+    syncopation: float = Field(default=0.2, ge=0, le=1)
+    humanize: float = Field(default=0.1, ge=0, le=1)
+    project: dict[str, Any] | None = None
+
+    @model_validator(mode="after")
+    def imported_project_must_be_mixed_meter(
+        self,
+    ) -> CompositionMixedMeterRequest:
+        if self.enabled and self.source == "import":
+            if not self.project or self.project.get("feature") != "mixed-meter-drums":
+                raise ValueError("import source requires a mixed-meter-drums project")
+            if not isinstance(self.project.get("events"), list) or not isinstance(
+                self.project.get("bars"), list
+            ):
+                raise ValueError("mixed-meter project requires events and bars")
+        return self
+
+
 class CompositionExploreRequest(BaseModel):
     style: Literal[
         "fractional_pop",
@@ -706,6 +825,9 @@ class CompositionExploreRequest(BaseModel):
     harmony_temperature: float = Field(default=0.65, ge=0, le=1.5)
     part_temperature: float = Field(default=0.5, ge=0, le=1.5)
     rhythm_temperature: float = Field(default=0.6, ge=0, le=1.5)
+    mixed_meter: CompositionMixedMeterRequest = Field(
+        default_factory=CompositionMixedMeterRequest
+    )
     locked_components: list[
         Literal["form", "harmony", "melody", "rhythm", "arrangement", "performance"]
     ] = Field(default_factory=list, max_length=6)
@@ -775,6 +897,22 @@ class VitalPackMidiRequest(BaseModel):
     events: list[VitalPackMidiEventRequest] = Field(min_length=1, max_length=16_384)
     tempo_bpm: float = Field(default=150, ge=30, le=300)
     base_frequency: float = Field(default=220, ge=20, le=2000)
+    time_signatures: list[tuple[float, int, int]] = Field(
+        default_factory=list, max_length=2048
+    )
+    section_markers: list[tuple[float, str]] = Field(
+        default_factory=list, max_length=256
+    )
+
+    @field_validator("time_signatures")
+    @classmethod
+    def time_signatures_must_be_supported(
+        cls, values: list[tuple[float, int, int]]
+    ) -> list[tuple[float, int, int]]:
+        for beat, numerator, denominator in values:
+            if beat < 0 or not 2 <= numerator <= 13 or denominator not in {2, 4, 8, 16}:
+                raise ValueError("time signatures must use valid beat, numerator, and denominator values")
+        return values
 
 
 def _validated_motif_prime_basis(values: list[int]) -> list[int]:

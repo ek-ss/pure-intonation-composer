@@ -1221,6 +1221,12 @@ k-medoids. Each cluster exposes a representative selected from both quality
 and centrality. Browser audition, JSON export, component locks, and local
 Like/Dislike weight adaptation are implemented at `/composition-explorer`.
 
+Mixed Meter Drums can be generated from each candidate's hierarchical Rhythm
+seed or imported as an exact project. Native drums may be replaced or layered;
+meter variety, phase displacement, and resolution join the evaluation and
+clustering vectors. Explorer JSON preserves the source and tiled timeline,
+while MIDI carries its variable time signatures.
+
 See [composition_explorer.md](composition_explorer.md) for the data flow,
 controls, evaluation features, and current boundaries.
 
@@ -1382,4 +1388,30 @@ G20 adds a meter-cycle library and custom grouping validation, deterministic
 Stable→Tension→Pre-resolution→Resolved form generation, phase tracking,
 section- and tension-sensitive per-track density, timeline playback, and
 JSON/type-1 MIDI/WAV output. It also defines and implements a shared Compose
-timeline transfer boundary. See [mixed_meter_drums.md](mixed_meter_drums.md).
+timeline transfer boundary and full-project Composition Explorer transfer.
+Explorer integration maps drum roles into selected PI presets, tiles the
+metric cycle over the song, and supports replacement or layering. See
+[mixed_meter_drums.md](mixed_meter_drums.md).
+
+## G21. MIDI Creator Toolkit
+
+**Status:** Experimental implementation complete.
+
+G21 provides a browser Web MIDI performance entrance shared by the composition
+tools. It captures note, velocity, channel, and sustain-aware duration; adds
+count-in, audio thru, on-screen/PC keyboard fallback, overdub, quantization,
+swing, transposition, reversal, and velocity normalization; maps the result to
+a user-supplied fractional-ratio scale; and extracts stack-aware motif and
+composition diagnostics. Its scale-assignment layer unifies existing
+Fractional Pop/J-Pop/Kawaii/series/Bohlen-Pierce palettes, stored Workbench
+scales, and in-place Prime-Limit Explorer scale generation. Exact-ratio Audio thru uses
+the assigned `2/1` or `3/1` equave while preserving a 12-TET comparison mode.
+Held and sustain-held voices are visualized on a live Pitch Circle whose
+display period can independently switch between octave and tritave wrapping.
+Every sounding-frequency marker is paired with a separately colored `3f`
+third-harmonic guide; concentric rings preserve both points when tritave
+wrapping maps them to the same angle.
+The full performance exports as Project JSON and
+MPE MIDI. A bounded 32-step motif transfers to Motif Development, while a
+theme node can transfer directly to Vital Pack. See
+[midi_creator_toolkit.md](midi_creator_toolkit.md).

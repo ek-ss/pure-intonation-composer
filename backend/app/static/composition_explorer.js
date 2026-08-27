@@ -1,5 +1,5 @@
 const ex = id => document.getElementById(id);
-const state = { profiles: [], defaults: {}, result: null, selected: null, context: null, nodes: [] };
+const state = { profiles: [], defaults: {}, result: null, selected: null, mixedProject: null, context: null, nodes: [] };
 const SECTION_COLORS = { intro: "#59728f", verse: "#98e7ca", a: "#98e7ca", a_variation: "#69c9aa", pre: "#e3a8ff", b: "#e3a8ff", chorus: "#ffd47e", drop: "#ff9daf", final: "#ffbd70", bridge: "#86b9ff", instrumental: "#86b9ff", minimal: "#9ea8b8", break: "#b1a3ce", outro: "#6d7a8f" };
 const SCORE_LABELS = { structural_coherence: "Structural coherence", section_contrast: "Section contrast", harmonic_interest: "Harmonic interest", tension_smoothness: "Tension smoothness", melodic_identity: "Melodic identity", rhythmic_identity: "Rhythmic identity", repetition_balance: "Repetition balance", ratio_color_usage: "Ratio color usage", instrumentation_fit: "Instrumentation fit", overall: "Overall" };
 const MIX_CONTROLS = { fractional_pop: "pop", fractional_jpop: "jpop", kawaii_fractional_future_pop: "kawaii" };
@@ -28,6 +28,26 @@ function instrumentPriority(id) {
   const affinity = Object.entries(mix).reduce((sum, [style, weight]) => sum + (state.defaults[style]?.includes(id) ? weight : 0), 0);
   return Math.min(1, .35 + affinity * .65);
 }
+function mixedMeterRequest() {
+  const enabled = ex("explorer-mixed-enabled").checked;
+  if (enabled && ex("explorer-mixed-source").value === "import" && !state.mixedProject) throw new Error("Import or transfer a Mixed Meter project first.");
+  return {
+    enabled,
+    source: ex("explorer-mixed-source").value,
+    integration_mode: ex("explorer-mixed-integration").value,
+    pattern_id: ex("explorer-mixed-pattern").value,
+    form: ex("explorer-mixed-form").value,
+    density_profile: ex("explorer-mixed-profile").value,
+    stable_repeats: Number(ex("explorer-mixed-stable-repeats").value),
+    tension_repeats: Number(ex("explorer-mixed-tension-repeats").value),
+    resolved_repeats: Number(ex("explorer-mixed-resolved-repeats").value),
+    subdivision: Number(ex("explorer-mixed-subdivision").value),
+    variation: Number(ex("explorer-mixed-variation").value),
+    syncopation: Number(ex("explorer-mixed-syncopation").value),
+    humanize: Number(ex("explorer-mixed-humanize").value),
+    project: enabled && ex("explorer-mixed-source").value === "import" ? state.mixedProject : null,
+  };
+}
 function request() {
   const ids = selectedIds();
   if (!ids.length) throw new Error("Select at least one Vital preset.");
@@ -47,6 +67,7 @@ function request() {
     harmony_temperature: Number(ex("explorer-harmony").value),
     part_temperature: Number(ex("explorer-parts").value),
     rhythm_temperature: Number(ex("explorer-rhythm").value),
+    mixed_meter: mixedMeterRequest(),
     locked_components: [...document.querySelectorAll(".explorer-locks input:checked")].map(node => node.value),
     evaluation_weights: feedback().weights || {},
   };
@@ -109,7 +130,8 @@ function renderResults() {
   const representatives = new Map(state.result.representatives.map(item => [item.id, item]));
   ex("explorer-cluster-grid").innerHTML = state.result.clusters.map(cluster => {
     const song = representatives.get(cluster.representative_id);
-    return `<button class="explorer-cluster-card${state.selected?.id === song.id ? " active" : ""}" data-song="${song.id}"><header><strong>${cluster.label}</strong><span>${cluster.size} candidates</span></header>${miniForm(song.sections)}<span>${song.sections.map(section => section.role).join(" · ")}</span><span class="explorer-cluster-score">Score ${Number(song.scores.overall).toFixed(3)}</span><small>${song.id}</small></button>`;
+    const meter = song.mixed_meter ? `<span>${song.mixed_meter.timeline.bars.length} metric bars · ${song.mixed_meter.event_count} mixed hits</span>` : "";
+    return `<button class="explorer-cluster-card${state.selected?.id === song.id ? " active" : ""}" data-song="${song.id}"><header><strong>${cluster.label}</strong><span>${cluster.size} candidates</span></header>${miniForm(song.sections)}<span>${song.sections.map(section => section.role).join(" · ")}</span>${meter}<span class="explorer-cluster-score">Score ${Number(song.scores.overall).toFixed(3)}</span><small>${song.id}</small></button>`;
   }).join("");
   document.querySelectorAll(".explorer-cluster-card").forEach(node => { node.onclick = () => { state.selected = representatives.get(node.dataset.song); renderResults(); }; });
   ex("explorer-result-summary").textContent = `${state.result.candidate_count} candidates · ${state.result.cluster_count} distinct families`;
@@ -118,7 +140,7 @@ function renderResults() {
 function renderSelected() {
   const song = state.selected;
   if (!song) return;
-  ex("explorer-selection-summary").textContent = `${song.metadata.style_name} · ${song.metadata.length_bars} bars · ${song.id}`;
+  ex("explorer-selection-summary").textContent = `${song.metadata.style_name} · ${song.metadata.length_bars} bars${song.mixed_meter ? " · Mixed Meter" : ""} · ${song.id}`;
   renderForm(song);
   const entries = Object.entries(song.scores);
   ex("explorer-scores").innerHTML = entries.map(([key, value], index) => `<div class="explorer-score-row"><span>${SCORE_LABELS[key] || key}</span><div class="explorer-score-track" style="--score-color:${index % 3 === 0 ? "#98e7ca" : index % 3 === 1 ? "#ffd47e" : "#e3a8ff"}"><i style="width:${Number(value) * 100}%"></i></div><output>${Number(value).toFixed(3)}</output></div>`).join("");
@@ -137,10 +159,20 @@ function renderForm(song) {
     const energyY = top + bandHeight - Number(section.energy) * 78;
     context.fillStyle = "#fff4cf"; context.beginPath(); context.arc(x + w / 2, energyY, 3, 0, Math.PI * 2); context.fill();
   });
+  if (song.mixed_meter) {
+    const totalBeats = total * 4;
+    song.mixed_meter.timeline.bars.forEach(bar => {
+      const x = Number(bar.start_beat) / totalBeats * width;
+      context.strokeStyle = Number(bar.phase) === 0 ? "#dfffea" : Number(bar.phase) === 2 ? "#ff9daf" : "#ffd47e";
+      context.lineWidth = Number(bar.phase) === 0 ? 2 : 1;
+      context.beginPath(); context.moveTo(x, top + bandHeight + 4); context.lineTo(x, 164); context.stroke();
+      if (width / Math.max(1, song.mixed_meter.timeline.bars.length) > 20) { context.fillStyle = "#aeb9d0"; context.font = "8px system-ui"; context.fillText(`${bar.meter}/${bar.denominator}`, x + 2, 157); }
+    });
+  }
   context.fillStyle = "#aeb9d0"; context.font = "11px system-ui"; context.fillText("FORM + ENERGY", 6, 16);
   context.strokeStyle = "#30394d"; context.beginPath(); context.moveTo(0, 166); context.lineTo(width, 166); context.stroke();
   const instruments = [...new Set(song.events.map(event => event.instrument_id))];
-  context.fillStyle = "#aeb9d0"; context.fillText(`${instruments.length} active presets · ${song.events.length} score events`, 6, 190);
+  context.fillStyle = "#aeb9d0"; context.fillText(`${instruments.length} active presets · ${song.events.length} score events${song.mixed_meter ? ` · ${song.mixed_meter.source_duration_beats} beat metric cycle × ${song.mixed_meter.loop_count}` : ""}`, 6, 190);
   context.fillStyle = "#edf1fb"; context.fillText(instruments.join("  "), 6, 208);
 }
 function fraction(value) { const [a, b] = value.split("/").map(Number); return a / b; }
@@ -184,7 +216,9 @@ async function midi() {
   try {
     const song = state.selected;
     status(`Exporting ${song.id} MIDI...`, "loading");
-    const response = await fetch("/api/compose/vital-pack/midi", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ events: song.events, tempo_bpm: song.metadata.tempo_bpm, base_frequency: song.metadata.base_frequency }) });
+    const timeSignatures = song.mixed_meter ? song.mixed_meter.timeline.bars.map(bar => [bar.start_beat, bar.meter, bar.denominator]) : [];
+    const sectionMarkers = song.sections.map(section => [section.start_bar * 4, section.name]);
+    const response = await fetch("/api/compose/vital-pack/midi", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ events: song.events, tempo_bpm: song.metadata.tempo_bpm, base_frequency: song.metadata.base_frequency, time_signatures: timeSignatures, section_markers: sectionMarkers }) });
     if (!response.ok) { const data = await response.json(); throw new Error(typeof data.detail === "string" ? data.detail : "MIDI export failed."); }
     const link = document.createElement("a"); link.href = URL.createObjectURL(await response.blob()); link.download = `${song.id}.mid`; document.body.append(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(link.href), 1500); status(`${song.id} MPE MIDI exported`);
   } catch (error) { status(error.message, "error"); }
@@ -192,12 +226,29 @@ async function midi() {
 async function init() {
   try {
     const response = await fetch("/api/composition-explorer/profiles"), data = await response.json(); if (!response.ok) throw new Error("Could not load Vital profiles.");
-    state.profiles = data.instruments; state.defaults = data.style_defaults; renderProfiles(); status("Ready");
+    state.profiles = data.instruments; state.defaults = data.style_defaults; renderProfiles(); importTransferredMixedMeter(); status(state.mixedProject ? "Mixed Meter project received" : "Ready");
   } catch (error) { status(error.message, "error"); }
+}
+function setMixedProject(project, message = "Mixed Meter project imported") {
+  if (!project || project.feature !== "mixed-meter-drums" || !Array.isArray(project.events) || !Array.isArray(project.bars)) throw new Error("Select a Mixed Meter Drum project JSON file.");
+  state.mixedProject = project;
+  ex("explorer-mixed-enabled").checked = true; ex("explorer-mixed-source").value = "import"; ex("explorer-mixed-controls").hidden = false;
+  ex("explorer-mixed-generator-fields").hidden = true;
+  if (project.settings?.tempo_bpm) ex("explorer-tempo").value = project.settings.tempo_bpm;
+  ex("explorer-mixed-status").textContent = `${message}: ${project.bars.length} bars · ${project.events.length} hits · ${project.total_beats} beats`;
+}
+function importTransferredMixedMeter() {
+  const saved = sessionStorage.getItem("mixed-meter-composition-explorer-project"); if (!saved) return;
+  try { setMixedProject(JSON.parse(saved), "Transferred from Mixed Meter"); } catch (error) { status(error.message, "error"); }
+  sessionStorage.removeItem("mixed-meter-composition-explorer-project");
 }
 ["form", "harmony", "parts", "rhythm"].forEach(name => { ex(`explorer-${name}`).oninput = () => { ex(`explorer-${name}-value`).textContent = Number(ex(`explorer-${name}`).value).toFixed(2); }; });
 Object.values(MIX_CONTROLS).forEach(suffix => { const input = ex(`explorer-mix-${suffix}`); input.oninput = renderStyleMixValues; input.onchange = () => { if (ex("explorer-style").value === "mixed") applyStylePalette(); }; });
 ex("explorer-style").onchange = () => updateStyleMix(true); ex("explorer-style-palette").onclick = applyStylePalette;
+ex("explorer-mixed-enabled").onchange = () => { ex("explorer-mixed-controls").hidden = !ex("explorer-mixed-enabled").checked; };
+ex("explorer-mixed-source").onchange = () => { const imported = ex("explorer-mixed-source").value === "import"; ex("explorer-mixed-generator-fields").hidden = imported; ex("explorer-mixed-status").textContent = imported ? state.mixedProject ? `${state.mixedProject.events.length} imported hits ready` : "Import or transfer a Mixed Meter project first." : "Generator settings will vary with each candidate rhythm seed."; };
+ex("explorer-mixed-import").onclick = () => ex("explorer-mixed-file").click();
+ex("explorer-mixed-file").onchange = async event => { try { setMixedProject(JSON.parse(await event.target.files[0].text())); status("Mixed Meter project ready"); } catch (error) { status(error.message, "error"); } event.target.value = ""; };
 ex("explorer-select-all").onclick = () => { document.querySelectorAll(".explorer-instrument input").forEach(node => { node.checked = true; }); renderCapabilities(); };
 ex("explorer-clear").onclick = () => { document.querySelectorAll(".explorer-instrument input").forEach(node => { node.checked = false; }); renderCapabilities(); };
 ex("explorer-generate").onclick = () => void generate(); ex("explorer-random").onclick = () => { ex("explorer-seed").value = String(Math.floor(Math.random() * 1_000_000_000)); void generate(); };

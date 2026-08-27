@@ -62,6 +62,7 @@ from app.models import (
     PrimeProgressionRequest,
     LatticeWalkRequest,
     MidiRequest,
+    MidiToolkitProcessRequest,
     RatioRequest,
     ScalaRequest,
     SeriesRequest,
@@ -108,6 +109,7 @@ from app.composition.vital_pack import (
 from app.motif.engine import compare as compare_motif
 from app.motif.engine import develop as develop_motif
 from app.motif.engine import generate as generate_motif
+from app.midi_toolkit import midi_scale_catalog, process_performance
 from app.motif.engine import vary as vary_motif
 from app.exporters.midi import (
     MidiArrangementTrack,
@@ -212,6 +214,11 @@ def minimal_functional_composer() -> FileResponse:
 @app.get("/motif-development", include_in_schema=False)
 def motif_development() -> FileResponse:
     return FileResponse(STATIC_DIR / "motif_development.html")
+
+
+@app.get("/midi-toolkit", include_in_schema=False)
+def midi_toolkit() -> FileResponse:
+    return FileResponse(STATIC_DIR / "midi_toolkit.html")
 
 
 @app.get("/favicon.ico", include_in_schema=False, status_code=204)
@@ -864,6 +871,25 @@ def export_midi(request: MidiRequest) -> Response:
         raise HTTPException(status_code=422, detail=str(error)) from error
 
 
+@app.post("/api/midi-toolkit/process")
+def process_midi_toolkit_performance(
+    request: MidiToolkitProcessRequest,
+) -> dict[str, object]:
+    """Quantize a keyboard performance and map it to an exact-ratio motif."""
+    try:
+        return process_performance(request.model_dump())
+    except (ValueError, ZeroDivisionError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+
+@app.get("/api/midi-toolkit/scales")
+def midi_toolkit_scales() -> dict[str, object]:
+    """List built-in scale assignments and available scale generators."""
+    catalog = midi_scale_catalog()
+    catalog["stored"] = list_scales()
+    return catalog
+
+
 @app.post("/api/export/rhythm/midi")
 def export_rhythm_midi(request: RhythmMidiRequest) -> Response:
     """Export binary rhythm patterns as GM percussion MIDI (channel 10)."""
@@ -1347,7 +1373,17 @@ def vital_pack_midi(request: VitalPackMidiRequest) -> Response:
                 )
             )
         data = arrangement_midi_bytes(
-            tracks, request.tempo_bpm, 4, base_frequency=request.base_frequency
+            tracks,
+            request.tempo_bpm,
+            4,
+            base_frequency=request.base_frequency,
+            markers=[
+                (round(beat * 480), name) for beat, name in request.section_markers
+            ],
+            time_signatures=[
+                (round(beat * 480), numerator, denominator)
+                for beat, numerator, denominator in request.time_signatures
+            ],
         )
         return Response(
             data,

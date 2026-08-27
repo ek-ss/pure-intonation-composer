@@ -61,6 +61,7 @@ def test_primary_pages_link_to_every_other_workbench() -> None:
         "/composition-explorer": "/composition-explorer",
         "/compose/bohlen-pierce": "/compose/bohlen-pierce",
         "/compose/mixed-meter-drums": "/compose/mixed-meter-drums",
+        "/midi-toolkit": "/midi-toolkit",
     }
     for page, current in pages.items():
         response = client.get(page)
@@ -82,12 +83,13 @@ def test_experimental_composition_workbench_pages() -> None:
 
     mixed_page = client.get("/compose/mixed-meter-drums")
     assert mixed_page.status_code == 200
-    for control in ("mm-pattern-grid", "mm-custom-meters", "mm-track-list", "mm-timeline-canvas", "mm-midi", "mm-wav", "mm-transfer"):
+    for control in ("mm-pattern-grid", "mm-custom-meters", "mm-track-list", "mm-timeline-canvas", "mm-midi", "mm-wav", "mm-transfer", "mm-transfer-explorer"):
         assert f'id="{control}"' in mixed_page.text
     mixed_script = client.get("/static/mixed_meter_drums.js")
     assert mixed_script.status_code == 200
     assert "/api/rhythm/mixed-meter/generate" in mixed_script.text
     assert "mixed-meter-compose-timeline" in mixed_script.text
+    assert "mixed-meter-composition-explorer-project" in mixed_script.text
     assert "mixed-meter-compose-timeline" in client.get("/static/app.js").text
 
 
@@ -110,6 +112,11 @@ def test_composition_explorer_page_and_profiles() -> None:
         "explorer-like",
         "explorer-dislike",
         "explorer-midi",
+        "explorer-mixed-enabled",
+        "explorer-mixed-source",
+        "explorer-mixed-integration",
+        "explorer-mixed-pattern",
+        "explorer-mixed-import",
     ):
         assert f'id="{control}"' in page.text
     script = client.get("/static/composition_explorer.js")
@@ -117,6 +124,9 @@ def test_composition_explorer_page_and_profiles() -> None:
     assert "/api/composition-explorer/explore" in script.text
     assert "/api/compose/vital-pack/midi" in script.text
     assert "style_mix" in script.text
+    assert "mixed_meter" in script.text
+    assert "mixed-meter-composition-explorer-project" in script.text
+    assert "time_signatures" in script.text
     assert "pure-intonation.composition-explorer-feedback" in script.text
     profiles = client.get("/api/composition-explorer/profiles")
     assert profiles.status_code == 200
@@ -129,6 +139,45 @@ def test_composition_explorer_page_and_profiles() -> None:
     assert piano["roles"][:2] == ["keys", "harmony"]
     assert piano["preset_file"] == "PI 22 Fractional Piano.vital"
     assert "PI22" in payload["style_defaults"]["fractional_pop"]
+
+
+def test_midi_creator_toolkit_page_contract() -> None:
+    page = client.get("/midi-toolkit")
+    assert page.status_code == 200
+    assert "MIDI Creator Toolkit" in page.text
+    for control in (
+        "midi-toolkit-connect",
+        "midi-toolkit-input",
+        "midi-toolkit-record",
+        "midi-toolkit-keyboard",
+        "midi-toolkit-roll",
+        "midi-toolkit-process",
+        "midi-toolkit-scale-library",
+        "midi-toolkit-scale-generate",
+        "midi-toolkit-prime-basis",
+        "midi-toolkit-exponent-limit",
+        "midi-toolkit-thru-tuning",
+        "midi-toolkit-pitch-circle",
+        "midi-toolkit-circle-mode",
+        "midi-toolkit-circle-legend",
+        "midi-toolkit-midi",
+        "midi-toolkit-json",
+        "midi-toolkit-send-motif",
+        "midi-toolkit-send-vital",
+    ):
+        assert f'id="{control}"' in page.text
+    script = client.get("/static/midi_toolkit.js")
+    assert script.status_code == 200
+    assert "requestMIDIAccess" in script.text
+    assert "/api/midi-toolkit/process" in script.text
+    assert "/api/export/midi" in script.text
+    assert "/api/prime-limit/explore" in script.text
+    assert "white_keys_scale" in script.text
+    assert "midi-toolkit-motif-transfer" in script.text
+    assert 'THIRD_HARMONIC_COLOR = "#f49ad1"' in script.text
+    assert "circlePoint(note.ratio * 3" in script.text
+    motif_script = client.get("/static/motif_development.js")
+    assert "midi-toolkit-motif-transfer" in motif_script.text
 
 
 def test_composition_explorer_style_targets_are_12_tet_intervals() -> None:

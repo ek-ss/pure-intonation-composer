@@ -98,6 +98,7 @@ mm("mm-play").onclick = mmPlay; mm("mm-pause").onclick = mmPause; mm("mm-stop").
 mm("mm-midi").onclick = () => mmExport("/api/rhythm/mixed-meter/export/midi", "mixed-meter-drums.mid"); mm("mm-wav").onclick = () => mmExport("/api/rhythm/mixed-meter/preview", "mixed-meter-drums.wav"); mm("mm-json").onclick = mmExportJson;
 mm("mm-import").onclick = () => mm("mm-import-file").click(); mm("mm-import-file").onchange = async (event) => { try { mmImportProject(JSON.parse(await event.target.files[0].text())); } catch (error) { mmStatus(error.message, "error"); } event.target.value = ""; };
 mm("mm-transfer").onclick = () => { if (!mmState.project) return; sessionStorage.setItem("mixed-meter-compose-timeline", JSON.stringify(mmState.project.compose_timeline)); window.location.href = "/"; };
+mm("mm-transfer-explorer").onclick = () => { if (!mmState.project) return; sessionStorage.setItem("mixed-meter-composition-explorer-project", JSON.stringify(mmState.project)); window.location.href = "/composition-explorer"; };
 mm("mm-store-a").onclick = () => { if (mmState.project) mmState.comparison.A = structuredClone(mmState.project); mmShowComparison(); };
 mm("mm-store-b").onclick = () => { if (mmState.project) mmState.comparison.B = structuredClone(mmState.project); mmShowComparison(); };
 mm("mm-play-a").onclick = () => { if (!mmState.comparison.A) return; mmState.project = structuredClone(mmState.comparison.A); mmRenderProject(); mmPlay(); };

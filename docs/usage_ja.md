@@ -215,7 +215,38 @@ Pitch Circle・5×7格子・和音ランキング・緊張曲線付き進行・�
 `/compose/mixed-meter-drums`では、`3+5+7+5`などの拍子周期を選び、
 Stable→Tension→Pre-resolution→Resolvedのドラムフォームを生成します。
 各トラックの密度や緊張応答を調整でき、JSON、拍子情報付きMIDI、WAV、
-Compose共通タイムラインを出力できます。
+Compose共通タイムラインを出力できます。**Send to Composition Explorer**
+では生成物全体を転送し、Explorer側の通常ドラムとの置換または重ね合わせ、
+可変拍子を保持したProject JSON/MIDI出力ができます。
+
+## 2.13 MIDI Creator Toolkit
+
+`/midi-toolkit`を開き、Web MIDI入力・チャンネル・テンポを選んで録音します。
+機器がない場合は画面鍵盤、`A S D F G H J K L ;`キー、Demo phraseを使用
+できます。**Scale library**からFractional Pop/J-Pop、Kawaii、倍音列、
+Bohlen-Pierceなどを選ぶか、Workbenchで保存した音階をRefreshして読み込みます。
+**Generate prime-lattice scale**ではPrime-Limit Harmonic Explorerと同じ
+`Prime basis`、`Exponent limit`、`Weighted height`、`Cluster tolerance`、
+`Target notes`を指定して探索し、その結果を即時に割り当てできます。Root MIDI、
+Base Hz、量子化、Swing、最大同時発音数を指定して
+**Build exact-ratio motif**を実行すると、演奏全体のMPE MIDI/Project JSON、
+Motif Development用motif、Vital Pack用themeを生成できます。
+
+**Monitor tuning**の初期値では、外部MIDI入力の発音も選択音階の最寄りの
+分数比へスナップします。3/1周期のBohlen-Pierceは録音・再生・MIDI出力に
+対応しますが、2/1前提のMotif Development/Vital Packへの転送は無効になります。
+
+MIDI鍵盤は白鍵専用です。`Root MIDI`を白鍵に指定すると、以降の白鍵が音階の
+第1音、第2音、第3音…に一対一で対応します。音階の終端を越えると次の周期へ
+進み、黒鍵は発音・録音ともに無視されます。
+
+**Live Pitch Circle**には押鍵中およびサステイン中の音が同時表示されます。
+外周のシアン点が実際の発音周波数、内周のマゼンタ点が各音の3倍音`3f`です。
+対応する2点は破線で結ばれ、Velocityは実音点の大きさに反映されます。
+`Octave 2/1`では1オクターブ、`Tritave 3/1`では1トリターブを円の1周として
+同じ発音周波数を比較できます。この切替は表示周期だけを変え、発音音高は
+変更しません。Tritave表示では`3f`が元の音と同じ角度へ戻るため、内外リングで
+重ならずに表示されます。
 
 # 3. API概要
 
@@ -230,6 +261,7 @@ Compose共通タイムラインを出力できます。
 | 作曲 | `POST /api/compose/harmony`、`/api/compose/voice-leading`、`/api/compose/bass`、`/api/compose/melody`、`/api/compose/rhythm/apply`、`/api/compose/rhythm/generate` |
 | リズム | `POST /api/rhythm/euclidean`、`/api/rhythm/state-graph`、`/api/rhythm/phase-shift`、`/api/rhythm/humanize` |
 | Mixed Meter | `GET /api/rhythm/mixed-meter/patterns`、`POST /api/rhythm/mixed-meter/validate`、`/generate`、`/preview`、`/export/midi` |
+| MIDI Toolkit | `GET /api/midi-toolkit/scales`、`POST /api/midi-toolkit/process` |
 | Bohlen-Pierce | `POST /api/bp/scales/generate`、`/chords/search`、`/progressions/search`、`/compose/generate`、`/render/audio`、`/export/midi`、`/export/scala` |
 | Lattice Lab | `POST /api/exponent-lattice/scale`、`/api/exponent-lattice/harmony`、`/api/exponent-lattice/chord`、`/api/exponent-lattice/progression`、`/api/exponent-lattice/walk`、`/api/exponent-lattice/analyze` |
 | レンダリング | `POST /api/render/wav`、`POST /api/render/jobs`、`GET /api/render/jobs/{id}`、`GET /api/render/jobs/{id}/audio` |

@@ -15,6 +15,7 @@ from app.composition.instrument_profiles import (
     STYLE_DEFAULT_PALETTES,
     public_instrument_profiles,
 )
+from app.rhythm.mixed_meter import generate as generate_mixed_meter
 
 
 STYLE_NAMES = {
@@ -81,6 +82,9 @@ FEATURE_KEYS = (
     "drum_density",
     "instrument_coverage",
     "part_turnover",
+    "meter_variety",
+    "meter_displacement",
+    "metric_resolution",
 )
 
 DEFAULT_EVALUATION_WEIGHTS = {
@@ -609,9 +613,222 @@ def _events(
     return result
 
 
+_MIXED_ROLE_TARGETS = {
+    "kick": ("kick",),
+    "snare": ("snare",),
+    "closed_hat": ("hat",),
+    "open_hat": ("hat", "perc"),
+    "percussion": ("perc", "hat"),
+    "tom_fill": ("perc", "snare"),
+    "crash": ("perc", "kick"),
+}
+
+
+def _mixed_meter_source(
+    config: dict[str, Any], rhythm_seed: int
+) -> dict[str, Any] | None:
+    settings = dict(config.get("mixed_meter") or {})
+    if not settings.get("enabled"):
+        return None
+    if settings.get("source") == "import":
+        project = dict(settings.get("project") or {})
+    else:
+        project = generate_mixed_meter(
+            {
+                "pattern_id": settings.get("pattern_id", "MM_3575"),
+                "form": settings.get("form", "two_stage_resolution"),
+                "density_profile": settings.get(
+                    "density_profile", "chorus_impact"
+                ),
+                "tension_repeats": settings.get("tension_repeats", 2),
+                "stable_repeats": settings.get("stable_repeats", 1),
+                "resolved_repeats": settings.get("resolved_repeats", 1),
+                "tempo_bpm": config["tempo_bpm"],
+                "subdivision": settings.get("subdivision", 2),
+                "variation": settings.get("variation", 0.25),
+                "syncopation": settings.get("syncopation", 0.2),
+                "humanize": settings.get("humanize", 0.1),
+                "seed": rhythm_seed,
+            }
+        )
+    if project.get("feature") != "mixed-meter-drums":
+        raise ValueError("mixed-meter source must be a mixed-meter-drums project")
+    if not project.get("events") or not project.get("bars"):
+        raise ValueError("mixed-meter source must contain generated events and bars")
+    total = float(project.get("total_beats", 0))
+    if total <= 0:
+        raise ValueError("mixed-meter source duration must be positive")
+    if len(project["events"]) > 10_000 or len(project["bars"]) > 2_048:
+        raise ValueError("mixed-meter source is too large")
+    return project
+
+
+def _section_for_beat(
+    sections: list[dict[str, Any]], beat: float
+) -> dict[str, Any]:
+    return next(
+        (
+            section
+            for section in sections
+            if float(section["start_bar"]) * 4
+            <= beat
+            < (float(section["start_bar"]) + float(section["bars"])) * 4
+        ),
+        sections[-1],
+    )
+
+
+def _mixed_instrument(
+    source_role: str,
+    section_id: str,
+    assignments: list[dict[str, Any]],
+) -> str | None:
+    targets = _MIXED_ROLE_TARGETS.get(source_role, ("perc",))
+    for target in targets:
+        exact = next(
+            (
+                item
+                for item in assignments
+                if item["section_id"] == section_id and item["part_role"] == target
+            ),
+            None,
+        )
+        if exact:
+            return str(exact["instrument_id"])
+    for target in targets:
+        fallback = next(
+            (item for item in assignments if item["part_role"] == target), None
+        )
+        if fallback:
+            return str(fallback["instrument_id"])
+    return None
+
+
+def _integrate_mixed_meter(
+    config: dict[str, Any],
+    source: dict[str, Any],
+    sections: list[dict[str, Any]],
+    assignments: list[dict[str, Any]],
+    events: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    settings = dict(config.get("mixed_meter") or {})
+    source_settings = dict(source.get("settings") or {})
+    source_ppq = float(source_settings.get("ppq", 480))
+    if not 96 <= source_ppq <= 960:
+        raise ValueError("mixed-meter source PPQ must be between 96 and 960")
+    if settings.get("integration_mode") == "replace_drums":
+        events = [event for event in events if "note" not in event]
+    song_beats = int(config["length_bars"]) * 4.0
+    source_beats = float(source["total_beats"])
+    integrated: list[dict[str, Any]] = []
+    timeline_bars: list[dict[str, Any]] = []
+    timeline_sections: list[dict[str, Any]] = []
+    loop_index = 0
+    loop_start = 0.0
+    while loop_start < song_beats:
+        for source_section in source.get("sections", []):
+            start = loop_start + float(source_section["start_beat"])
+            if start >= song_beats:
+                continue
+            timeline_sections.append(
+                {
+                    "start_beat": round(start, 4),
+                    "end_beat": round(
+                        min(song_beats, loop_start + float(source_section["end_beat"])),
+                        4,
+                    ),
+                    "role": source_section["role"],
+                    "loop_index": loop_index,
+                }
+            )
+        for bar in source["bars"]:
+            start = loop_start + float(bar["start_beat"])
+            if start >= song_beats:
+                continue
+            timeline_bars.append(
+                {
+                    "start_beat": round(start, 4),
+                    "end_beat": round(
+                        min(song_beats, loop_start + float(bar["end_beat"])), 4
+                    ),
+                    "meter": int(bar["meter"]),
+                    "denominator": int(bar["denominator"]),
+                    "grouping": list(bar["grouping"]),
+                    "phase": int(bar["phase"]),
+                    "phase_after": int(bar["phase_after"]),
+                    "tension": float(bar["tension"]),
+                    "source_section_role": bar["section_role"],
+                    "loop_index": loop_index,
+                }
+            )
+        for event in source["events"]:
+            timing_offset_beats = (
+                float(event.get("timing_offset_ms", 0))
+                / 1000
+                * float(config["tempo_bpm"])
+                / 60
+            )
+            position = max(
+                loop_start,
+                min(
+                    loop_start + source_beats - 0.0001,
+                    loop_start
+                    + float(event["pulse_position"])
+                    + timing_offset_beats,
+                ),
+            )
+            if position >= song_beats:
+                continue
+            section = _section_for_beat(sections, position)
+            instrument_id = _mixed_instrument(
+                str(event["role"]), str(section["id"]), assignments
+            )
+            if instrument_id is None:
+                continue
+            integrated.append(
+                {
+                    "instrument_id": instrument_id,
+                    "start_beat": round(position, 4),
+                    "duration_beats": max(
+                        0.02,
+                        round(
+                            float(event.get("duration_ticks", 60))
+                            / source_ppq,
+                            4,
+                        ),
+                    ),
+                    "velocity": int(event["velocity"]),
+                    "note": int(event["midi_note"]),
+                    "part_role": _MIXED_ROLE_TARGETS.get(
+                        str(event["role"]), ("perc",)
+                    )[0],
+                    "section_role": section["role"],
+                    "mixed_meter_role": event["role"],
+                    "mixed_meter_section_role": event["section_id"],
+                    "timing_offset_ms": float(event.get("timing_offset_ms", 0)),
+                    "loop_index": loop_index,
+                }
+            )
+        loop_index += 1
+        loop_start = loop_index * source_beats
+    events.extend(integrated)
+    events.sort(key=lambda event: (float(event["start_beat"]), str(event["instrument_id"])))
+    return events, {
+        "enabled": True,
+        "source": settings.get("source", "generate"),
+        "integration_mode": settings.get("integration_mode", "replace_drums"),
+        "source_project": source,
+        "source_duration_beats": source_beats,
+        "loop_count": loop_index,
+        "timeline": {"bars": timeline_bars, "sections": timeline_sections},
+        "event_count": len(integrated),
+    }
+
+
 def _features(
     scale: tuple[Fraction, ...], sections: list[dict[str, Any]], harmony: list[dict[str, Any]],
     assignments: list[dict[str, Any]], events: list[dict[str, Any]], profiles: list[dict[str, Any]],
+    mixed_meter: dict[str, Any] | None = None,
 ) -> dict[str, float]:
     roots = [int(slot["root_degree"]) for slot in harmony]
     root_motion = [
@@ -632,6 +849,10 @@ def _features(
     melodic_bars = {int(float(event["start_beat"]) // 4) for event in melodic}
     syncopated = [event for event in events if abs(float(event["start_beat"]) % 1) > 0.01]
     pitch_classes = {_octave(Fraction(str(event["ratio"]))) for event in pitched}
+    meter_bars = list((mixed_meter or {}).get("timeline", {}).get("bars", []))
+    meters = {(int(bar["meter"]), int(bar["denominator"])) for bar in meter_bars}
+    displaced = [bar for bar in meter_bars if int(bar["phase"]) != 0]
+    resolved = [bar for bar in meter_bars if int(bar["phase_after"]) == 0]
     return {
         "form_variety": round(_clamp(len({section["role"] for section in sections}) / 8), 4),
         "section_contrast": round(_clamp(pstdev(energies) * 3 if len(energies) > 1 else 0), 4),
@@ -647,17 +868,20 @@ def _features(
         "part_turnover": round(fmean(turnover) if turnover else 0, 4),
         "ratio_color": round(len(pitch_classes) / len(scale), 4),
         "assignment_fit": round(fmean(float(item["assignment_score"]) for item in assignments) if assignments else 0, 4),
+        "meter_variety": round(_clamp((len(meters) - 1) / 5), 4),
+        "meter_displacement": round(len(displaced) / max(1, len(meter_bars)), 4),
+        "metric_resolution": round(len(resolved) / max(1, len(meter_bars)), 4),
     }
 
 
 def _scores(features: dict[str, float], custom_weights: dict[str, float]) -> dict[str, float]:
     scores = {
-        "structural_coherence": _clamp(0.45 + features["tension_smoothness"] * 0.35 + (1 - abs(features["harmony_repetition"] - 0.28)) * 0.2),
+        "structural_coherence": _clamp(0.40 + features["tension_smoothness"] * 0.30 + (1 - abs(features["harmony_repetition"] - 0.28)) * 0.2 + features["metric_resolution"] * 0.1),
         "section_contrast": features["section_contrast"],
         "harmonic_interest": _clamp(features["root_variety"] * 0.55 + features["root_motion"] * 0.45),
         "tension_smoothness": features["tension_smoothness"],
         "melodic_identity": _clamp(features["melody_density"] * 0.65 + features["rest_space"] * 0.35),
-        "rhythmic_identity": _clamp(features["syncopation"] * 0.55 + features["drum_density"] * 0.45),
+        "rhythmic_identity": _clamp(features["syncopation"] * 0.35 + features["drum_density"] * 0.25 + features["meter_variety"] * 0.2 + features["meter_displacement"] * 0.2),
         "repetition_balance": 1 - abs(features["harmony_repetition"] - 0.28),
         "ratio_color_usage": features["ratio_color"],
         "instrumentation_fit": _clamp(features["assignment_fit"] * 0.65 + features["instrument_coverage"] * 0.25 + features["part_turnover"] * 0.1),
@@ -729,7 +953,15 @@ def _candidate(config: dict[str, Any], index: int, profiles: list[dict[str, Any]
     harmony = _harmony(str(config["style"]), style_weights, scale, sections, float(config["harmony_temperature"]), harmony_random, maximum_voices)
     assignments = _assign_parts(sections, profiles, float(config["part_temperature"]), arrangement_random)
     events = _events(scale, sections, harmony, assignments, profiles, event_random, float(config["base_frequency"]), float(config["rhythm_temperature"]))
-    features = _features(scale, sections, harmony, assignments, events, profiles)
+    mixed_meter_source = _mixed_meter_source(config, component_seeds["rhythm"])
+    mixed_meter = None
+    if mixed_meter_source is not None:
+        events, mixed_meter = _integrate_mixed_meter(
+            config, mixed_meter_source, sections, assignments, events
+        )
+    features = _features(
+        scale, sections, harmony, assignments, events, profiles, mixed_meter
+    )
     scores = _scores(features, dict(config.get("evaluation_weights") or {}))
     candidate_seed = _seed(master, index, "candidate")
     return {
@@ -748,6 +980,11 @@ def _candidate(config: dict[str, Any], index: int, profiles: list[dict[str, Any]
                 "rhythm": config["rhythm_temperature"],
             },
             "instrument_palette": [profile["id"] for profile in profiles],
+            "mixed_meter": {
+                key: value
+                for key, value in dict(config.get("mixed_meter") or {}).items()
+                if key != "project"
+            },
         },
         "metadata": {
             "style": config["style"],
@@ -758,12 +995,14 @@ def _candidate(config: dict[str, Any], index: int, profiles: list[dict[str, Any]
             "length_bars": config["length_bars"],
             "base_frequency": config["base_frequency"],
             "warnings": warnings,
+            "mixed_meter_enabled": mixed_meter is not None,
         },
         "scale_ratios": [_ratio_text(value) for value in scale],
         "sections": sections,
         "harmony": harmony,
         "assignments": assignments,
         "events": events,
+        "mixed_meter": mixed_meter,
         "features": features,
         "scores": scores,
     }
@@ -775,8 +1014,24 @@ def explore_compositions(config: dict[str, Any]) -> dict[str, Any]:
     candidates = [_candidate(config, index, profiles, warnings) for index in range(int(config["candidate_count"]))]
     clusters, representatives = _cluster(candidates, int(config["cluster_count"]))
     summaries = [
-        {key: value for key, value in candidate.items() if key not in {"events", "harmony", "assignments"}}
-        | {"event_count": len(candidate["events"]), "section_roles": [section["role"] for section in candidate["sections"]]}
+        {
+            key: value
+            for key, value in candidate.items()
+            if key not in {"events", "harmony", "assignments", "mixed_meter"}
+        }
+        | {
+            "event_count": len(candidate["events"]),
+            "section_roles": [section["role"] for section in candidate["sections"]],
+            "mixed_meter": (
+                {
+                    "enabled": True,
+                    "event_count": candidate["mixed_meter"]["event_count"],
+                    "loop_count": candidate["mixed_meter"]["loop_count"],
+                }
+                if candidate["mixed_meter"]
+                else None
+            ),
+        }
         for candidate in candidates
     ]
     return {
@@ -792,6 +1047,9 @@ def explore_compositions(config: dict[str, Any]) -> dict[str, Any]:
         "candidates": summaries,
         "representatives": representatives,
         "evaluation_weights": DEFAULT_EVALUATION_WEIGHTS | dict(config.get("evaluation_weights") or {}),
+        "mixed_meter_enabled": bool(
+            dict(config.get("mixed_meter") or {}).get("enabled")
+        ),
     }
 
 

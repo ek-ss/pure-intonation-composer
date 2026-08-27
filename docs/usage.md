@@ -378,7 +378,25 @@ progressions, short arrangements, and JSON/MPE MIDI/WAV/tritave-Scala export.
 `/compose/mixed-meter-drums` turns cycles such as `3+5+7+5` into a
 Stable→Tension→Pre-resolution→Resolved drum form with per-track density and
 tension response, A/B audition, JSON, time-signature MIDI, WAV, and Compose
-timeline transfer.
+timeline transfer. **Send to Composition Explorer** transfers the complete
+project; Explorer can replace its native drums or layer the cycle beneath the
+generated arrangement and retains variable meters in Project JSON and MIDI.
+
+## 2.13 MIDI Creator Toolkit
+
+Open `/midi-toolkit`, connect a Web MIDI input, choose a channel and tempo,
+then record. The screen keyboard, `A S D F G H J K L ;` keys, and Demo phrase
+use the same capture route when no device is present. **Scale library** assigns
+existing Fractional Pop/J-Pop, Kawaii, series, saved Workbench, or
+Bohlen-Pierce scales. **Generate prime-lattice scale** uses the same Prime
+basis, Exponent limit, Weighted height, Cluster tolerance, and Target notes
+search contract as Prime-Limit Harmonic Explorer. Exact-ratio Audio thru maps
+white keys one-to-one to successive selected-scale degrees; black keys are
+ignored. Set a white-key root MIDI, quantization, swing, and maximum voices,
+then choose
+**Build exact-ratio motif**. The result can be exported as Project
+JSON or MPE MIDI, transferred to Motif Development, or sent directly to Vital
+Pack as a theme.
 
 # 3. API Overview
 
@@ -394,6 +412,7 @@ Base URL `http://127.0.0.1:8000`; all bodies JSON; errors are
 | Composition | `POST /api/compose/harmony`, `/api/compose/voice-leading`, `/api/compose/bass`, `/api/compose/melody`, `/api/compose/rhythm/apply`, `/api/compose/rhythm/generate` |
 | Rhythm | `POST /api/rhythm/euclidean`, `/api/rhythm/state-graph`, `/api/rhythm/phase-shift`, `/api/rhythm/humanize`, `/api/rhythm/optimize-rotations`, `/api/rhythm/analyze`, `/api/drums/generate` |
 | Mixed meter | `GET /api/rhythm/mixed-meter/patterns`, `POST /api/rhythm/mixed-meter/validate`, `/generate`, `/preview`, `/export/midi` |
+| MIDI toolkit | `GET /api/midi-toolkit/scales`, `POST /api/midi-toolkit/process` |
 | Bohlen-Pierce | `POST /api/bp/scales/generate`, `/chords/search`, `/progressions/search`, `/compose/generate`, `/render/audio`, `/export/midi`, `/export/scala` |
 | Lattice lab | `POST /api/exponent-lattice/scale`, `/api/exponent-lattice/harmony`, `/api/exponent-lattice/chord`, `/api/exponent-lattice/progression`, `/api/exponent-lattice/walk`, `/api/exponent-lattice/analyze` |
 | Arrangement | `GET /api/arrange/profiles`, `POST /api/arrange/generate`, `/api/arrange/migrate`, `/api/arrange/phase-shift`, `/api/arrange/midi`, `/api/arrange/render` |

@@ -22,6 +22,11 @@
 .explorer-style-mix[hidden] { display: none; }
 .explorer-style-mix label { margin-bottom: 9px; }
 .explorer-style-mix output { color: #ffd47e; float: right; }
+.explorer-mixed-meter > label:first-of-type { display: flex; align-items: center; gap: 6px; color: var(--text); }
+.explorer-mixed-meter > label:first-of-type input { width: auto; }
+.explorer-mixed-meter .button-row a { align-content: center; color: var(--text); font-size: .72rem; }
+.explorer-inline-status { margin: 8px 0 0; color: var(--muted); font-size: .68rem; line-height: 1.4; }
+.explorer-hidden-file { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
 .explorer-locks { display: flex; flex-wrap: wrap; gap: 7px 14px; }
 .explorer-locks label { display: flex; align-items: center; gap: 5px; margin: 0; color: var(--text); }
 .explorer-instrument-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; }

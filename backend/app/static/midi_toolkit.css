@@ -1,0 +1,60 @@
+.midi-toolkit-page { --midi-cyan:#78d7ff; --midi-yellow:#ffd47e; }
+.midi-toolkit-main { grid-template-columns:300px minmax(0,1fr) 300px; align-items:start; }
+.midi-capture-panel { grid-column:1; grid-row:1 / span 3; position:sticky; top:16px; }
+.midi-roll-panel { grid-column:2 / -1; }
+.midi-process-panel { grid-column:2; }
+.midi-analysis-panel { grid-column:3; }
+.midi-motif-panel,.midi-output-panel { grid-column:2 / -1; }
+.midi-field-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.midi-field-grid label { margin-bottom:4px; }
+.midi-switches { display:flex; flex-wrap:wrap; gap:16px; margin:12px 0; }
+.midi-switches label,.midi-inline-check { display:flex; align-items:center; gap:6px; margin:0; color:var(--text); }
+.midi-monitor { min-height:48px; display:grid; grid-template-columns:1fr auto; align-items:center; gap:2px 12px; padding:8px 10px; border:1px solid var(--line); background:#111622; }
+.midi-monitor span { color:var(--midi-cyan); font:700 1.05rem ui-monospace,SFMono-Regular,Menlo,monospace; }
+.midi-monitor small { grid-column:1/-1; color:var(--muted); }
+.midi-screen-keyboard { display:grid; grid-template-columns:repeat(10,minmax(0,1fr)); height:96px; margin-top:12px; overflow:hidden; border:1px solid var(--line); background:#0c1018; }
+.midi-screen-keyboard button { min-width:0; height:100%; padding:5px 2px; border:0; border-right:1px solid #30394d; border-radius:0; display:flex; align-items:end; justify-content:center; background:#e8edf5; color:#19202d; font-size:.65rem; }
+.midi-screen-keyboard button.active { background:var(--midi-yellow); color:#171b24; }
+.midi-key-hint { display:grid; grid-template-columns:repeat(10,1fr); gap:2px; margin-top:4px; text-align:center; color:var(--muted); }
+.midi-key-hint kbd { border:0; padding:0; font-size:.6rem; }
+.midi-white-key-hint { margin:7px 0 0; line-height:1.35; }
+#midi-toolkit-roll { width:100%; max-width:none; height:420px; aspect-ratio:auto; margin:0; border:1px solid var(--line); background:#0d121c; }
+.midi-roll-legend { display:flex; gap:16px; margin-top:8px; color:var(--muted); font-size:.72rem; }
+.midi-roll-legend span::before { content:""; display:inline-block; width:9px; height:9px; margin-right:5px; background:currentColor; }
+.midi-roll-legend .raw { color:#66758f; }.midi-roll-legend .mapped { color:var(--midi-cyan); }.midi-roll-legend .accent { color:var(--midi-yellow); }
+.midi-process-panel output { color:var(--accent); float:right; }
+.midi-scale-heading { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:end; gap:8px; }
+.midi-scale-heading button { min-height:38px; margin-bottom:4px; }
+.midi-scale-generator { margin:8px 0 12px; padding:8px 0; border-block:1px solid var(--line); }
+.midi-scale-generator summary { cursor:pointer; color:var(--accent); font-weight:700; }
+.midi-scale-generator .midi-field-grid { margin-top:10px; }
+.midi-scale-generator button { width:100%; margin-top:6px; }
+#midi-toolkit-scale-meta { min-height:2.2em; margin:4px 0 8px; overflow-wrap:anywhere; }
+.midi-transform-row { display:grid; grid-template-columns:repeat(4,44px) 1fr 1.4fr; gap:6px; margin-top:12px; }
+.midi-transform-row button { min-height:38px; padding:4px; font-size:.72rem; }
+.midi-analysis-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.midi-circle-segmented { display:grid; grid-template-columns:1fr 1fr; margin-bottom:8px; border:1px solid var(--line); }
+.midi-circle-segmented button { min-height:34px; padding:5px 8px; border:0; border-radius:0; background:#111622; color:var(--muted); font-size:.7rem; }
+.midi-circle-segmented button + button { border-left:1px solid var(--line); }
+.midi-circle-segmented button.active { background:#29404a; color:#dff7ff; box-shadow:inset 0 -2px 0 var(--midi-cyan); }
+#midi-toolkit-pitch-circle { display:block; width:min(100%,360px); aspect-ratio:1; margin:0 auto; background:#0d121c; border:1px solid var(--line); }
+#midi-toolkit-circle-summary { max-width:58%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; text-align:right; }
+.midi-circle-legend { display:flex; justify-content:center; flex-wrap:wrap; gap:8px 16px; margin-top:8px; color:var(--muted); font-size:.68rem; }
+.midi-circle-legend span::before { content:""; display:inline-block; width:9px; height:9px; margin-right:6px; border-radius:50%; background:currentColor; }
+.midi-circle-legend .fundamental { color:#78d7ff; }
+.midi-circle-legend .third-harmonic { color:#f49ad1; }
+.midi-analysis-divider { height:1px; margin:14px 0; background:var(--line); }
+.midi-analysis-grid article { min-width:0; padding:8px 0; border-top:2px solid var(--midi-cyan); }
+.midi-analysis-grid strong,.midi-analysis-grid span { display:block; overflow-wrap:anywhere; }
+.midi-analysis-grid strong { color:var(--muted); font-size:.68rem; font-weight:500; }
+.midi-analysis-grid span { margin-top:3px; font:700 .78rem ui-monospace,SFMono-Regular,Menlo,monospace; }
+.midi-motif-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(132px,1fr)); gap:8px; }
+.midi-motif-note { display:grid; gap:4px; min-width:0; padding:9px; border:1px solid var(--line); border-left:3px solid var(--midi-cyan); background:#111622; }
+.midi-motif-note.accent { border-left-color:var(--midi-yellow); }
+.midi-motif-note strong { color:var(--accent); overflow-wrap:anywhere; }
+.midi-motif-note span,.midi-motif-note small { color:var(--muted); font-size:.7rem; }
+.midi-output-panel .primary { width:auto; }
+#midi-toolkit-status.error,#midi-toolkit-output-status.error { color:#ffb0ad; }
+#midi-toolkit-status.loading,#midi-toolkit-process-status.loading { color:#ffe8a0; }
+@media (max-width:1100px) { .midi-toolkit-main { grid-template-columns:270px minmax(0,1fr); }.midi-capture-panel { grid-column:1; }.midi-roll-panel,.midi-process-panel,.midi-analysis-panel,.midi-motif-panel,.midi-output-panel { grid-column:2; }.midi-analysis-grid { grid-template-columns:repeat(4,1fr); } }
+@media (max-width:720px) { .midi-toolkit-main { display:flex; flex-direction:column; }.midi-capture-panel { position:static; }.midi-capture-panel,.midi-roll-panel,.midi-process-panel,.midi-analysis-panel,.midi-motif-panel,.midi-output-panel { width:100%; }.midi-analysis-grid { grid-template-columns:1fr 1fr; }.midi-transform-row { grid-template-columns:repeat(4,1fr); }.midi-transform-row button:nth-last-child(-n+2) { grid-column:span 2; }#midi-toolkit-roll { height:300px; } }

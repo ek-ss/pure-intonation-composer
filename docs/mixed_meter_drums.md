@@ -37,6 +37,14 @@ tempo. The next Compose JSON export preserves this under
 `mixed_meter_timeline`; pitched-part rhythm mapping remains intentionally
 separate from the drum-event project.
 
+**Send to Composition Explorer** transfers the complete generated project,
+including drum hits, meter bars, phase state, form sections, track settings,
+and seed. The Explorer selects `Imported project`, adopts its tempo, and can
+either replace its native drums or layer the imported events beneath its
+instrument-constrained song. Mixed drum roles are mapped to compatible
+selected PI drum presets; the metric cycle repeats to the Explorer song end.
+Explorer Project JSON and MIDI preserve the resulting metric timeline.
+
 ## API
 
 - `GET /api/rhythm/mixed-meter/patterns`

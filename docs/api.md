@@ -1235,6 +1235,21 @@ default request generates 32 candidates and six representatives.
   "part_temperature": 0.5,
   "rhythm_temperature": 0.6,
   "locked_components": ["melody"],
+  "mixed_meter": {
+    "enabled": true,
+    "source": "generate",
+    "integration_mode": "replace_drums",
+    "pattern_id": "MM_3575",
+    "form": "two_stage_resolution",
+    "density_profile": "chorus_impact",
+    "stable_repeats": 1,
+    "tension_repeats": 2,
+    "resolved_repeats": 1,
+    "subdivision": 2,
+    "variation": 0.25,
+    "syncopation": 0.2,
+    "humanize": 0.1
+  },
   "evaluation_weights": {"harmonic_interest": 1.2}
 }
 ```
@@ -1245,6 +1260,12 @@ zero to one, must contain at least one positive value, and are normalized by
 the server. `length_bars` must be divisible by four.
 `scale_ratios` accepts 5-24 unique octave-normalized ratios. Empty
 `instrument_palette` uses the selected style's default palette.
+
+`mixed_meter.source` accepts `generate` or `import`; imported mode requires
+the lossless Mixed Meter project in `mixed_meter.project`.
+`integration_mode` accepts `replace_drums` or `layer_drums`. The generated
+representative contains the source project, tiled time-signature timeline,
+mapped drum events, and meter-specific feature values.
 
 Style progression targets are interpreted as 12-TET semitone offsets. For
 example, target `5` means `2^(5/12)` (500 cents), independently of the number
@@ -1258,8 +1279,9 @@ form, exact-ratio harmony, section instrument assignments, score events,
 feature vector, and evaluation scores.
 
 The browser sends the selected representative's unchanged `events`, tempo,
-and base frequency to `POST /api/compose/vital-pack/midi`. The resulting
-standard MIDI type-1 file preserves PI instrument tracks, drum notes, and
+base frequency, semantic section markers, and optional Mixed Meter time
+signatures to `POST /api/compose/vital-pack/midi`. The resulting standard MIDI
+type-1 file preserves PI instrument tracks, drum notes, variable meter, and
 per-note pitch bends for exact fractional ratios.
 
 # 14. Bohlen-Pierce Pure Intonation
@@ -1290,7 +1312,54 @@ events, density diagnostics, and a Compose-compatible timeline.
 section markers and per-bar time signatures. `POST
 /api/rhythm/mixed-meter/preview` returns a rendered WAV preview.
 
-# 16. Roadmap Candidates
+# 16. MIDI Creator Toolkit
+
+## GET /api/midi-toolkit/scales
+
+Returns the built-in MIDI assignment catalog, supported dynamic generator
+names, and the current `GET /api/scales` saved-scale summary. Each preset has
+`id`, `name`, `family`, `ratios`, and `equave_ratio`. The catalog includes
+Fractional Pop/J-Pop, Kawaii Future Pop, series, and Bohlen-Pierce palettes.
+
+## POST /api/midi-toolkit/process
+
+Quantizes a MIDI keyboard performance, maps each white key to its successive
+supplied exact-ratio scale degree, groups simultaneous notes into motif stacks,
+and returns a lossless toolkit project. Black MIDI keys are rejected.
+
+```json
+{
+  "notes": [
+    {"midi_note": 60, "start_beats": 0.04, "duration_beats": 0.48, "velocity": 96, "channel": 1},
+    {"midi_note": 64, "start_beats": 0.05, "duration_beats": 0.46, "velocity": 84, "channel": 1}
+  ],
+  "tempo_bpm": 120,
+  "root_midi": 60,
+  "keyboard_mapping": "white_keys_scale",
+  "scale_id": "fractional-pop-bright",
+  "scale_name": "Bright 5-limit",
+  "equave_ratio": "2/1",
+  "scale_ratios": ["1/1", "9/8", "5/4", "4/3", "3/2", "5/3", "7/4", "15/8"],
+  "quantize_division": 4,
+  "quantize_strength": 0.85,
+  "swing": 0.0,
+  "maximum_polyphony": 3,
+  "minimum_duration_beats": 0.125,
+  "trim_start": true,
+  "anchor_size": 4
+}
+```
+
+The response contains `captured_notes`, all mapped `midi_notes`, a maximum
+32-step stack-aware `motif`, composition `analysis`, inferred `prime_basis`,
+and warnings. The browser exports `midi_notes` through `POST /api/export/midi`
+with pitch bend enabled.
+
+Ratios are reduced and repeated by `equave_ratio`. It defaults to `2/1`; a
+value such as `3/1` supports non-octave scales without silently octave-reducing
+them. `settings` retains scale provenance for Project JSON round trips.
+
+# 17. Roadmap Candidates
 
 These capabilities are not part of the current API:
 
@@ -1299,7 +1368,7 @@ These capabilities are not part of the current API:
 - Instrument presets and project persistence
 - Transfer of explorer representatives into dedicated composer pages
 - Server-Sent Events (`/events`)
-- WebMIDI/MPE/MTS and OSC integration
+- MIDI clock, MPE controller dimensions, MTS, and OSC integration
 
 Scala import is implemented at `POST /api/scales/import`. See
 [status.md](status.md) for the prioritized gaps.

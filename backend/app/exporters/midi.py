@@ -128,6 +128,7 @@ def arrangement_midi_bytes(
     ticks_per_beat: int = 480,
     base_frequency: float = 220,
     markers: list[tuple[int, str]] | None = None,
+    time_signatures: list[tuple[int, int, int]] | None = None,
     pitch_bend_range_semitones: int = 2,
 ) -> bytes:
     """Export an arrangement as a Standard MIDI File type 1.
@@ -142,7 +143,11 @@ def arrangement_midi_bytes(
     if not 24 <= ticks_per_beat <= 960 or not 20 <= base_frequency <= 2000:
         raise ValueError("arrangement MIDI tuning settings are invalid")
     allocation = _allocate_channels(tracks, ticks_per_beat, base_frequency)
-    chunks = [_conductor_chunk(tempo_bpm, beats_per_bar, markers or [])]
+    chunks = [
+        _conductor_chunk(
+            tempo_bpm, beats_per_bar, markers or [], time_signatures or []
+        )
+    ]
     for track_index, track in enumerate(tracks):
         chunks.append(
             _part_chunk(
@@ -195,13 +200,28 @@ def _allocate_channels(
 
 
 def _conductor_chunk(
-    tempo_bpm: float, beats_per_bar: int, markers: list[tuple[int, str]]
+    tempo_bpm: float,
+    beats_per_bar: int,
+    markers: list[tuple[int, str]],
+    time_signatures: list[tuple[int, int, int]],
 ) -> bytes:
     microseconds = round(60_000_000 / tempo_bpm)
     events: list[tuple[int, bytes]] = [
-        (0, b"\xff\x51\x03" + microseconds.to_bytes(3, "big")),
-        (0, bytes((0xFF, 0x58, 0x04, beats_per_bar, 0x02, 0x18, 0x08))),
+        (0, b"\xff\x51\x03" + microseconds.to_bytes(3, "big"))
     ]
+    signatures = time_signatures or [(0, beats_per_bar, 4)]
+    for tick, numerator, denominator in signatures:
+        if tick < 0 or not 2 <= numerator <= 13 or denominator not in {2, 4, 8, 16}:
+            raise ValueError("arrangement MIDI time signature is invalid")
+        denominator_power = {2: 1, 4: 2, 8: 3, 16: 4}[denominator]
+        events.append(
+            (
+                tick,
+                bytes(
+                    (0xFF, 0x58, 0x04, numerator, denominator_power, 0x18, 0x08)
+                ),
+            )
+        )
     for tick, name in sorted(markers):
         text = name.encode("utf-8")[:120]
         events.append((tick, b"\xff\x06" + _variable_length(len(text)) + text))
