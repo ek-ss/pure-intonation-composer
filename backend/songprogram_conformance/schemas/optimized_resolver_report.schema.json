@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cps.local/schemas/optimized_resolver_report.schema.json",
+  "title": "GEN0-A Optimized ResolverReport v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema","schema_version","query_hash","universe_digest","algorithm","resolver_build_id","resolver_profile_hash","numeric_contract","requested_k","result_core_hashes","placed_count","partial_node_count","complete_node_count","eligible_count","pruning_counts","receipt_digest","completion","failure","differential"],
+  "properties": {
+    "schema": {"const": "cps.optimized-resolver-report"},
+    "schema_version": {"const": "1.0.0"},
+    "query_hash": {"$ref": "#/$defs/sha256"},
+    "universe_digest": {"$ref": "#/$defs/sha256"},
+    "algorithm": {"const": "sp0-joint-bnb/v1"},
+    "resolver_build_id": {"type": "string", "minLength": 1, "maxLength": 160},
+    "resolver_profile_hash": {"$ref": "#/$defs/sha256"},
+    "numeric_contract": {"const": "cps-numeric/decimal-log2-rhe-v1"},
+    "requested_k": {"type": "integer", "minimum": 1, "maximum": 24},
+    "result_core_hashes": {"type": "array", "maxItems": 24, "items": {"$ref": "#/$defs/sha256"}},
+    "placed_count": {"$ref": "#/$defs/u64"},
+    "partial_node_count": {"$ref": "#/$defs/u64"},
+    "complete_node_count": {"$ref": "#/$defs/u64"},
+    "eligible_count": {"$ref": "#/$defs/u64"},
+    "pruning_counts": {"$ref": "#/$defs/pruning"},
+    "receipt_digest": {"$ref": "#/$defs/sha256"},
+    "completion": {"enum": ["exact", "failed"]},
+    "failure": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/failure"}]},
+    "differential": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/differential"}]}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "u64": {"type": "integer", "minimum": 0, "maximum": 18446744073709551615},
+    "pruning": {
+      "type": "object", "additionalProperties": false,
+      "required": ["duplicate_exact_ratio","spacing_violation","span_violation","bass_violation","pair_max_violation","pair_rms_lower_bound","complexity_violation","domain_or_register_violation","worse_than_top_k"],
+      "properties": {
+        "duplicate_exact_ratio":{"$ref":"#/$defs/u64"},"spacing_violation":{"$ref":"#/$defs/u64"},"span_violation":{"$ref":"#/$defs/u64"},"bass_violation":{"$ref":"#/$defs/u64"},"pair_max_violation":{"$ref":"#/$defs/u64"},"pair_rms_lower_bound":{"$ref":"#/$defs/u64"},"complexity_violation":{"$ref":"#/$defs/u64"},"domain_or_register_violation":{"$ref":"#/$defs/u64"},"worse_than_top_k":{"$ref":"#/$defs/u64"}
+      }
+    },
+    "failure": {"type":"object","additionalProperties":false,"required":["code","stage"],"properties":{"code":{"type":"string","pattern":"^[A-Z][A-Z0-9_]{2,79}$"},"stage":{"type":"string","minLength":1,"maxLength":80}}},
+    "differential": {"type":"object","additionalProperties":false,"required":["oracle_algorithm","oracle_result_core_hashes","equal"],"properties":{"oracle_algorithm":{"const":"sp0-exhaustive-joint/v1"},"oracle_result_core_hashes":{"type":"array","maxItems":24,"items":{"$ref":"#/$defs/sha256"}},"equal":{"const":true}}}
+  }
+}

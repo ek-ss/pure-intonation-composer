@@ -22,11 +22,11 @@ gates.
 | Small-domain exhaustive chord oracle | GO | becomes the truth source for later optimization |
 | Project 1.2 provenance-union models | GO | strict schema and equations are frozen |
 | 8-bar 2/1 vertical slice | GO | merge remains gated by all specified fixtures |
-| Optimized branch-and-bound / progression Viterbi | NO-GO | no oracle, budget ledger, or fixed ranking contract yet |
-| Broad sampler / 1,000-song cohort | NO-GO | compiler truth and viability metrics are not frozen |
-| 3/1 full composition and rendering | NO-GO for SP0 | exact core fixtures only until 2/1 slice is stable |
-| QD selection, perceptual gates, LLM loop | NO-GO | metrics remain audit/calibration work |
-| Production UI and compatibility commitments | NO-GO | schema and capability boundaries may still change |
+| Optimized branch-and-bound / progression Viterbi | Specification GO | GEN0-A/B contracts frozen; implementation equality gates remain |
+| Broad sampler / 1,000-song cohort | Specification GO | sampler/QD contract frozen; probability manifest is a cohort artifact |
+| 3/1 full composition and rendering | Specification GO | native/render/export capability boundary frozen |
+| QD selection, perceptual gates, LLM loop | Specification GO | orchestration frozen; perceptual promotion requires calibration artifact |
+| Production UI and compatibility commitments | Semantic specification GO | compatibility/cancellation semantics frozen; UI layout is product design outside the normative scope |
 
 The four blocking artifacts now exist:
 
@@ -188,12 +188,12 @@ not block SP0.
 ### SP-P0-009 — Melody reference and backtracking are ambiguous
 
 - **Severity:** P0
-- **Evidence:** melody refers variously to 12-EDO, the pitch-policy reference
-  grid, and active ChordIntent; failure may return to unspecified harmony paths.
+- **Evidence:** the pre-freeze draft referred variously to 12-EDO, the
+  pitch-policy reference grid, and active ChordIntent.
 - **Failure:** target pitch and budget consumption are not deterministic.
-- **Decision:** SP0 melody supports `chord_member` only. Later relational
-  melody inherits the active ChordIntent reference and mixed-reference phrases
-  require an explicit future policy. No melody-to-harmony backtracking in SP0.
+- **Decision:** SP0 through LLM4 supports `chord_member` only, inheriting the
+  active ChordIntent. Mixed-reference relational melody and melody-to-harmony
+  backtracking are reserved for a new schema/ADR and are not implicit GEN0 work.
 - **Acceptance:** chord-member vectors are identical to resolved chord voices;
   unsupported relations and mixed references fail with stable errors.
 - **Cost:** S

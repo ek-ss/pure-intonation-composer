@@ -1,8 +1,8 @@
 # SongProgram Specification
 
 **Schema:** `cps.song-program`
-**Version:** `0.1.0-draft`
-**Status:** pre-freeze draft; see
+**Version:** `0.1.0`
+**Status:** normative for the closure scope declared in
 [song_program_review_2026-08-30.md](song_program_review_2026-08-30.md)
 
 ## 1. Purpose and Boundary
@@ -395,23 +395,20 @@ changes compiler/cohort identity, not musical genotype.
 
 ```yaml
 resolver_profile:
-  algorithm: lattice-chord-joint-bnb/v1
+  algorithm: sp0-joint-bnb/v1
   candidates_per_intent: 24
-  voice_candidate_limit: 64
-  joint_node_budget: 2000000
-  progression_state_beam: 64
-  progression_edge_budget: 4000000
-  pair_error_weight_q: 10000
-  voice_leading_weight_q: 6500
-  complexity_weight_q: 3000
+  optimized_report_schema: 1.0.0
+  progression_algorithm: gen0-progression-exact/v1
+  operation_budget_profile: gen0-progression-exact-v1
 ```
 
 The profile contains a typed budget ledger rather than an unaccounted global
 loop: structural operations, placed pitches examined, exact reductions,
 joint nodes, progression edges, and melody nodes. Every loop charges exactly
 one counter. SP0 uses an `sp0-small-exact-v1` profile with a 4,096
-placed-pitch compiler ceiling; the illustrative GEN0 values above are non-normative until
-benchmarked.
+placed-pitch compiler ceiling. GEN0-A/B algorithm and budget identities are governed by
+the optimized-resolver and progression contracts; benchmark changes may alter
+profile ceilings but never candidate/result semantics.
 
 Chord shape search fixes the first relative vector to zero, removing common
 lattice-translation symmetry. It lazily indexes root-relative difference
@@ -425,12 +422,12 @@ search ranked only by hard pair limits, pair RMS/max error, exact-ratio
 complexity, and canonical tie-break. No roughness, openness, character, recall,
 or genre cost participates in SP0 ranking.
 
-For a later GEN0 progression, the resolver retains the top `candidates_per_intent` chord
-shapes and finite register/anchor placements. A layered Viterbi/beam search
-minimizes chord-internal cost plus voice movement, bass movement, crossing,
-lost common tones, lattice motion complexity, recall inconsistency, and
-unintended comma drift. It therefore does not commit greedily to the locally
-best realization of each chord.
+GEN0-A optimized chord resolution is governed by
+[song_program_optimized_resolver_contract.md](song_program_optimized_resolver_contract.md).
+GEN0-B retains exact top-K chord states and uses the exact lexicographic Viterbi
+and voice-correspondence rules in
+[song_program_progression_contract.md](song_program_progression_contract.md).
+Weighted musical costs and native beam results are non-conforming.
 
 Search uses fixed integer millicent/numeric contracts and stable lexicographic
 tie-breaking. In SP0, budget exhaustion returns a typed failure and only
@@ -466,11 +463,12 @@ rhythm list targets the material's referenced `RhythmCell`; the pitch list
 targets compatible `MelodyIntent` or `HarmonyIntentCell` relations. A direct `RhythmCell` realization
 may declare only `rhythm_transforms`.
 
-SP0 permits only the temporal `rotate` rhythm transform and rejects a non-empty
-`pitch_transforms` list with `UNSUPPORTED_SP0_TRANSFORM`. The remaining entries
-below are GEN0 draft vocabulary, not frozen SP0 schema behavior.
+SP0 through LLM4 permits only the temporal `rotate` rhythm transform and rejects
+a non-empty `pitch_transforms` list with `UNSUPPORTED_SP0_TRANSFORM`. The
+remaining entries below are reserved v0.2 vocabulary and are not residual
+requirements of the frozen 0.1/GEN0/LLM1-4 scope.
 
-## 11. Transform DSL
+## 11. Reserved v0.2 Transform DSL
 
 The initial closed vocabulary is:
 
@@ -685,8 +683,9 @@ It supersedes all earlier Project 1.2 sketches.
 
 Project 1.2 stores the lattice-domain digest and the actually visited exact
 sound-class table. Near-class clustering and perceptual exposure remain outside
-the SP0 Project/hash in a versioned `PitchAuditReport` until its clustering and
-weighting protocol is frozen. A draft report is:
+the SP0 Project/hash in a versioned `PitchAuditReport`; their deterministic
+computation and calibration boundary are governed by the renderer/evaluation
+contract. An illustrative report is:
 
 ```yaml
 pitch_space_summary:

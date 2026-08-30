@@ -1,0 +1,11 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"https://cps.local/schemas/capability_manifest.schema.json",
+  "title":"CPS CapabilityManifest v1",
+  "type":"object","additionalProperties":false,
+  "required":["schema","schema_version","component_id","build_id","operations","input_schema_versions","equaves","maximum_generator_dimensions","maximum_events","maximum_polyphony","provenance_kinds","instrument_engines","option_schema_hash"],
+  "properties":{
+    "schema":{"const":"cps.capability-manifest"},"schema_version":{"const":"1.0.0"},"component_id":{"type":"string","minLength":1,"maxLength":120},"build_id":{"type":"string","minLength":1,"maxLength":160},"operations":{"type":"array","minItems":1,"uniqueItems":true,"items":{"enum":["compile","validate","render","export_midi","export_scala","project_1_1","evaluate","mutate","archive"]}},"input_schema_versions":{"type":"array","minItems":1,"uniqueItems":true,"items":{"type":"string"}},"equaves":{"type":"array","minItems":1,"uniqueItems":true,"items":{"type":"string","pattern":"^[1-9][0-9]*/[1-9][0-9]*$"}},"maximum_generator_dimensions":{"type":"integer","minimum":0,"maximum":3},"maximum_events":{"type":"integer","minimum":1,"maximum":8192},"maximum_polyphony":{"type":"integer","minimum":1,"maximum":128},"provenance_kinds":{"type":"array","uniqueItems":true,"items":{"enum":["direct_vector","resolved_chord_voice","resolved_melody","legacy_unverified"]}},"instrument_engines":{"type":"array","uniqueItems":true,"items":{"type":"string"}},"option_schema_hash":{"$ref":"#/$defs/sha256"}
+  },
+  "$defs":{"sha256":{"type":"string","pattern":"^sha256:[0-9a-f]{64}$"}}
+}

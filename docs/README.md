@@ -38,6 +38,12 @@ as implemented.
 | [song_program_budget_contract.md](song_program_budget_contract.md) | Normative SP0 deterministic operation-budget ledger |
 | [arrangement_project_1_2_contract.md](arrangement_project_1_2_contract.md) | Normative SP0 strict Project schema and provenance union |
 | [song_program_conformance_pack.md](song_program_conformance_pack.md) | Executable schemas, fixtures, oracle, cache, and cross-process handoff contract |
+| [song_program_optimized_resolver_contract.md](song_program_optimized_resolver_contract.md) | GEN0-A exact branch-and-bound and exhaustive-oracle equality contract |
+| [song_program_progression_contract.md](song_program_progression_contract.md) | GEN0-B exact progression and voice-correspondence contract |
+| [song_program_renderer_evaluation_contract.md](song_program_renderer_evaluation_contract.md) | GEN0-C deterministic renderer, pitch audit, and calibration contract |
+| [song_program_search_loop_contract.md](song_program_search_loop_contract.md) | GEN0-D/LLM sampler, descriptors, QD archive, planner, and run-state contract |
+| [song_program_capability_compatibility_contract.md](song_program_capability_compatibility_contract.md) | Native 3/1, MIDI/Scala export, projection, legacy, and capability contract |
+| [song_program_specification_closure.md](song_program_specification_closure.md) | Authority map, remaining artifacts, future exclusions, and closure rule |
 | [adr_song_program.md](adr_song_program.md) | Accepted SongProgram architecture decisions and measurable gates |
 | [song_program_review_2026-08-30.md](song_program_review_2026-08-30.md) | Multi-agent freeze review, issue register, and conditional development readiness |
 | [multi_agent_design_review.md](multi_agent_design_review.md) | Evidence-based multi-agent design review and arbitration protocol |

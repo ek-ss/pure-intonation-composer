@@ -1,0 +1,11 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"https://cps.local/schemas/search_run_manifest.schema.json",
+  "title":"GEN0-D/LLM Search RunManifest v1",
+  "type":"object","additionalProperties":false,
+  "required":["schema","schema_version","root_seed","sampler_manifest_hash","compiler_manifest_hash","evaluation_manifest_hash","qd_manifest_hash","planner_manifest_hash","population_size","maximum_rounds","candidates_per_round","patience_rounds","planner_call_budget","compile_logical_budget","render_frame_budget","operational_deadline_seconds"],
+  "properties":{
+    "schema":{"const":"cps.search-run-manifest"},"schema_version":{"const":"1.0.0"},"root_seed":{"$ref":"#/$defs/u64"},"sampler_manifest_hash":{"$ref":"#/$defs/sha256"},"compiler_manifest_hash":{"$ref":"#/$defs/sha256"},"evaluation_manifest_hash":{"$ref":"#/$defs/sha256"},"qd_manifest_hash":{"$ref":"#/$defs/sha256"},"planner_manifest_hash":{"oneOf":[{"type":"null"},{"$ref":"#/$defs/sha256"}]},"population_size":{"type":"integer","minimum":1,"maximum":10000},"maximum_rounds":{"type":"integer","minimum":1,"maximum":10000},"candidates_per_round":{"type":"integer","minimum":1,"maximum":1000},"patience_rounds":{"type":"integer","minimum":1,"maximum":1000},"planner_call_budget":{"type":"integer","minimum":0,"maximum":100000},"compile_logical_budget":{"$ref":"#/$defs/u64"},"render_frame_budget":{"$ref":"#/$defs/u64"},"operational_deadline_seconds":{"type":["integer","null"],"minimum":1}
+  },
+  "$defs":{"sha256":{"type":"string","pattern":"^sha256:[0-9a-f]{64}$"},"u64":{"type":"integer","minimum":0,"maximum":18446744073709551615}}
+}
