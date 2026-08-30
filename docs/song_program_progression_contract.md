@@ -4,10 +4,34 @@
 
 ## Input and output
 
-Input is an ordered, gapless sequence of `HarmonyQueryOccurrence` records. Each
-record contains occurrence ID/timing, ChordIntent hash, root anchor, and the
-ordered exact top-K candidate cores returned by a GEN0-A-conforming resolver.
+Input is a self-contained `cps.progression-query` `1.1.0` containing an ordered,
+gapless sequence of `HarmonyQueryOccurrence` records. Each record contains
+occurrence ID/timing, ChordIntent hash, root anchor, and the ordered exact top-K
+canonical candidate-core payloads returned by a GEN0-A-conforming resolver.
+Hash-only `1.0.0` queries are non-conforming: no filesystem, database, process
+cache, or implementation-private lookup may supply missing core data.
 Candidates are immutable; progression search may select but never retune them.
+
+Each candidate payload contains the complete Project 1.2 `resolved_chord`, its
+full SHA-256 `core_hash`, a normalized matching projection containing
+domain/intent hashes, anchor, local RMS/max/complexity, and 2..8 voices. A voice contains canonical target
+ordinal, absolute lattice vector, absolute equave exponent, positive reduced
+exact ratio, and signed `ratio_millicents`. Voice order is
+`(ratio_millicents,target_ordinal,absolute_vector,equave_exponent,exact_ratio)`.
+Target ordinals are unique. Vector dimensions equal the query domain and root
+anchor; candidate domain/intent hashes equal their enclosing query/occurrence.
+The candidate anchor equals the occurrence root anchor, and each absolute
+vector is that anchor plus the corresponding `resolved_chord.voice_offsets`
+entry. Every projected field must equal its `resolved_chord` authority.
+
+`ratio_millicents` must equal NumericContract RHE conversion of `exact_ratio`.
+`core_hash` is the complete SHA-256 used by the Project 1.2 ResolvedChord ID
+preimage, before base32 truncation; the stored `resolved_chord.id` must be its
+specified `rc_` derivation. Schema validation, reduced-ratio validation, dimensional
+and enclosing-hash validation, ratio conversion, voice-order/ordinal checks,
+and finally core-hash validation occur in that order. First failure returns no
+result. Candidate array order must equal GEN0-A score order
+`(local RMS,local max,local complexity,core_hash)` and hashes are unique.
 
 Native GEN0-B output is exact only when all states and transitions in this
 finite layered graph are evaluated. `beam_bounded` output remains a diagnostic
@@ -17,8 +41,8 @@ artifact and is forbidden from Project, viability, and QD inputs.
 
 For an edge from A to B, enumerate every injective matching from the smaller
 voice set into the larger. Unmatched count is the voice-count difference.
-Matched voices use absolute integer `ratio_mc`; exact common tone means equal
-reduced ratio after applying the selected absolute registers.
+Matched voices use signed integer `ratio_millicents`; exact common tone means
+byte-equal reduced `exact_ratio`. Thus neither fact is inferred from the other.
 
 For each matching compute:
 
@@ -81,11 +105,19 @@ Transitions enumerate predecessor state then canonical matching order. Exact
 dynamic programming retains the best complete score for every state plus its
 canonical predecessor. No beam pruning is allowed in native mode.
 
-Ledger adds `progression_states` and `progression_edges` counters in a new
-`gen0-progression-exact-v1` profile. Reserve one state before evaluation and one
-edge before matching enumeration. Exhaustion returns no path or Project.
-Cache keys include the ordered occurrence/candidate core hashes, algorithm,
-NumericContract, and budget profile.
+The normative `gen0-progression-exact-v1` Budget Contract profile adds
+`progression_states` and `progression_edges`. Reserve one state before its hard
+constraint evaluation. For layers after the first, reserve one edge for every
+Cartesian predecessor/current candidate pair before enumerating any matching;
+an invalid or unreachable endpoint does not refund it. Matching permutations
+carry no separate counter. Reservation atomically updates the progression
+child, root leaf counter, and root `total_logical_units`. Exhaustion returns no
+path or Project.
+
+The cache key hashes the complete canonical query bytes, including all
+candidate payloads, plus algorithm, NumericContract, and budget-profile
+digests. A cache hit replays the full progression child receipt atomically;
+there is no core lookup during replay.
 
 ## Melody binding
 

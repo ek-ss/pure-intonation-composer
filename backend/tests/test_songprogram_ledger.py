@@ -47,3 +47,23 @@ def test_child_failure_is_atomic() -> None:
         ledger.reserve("chord_search_nodes", 1, "query_a")
     assert caught.value.code == "BUDGET_CHILD_EXCEEDED"
     assert ledger.snapshot() == before
+
+
+def test_progression_child_failure_uses_counter_specific_code() -> None:
+    ledger = Ledger(_ceilings(value=10), {"progression_edges": 2})
+    ledger.reserve("progression_edges", 2, "progression_a")
+    before = ledger.snapshot()
+    with pytest.raises(BudgetFailure) as caught:
+        ledger.reserve("progression_edges", 1, "progression_a")
+    assert caught.value.code == "BUDGET_PROGRESSION_EDGES_EXCEEDED"
+    assert ledger.snapshot() == before
+
+
+def test_progression_root_total_failure_remains_atomic() -> None:
+    ledger = Ledger(_ceilings(value=10, total=2), {"progression_states": 10})
+    ledger.reserve("progression_states", 2, "progression_a")
+    before = ledger.snapshot()
+    with pytest.raises(BudgetFailure) as caught:
+        ledger.reserve("progression_states", 1, "progression_a")
+    assert caught.value.code == "BUDGET_TOTAL_EXCEEDED"
+    assert ledger.snapshot() == before

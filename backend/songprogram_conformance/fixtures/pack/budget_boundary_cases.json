@@ -10,6 +10,8 @@
     {"id":"pairs","counter":"pair_relations","ceiling":5,"accepted_charge":5,"rejected_charge":1,"expected_code":"BUDGET_PAIR_RELATIONS_EXCEEDED"},
     {"id":"ordering","counter":"ordering_units","ceiling":5,"accepted_charge":5,"rejected_charge":1,"expected_code":"BUDGET_ORDERING_EXCEEDED"},
     {"id":"validation","counter":"validation_items","ceiling":5,"accepted_charge":5,"rejected_charge":1,"expected_code":"BUDGET_VALIDATION_EXCEEDED"},
-    {"id":"events","counter":"emitted_events","ceiling":5,"accepted_charge":5,"rejected_charge":1,"expected_code":"BUDGET_EMITTED_EVENTS_EXCEEDED"}
+    {"id":"events","counter":"emitted_events","ceiling":5,"accepted_charge":5,"rejected_charge":1,"expected_code":"BUDGET_EMITTED_EVENTS_EXCEEDED"},
+    {"id":"progression_states","counter":"progression_states","ceiling":5,"accepted_charge":5,"rejected_charge":1,"expected_code":"BUDGET_PROGRESSION_STATES_EXCEEDED"},
+    {"id":"progression_edges","counter":"progression_edges","ceiling":5,"accepted_charge":5,"rejected_charge":1,"expected_code":"BUDGET_PROGRESSION_EDGES_EXCEEDED"}
   ]
 }

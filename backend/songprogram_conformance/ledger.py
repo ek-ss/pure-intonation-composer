@@ -15,6 +15,8 @@ LEAF_COUNTERS = (
     "ordering_units",
     "validation_items",
     "emitted_events",
+    "progression_states",
+    "progression_edges",
 )
 U64_MAX = (1 << 64) - 1
 ERROR_CODES = {
@@ -27,6 +29,8 @@ ERROR_CODES = {
     "ordering_units": "BUDGET_ORDERING_EXCEEDED",
     "validation_items": "BUDGET_VALIDATION_EXCEEDED",
     "emitted_events": "BUDGET_EMITTED_EVENTS_EXCEEDED",
+    "progression_states": "BUDGET_PROGRESSION_STATES_EXCEEDED",
+    "progression_edges": "BUDGET_PROGRESSION_EDGES_EXCEEDED",
 }
 
 
@@ -63,7 +67,8 @@ class Ledger:
             child_next = child[counter] + charge
             child_ceiling = self.child_ceilings.get(counter)
             if child_ceiling is not None and child_next > child_ceiling:
-                raise BudgetFailure("BUDGET_CHILD_EXCEEDED", counter, charge, child[counter], child_ceiling, child_id)
+                code = ERROR_CODES[counter] if counter.startswith("progression_") else "BUDGET_CHILD_EXCEEDED"
+                raise BudgetFailure(code, counter, charge, child[counter], child_ceiling, child_id)
         if root_next > self.ceilings[counter]:
             raise BudgetFailure(
                 ERROR_CODES[counter], counter, charge, self.used[counter], self.ceilings[counter], child_id

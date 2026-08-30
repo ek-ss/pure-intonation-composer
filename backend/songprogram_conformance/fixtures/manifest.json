@@ -93,9 +93,9 @@
       "id": "budget_leaf_boundaries",
       "kind": "boundary",
       "input_path": "fixtures/pack/budget_boundary_cases.json",
-      "input_sha256": "sha256:ef3134886e97eaaebceabe8901a6958381a7e60ce6ed6c336e4613ceb8cc05c9",
+      "input_sha256": "sha256:9790728cf35b7c0d6f9d2348f67c78da05293e7d18fac85b4c7998cb6bbfe738",
       "expected_path": "fixtures/pack/budget_boundary_cases.json",
-      "expected_sha256": "sha256:ef3134886e97eaaebceabe8901a6958381a7e60ce6ed6c336e4613ceb8cc05c9",
+      "expected_sha256": "sha256:9790728cf35b7c0d6f9d2348f67c78da05293e7d18fac85b4c7998cb6bbfe738",
       "schema_path": "schemas/budget_boundary_cases.schema.json",
       "expected_status": "pass",
       "expected_error": null
