@@ -1,0 +1,7 @@
+{
+  "schema": "cps.sp0-oracle-query/v1",
+  "numeric_contract": "cps-numeric/decimal-log2-rhe-v1",
+  "domain": {"equave": "3/1", "generators": ["5/1", "7/1"], "coordinate_bounds": [[-1, 1], [-1, 1]], "register_bounds": [-1, 1], "maximum_odd_limit": 63, "maximum_reduced_complexity_bits": 24},
+  "intent": {"reference_equave": "3/1", "reference_divisions": 13, "steps": [0, 6, 10], "bass_policy": "preserve_target", "bass_target_ordinal": 0, "minimum_spacing_millicents": 70000, "maximum_span_millicents": 1901955, "maximum_pair_error_millicents": 50000, "maximum_pair_rms_millicents": 40000, "complexity_budget": 30},
+  "anchor": {"vector": [0, 0], "equave_exponent": 0}
+}

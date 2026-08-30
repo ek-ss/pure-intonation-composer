@@ -1,0 +1,1 @@
+{"schema":"cps.negative-mutation-cases","schema_version":"1.0.0","base_path":"../pack/minimal_direct_project.json","cases":[{"id":"domain_hash_mutation","mutation":{"op":"replace","pointer":"/lattice/domain_hash","value":"sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"},"expected":{"code":"HASH_MISMATCH","stage":"hash","pointer":"/lattice/domain_hash"}}]}

@@ -1,0 +1,9 @@
+{
+  "schema": "cps.cache-parity-corpus",
+  "version": "1.0.0",
+  "cases": [
+    {"id": "cold", "fixture": "minimal_direct_note", "cache_mode": "cold", "expected_cache_receipt_invalid": false},
+    {"id": "hit", "fixture": "minimal_direct_note", "cache_mode": "hit", "expected_cache_receipt_invalid": false},
+    {"id": "corrupt-receipt-digest", "fixture": "minimal_direct_note", "cache_mode": "corrupt", "expected_cache_receipt_invalid": true}
+  ]
+}

@@ -1,0 +1,6 @@
+{
+  "schema": "cps.sp0-oracle-error/v1",
+  "error": "NO_JOINT_CHORD_SOLUTION",
+  "witness_independent_root_errors_millicents": [-13686, 1955],
+  "witness_non_root_pair_error_millicents": 15641
+}

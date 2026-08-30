@@ -1,0 +1,1 @@
+{"schema":"cps.negative-mutation-cases","schema_version":"1.0.0","base_path":"../pack/minimal_direct_project.json","cases":[{"id":"dangling_material_instance","mutation":{"op":"replace","pointer":"/events/0/source/material_instance_id","value":"missing"},"expected":{"code":"REFERENCE_NOT_FOUND","stage":"references","pointer":"/events/0/source/material_instance_id"}}]}

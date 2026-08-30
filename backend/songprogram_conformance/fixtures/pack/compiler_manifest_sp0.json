@@ -1,0 +1,56 @@
+{
+  "schema": "cps.compiler-manifest",
+  "schema_version": "1.0.0",
+  "build_id": "cb_kuiz7lpxibvq5znaodejiz6u5a",
+  "song_program_schema_versions": ["0.1.0"],
+  "project_schema_version": "1.2.0",
+  "numeric_contract": "cps-numeric/decimal-log2-rhe-v1",
+  "resolver": {
+    "build_id": "sp0-reference-resolver-v1",
+    "algorithm": "sp0-exhaustive-joint/v1",
+    "profile_hash": "sha256:1c529f12a7ecb755439d45032da05bd37805e479031e2217223b94da7f9b3e7c",
+    "search_completeness": "exact"
+  },
+  "budget_profile": {
+    "id": "sp0-small-exact-v1",
+    "digest": "sha256:3b4690fe21292f65f63b3a2b78624f5d2c9b26ef308fed3a33d28ef56e6c93f7",
+    "root_ceilings": {
+      "structural_items": 100000,
+      "placed_domain_points": 4096,
+      "exact_arithmetic_units": 500000,
+      "numeric_eval_units": 100000,
+      "chord_search_nodes": 250000,
+      "pair_relations": 1000000,
+      "ordering_units": 500000,
+      "validation_items": 100000,
+      "emitted_events": 2048,
+      "total_logical_units": 2500000
+    },
+    "child_ceilings": {
+      "chord_search_nodes": 50000,
+      "pair_relations": 200000,
+      "numeric_eval_units": 20000,
+      "maximum_depth": 1
+    },
+    "domain_limits": {
+      "dimensions": 2,
+      "coordinate_cardinality": 1024,
+      "axis_width": 7,
+      "register_width": 8,
+      "placed_cardinality": 4096,
+      "arithmetic_result_bits": 4096
+    },
+    "shape_limits": {
+      "voices": 4,
+      "intents": 8,
+      "rhythm_steps_per_material": 64,
+      "repeats": 8,
+      "sections": 4,
+      "bars": 8,
+      "events": 2048
+    }
+  },
+  "instrument_catalog_digest": "sha256:bf4a847e036dd26a2746f6943b52aef2c7eea3f030be7ae1f995157e6ef81df6",
+  "dependency_lock_digest": "sha256:92d8ef458448c63e6056f5410113d6e471405e558b7f31fab99991734e30efb6",
+  "prng_contract": {"algorithm": "path-addressed-sha256-counter", "version": "1.0.0"}
+}

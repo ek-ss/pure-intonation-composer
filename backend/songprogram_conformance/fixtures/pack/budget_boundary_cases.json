@@ -1,0 +1,15 @@
+{
+  "schema": "cps.budget-boundary-cases",
+  "schema_version": "1.0.0",
+  "cases": [
+    {"id":"structural","counter":"structural_items","ceiling":5,"accepted_charge":5,"rejected_charge":1,"expected_code":"BUDGET_STRUCTURAL_EXCEEDED"},
+    {"id":"placed","counter":"placed_domain_points","ceiling":5,"accepted_charge":5,"rejected_charge":1,"expected_code":"BUDGET_PLACED_DOMAIN_EXCEEDED"},
+    {"id":"arithmetic","counter":"exact_arithmetic_units","ceiling":5,"accepted_charge":5,"rejected_charge":1,"expected_code":"BUDGET_EXACT_ARITHMETIC_EXCEEDED"},
+    {"id":"numeric","counter":"numeric_eval_units","ceiling":5,"accepted_charge":5,"rejected_charge":1,"expected_code":"BUDGET_NUMERIC_EVAL_EXCEEDED"},
+    {"id":"search","counter":"chord_search_nodes","ceiling":5,"accepted_charge":5,"rejected_charge":1,"expected_code":"BUDGET_CHORD_SEARCH_EXCEEDED"},
+    {"id":"pairs","counter":"pair_relations","ceiling":5,"accepted_charge":5,"rejected_charge":1,"expected_code":"BUDGET_PAIR_RELATIONS_EXCEEDED"},
+    {"id":"ordering","counter":"ordering_units","ceiling":5,"accepted_charge":5,"rejected_charge":1,"expected_code":"BUDGET_ORDERING_EXCEEDED"},
+    {"id":"validation","counter":"validation_items","ceiling":5,"accepted_charge":5,"rejected_charge":1,"expected_code":"BUDGET_VALIDATION_EXCEEDED"},
+    {"id":"events","counter":"emitted_events","ceiling":5,"accepted_charge":5,"rejected_charge":1,"expected_code":"BUDGET_EMITTED_EVENTS_EXCEEDED"}
+  ]
+}

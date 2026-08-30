@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cps.local/schemas/numeric_record.schema.json",
+  "title": "CPS Numeric Golden Record v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["i", "kind", "input", "expected"],
+  "properties": {
+    "i": {"type": "integer", "minimum": 0, "maximum": 999},
+    "kind": {"enum": ["ratio", "edo", "wrap", "rms", "odd", "complexity"]},
+    "input": {"type": "object", "additionalProperties": {}},
+    "expected": {"type": "integer"}
+  }
+}

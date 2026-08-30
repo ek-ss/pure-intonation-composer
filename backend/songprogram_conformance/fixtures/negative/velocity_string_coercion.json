@@ -1,0 +1,1 @@
+{"schema":"cps.negative-mutation-cases","schema_version":"1.0.0","base_path":"../pack/minimal_direct_project.json","cases":[{"id":"velocity_string_coercion","mutation":{"op":"replace","pointer":"/events/0/velocity","value":"100"},"expected":{"code":"SCHEMA_TYPE_MISMATCH","stage":"schema","pointer":"/events/0/velocity"}}]}

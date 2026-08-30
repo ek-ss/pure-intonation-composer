@@ -1,0 +1,1 @@
+{"schema":"cps.negative-mutation-cases","schema_version":"1.0.0","base_path":"../pack/minimal_direct_project.json","cases":[{"id":"unreduced_ratio","mutation":{"op":"replace","pointer":"/events/0/ratio","value":"2/2"},"expected":{"code":"RATIO_NOT_REDUCED","stage":"numeric","pointer":"/events/0/ratio"}}]}

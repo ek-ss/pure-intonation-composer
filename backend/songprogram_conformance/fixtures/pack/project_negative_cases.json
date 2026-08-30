@@ -1,0 +1,37 @@
+{
+  "schema": "cps.negative-mutation-cases",
+  "schema_version": "1.0.0",
+  "base_path": "minimal_direct_project.json",
+  "cases": [
+    {
+      "id": "unknown_root_field",
+      "mutation": {"op": "add", "pointer": "/unexpected", "value": true},
+      "expected": {"code": "SCHEMA_UNKNOWN_FIELD", "stage": "schema", "pointer": "/unexpected"}
+    },
+    {
+      "id": "velocity_string_coercion",
+      "mutation": {"op": "replace", "pointer": "/events/0/velocity", "value": "100"},
+      "expected": {"code": "SCHEMA_TYPE_MISMATCH", "stage": "schema", "pointer": "/events/0/velocity"}
+    },
+    {
+      "id": "dangling_material_instance",
+      "mutation": {"op": "replace", "pointer": "/events/0/source/material_instance_id", "value": "missing"},
+      "expected": {"code": "REFERENCE_NOT_FOUND", "stage": "references", "pointer": "/events/0/source/material_instance_id"}
+    },
+    {
+      "id": "cross_union_field",
+      "mutation": {"op": "add", "pointer": "/events/0/pitch_provenance/resolved_chord_id", "value": "rc_aaaaaaaaaaaaaaaaaaaaaaaaaa"},
+      "expected": {"code": "PROVENANCE_VARIANT_FIELD", "stage": "provenance", "pointer": "/events/0/pitch_provenance/resolved_chord_id"}
+    },
+    {
+      "id": "unreduced_ratio",
+      "mutation": {"op": "replace", "pointer": "/events/0/ratio", "value": "2/2"},
+      "expected": {"code": "RATIO_NOT_REDUCED", "stage": "numeric", "pointer": "/events/0/ratio"}
+    },
+    {
+      "id": "domain_hash_mutation",
+      "mutation": {"op": "replace", "pointer": "/lattice/domain_hash", "value": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"},
+      "expected": {"code": "HASH_MISMATCH", "stage": "hash", "pointer": "/lattice/domain_hash"}
+    }
+  ]
+}

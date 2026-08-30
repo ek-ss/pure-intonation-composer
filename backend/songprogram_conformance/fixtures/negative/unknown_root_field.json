@@ -1,0 +1,1 @@
+{"schema":"cps.negative-mutation-cases","schema_version":"1.0.0","base_path":"../pack/minimal_direct_project.json","cases":[{"id":"unknown_root_field","mutation":{"op":"add","pointer":"/unexpected","value":true},"expected":{"code":"SCHEMA_UNKNOWN_FIELD","stage":"schema","pointer":"/unexpected"}}]}

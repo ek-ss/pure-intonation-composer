@@ -1,0 +1,14 @@
+{
+  "schema": "cps.sp0-oracle-result/v1",
+  "search_completeness": "exact",
+  "canonical_steps": [0, 4, 7],
+  "vectors": [[0, 0], [0, 1], [1, 0]],
+  "equave_exponents": [0, -2, -1],
+  "exact_ratios": ["1/1", "5/4", "3/2"],
+  "pair_errors_millicents": [-13686, 1955, 15641],
+  "pair_max_millicents": 15641,
+  "pair_rms_millicents": 12052,
+  "complexity_score": 10,
+  "score_prefix": [12052, 15641, 10],
+  "examined_assignments": 1190
+}

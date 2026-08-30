@@ -1,0 +1,40 @@
+{
+  "schema": "cps.chord-cache-entry",
+  "schema_version": "1.0.0",
+  "key": {
+    "cache_key_hash": "sha256:6a75e3bd5ef93d74dcbbed8d8692798470ffe31c6ace7bfce73aa42885d3585c",
+    "canonical_query_hash": "sha256:4ce9bd30673450fd14c77bba8505b21282eea2dcdfeadfe6a6ef501c18dbbc75",
+    "algorithm": "sp0-exhaustive-joint/v1",
+    "numeric_contract": "cps-numeric/decimal-log2-rhe-v1",
+    "resolver_profile_hash": "sha256:1c529f12a7ecb755439d45032da05bd37805e479031e2217223b94da7f9b3e7c",
+    "budget_profile_digest": "sha256:3b4690fe21292f65f63b3a2b78624f5d2c9b26ef308fed3a33d28ef56e6c93f7"
+  },
+  "value": {
+    "status": "no_solution",
+    "resolved_chord_id": null,
+    "failure_code": "NO_JOINT_CHORD_SOLUTION",
+    "canonical_value_hash": "sha256:e44432507e54ef26d7058a8ebfba73e39c742db25e759999bd97d23c767b4964"
+  },
+  "receipt": {
+    "schema": "cps.charge-receipt",
+    "schema_version": "1.0.0",
+    "budget_profile_digest": "sha256:3b4690fe21292f65f63b3a2b78624f5d2c9b26ef308fed3a33d28ef56e6c93f7",
+    "input_hash": "sha256:4ce9bd30673450fd14c77bba8505b21282eea2dcdfeadfe6a6ef501c18dbbc75",
+    "status": "complete",
+    "usage": {
+      "structural_items": 0,
+      "placed_domain_points": 0,
+      "exact_arithmetic_units": 0,
+      "numeric_eval_units": 0,
+      "chord_search_nodes": 0,
+      "pair_relations": 0,
+      "ordering_units": 0,
+      "validation_items": 0,
+      "emitted_events": 0,
+      "total_logical_units": 0
+    },
+    "children": [],
+    "opcode_stream_hash": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
+  "created_by": "cb_kuiz7lpxibvq5znaodejiz6u5a"
+}

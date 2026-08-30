@@ -1,0 +1,1 @@
+{"canonical_steps":[0,6,10],"complexity_score":10,"equave_exponents":[0,-1,-1],"exact_ratios":["1/1","5/3","7/3"],"examined_assignments":506,"pair_errors_millicents":[6534,3829,-2705],"pair_max_millicents":6534,"pair_rms_millicents":4643,"schema":"cps.sp0-oracle-result/v1","score_prefix":[4643,6534,10],"search_completeness":"exact","vectors":[[0,0],[1,0],[0,1]]}

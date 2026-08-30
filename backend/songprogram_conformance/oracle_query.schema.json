@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cps.local/schemas/sp0-oracle-query-v1.json",
+  "title": "SP0 OracleQuery v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "numeric_contract", "domain", "intent", "anchor"],
+  "properties": {
+    "schema": {"const": "cps.sp0-oracle-query/v1"},
+    "numeric_contract": {"const": "cps-numeric/decimal-log2-rhe-v1"},
+    "domain": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["equave", "generators", "coordinate_bounds", "register_bounds", "maximum_odd_limit", "maximum_reduced_complexity_bits"],
+      "properties": {
+        "equave": {"$ref": "#/$defs/ratio"},
+        "generators": {"type": "array", "minItems": 1, "maxItems": 2, "items": {"$ref": "#/$defs/ratio"}},
+        "coordinate_bounds": {"type": "array", "minItems": 1, "maxItems": 2, "items": {"$ref": "#/$defs/bounds"}},
+        "register_bounds": {"$ref": "#/$defs/bounds"},
+        "maximum_odd_limit": {"type": "integer", "minimum": 1},
+        "maximum_reduced_complexity_bits": {"type": "integer", "minimum": 2}
+      }
+    },
+    "intent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reference_equave", "reference_divisions", "steps", "bass_policy", "bass_target_ordinal", "minimum_spacing_millicents", "maximum_span_millicents", "maximum_pair_error_millicents", "maximum_pair_rms_millicents", "complexity_budget"],
+      "properties": {
+        "reference_equave": {"$ref": "#/$defs/ratio"},
+        "reference_divisions": {"type": "integer", "minimum": 1},
+        "steps": {"type": "array", "minItems": 2, "maxItems": 4, "items": {"type": "integer"}},
+        "bass_policy": {"enum": ["any", "preserve_target"]},
+        "bass_target_ordinal": {"type": ["integer", "null"], "minimum": 0},
+        "minimum_spacing_millicents": {"type": "integer", "minimum": 0},
+        "maximum_span_millicents": {"type": "integer", "minimum": 0},
+        "maximum_pair_error_millicents": {"type": "integer", "minimum": 0},
+        "maximum_pair_rms_millicents": {"type": "integer", "minimum": 0},
+        "complexity_budget": {"type": "integer", "minimum": 0}
+      }
+    },
+    "anchor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["vector", "equave_exponent"],
+      "properties": {
+        "vector": {"$ref": "#/$defs/vector"},
+        "equave_exponent": {"type": "integer"}
+      }
+    }
+  },
+  "$defs": {
+    "ratio": {"type": "string", "pattern": "^[1-9][0-9]*/[1-9][0-9]*$"},
+    "bounds": {"type": "array", "prefixItems": [{"type": "integer"}, {"type": "integer"}], "items": false},
+    "vector": {"type": "array", "minItems": 1, "maxItems": 2, "items": {"type": "integer"}}
+  }
+}

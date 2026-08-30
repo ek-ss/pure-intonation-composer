@@ -22,7 +22,7 @@ dev = [
 ]
 
 [tool.setuptools.packages.find]
-include = ["app*"]
+include = ["app*", "songprogram_conformance*"]
 
 [tool.setuptools.package-data]
 app = ["static/*"]

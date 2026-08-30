@@ -1,0 +1,126 @@
+{
+  "schema": "cps.conformance-fixture-manifest",
+  "schema_version": "1.0.0",
+  "pack_version": "1.0.0",
+  "contract_versions": {
+    "song_program": "0.1.0",
+    "arrangement_project": "1.2.0",
+    "numeric": "cps-numeric/decimal-log2-rhe-v1",
+    "budget": "operation-budget-ledger-v1"
+  },
+  "source_commit": "b02d5c550181045afa01be6e07abc67ba9d7e10a",
+  "generated_by": "root-conformance-integrator",
+  "independently_verified_by": [
+    "schema-reviewer",
+    "music-reference-reviewer",
+    "compiler-protocol-reviewer"
+  ],
+  "fixtures": [
+    {
+      "id": "minimal_direct_2_1",
+      "kind": "positive",
+      "input_path": "fixtures/pack/minimal_direct_song_program.json",
+      "input_sha256": "sha256:5f0d978fb01fdebb5cc029b2fdebf86cc2712b02531a270407efd3f3bfdf6399",
+      "expected_path": "fixtures/pack/minimal_direct_expected.json",
+      "expected_sha256": "sha256:34187d6310d5a1233161d1f8628c1b7fbe22fac78b95e429707f2fdf852f71c0",
+      "schema_path": "schemas/song_program_0_1.schema.json",
+      "expected_status": "pass",
+      "expected_error": null
+    },
+    {
+      "id": "resolved_triad_2_1",
+      "kind": "positive",
+      "input_path": "fixtures/pack/minimal_triad_song_program.json",
+      "input_sha256": "sha256:691b161552b3573d8fcf3da8790264dd2a0b803b319b3bfe6b4a97d0c7de2650",
+      "expected_path": "fixtures/pack/resolved_triad_expected.json",
+      "expected_sha256": "sha256:c9b12d3a86b8336cf409744af0351cba456d9a0ed19846d18b5d37c1dbf3a480",
+      "schema_path": "schemas/song_program_0_1.schema.json",
+      "expected_status": "pass",
+      "expected_error": null
+    },
+    {
+      "id": "oracle_major_2_1",
+      "kind": "positive",
+      "input_path": "goldens/major_query.json",
+      "input_sha256": "sha256:18d71aaff5626fafaec45e7b2a7e2675b0aed84395d940dc674d772a7a0620d3",
+      "expected_path": "goldens/major_result.json",
+      "expected_sha256": "sha256:9c915652e91402b4bd3aa25aeab794ecbb6d8428e82deb67142db28f6274125b",
+      "schema_path": "oracle_query.schema.json",
+      "expected_status": "pass",
+      "expected_error": null
+    },
+    {
+      "id": "oracle_minor_2_1",
+      "kind": "positive",
+      "input_path": "goldens/minor_query.json",
+      "input_sha256": "sha256:4886f4d4b7ed477e4af0d015e167f5339ed57556fe16a515253ab74b83230871",
+      "expected_path": "goldens/minor_result.json",
+      "expected_sha256": "sha256:866ad438710e77a16f203feaabddf3a1c826ea822a679491c5676d66d5cd2264",
+      "schema_path": "oracle_query.schema.json",
+      "expected_status": "pass",
+      "expected_error": null
+    },
+    {
+      "id": "oracle_tritave_3_1",
+      "kind": "positive",
+      "input_path": "goldens/tritave_query.json",
+      "input_sha256": "sha256:3018b1dc0081ed502ceda57fd598faf5d8a1f61827da007c6b5e8f216c1b3b5c",
+      "expected_path": "goldens/tritave_result.json",
+      "expected_sha256": "sha256:0a52ebb819f15d1bd7a3ab180ed8b7cbe3334d1ea70420e40045cf87d812b93a",
+      "schema_path": "oracle_query.schema.json",
+      "expected_status": "pass",
+      "expected_error": null
+    },
+    {
+      "id":"negative_unknown_root_field","kind":"negative","input_path":"fixtures/negative/unknown_root_field.json","input_sha256":"sha256:2456b8919b157e20b6490035c5ff269bf047dfc31988aa2caec37bf2e1d7ce8e","expected_path":"fixtures/negative/unknown_root_field.json","expected_sha256":"sha256:2456b8919b157e20b6490035c5ff269bf047dfc31988aa2caec37bf2e1d7ce8e","schema_path":"schemas/negative_cases.schema.json","expected_status":"fail","expected_error":{"code":"SCHEMA_UNKNOWN_FIELD","stage":"schema","pointer":"/unexpected"}
+    },
+    {
+      "id":"negative_velocity_coercion","kind":"negative","input_path":"fixtures/negative/velocity_string_coercion.json","input_sha256":"sha256:0fba1eacbcb11d62f3d885d4e350ade74e23ae65948f134b919d4b021099210a","expected_path":"fixtures/negative/velocity_string_coercion.json","expected_sha256":"sha256:0fba1eacbcb11d62f3d885d4e350ade74e23ae65948f134b919d4b021099210a","schema_path":"schemas/negative_cases.schema.json","expected_status":"fail","expected_error":{"code":"SCHEMA_TYPE_MISMATCH","stage":"schema","pointer":"/events/0/velocity"}
+    },
+    {
+      "id":"negative_dangling_reference","kind":"negative","input_path":"fixtures/negative/dangling_material_instance.json","input_sha256":"sha256:e901640414b1f02a042303f0dbec5b17353395eb2a2c3c1423adab5e1c44c36a","expected_path":"fixtures/negative/dangling_material_instance.json","expected_sha256":"sha256:e901640414b1f02a042303f0dbec5b17353395eb2a2c3c1423adab5e1c44c36a","schema_path":"schemas/negative_cases.schema.json","expected_status":"fail","expected_error":{"code":"REFERENCE_NOT_FOUND","stage":"references","pointer":"/events/0/source/material_instance_id"}
+    },
+    {
+      "id":"negative_cross_union","kind":"negative","input_path":"fixtures/negative/cross_union_field.json","input_sha256":"sha256:6269f913e3fab8660d3f081fa7f8a7b6f7d8396f95d4c36e7db1bdeb793ab483","expected_path":"fixtures/negative/cross_union_field.json","expected_sha256":"sha256:6269f913e3fab8660d3f081fa7f8a7b6f7d8396f95d4c36e7db1bdeb793ab483","schema_path":"schemas/negative_cases.schema.json","expected_status":"fail","expected_error":{"code":"PROVENANCE_VARIANT_FIELD","stage":"provenance","pointer":"/events/0/pitch_provenance/resolved_chord_id"}
+    },
+    {
+      "id":"negative_unreduced_ratio","kind":"negative","input_path":"fixtures/negative/unreduced_ratio.json","input_sha256":"sha256:5c3bc6df58630728d8c6d6e3a5532ed1f810061ca34e55f465a7312294454d3d","expected_path":"fixtures/negative/unreduced_ratio.json","expected_sha256":"sha256:5c3bc6df58630728d8c6d6e3a5532ed1f810061ca34e55f465a7312294454d3d","schema_path":"schemas/negative_cases.schema.json","expected_status":"fail","expected_error":{"code":"RATIO_NOT_REDUCED","stage":"numeric","pointer":"/events/0/ratio"}
+    },
+    {
+      "id":"negative_domain_hash","kind":"negative","input_path":"fixtures/negative/domain_hash_mutation.json","input_sha256":"sha256:6207e1fbc08898f5b160649c502c24fdaf781a7d25adf5365dee0fff7e7111f3","expected_path":"fixtures/negative/domain_hash_mutation.json","expected_sha256":"sha256:6207e1fbc08898f5b160649c502c24fdaf781a7d25adf5365dee0fff7e7111f3","schema_path":"schemas/negative_cases.schema.json","expected_status":"fail","expected_error":{"code":"HASH_MISMATCH","stage":"hash","pointer":"/lattice/domain_hash"}
+    },
+    {
+      "id": "budget_leaf_boundaries",
+      "kind": "boundary",
+      "input_path": "fixtures/pack/budget_boundary_cases.json",
+      "input_sha256": "sha256:ef3134886e97eaaebceabe8901a6958381a7e60ce6ed6c336e4613ceb8cc05c9",
+      "expected_path": "fixtures/pack/budget_boundary_cases.json",
+      "expected_sha256": "sha256:ef3134886e97eaaebceabe8901a6958381a7e60ce6ed6c336e4613ceb8cc05c9",
+      "schema_path": "schemas/budget_boundary_cases.schema.json",
+      "expected_status": "pass",
+      "expected_error": null
+    },
+    {
+      "id": "cache_entry_and_parity",
+      "kind": "canonicalization",
+      "input_path": "fixtures/pack/cache_entry_major_no_solution.json",
+      "input_sha256": "sha256:1bdd8f7220298d47bbf84a858658c23a358102eac21a7d7925488dab4846134c",
+      "expected_path": "fixtures/pack/cache_parity_cases.json",
+      "expected_sha256": "sha256:45e37ccef433fa14f99f529a090180954fa75ae0ef498fab88df7203772931bf",
+      "schema_path": "schemas/cache_entry.schema.json",
+      "expected_status": "pass",
+      "expected_error": null
+    },
+    {
+      "id": "numeric_1000_seed_1592639710",
+      "kind": "numeric",
+      "input_path": "goldens/numeric_seed_1592639710.jsonl",
+      "input_sha256": "sha256:65002a5daa9c8455d8a2bae1058a3f0fa242fd62dfdc2e9df1ceb9ebd6dc2f76",
+      "expected_path": "goldens/numeric_seed_1592639710.sha256",
+      "expected_sha256": "sha256:8e320a9d8ef31c5bd2bd20450c3f8cc271d4a2e1b0df76fec4edf6618c8197d8",
+      "schema_path": "schemas/numeric_record.schema.json",
+      "expected_status": "pass",
+      "expected_error": null
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "schema": "cps.cache-parity-cases",
+  "schema_version": "1.0.0",
+  "valid_entry_path": "cache_entry_major_no_solution.json",
+  "cases": [
+    {"id": "cold", "cache_state": "absent", "expected_source": "cold", "receipt_invalid": false},
+    {"id": "hit", "cache_state": "valid", "expected_source": "cache", "receipt_invalid": false},
+    {"id": "corrupt_opcode_hash", "cache_state": "mutate:/receipt/opcode_stream_hash", "expected_source": "cold", "receipt_invalid": true},
+    {"id": "corrupt_profile_digest", "cache_state": "mutate:/receipt/budget_profile_digest", "expected_source": "cold", "receipt_invalid": true},
+    {"id": "corrupt_key_hash", "cache_state": "mutate:/key/cache_key_hash", "expected_source": "cold", "receipt_invalid": true}
+  ],
+  "logical_projection": ["/value", "/receipt/usage", "/receipt/children"],
+  "telemetry_exclusions": ["/execution_telemetry"]
+}

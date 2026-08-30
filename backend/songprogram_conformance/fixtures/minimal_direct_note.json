@@ -1,0 +1,64 @@
+{
+  "schema": "cps.opcode-receipt-fixture",
+  "version": "1.0.0",
+  "fixture_id": "minimal-direct-note-v1",
+  "program": {
+    "schema": "cps.song-program",
+    "schema_version": "0.1.0",
+    "program_id": "sp_minimal_direct",
+    "seed": 0
+  },
+  "compiler_manifest": {
+    "schema": "cps.compiler-manifest",
+    "version": "1.0.0",
+    "profile_id": "sp0-small-exact-v1",
+    "numeric_contract": "cps-numeric/decimal-log2-rhe-v1",
+    "budget_contract": "cps.operation-budget-ledger/1.0.0"
+  },
+  "opcodes": [
+    {"ordinal": 0, "opcode": "PARSE_NODE", "path": "", "counter": "structural_items", "charge": 1},
+    {"ordinal": 1, "opcode": "SYMBOL_INSERT", "path": "/materials/direct", "counter": "structural_items", "charge": 1},
+    {"ordinal": 2, "opcode": "RESERVE_PLACED_DOMAIN", "path": "/lattice", "counter": "placed_domain_points", "charge": 2},
+    {"ordinal": 3, "opcode": "FRAC_POW", "path": "/event/ratio/generator/0", "counter": "exact_arithmetic_units", "charge": 4},
+    {"ordinal": 4, "opcode": "FRAC_MUL", "path": "/event/ratio/equave", "counter": "exact_arithmetic_units", "charge": 5},
+    {"ordinal": 5, "opcode": "RATIO_MC", "path": "/event/ratio", "counter": "numeric_eval_units", "charge": 16},
+    {"ordinal": 6, "opcode": "CHORD_ROOT", "path": "/queries/direct", "counter": "chord_search_nodes", "charge": 1},
+    {"ordinal": 7, "opcode": "PAIR_RELATION", "path": "/queries/direct/pairs/0", "counter": "pair_relations", "charge": 1},
+    {"ordinal": 8, "opcode": "SORT", "path": "/events", "counter": "ordering_units", "charge": 2},
+    {"ordinal": 9, "opcode": "VALIDATE_EVENT_BOUNDS", "path": "/events/0", "counter": "validation_items", "charge": 3},
+    {"ordinal": 10, "opcode": "EMIT_EVENT", "path": "/events/0", "counter": "emitted_events", "charge": 1}
+  ],
+  "receipt": {
+    "schema": "cps.charge-receipt",
+    "version": "1.0.0",
+    "profile_id": "sp0-small-exact-v1",
+    "counters": {
+      "structural_items": {"used": 2, "ceiling": 100000},
+      "placed_domain_points": {"used": 2, "ceiling": 4096},
+      "exact_arithmetic_units": {"used": 9, "ceiling": 500000},
+      "numeric_eval_units": {"used": 16, "ceiling": 100000},
+      "chord_search_nodes": {"used": 1, "ceiling": 250000},
+      "pair_relations": {"used": 1, "ceiling": 1000000},
+      "ordering_units": {"used": 2, "ceiling": 500000},
+      "validation_items": {"used": 3, "ceiling": 100000},
+      "emitted_events": {"used": 1, "ceiling": 2048},
+      "total_logical_units": {"used": 37, "ceiling": 2500000}
+    },
+    "children": [
+      {
+        "kind": "chord_query",
+        "id": "direct",
+        "counters": {
+          "chord_search_nodes": 1,
+          "pair_relations": 1,
+          "numeric_eval_units": 16
+        }
+      }
+    ]
+  },
+  "expected_result": {
+    "kind": "success",
+    "project_artifact_hash": "sha256:fixture-minimal-direct-note-v1",
+    "event_count": 1
+  }
+}

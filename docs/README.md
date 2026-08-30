@@ -33,6 +33,14 @@ as implemented.
 | [mixed_meter_drums.md](mixed_meter_drums.md) | Implemented mixed-meter drum form, density, phase, playback, and export workbench |
 | [midi_creator_toolkit.md](midi_creator_toolkit.md) | Web MIDI performance capture, exact-ratio motif processing, export, and composer handoff |
 | [development_plan_motif_development_engine.md](development_plan_motif_development_engine.md) | Proposed G14 motif generation, variation, and formal-development specification |
+| [song_program_spec.md](song_program_spec.md) | Draft searchable composition genotype and deterministic compiler contract |
+| [song_program_numeric_contract.md](song_program_numeric_contract.md) | Normative SP0 pitch arithmetic, chord error, complexity, and ranking |
+| [song_program_budget_contract.md](song_program_budget_contract.md) | Normative SP0 deterministic operation-budget ledger |
+| [arrangement_project_1_2_contract.md](arrangement_project_1_2_contract.md) | Normative SP0 strict Project schema and provenance union |
+| [song_program_conformance_pack.md](song_program_conformance_pack.md) | Executable schemas, fixtures, oracle, cache, and cross-process handoff contract |
+| [adr_song_program.md](adr_song_program.md) | Accepted SongProgram architecture decisions and measurable gates |
+| [song_program_review_2026-08-30.md](song_program_review_2026-08-30.md) | Multi-agent freeze review, issue register, and conditional development readiness |
+| [multi_agent_design_review.md](multi_agent_design_review.md) | Evidence-based multi-agent design review and arbitration protocol |
 
 ## Roadmaps
 
@@ -45,6 +53,7 @@ as implemented.
 | [development_plan_motif_development_engine.md](development_plan_motif_development_engine.md) | Planned anchor-chord motif generator and section-scale variation engine |
 | [motif_vital_arrangement.md](motif_vital_arrangement.md) | Implemented G14-to-Vital arrangement boundary and follow-up roadmap |
 | [development_plan_rhythm.md](development_plan_rhythm.md) | Original rhythm milestone plan; retained as design history |
+| [development_plan_llm_lattice_music_loop.md](development_plan_llm_lattice_music_loop.md) | Proposed quality-diversity and LLM-guided lattice-music generation loop |
 
 `status.md` is the source of truth when a roadmap or design document and the
 current code disagree. The live OpenAPI schema at `/docs` is authoritative for
