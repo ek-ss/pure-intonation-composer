@@ -1,0 +1,17 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"https://cps.local/schemas/instrument_catalog.schema.json",
+  "title":"CPS Instrument Catalog v1",
+  "type":"object","additionalProperties":false,
+  "required":["schema","schema_version","engine","entries"],
+  "properties":{"schema":{"const":"cps.instrument-catalog"},"schema_version":{"const":"1.0.0"},"engine":{"const":"sample-linear-q31/v1"},"entries":{"type":"array","minItems":1,"items":{"oneOf":[{"$ref":"#/$defs/pitched"},{"$ref":"#/$defs/drumKit"}]}}},
+  "$defs":{
+    "id":{"type":"string","pattern":"^[a-z][a-z0-9_-]{0,79}$"},
+    "sha256":{"type":"string","pattern":"^sha256:[0-9a-f]{64}$"},
+    "asset":{"type":"object","additionalProperties":false,"required":["uri","sha256","byte_length","sample_rate","channels","frames"],"properties":{"uri":{"type":"string","pattern":"^asset://sha256/[0-9a-f]{64}$"},"sha256":{"$ref":"#/$defs/sha256"},"byte_length":{"type":"integer","minimum":45,"maximum":1073741824},"sample_rate":{"const":48000},"channels":{"type":"integer","minimum":1,"maximum":2},"frames":{"type":"integer","minimum":1,"maximum":12000000}}},
+    "loop":{"type":"object","additionalProperties":false,"required":["mode","start_frame","end_frame"],"properties":{"mode":{"enum":["none","forward"]},"start_frame":{"type":"integer","minimum":0},"end_frame":{"type":"integer","minimum":0}}},
+    "pitched":{"type":"object","additionalProperties":false,"required":["kind","instrument_id","role","engine","asset","root_frequency_millihz","allowed_frequency_millihz","loop","maximum_polyphony","gain_q14","release_frames"],"properties":{"kind":{"const":"pitched"},"instrument_id":{"$ref":"#/$defs/id"},"role":{"enum":["bass","harmony","melody","texture"]},"engine":{"const":"sample-linear-q31/v1"},"asset":{"$ref":"#/$defs/asset"},"root_frequency_millihz":{"type":"integer","minimum":1,"maximum":20000000},"allowed_frequency_millihz":{"type":"array","prefixItems":[{"type":"integer","minimum":1},{"type":"integer","minimum":1}],"items":false,"minItems":2,"maxItems":2},"loop":{"$ref":"#/$defs/loop"},"maximum_polyphony":{"type":"integer","minimum":1,"maximum":64},"gain_q14":{"type":"integer","minimum":0,"maximum":16384},"release_frames":{"type":"integer","minimum":0,"maximum":480000}}},
+    "drumSample":{"type":"object","additionalProperties":false,"required":["drum_note","asset","gain_q14"],"properties":{"drum_note":{"type":"integer","minimum":0,"maximum":127},"asset":{"$ref":"#/$defs/asset"},"gain_q14":{"type":"integer","minimum":0,"maximum":16384}}},
+    "drumKit":{"type":"object","additionalProperties":false,"required":["kind","instrument_id","role","engine","maximum_polyphony","gain_q14","note_map"],"properties":{"kind":{"const":"drum_kit"},"instrument_id":{"$ref":"#/$defs/id"},"role":{"const":"drums"},"engine":{"const":"sample-linear-q31/v1"},"maximum_polyphony":{"type":"integer","minimum":1,"maximum":64},"gain_q14":{"type":"integer","minimum":0,"maximum":16384},"note_map":{"type":"array","minItems":1,"maxItems":128,"items":{"$ref":"#/$defs/drumSample"}}}}
+  }
+}

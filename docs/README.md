@@ -41,6 +41,7 @@ as implemented.
 | [song_program_optimized_resolver_contract.md](song_program_optimized_resolver_contract.md) | GEN0-A exact branch-and-bound and exhaustive-oracle equality contract |
 | [song_program_progression_contract.md](song_program_progression_contract.md) | GEN0-B exact progression and voice-correspondence contract |
 | [song_program_renderer_evaluation_contract.md](song_program_renderer_evaluation_contract.md) | GEN0-C deterministic renderer, pitch audit, and calibration contract |
+| [instrument_catalog_render_manifest_contract.md](instrument_catalog_render_manifest_contract.md) | GEN0-C catalog, immutable assets, release/drum lookup, and render-manifest identity |
 | [song_program_search_loop_contract.md](song_program_search_loop_contract.md) | GEN0-D/LLM sampler, descriptors, QD archive, planner, and run-state contract |
 | [song_program_capability_compatibility_contract.md](song_program_capability_compatibility_contract.md) | Native 3/1, MIDI/Scala export, projection, legacy, and capability contract |
 | [song_program_specification_closure.md](song_program_specification_closure.md) | Authority map, remaining artifacts, future exclusions, and closure rule |

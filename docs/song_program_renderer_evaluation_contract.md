@@ -21,8 +21,8 @@ GPU, and operating-system audio paths are non-authoritative.
   before right, signed checked 64-bit accumulator;
 - final conversion: saturate once to int32; no limiter, normalization, dither,
   noise shaping, hidden headroom, or fallback effects;
-- render length: musical end plus maximum referenced catalog tail, then exactly
-  256 zero frames; WAV metadata contains only frozen format fields.
+- render length: maximum actual pitched release end or drum one-shot end, then
+  exactly 256 zero frames; WAV metadata contains only frozen format fields.
 
 Any overflow before final saturation is `RENDER_ACCUMULATOR_OVERFLOW`. Missing,
 modified, unsupported, or out-of-range catalog data is a typed failure and
@@ -30,10 +30,10 @@ never selects a substitute instrument.
 
 ## 3. GEN0 reference instrument engine
 
-GEN0 supports only `sample-linear-q31/v1`. Each immutable catalog entry stores
-asset SHA-256, source sample rate/channels, root frequency in millihertz,
-loop mode/points, role, allowed pitch range, maximum polyphony, gain Q0.14, and
-tail frames. Source assets are canonical PCM32 WAV without compressed chunks.
+GEN0 supports only `sample-linear-q31/v1`. Catalog schema, canonical bytes,
+digest, content-addressed asset resolution, canonical PCM32 WAV, pitched/drum
+unions, release, and failures are governed by
+[instrument_catalog_render_manifest_contract.md](instrument_catalog_render_manifest_contract.md).
 
 For pitched playback:
 
@@ -50,14 +50,15 @@ asset; `forward` wraps over `[loop_start,loop_end)` with checked integer phase.
 Velocity gain is `velocity/127`; track gain is `gain_q/10000`. Pan is linear:
 `left_q=max(0,10000-max(pan_q,0))`,
 `right_q=max(0,10000+min(pan_q,0))`. Apply velocity, catalog, track, then pan in
-that order, rounding after every multiply. Note release is a catalog-fixed
-linear ramp of `release_frames`; drums ignore Project ratio and play one-shot.
+that order, rounding after every multiply. Note release uses the catalog
+contract's exact `release_frames` ramp; drums resolve by
+`(track.instrument_id,event.drum_note)`, ignore Project ratio/duration, and play one-shot.
 Voice stealing is forbidden: exceeding polyphony fails before rendering.
 
 ## 4. Render identity and parity
 
-`render_manifest_digest` hashes renderer build, this contract, catalog digest,
-and every numeric constant. `render_hash` hashes the complete WAV bytes. The
+`render_manifest_digest` and its exact preimage are governed by the catalog and
+manifest contract. `render_hash` hashes the complete WAV bytes. The
 Compile/Evaluation report stores Project artifact hash, manifest digest, WAV
 hash, PCM payload hash, frame count, saturation count, peak absolute sample,
 and per-track hashes.

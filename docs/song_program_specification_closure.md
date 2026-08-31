@@ -21,6 +21,7 @@ schemas/manifests or satisfy acceptance gates; it may not redefine behavior.
 | optimized single-chord search | GEN0-A optimized resolver contract |
 | progression/voice correspondence | GEN0-B progression contract |
 | preview audio/pitch audit/calibration | GEN0-C renderer/evaluation contract |
+| instrument assets/release/drum mapping/render identity | Instrument Catalog and RenderManifest Contract v1 |
 | sampler/descriptors/QD/planner/run state | GEN0-D/LLM search-loop contract |
 | 3/1/export/projection/legacy | capability/compatibility contract |
 
