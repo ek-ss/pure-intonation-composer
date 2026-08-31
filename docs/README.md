@@ -43,6 +43,7 @@ as implemented.
 | [song_program_renderer_evaluation_contract.md](song_program_renderer_evaluation_contract.md) | GEN0-C deterministic renderer, pitch audit, and calibration contract |
 | [instrument_catalog_render_manifest_contract.md](instrument_catalog_render_manifest_contract.md) | GEN0-C catalog, immutable assets, release/drum lookup, and render-manifest identity |
 | [song_program_search_loop_contract.md](song_program_search_loop_contract.md) | GEN0-D/LLM sampler, descriptors, QD archive, planner, and run-state contract |
+| [song_program_search_artifacts_contract.md](song_program_search_artifacts_contract.md) | GEN0-D/LLM closed manifests, mutations, lineage, CAS, records, and replay identity |
 | [song_program_capability_compatibility_contract.md](song_program_capability_compatibility_contract.md) | Native 3/1, MIDI/Scala export, projection, legacy, and capability contract |
 | [song_program_specification_closure.md](song_program_specification_closure.md) | Authority map, remaining artifacts, future exclusions, and closure rule |
 | [adr_song_program.md](adr_song_program.md) | Accepted SongProgram architecture decisions and measurable gates |

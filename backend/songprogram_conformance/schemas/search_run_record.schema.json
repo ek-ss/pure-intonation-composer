@@ -1,0 +1,6 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema","$id":"https://cps.local/schemas/search_run_record.schema.json","title":"CPS Search RunRecord v1","type":"object","additionalProperties":false,
+  "required":["schema","schema_version","run_hash","sequence","action_id","round","phase_ordinal","candidate_ordinal","kind","payload_hash","previous_record_hash","record_hash"],
+  "properties":{"schema":{"const":"cps.search-run-record"},"schema_version":{"const":"1.0.0"},"run_hash":{"$ref":"#/$defs/sha256"},"sequence":{"$ref":"#/$defs/u64"},"action_id":{"type":"string","pattern":"^act_[a-z2-7]{26}$"},"round":{"$ref":"#/$defs/u64"},"phase_ordinal":{"type":"integer","minimum":0,"maximum":7},"candidate_ordinal":{"$ref":"#/$defs/u64"},"kind":{"enum":["run","candidate","lineage_edge","artifact_reference","metric_report","planner_request","planner_response","acceptance_decision","archive_update","checkpoint","failure","cancellation"]},"payload_hash":{"$ref":"#/$defs/sha256"},"previous_record_hash":{"oneOf":[{"type":"null"},{"$ref":"#/$defs/sha256"}]},"record_hash":{"$ref":"#/$defs/sha256"}},
+  "$defs":{"sha256":{"type":"string","pattern":"^sha256:[0-9a-f]{64}$"},"u64":{"type":"integer","minimum":0,"maximum":18446744073709551615}}
+}

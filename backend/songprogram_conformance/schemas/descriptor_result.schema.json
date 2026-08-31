@@ -1,0 +1,6 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema","$id":"https://cps.local/schemas/descriptor_result.schema.json","title":"CPS DescriptorResult v1","type":"object","additionalProperties":false,
+  "required":["schema","schema_version","descriptor_spec_hash","project_hash","lineage_index_hash","rhythmic_syncopation_q","material_recurrence_distance_q","eligible_syncopation_events","recurrence_pair_count"],
+  "properties":{"schema":{"const":"cps.descriptor-result"},"schema_version":{"const":"1.0.0"},"descriptor_spec_hash":{"$ref":"#/$defs/sha256"},"project_hash":{"$ref":"#/$defs/sha256"},"lineage_index_hash":{"$ref":"#/$defs/sha256"},"rhythmic_syncopation_q":{"oneOf":[{"type":"null"},{"type":"integer","minimum":0,"maximum":10000}]},"material_recurrence_distance_q":{"oneOf":[{"type":"null"},{"type":"integer","minimum":0,"maximum":10000}]},"eligible_syncopation_events":{"type":"integer","minimum":0,"maximum":8192},"recurrence_pair_count":{"type":"integer","minimum":0,"maximum":130816}},
+  "$defs":{"sha256":{"type":"string","pattern":"^sha256:[0-9a-f]{64}$"}}
+}

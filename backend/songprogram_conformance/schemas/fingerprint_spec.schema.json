@@ -1,0 +1,6 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema","$id":"https://cps.local/schemas/fingerprint_spec.schema.json","title":"CPS FingerprintSpec v1","type":"object","additionalProperties":false,
+  "required":["schema","schema_version","algorithm","time_quantization_ticks","transposition_normalization","components","near_duplicate_threshold_q"],
+  "properties":{"schema":{"const":"cps.fingerprint-spec"},"schema_version":{"const":"1.0.0"},"algorithm":{"const":"gen0-musical-fingerprint/v1"},"time_quantization_ticks":{"const":120},"transposition_normalization":{"const":"first-tonal-center-zero"},"components":{"type":"array","minItems":6,"maxItems":6,"items":{"$ref":"#/$defs/component"}},"near_duplicate_threshold_q":{"type":"integer","minimum":0,"maximum":10000}},
+  "$defs":{"component":{"type":"object","additionalProperties":false,"required":["id","distance","weight"],"properties":{"id":{"enum":["section_bars","role_time_grid","root_anchor_deltas","chord_steps","lineage_edges","sounding_intervals"]},"distance":{"enum":["padded_hamming","set_jaccard","multiset_jaccard"]},"weight":{"type":"integer","minimum":1,"maximum":10000}}}}
+}

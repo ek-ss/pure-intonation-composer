@@ -23,6 +23,7 @@ schemas/manifests or satisfy acceptance gates; it may not redefine behavior.
 | preview audio/pitch audit/calibration | GEN0-C renderer/evaluation contract |
 | instrument assets/release/drum mapping/render identity | Instrument Catalog and RenderManifest Contract v1 |
 | sampler/descriptors/QD/planner/run state | GEN0-D/LLM search-loop contract |
+| search manifests/mutations/lineage/CAS/replay | GEN0-D/LLM Search Artifacts Contract v1 |
 | 3/1/export/projection/legacy | capability/compatibility contract |
 
 When two older passages conflict, the more specific contract in this table is
@@ -32,9 +33,8 @@ fixtures; profile/data digest changes cannot reinterpret an existing artifact.
 ## Remaining work that is not a specification change
 
 - production Pydantic/compiler/resolver/renderer/exporter implementation;
-- checked probability tables in `SamplerManifest`;
-- immutable instrument assets and catalog entries;
-- fingerprint component weights and calibrated near-duplicate threshold;
+- production-scale sampler cohorts and additional catalog assets;
+- calibrated promotion of the checked-in near-duplicate threshold;
 - licensed/internal genre references;
 - listener cohort data and CalibrationDecision thresholds;
 - QD cohort population and benchmark measurements;

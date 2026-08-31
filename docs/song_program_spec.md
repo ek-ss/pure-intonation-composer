@@ -760,32 +760,12 @@ and deterministic stopping rules in
 
 ## 19. Mutation Contract
 
-Mutations are typed operations, not unrestricted JSON Patch:
-
-```yaml
-patch_schema_version: 0.1.0
-base_program_hash: sha256:...
-mutation_id: mut_001
-op: transpose_material
-target_id: contour_hook
-vector: [0, 1, 0]
-declared_scope: material/contour_hook
-```
-
-Initial mutation operations are:
-
-- replace one bounded scalar;
-- replace one compatible reference;
-- insert/delete one realization;
-- append/remove one compatible transform;
-- transpose one pitched material;
-- replace one material step;
-- replace one production envelope point.
-
-Each compiled event carries a dependency set. After mutation, canonical event
-cores and automation outside the dependency closure must be identical or the
-compiler reports `NON_LOCAL_MUTATION`. Form-length edits are explicitly
-`global` mutations and are not evaluated as local.
+Mutation `1.0.0` is the closed eight-operation union in
+[song_program_search_artifacts_contract.md](song_program_search_artifacts_contract.md)
+and `mutation.schema.json`. That contract supersedes the earlier illustrative
+operation list. Arbitrary JSON Patch and any operation absent from the union
+reject. Dependency roots, typed closure, bounds, lock intersection, sequential
+application, and `MUTATION_SCOPE_MISMATCH` are normative there.
 
 ## 20. Generation Prior Contract
 
@@ -919,12 +899,13 @@ The former P0 decisions are resolved in
 calibration, renderer/catalog identity, Project 1.2 authority and legacy
 isolation, the versioned broad sampler, and the initial quality-diversity axes.
 
-Implementation still requires preregistering the concrete calibration
-artifacts: anchor mutations, listener cohort, instrument assets, renderer
-ceiling fixtures, sampler probability tables, fingerprint thresholds, and QD
-bin edges, plus `PitchExplorationPolicy` thresholds and matched-snap listening
-fixtures. These values may be selected from baseline measurements but may not
-silently alter the accepted architecture or overwrite an earlier cohort.
+Baseline sampler tables, mutation fixtures, fingerprint weights/threshold,
+QD bins, instrument assets, and renderer identity fixtures are now checked in
+under the Search Artifacts and Instrument Catalog contracts. Production-scale
+calibration still requires the listener cohort, renderer ceiling corpus,
+`PitchExplorationPolicy` thresholds, matched-snap listening fixtures, and a
+CalibrationDecision before perceptual or near-duplicate thresholds may reject.
+New data may not silently overwrite an earlier cohort.
 
 ## 23. First Implementation Slice
 

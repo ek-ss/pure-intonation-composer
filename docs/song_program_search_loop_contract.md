@@ -80,9 +80,10 @@ duplicates.
 
 Near-duplicate distance is weighted Hamming/Jaccard over the explicitly named
 components in FingerprintSpec. Weights, quantization, and threshold are digest-
-covered. Until a baseline FingerprintSpec is checked in, near-duplicate rate is
-reported but cannot reject; exact duplicates are always rejected from archive
-insertion after being counted in cohort statistics.
+covered. The baseline FingerprintSpec is checked in with the Search Artifacts
+fixtures. Its threshold drives reproducible audit/cohort counts; near-duplicate
+rejection still requires a CalibrationDecision promotion. Exact duplicates are
+always rejected from archive insertion after being counted in cohort statistics.
 
 ## 5. QD archive
 
@@ -171,6 +172,11 @@ metric report, planner request/response, acceptance decision, and checkpoint.
 Resume validates all hashes and continues from the smallest unfinished logical
 action ID. Replaying stored planner responses reproduces lineage exactly;
 calling a remote model again is a new run identity.
+
+All machine forms, canonical bytes, stream/action/record hashes, CAS layout,
+atomicity, checkpoint fields, baseline manifests, and replay rules are frozen
+in [song_program_search_artifacts_contract.md](song_program_search_artifacts_contract.md).
+Where this overview is less specific, that artifact contract is authoritative.
 
 ## 9. GenreIntent and references
 
