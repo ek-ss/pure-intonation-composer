@@ -67,6 +67,30 @@ The reference implementation must be bit-identical across the Conformance Pack
 process matrix. A faster renderer is acceptable only by full PCM hash equality.
 No tolerance comparison may be called the reference result.
 
+### 4.1 Per-track PCM hash
+
+`ReferenceRenderReport` `1.1.0` contains one `track_hashes` entry for every
+Project track, including silent tracks, sorted by track-ID UTF-8 bytes. It is a
+diagnostic solo-bus render and never feeds back into the final mix.
+
+For each output frame and channel, sum only that track's event samples after
+interpolation/release, velocity, mapped-sample/catalog gain, track gain, and pan
+in the prescribed event order into a checked signed 64-bit accumulator. Apply
+the same final conversion as the main output independently to every accumulator:
+saturate once to signed int32. Serialize each frame as little-endian signed
+`left:int32` followed by `right:int32`, with no header, padding, block framing,
+or metadata. The payload contains exactly `frame_count * 8` bytes and uses the
+same complete frame range as final PCM, including the 256 trailing zero frames.
+
+`track_hashes[].pcm_hash` is `"sha256:" + hexlower(SHA256(payload))` over those
+exact PCM bytes. It is not a hash of 64-bit accumulators, WAV bytes, pre-pan
+samples, or a contribution recovered after main-mix saturation. Track
+`saturation_count` counts pre-clamp accumulators outside
+`[-2147483648,2147483647]`; `peak_absolute_sample` is the maximum absolute
+post-clamp int32 sample, or zero for silence. The main mix still sums the
+unsaturated 64-bit track accumulators in track-ID order and saturates only after
+that sum, so stems need not arithmetically reconstruct a clipped main PCM.
+
 ## 5. Symbolic PitchAuditReport v1
 
 Pitch audit operates on Project events, not audio. Exact class is exact ratio

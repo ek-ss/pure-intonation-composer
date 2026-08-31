@@ -77,7 +77,7 @@ def build(out: Path = OUT) -> None:
     contracts = []
     for contract_id, version, relative in (
         ("instrument-catalog-render-manifest", "1.0.0", "docs/instrument_catalog_render_manifest_contract.md"),
-        ("song-program-renderer-evaluation", "1.0.0", "docs/song_program_renderer_evaluation_contract.md"),
+        ("song-program-renderer-evaluation", "1.1.0", "docs/song_program_renderer_evaluation_contract.md"),
     ):
         raw = (REPO / relative).read_bytes()
         contracts.append({"id": contract_id, "version": version, "raw_bytes_sha256": "sha256:" + hashlib.sha256(raw).hexdigest()})
@@ -103,6 +103,14 @@ def build(out: Path = OUT) -> None:
         ],
     }
     (out / "cases.json").write_bytes(canonical_bytes(cases))
+
+    track_cases = {
+        "schema": "cps.track-pcm-hash-cases", "schema_version": "1.0.0", "cases": [
+            {"id":"saturation_and_interleave","accumulators":[[0,0],[2147483648,-2147483649],[123,-456]],"expected_payload_hex":"0000000000000000ffffff7f000000807b00000038feffff","expected_pcm_hash":"sha256:1c96dd4856b52869d052f48d412158173deacb9339ec59ede491d5b486a44e9d","expected_frame_count":3,"expected_byte_length":24,"expected_saturation_count":2,"expected_peak_absolute_sample":2147483648},
+            {"id":"silent_track","accumulators":[[0,0],[0,0],[0,0]],"expected_payload_hex":"000000000000000000000000000000000000000000000000","expected_pcm_hash":"sha256:9d908ecfb6b256def8b49a7c504e6c889c4b0e41fe6ce3e01863dd7b61a20aa0","expected_frame_count":3,"expected_byte_length":24,"expected_saturation_count":0,"expected_peak_absolute_sample":0}
+        ]
+    }
+    (out / "track_pcm_hash_cases.json").write_bytes(canonical_bytes(track_cases))
 
     files = []
     for path in sorted((path for path in out.rglob("*") if path.is_file() and path.name != "fixture_set.json"), key=lambda item: str(item.relative_to(out))):

@@ -14,6 +14,7 @@ from songprogram_conformance.build_renderer_catalog_fixtures import (
     canonical_bytes,
     digest,
 )
+from songprogram_conformance.track_pcm_oracle import encode_track_pcm, pcm_hash
 
 
 FIXTURES = REPO / "backend" / "songprogram_conformance" / "fixtures" / "render"
@@ -112,3 +113,16 @@ def test_fixture_set_freezes_every_authoritative_input() -> None:
         for path in sorted(FIXTURES.rglob("*"))
         if path.is_file() and path.name != "fixture_set.json"
     ]
+
+
+def test_track_pcm_hash_payload_is_independently_reproducible() -> None:
+    cases = _json("track_pcm_hash_cases.json")["cases"]
+    for case in cases:
+        accumulators = [(int(frame[0]), int(frame[1])) for frame in case["accumulators"]]
+        payload, saturation_count, peak = encode_track_pcm(accumulators)
+        assert payload.hex() == case["expected_payload_hex"]
+        assert pcm_hash(payload) == case["expected_pcm_hash"]
+        assert len(accumulators) == case["expected_frame_count"]
+        assert len(payload) == case["expected_byte_length"]
+        assert saturation_count == case["expected_saturation_count"]
+        assert peak == case["expected_peak_absolute_sample"]

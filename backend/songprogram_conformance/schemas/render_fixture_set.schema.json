@@ -5,5 +5,5 @@
   "type":"object","additionalProperties":false,
   "required":["schema","schema_version","files"],
   "properties":{"schema":{"const":"cps.render-fixture-set"},"schema_version":{"const":"1.0.0"},"files":{"type":"array","minItems":6,"items":{"$ref":"#/$defs/file"}}},
-  "$defs":{"sha256":{"type":"string","pattern":"^sha256:[0-9a-f]{64}$"},"file":{"type":"object","additionalProperties":false,"required":["path","byte_length","sha256"],"properties":{"path":{"type":"string","pattern":"^(?:assets/[0-9a-f]{64}\\.wav|catalog\\.json|render_manifest\\.json|cases\\.json)$"},"byte_length":{"type":"integer","minimum":1},"sha256":{"$ref":"#/$defs/sha256"}}}}
+  "$defs":{"sha256":{"type":"string","pattern":"^sha256:[0-9a-f]{64}$"},"file":{"type":"object","additionalProperties":false,"required":["path","byte_length","sha256"],"properties":{"path":{"type":"string","pattern":"^(?:assets/[0-9a-f]{64}\\.wav|catalog\\.json|render_manifest\\.json|cases\\.json|track_pcm_hash_cases\\.json)$"},"byte_length":{"type":"integer","minimum":1},"sha256":{"$ref":"#/$defs/sha256"}}}}
 }

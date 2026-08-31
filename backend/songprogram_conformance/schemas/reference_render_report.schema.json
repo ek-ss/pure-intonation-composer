@@ -1,11 +1,22 @@
 {
   "$schema":"https://json-schema.org/draft/2020-12/schema",
   "$id":"https://cps.local/schemas/reference_render_report.schema.json",
-  "title":"GEN0-C ReferenceRenderReport v1",
+  "title":"GEN0-C ReferenceRenderReport v1.1",
   "type":"object","additionalProperties":false,
   "required":["schema","schema_version","project_artifact_hash","render_manifest_digest","catalog_digest","wav_hash","pcm_hash","frame_count","saturation_count","peak_absolute_sample","track_hashes"],
   "properties":{
-    "schema":{"const":"cps.reference-render-report"},"schema_version":{"const":"1.0.0"},"project_artifact_hash":{"$ref":"#/$defs/sha256"},"render_manifest_digest":{"$ref":"#/$defs/sha256"},"catalog_digest":{"$ref":"#/$defs/sha256"},"wav_hash":{"$ref":"#/$defs/sha256"},"pcm_hash":{"$ref":"#/$defs/sha256"},"frame_count":{"$ref":"#/$defs/u64"},"saturation_count":{"$ref":"#/$defs/u64"},"peak_absolute_sample":{"type":"integer","minimum":0,"maximum":2147483648},"track_hashes":{"type":"array","items":{"$ref":"#/$defs/trackHash"}}
+    "schema":{"const":"cps.reference-render-report"},"schema_version":{"const":"1.1.0"},
+    "project_artifact_hash":{"$ref":"#/$defs/sha256"},"render_manifest_digest":{"$ref":"#/$defs/sha256"},"catalog_digest":{"$ref":"#/$defs/sha256"},
+    "wav_hash":{"$ref":"#/$defs/sha256"},"pcm_hash":{"$ref":"#/$defs/sha256"},"frame_count":{"$ref":"#/$defs/u64"},
+    "saturation_count":{"$ref":"#/$defs/u64"},"peak_absolute_sample":{"type":"integer","minimum":0,"maximum":2147483648},
+    "track_hashes":{"type":"array","items":{"$ref":"#/$defs/trackHash"}}
   },
-  "$defs":{"sha256":{"type":"string","pattern":"^sha256:[0-9a-f]{64}$"},"u64":{"type":"integer","minimum":0,"maximum":18446744073709551615},"trackHash":{"type":"object","additionalProperties":false,"required":["track_id","pcm_hash"],"properties":{"track_id":{"type":"string"},"pcm_hash":{"$ref":"#/$defs/sha256"}}}}
+  "$defs":{
+    "sha256":{"type":"string","pattern":"^sha256:[0-9a-f]{64}$"},"u64":{"type":"integer","minimum":0,"maximum":18446744073709551615},
+    "trackHash":{"type":"object","additionalProperties":false,"required":["track_id","format","frame_count","pcm_byte_length","pcm_hash","saturation_count","peak_absolute_sample"],"properties":{
+      "track_id":{"type":"string","pattern":"^[a-z][a-z0-9_-]{0,39}$"},"format":{"const":"pcm-s32le-stereo-interleaved/v1"},
+      "frame_count":{"$ref":"#/$defs/u64"},"pcm_byte_length":{"$ref":"#/$defs/u64"},"pcm_hash":{"$ref":"#/$defs/sha256"},
+      "saturation_count":{"$ref":"#/$defs/u64"},"peak_absolute_sample":{"type":"integer","minimum":0,"maximum":2147483648}
+    }}
+  }
 }
