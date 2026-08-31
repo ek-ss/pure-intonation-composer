@@ -14,7 +14,9 @@ import os
 import struct
 import tempfile
 import unicodedata
+from collections import Counter
 from dataclasses import dataclass
+from fractions import Fraction
 from pathlib import Path
 from typing import Any, Sequence
 
@@ -54,6 +56,130 @@ def sha256_digest(value: bytes) -> str:
 
 def manifest_digest(domain: str, value: Any) -> str:
     return sha256_digest(domain.encode("utf-8") + b"\0" + canonical_bytes(value))
+
+
+def _round_half_even(value: Fraction) -> int:
+    quotient, remainder = divmod(value.numerator, value.denominator)
+    doubled = remainder * 2
+    if doubled < value.denominator:
+        return quotient
+    if doubled > value.denominator:
+        return quotient + 1
+    return quotient + (quotient & 1)
+
+
+def descriptor_values(
+    contributions: Sequence[int], lineage_pair_distances_q: Sequence[int]
+) -> tuple[int | None, int | None]:
+    """Aggregate already-normalized descriptor observations per DescriptorSpec v1."""
+    if any(not 0 <= value <= 5 for value in contributions):
+        raise SearchArtifactError("DESCRIPTOR_CONTRIBUTION_INVALID")
+    if any(not 0 <= value <= 10_000 for value in lineage_pair_distances_q):
+        raise SearchArtifactError("DESCRIPTOR_DISTANCE_INVALID")
+    syncopation = (
+        None
+        if not contributions
+        else _round_half_even(Fraction(10_000 * sum(contributions), 5 * len(contributions)))
+    )
+    ordered = sorted(lineage_pair_distances_q)
+    if not ordered:
+        recurrence = None
+    elif len(ordered) % 2:
+        recurrence = ordered[len(ordered) // 2]
+    else:
+        midpoint = len(ordered) // 2
+        recurrence = _round_half_even(Fraction(ordered[midpoint - 1] + ordered[midpoint], 2))
+    return syncopation, recurrence
+
+
+def fingerprint_component_hash(component_id: str, payload: Any) -> str:
+    return manifest_digest(
+        "cps.fingerprint-component/v1", {"id": component_id, "payload": payload}
+    )
+
+
+def musical_fingerprint_hash(component_hashes: Sequence[str]) -> str:
+    return manifest_digest("cps.musical-fingerprint/v1", list(component_hashes))
+
+
+def fingerprint_record(
+    spec: dict[str, Any],
+    payloads: dict[str, Any],
+    project_hash: str,
+    lineage_index_hash: str,
+) -> dict[str, Any]:
+    spec_hash = manifest_digest("cps.fingerprint-spec/v1", spec)
+    components = []
+    for component in spec["components"]:
+        component_id = component["id"]
+        if component_id not in payloads:
+            raise SearchArtifactError("FINGERPRINT_COMPONENT_MISSING")
+        components.append(
+            {"id": component_id, "hash": fingerprint_component_hash(component_id, payloads[component_id])}
+        )
+    if set(payloads) != {item["id"] for item in components}:
+        raise SearchArtifactError("FINGERPRINT_COMPONENT_EXTRA")
+    hashes = [item["hash"] for item in components]
+    return {
+        "schema": "cps.fingerprint-record",
+        "schema_version": "1.0.0",
+        "fingerprint_spec_hash": spec_hash,
+        "project_hash": project_hash,
+        "lineage_index_hash": lineage_index_hash,
+        "component_hashes": components,
+        "fingerprint_hash": musical_fingerprint_hash(hashes),
+    }
+
+
+def _items(value: Any) -> list[bytes]:
+    if not isinstance(value, list):
+        raise SearchArtifactError("FINGERPRINT_PAYLOAD_INVALID")
+    return [canonical_bytes(item) for item in value]
+
+
+def _component_difference(left: Any, right: Any, algorithm: str) -> Fraction:
+    left_items, right_items = _items(left), _items(right)
+    if algorithm == "padded_hamming":
+        size = max(len(left_items), len(right_items))
+        if size == 0:
+            return Fraction(0)
+        matches = sum(
+            index < len(left_items)
+            and index < len(right_items)
+            and left_items[index] == right_items[index]
+            for index in range(size)
+        )
+        return Fraction(size - matches, size)
+    if algorithm == "set_jaccard":
+        left_set, right_set = set(left_items), set(right_items)
+        union_set = left_set | right_set
+        return Fraction(0) if not union_set else Fraction(len(union_set - (left_set & right_set)), len(union_set))
+    if algorithm == "multiset_jaccard":
+        left_counts, right_counts = Counter(left_items), Counter(right_items)
+        keys = left_counts.keys() | right_counts.keys()
+        union_count = sum(max(left_counts[key], right_counts[key]) for key in keys)
+        intersection = sum(min(left_counts[key], right_counts[key]) for key in keys)
+        return Fraction(0) if union_count == 0 else Fraction(union_count - intersection, union_count)
+    raise SearchArtifactError("FINGERPRINT_DISTANCE_ALGORITHM_INVALID")
+
+
+def fingerprint_distance_q(
+    spec: dict[str, Any], left_payloads: dict[str, Any], right_payloads: dict[str, Any]
+) -> int:
+    expected = {item["id"] for item in spec["components"]}
+    if set(left_payloads) != expected or set(right_payloads) != expected:
+        raise SearchArtifactError("FINGERPRINT_COMPONENT_SET_INVALID")
+    weighted = Fraction(0)
+    weight_sum = 0
+    for component in spec["components"]:
+        weight = component["weight"]
+        weight_sum += weight
+        weighted += weight * _component_difference(
+            left_payloads[component["id"]], right_payloads[component["id"]], component["distance"]
+        )
+    if weight_sum <= 0:
+        raise SearchArtifactError("FINGERPRINT_WEIGHT_INVALID")
+    return _round_half_even(Fraction(10_000, weight_sum) * weighted)
 
 
 def stream_key(root_seed: int, cohort_index: int, path: Sequence[str]) -> bytes:

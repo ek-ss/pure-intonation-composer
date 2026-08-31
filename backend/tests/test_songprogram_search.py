@@ -14,6 +14,9 @@ from app.songprogram.search import (
     LocalRunStore,
     SearchArtifactError,
     action_id,
+    descriptor_values,
+    fingerprint_distance_q,
+    fingerprint_record,
     manifest_digest,
     sampler_choice,
     seal_record,
@@ -94,3 +97,40 @@ def test_production_stream_is_cross_process_and_hash_seed_invariant() -> None:
             environment = dict(os.environ, PYTHONHASHSEED=str(worker))
             outputs.append(subprocess.check_output([sys.executable, "-c", source], cwd=ROOT, env=environment))
     assert len(set(outputs)) == 1
+
+
+def test_descriptor_aggregation_matches_checked_in_case() -> None:
+    case = _fixture("descriptor_case.json")
+    result = _fixture("descriptor_result.json")
+    actual = descriptor_values(
+        [item["contribution"] for item in case["eligible_events"]],
+        [item["weighted_jaccard_q"] for item in case["lineage_pairs"]],
+    )
+    assert actual == (result["rhythmic_syncopation_q"], result["material_recurrence_distance_q"])
+    assert descriptor_values([], []) == (None, None)
+    assert descriptor_values([], [1, 2]) == (None, 2)
+
+
+def test_fingerprint_record_matches_independent_fixture() -> None:
+    spec = _fixture("fingerprint_spec.json")
+    case = _fixture("fingerprint_case.json")
+    expected = _fixture("fingerprint_record.json")
+    payloads = {item["id"]: item["payload"] for item in case["components"]}
+    actual = fingerprint_record(
+        spec, payloads, expected["project_hash"], expected["lineage_index_hash"]
+    )
+    assert actual == expected
+
+
+def test_fingerprint_distances_cover_frozen_algorithms() -> None:
+    spec = _fixture("fingerprint_spec.json")
+    case = _fixture("fingerprint_case.json")
+    original = {item["id"]: item["payload"] for item in case["components"]}
+    assert fingerprint_distance_q(spec, original, original) == 0
+    changed = {key: list(value) for key, value in original.items()}
+    changed["section_bars"] = [4, 8]
+    changed["role_time_grid"] = [["melody", 0, 4], ["melody", 0, 4]]
+    changed["root_anchor_deltas"] = [[0, 0]]
+    distance = fingerprint_distance_q(spec, original, changed)
+    assert 0 < distance <= 10_000
+    assert distance == fingerprint_distance_q(spec, changed, original)
