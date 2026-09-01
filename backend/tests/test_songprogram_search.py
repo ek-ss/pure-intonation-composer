@@ -15,8 +15,11 @@ from app.songprogram.search import (
     SearchArtifactError,
     action_id,
     descriptor_values,
+    descriptor_result_from_project,
     fingerprint_distance_q,
+    fingerprint_payloads_from_project,
     fingerprint_record,
+    fingerprint_record_from_project,
     manifest_digest,
     sampler_choice,
     seal_record,
@@ -24,6 +27,7 @@ from app.songprogram.search import (
     stream_key,
     update_archive_record,
 )
+from app.songprogram.compiler import CompilerIdentity, build_lineage_index, compile_direct_sp0
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -134,3 +138,53 @@ def test_fingerprint_distances_cover_frozen_algorithms() -> None:
     distance = fingerprint_distance_q(spec, original, changed)
     assert 0 < distance <= 10_000
     assert distance == fingerprint_distance_q(spec, changed, original)
+
+
+def test_project_descriptor_extraction_uses_compiler_lineage() -> None:
+    pack = ROOT / "songprogram_conformance" / "fixtures" / "pack"
+    program = json.loads((pack / "minimal_direct_song_program.json").read_text())
+    identity = CompilerIdentity("fixture-build", "fixture-resolver", "sha256:" + "0" * 64, "sha256:" + "0" * 64, "sha256:" + "0" * 64)
+    project = compile_direct_sp0(program, identity)
+    lineage = build_lineage_index(program, project)
+    result = descriptor_result_from_project(project, lineage, _fixture("descriptor_spec.json"))
+    assert (result["rhythmic_syncopation_q"], result["eligible_syncopation_events"]) == (0, 1)
+    assert (result["material_recurrence_distance_q"], result["recurrence_pair_count"]) == (None, 0)
+
+
+def test_project_descriptor_recurrence_compares_cross_section_instances() -> None:
+    pack = ROOT / "songprogram_conformance" / "fixtures" / "pack"
+    program = json.loads((pack / "minimal_direct_song_program.json").read_text())
+    second = dict(program["form"][0], id="sec_b")
+    program["form"].append(second)
+    program["realizations"].append(dict(program["realizations"][0], id="real_b", section_id="sec_b"))
+    identity = CompilerIdentity("fixture-build", "fixture-resolver", "sha256:" + "0" * 64, "sha256:" + "0" * 64, "sha256:" + "0" * 64)
+    project = compile_direct_sp0(program, identity)
+    lineage = build_lineage_index(program, project)
+    result = descriptor_result_from_project(project, lineage, _fixture("descriptor_spec.json"))
+    assert (result["material_recurrence_distance_q"], result["recurrence_pair_count"]) == (0, 1)
+
+
+def test_project_fingerprint_extracts_direct_and_harmony_components() -> None:
+    pack = ROOT / "songprogram_conformance" / "fixtures" / "pack"
+    direct_program = json.loads((pack / "minimal_direct_song_program.json").read_text())
+    direct_identity = CompilerIdentity("fixture-build", "fixture-resolver", "sha256:" + "0" * 64, "sha256:" + "0" * 64, "sha256:" + "0" * 64)
+    direct = compile_direct_sp0(direct_program, direct_identity)
+    direct_lineage = build_lineage_index(direct_program, direct)
+    spec = _fixture("fingerprint_spec.json")
+    payloads = fingerprint_payloads_from_project(direct, direct_lineage, spec)
+    assert payloads["section_bars"] == [1]
+    assert payloads["role_time_grid"] == [["melody", 0, 4]]
+    assert payloads["root_anchor_deltas"] == []
+    assert payloads["sounding_intervals"] == []
+    record = fingerprint_record_from_project(direct, direct_lineage, spec)
+    assert record["project_hash"] == direct_lineage["project_hash"]
+
+    triad_program = json.loads((pack / "minimal_triad_song_program.json").read_text())
+    manifest = json.loads((pack / "compiler_manifest_sp0.json").read_text())
+    triad_identity = CompilerIdentity(manifest["build_id"], manifest["resolver"]["build_id"], manifest["resolver"]["profile_hash"], manifest["budget_profile"]["digest"], manifest["instrument_catalog_digest"])
+    triad = compile_direct_sp0(triad_program, triad_identity)
+    triad_lineage = build_lineage_index(triad_program, triad)
+    payloads = fingerprint_payloads_from_project(triad, triad_lineage, spec)
+    assert payloads["root_anchor_deltas"] == [[0, 0]]
+    assert payloads["chord_steps"] == [[0, 4, 7]]
+    assert payloads["sounding_intervals"] == ["3/2", "5/3", "5/4"]

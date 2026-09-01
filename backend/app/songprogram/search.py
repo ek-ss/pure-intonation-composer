@@ -92,6 +92,106 @@ def descriptor_values(
     return syncopation, recurrence
 
 
+def _quantized_tick(value: int, quantum: int, tolerance: int) -> int:
+    slot = _round_half_even(Fraction(value, quantum))
+    if abs(value - slot * quantum) > tolerance:
+        raise SearchArtifactError("DESCRIPTOR_UNQUANTIZABLE")
+    return slot
+
+
+def _metrical_strength(slot: int, slots_per_beat: int, beats_per_bar: int) -> int:
+    position = slot % slots_per_beat
+    base = (3, 0, 1, 0)[position]
+    beat = (slot // slots_per_beat) % beats_per_bar
+    return base + (2 if beat == 0 else 1)
+
+
+def _multiset_distance_q(left: list[bytes], right: list[bytes]) -> int:
+    left_counts, right_counts = Counter(left), Counter(right)
+    keys = left_counts.keys() | right_counts.keys()
+    union = sum(max(left_counts[key], right_counts[key]) for key in keys)
+    intersection = sum(min(left_counts[key], right_counts[key]) for key in keys)
+    return 0 if union == 0 else _round_half_even(Fraction(10_000 * (union - intersection), union))
+
+
+def descriptor_result_from_project(
+    project: dict[str, Any], lineage_index: dict[str, Any], spec: dict[str, Any]
+) -> dict[str, Any]:
+    """Compute DescriptorResult v1 from canonical Project and LineageIndex inputs."""
+    project_hash = sha256_digest(
+        project["compiler"]["build_id"].encode("utf-8")
+        + b"\0project/1.2.0\0"
+        + canonical_bytes(project)[:-1]
+    )
+    if lineage_index.get("project_hash") != project_hash:
+        raise SearchArtifactError("LINEAGE_PROJECT_MISMATCH")
+    instances = {item["id"]: item for item in project["material_instances"]}
+    lineage_records = {item["material_instance_id"]: item for item in lineage_index["instances"]}
+    if set(instances) != set(lineage_records) or len(lineage_records) != len(lineage_index["instances"]):
+        raise SearchArtifactError("LINEAGE_INSTANCE_SET_MISMATCH")
+    tracks = {item["id"]: item for item in project["tracks"]}
+    quantum = spec["quantization_ticks"]
+    tolerance = spec["maximum_quantization_error_ticks"]
+    slots_per_beat = project["clock"]["ticks_per_beat"] // quantum
+    if slots_per_beat != 4:
+        raise SearchArtifactError("DESCRIPTOR_CLOCK_UNSUPPORTED")
+    contributions = []
+    unique_events: dict[bytes, dict[str, Any]] = {}
+    for event in project["events"]:
+        core = {key: value for key, value in event.items() if key not in {"id", "velocity"}}
+        core["source"] = {key: value for key, value in event["source"].items() if key != "semantic_address"}
+        unique_events.setdefault(canonical_bytes(core), event)
+    for event in unique_events.values():
+        role = tracks[event["track_id"]]["role"]
+        if not (event["kind"] == "drum" and spec["drums_are_foreground"] or event["kind"] == "note" and role in spec["foreground_roles"]):
+            continue
+        onset = _quantized_tick(event["start_tick"], quantum, tolerance)
+        end = _quantized_tick(event["start_tick"] + event["duration_ticks"], quantum, tolerance)
+        next_slot = onset + 1
+        if end <= next_slot:
+            continue
+        contribution = max(0, _metrical_strength(next_slot, slots_per_beat, project["clock"]["beats_per_bar"]) - _metrical_strength(onset, slots_per_beat, project["clock"]["beats_per_bar"]))
+        contributions.append(contribution)
+    by_instance: dict[str, list[bytes]] = {instance_id: [] for instance_id in instances}
+    for event in unique_events.values():
+        if event["duration_ticks"] < spec["minimum_recurrence_event_ticks"]:
+            continue
+        instance = instances[event["source"]["material_instance_id"]]
+        onset = _quantized_tick(event["start_tick"] - instance["at_tick"], quantum, tolerance)
+        duration = _quantized_tick(event["duration_ticks"], quantum, tolerance)
+        if event["kind"] == "drum":
+            ratio_pair = [0, 1]
+        else:
+            ratio = Fraction(event["ratio"])
+            equave = Fraction(project["lattice"]["equave"])
+            while ratio >= equave:
+                ratio /= equave
+            while ratio < 1:
+                ratio *= equave
+            ratio_pair = [ratio.numerator, ratio.denominator]
+        payload = [event["kind"], onset, duration, *ratio_pair, event["source"]["source_step_ordinal"]]
+        by_instance[instance["id"]].append(canonical_bytes(payload))
+    pairs = []
+    ordered_instances = sorted(instances.values(), key=lambda item: item["id"].encode())
+    for left_index, left in enumerate(ordered_instances):
+        for right in ordered_instances[left_index + 1 :]:
+            if not by_instance[left["id"]] or not by_instance[right["id"]] or left["section_id"] == right["section_id"] or lineage_records[left["id"]]["lineage_hash"] != lineage_records[right["id"]]["lineage_hash"]:
+                continue
+            pairs.append(_multiset_distance_q(by_instance[left["id"]], by_instance[right["id"]]))
+    syncopation, recurrence = descriptor_values(contributions, pairs)
+    return {
+        "schema": "cps.descriptor-result",
+        "schema_version": "1.0.0",
+        "descriptor_spec_hash": manifest_digest("cps.descriptor-spec/v1", spec),
+        "project_hash": project_hash,
+        "lineage_index_hash": manifest_digest("cps.lineage-index/v1", lineage_index),
+        "rhythmic_syncopation_q": syncopation,
+        "material_recurrence_distance_q": recurrence,
+        "eligible_syncopation_events": len(contributions),
+        "recurrence_pair_count": len(pairs),
+    }
+
+
 def fingerprint_component_hash(component_id: str, payload: Any) -> str:
     return manifest_digest(
         "cps.fingerprint-component/v1", {"id": component_id, "payload": payload}
@@ -129,6 +229,99 @@ def fingerprint_record(
         "component_hashes": components,
         "fingerprint_hash": musical_fingerprint_hash(hashes),
     }
+
+
+def fingerprint_payloads_from_project(
+    project: dict[str, Any], lineage_index: dict[str, Any], spec: dict[str, Any]
+) -> dict[str, Any]:
+    """Extract the six canonical musical fingerprint component payloads."""
+    quantum = spec["time_quantization_ticks"]
+    tracks = {track["id"]: track for track in project["tracks"]}
+    instances = {item["material_instance_id"]: item for item in lineage_index["instances"]}
+    if set(instances) != {item["id"] for item in project["material_instances"]}:
+        raise SearchArtifactError("LINEAGE_INSTANCE_SET_MISMATCH")
+    unique: dict[bytes, dict[str, Any]] = {}
+    for event in project["events"]:
+        musical = {
+            "kind": event["kind"],
+            "role": tracks[event["track_id"]]["role"],
+            "start_tick": event["start_tick"],
+            "duration_ticks": event["duration_ticks"],
+            "drum_note": event["drum_note"],
+            "ratio": event["ratio"],
+        }
+        unique.setdefault(canonical_bytes(musical), event)
+    events = list(unique.values())
+    role_grid = sorted(
+        [
+            [
+                tracks[event["track_id"]]["role"],
+                _round_half_even(Fraction(event["start_tick"], quantum)),
+                _round_half_even(Fraction(event["duration_ticks"], quantum)),
+            ]
+            for event in events
+        ],
+        key=canonical_bytes,
+    )
+    chords = {chord["id"]: chord for chord in project["resolved_chords"]}
+    occurrence_chords = [chords[item["resolved_chord_id"]] for item in project["harmony_occurrences"]]
+    if occurrence_chords:
+        origin = occurrence_chords[0]["anchor_vector"]
+        anchor_deltas = [
+            [coordinate - base for coordinate, base in zip(chord["anchor_vector"], origin, strict=True)]
+            for chord in occurrence_chords
+        ]
+    else:
+        anchor_deltas = []
+    chord_steps = [chord["canonical_steps"] for chord in occurrence_chords]
+    lineage_edges = sorted(
+        [
+            [
+                instances[edge["from_instance_id"]]["lineage_hash"],
+                instances[edge["to_instance_id"]]["lineage_hash"],
+                edge["operation"],
+            ]
+            for edge in lineage_index["transform_edges"]
+        ],
+        key=canonical_bytes,
+    )
+    equave = Fraction(project["lattice"]["equave"])
+    pitched = [event for event in events if event["kind"] == "note"]
+    intervals = []
+    for left_index, left in enumerate(pitched):
+        for right in pitched[left_index + 1 :]:
+            if max(left["start_tick"], right["start_tick"]) >= min(left["start_tick"] + left["duration_ticks"], right["start_tick"] + right["duration_ticks"]):
+                continue
+            left_ratio, right_ratio = Fraction(left["ratio"]), Fraction(right["ratio"])
+            interval = max(left_ratio, right_ratio) / min(left_ratio, right_ratio)
+            while interval >= equave:
+                interval /= equave
+            while interval < 1:
+                interval *= equave
+            intervals.append(f"{interval.numerator}/{interval.denominator}")
+    intervals.sort()
+    return {
+        "section_bars": [section["bars"] for section in project["form"]],
+        "role_time_grid": role_grid,
+        "root_anchor_deltas": anchor_deltas,
+        "chord_steps": chord_steps,
+        "lineage_edges": lineage_edges,
+        "sounding_intervals": intervals,
+    }
+
+
+def fingerprint_record_from_project(
+    project: dict[str, Any], lineage_index: dict[str, Any], spec: dict[str, Any]
+) -> dict[str, Any]:
+    project_hash = sha256_digest(project["compiler"]["build_id"].encode() + b"\0project/1.2.0\0" + canonical_bytes(project)[:-1])
+    if lineage_index.get("project_hash") != project_hash:
+        raise SearchArtifactError("LINEAGE_PROJECT_MISMATCH")
+    return fingerprint_record(
+        spec,
+        fingerprint_payloads_from_project(project, lineage_index, spec),
+        project_hash,
+        manifest_digest("cps.lineage-index/v1", lineage_index),
+    )
 
 
 def _items(value: Any) -> list[bytes]:

@@ -78,6 +78,21 @@ lineage/reuse/transform edges; and exact sounding interval multiset. Normalize
 the first tonal center to zero. Hash identical fingerprints are exact musical
 duplicates.
 
+Fingerprint component payloads are fixed as follows. `section_bars` is the
+form-order bar-count array. `role_time_grid` is the sorted multiset of
+`[track_role,onset_slot,duration_slots]` for events quantized by FingerprintSpec.
+`root_anchor_deltas` lists each harmony occurrence anchor minus the first
+occurrence anchor, beginning with the all-zero vector; no occurrence yields an
+empty array. `chord_steps` is the occurrence-order array of each referenced
+ResolvedChord `canonical_steps`. `lineage_edges` is the sorted multiset of
+`[from_lineage_hash,to_lineage_hash,operation]` resolved through LineageIndex.
+`sounding_intervals` contains one equave-reduced larger/smaller exact ratio for
+every unordered pair of pitched events whose half-open sounding intervals
+overlap, sorted as reduced ratio strings. Each event pair contributes once,
+independent of overlap duration. Exact duplicate Project events are removed
+before all event-derived components. These rules make velocity, IDs, event
+array order, instrumentation, and global lattice transposition irrelevant.
+
 Near-duplicate distance is weighted Hamming/Jaccard over the explicitly named
 components in FingerprintSpec. Weights, quantization, and threshold are digest-
 covered. The baseline FingerprintSpec is checked in with the Search Artifacts
