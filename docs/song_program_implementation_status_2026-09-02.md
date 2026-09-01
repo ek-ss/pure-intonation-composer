@@ -65,9 +65,12 @@ every interpolation/release/pan boundary golden—has not yet been completed.
 
 Implementation: `backend/app/songprogram/search.py`.
 
-### Project 1.2 compiler vertical slice
+### Project 1.2 compiler
 
 - direct-vector and rhythm-cell SongProgram compilation;
+- drum-lane lowering with explicit note-map failures and GEN0-C rendering;
+- single-occurrence resolved harmony through the production GEN0-A resolver;
+- authoritative resolved-triad Project golden equality;
 - contiguous form and clock lowering;
 - realization repeats and rotate transforms;
 - deterministic MaterialInstance IDs, semantic addresses, and Event IDs;
@@ -75,11 +78,16 @@ Implementation: `backend/app/songprogram/search.py`.
 - exact vector-ratio arithmetic and deterministic register placement;
 - canonical Project ordering and authoritative minimal-direct golden equality;
 - cross-process and `PYTHONHASHSEED` parity.
+- compiler-origin LineageIndex with content-derived material lineage, Project
+  artifact binding, and normalized identity/rotate transform edges;
+- standalone direct, drum, and resolved-chord Project validation, including all
+  checked-in Project negative cases;
+- Project-derived descriptor and six-component musical fingerprint extraction.
 
 Implementation: `backend/app/songprogram/compiler.py`.
 
-This vertical slice intentionally returns `UNSUPPORTED_COMPILER_SLICE` for
-harmony, melody-intent, and drum compilation rather than introducing fallback
+The compiler still returns `UNSUPPORTED_COMPILER_SLICE` for melody-intent and
+multi-occurrence progression lowering rather than introducing fallback
 semantics.
 
 ## Not yet connected
@@ -87,13 +95,12 @@ semantics.
 The following remain required before the requested autonomous composition loop
 is operational:
 
-1. extend the compiler from direct vectors to drums, GEN0-A chord occurrences,
-   GEN0-B progression selection, and chord-member melody;
+1. extend the compiler from single GEN0-A harmony occurrences to GEN0-B
+   progression selection and chord-member melody;
 2. implement the complete standalone Project 1.2 semantic validator and
    CompileReport/budget receipts;
-3. generate canonical LineageIndex records during compilation and mutation;
-4. derive descriptor and fingerprint payloads from actual Project 1.2 plus
-   LineageIndex rather than pre-normalized inputs;
+3. extend canonical LineageIndex records through mutation-created material;
+4. complete descriptor/fingerprint invariance and cross-process corpora;
 5. implement all eight typed Mutation applications, dependency closure, locks,
    and locality/inverse tests;
 6. connect sample, mutate, compile, render, evaluate, deduplicate, archive,
@@ -109,22 +116,20 @@ is operational:
 
 The next safe milestone is the compiler/validator layer:
 
-1. drum Project 1.2 lowering;
-2. single-occurrence resolved harmony using GEN0-A;
-3. multi-occurrence progression using GEN0-B;
-4. LineageIndex generation;
-5. Project-derived descriptor/fingerprint extraction;
-6. typed Mutation application;
-7. the replayable search-run orchestrator.
+1. multi-occurrence progression using GEN0-B;
+2. chord-member melody lowering;
+3. complete ResolvedChord metric replay in the standalone validator;
+4. typed Mutation application;
+5. the replayable search-run orchestrator.
 
 Each milestone should land with an authoritative golden, negative and boundary
 fixtures, an independent oracle where identity bytes are involved, cache
 parity where applicable, and cross-process byte equality.
 
-## Immediately implementable scope
+## Implemented milestone details (P1–P4)
 
-The following work can begin from the current `main` without inventing new
-normative data or waiting for perceptual calibration.
+The following work was identified as implementable without perceptual
+calibration and is now present on `main`.
 
 ### P1 — Drum compiler lowering
 
@@ -176,10 +181,24 @@ descriptor/fingerprint extraction. Mutation-derived lineage edges remain a
 later extension; the initial compiler path needs only source lineage roots and
 identity transform edges.
 
-P1, P2 query construction, and P3 schema-independent validator scaffolding can
-be developed in parallel. P2 lowering must wait for its query/core equality
-test; P4 should wait until instance identity for P1 and P2 is stable. The
-connected search runner should not begin before P3 and P4 are complete.
+P1 through P4 are now implemented by `749d3d9` and `a239253`. The connected
+search runner should not begin until the remaining Mutation semantics below are
+closed and GEN0-B compiler lowering has golden equality.
+
+### Current specification blockers
+
+- `rotate_rhythm.parameters.steps` does not define whether one step is an
+  ordinal permutation, a fixed tick grid, or a rhythm-derived quantum. Typed
+  Mutation application cannot implement this operation without changing its
+  musical meaning.
+- `replace_distribution_choice` does not map each `(owner_kind,field,choice_id)`
+  tuple to an authoritative SongProgram value source.
+- mutation-created LineageIndex roots need an exact creating-action preimage
+  and transform-edge operation encoding.
+
+These three items should be resolved together before implementing the eight-op
+Mutation applicator. Sampler-to-complete-SongProgram construction also remains
+separate from the currently implemented deterministic choice-stream primitive.
 
 ## Relevant commits
 
@@ -191,3 +210,6 @@ connected search runner should not begin before P3 and P4 are complete.
 - `86a2594`, `52c197e`, `754c152` — GEN0-D contracts, run/search primitives,
   and fingerprint evaluation;
 - `ee6b13e` — direct SongProgram to ArrangementProject 1.2 compiler slice.
+- `749d3d9` — drum and GEN0-A harmony lowering, Project validation, and
+  compiler-origin LineageIndex;
+- `a239253` — Project-derived descriptor and fingerprint evaluation.

@@ -203,8 +203,8 @@ def _place_exponent(
     return min(candidates, key=lambda exponent: (abs(exponent - requested), exponent))
 
 
-def compile_direct_sp0(program: dict[str, Any], identity: CompilerIdentity) -> dict[str, Any]:
-    """Compile the strict direct-vector subset of SongProgram 0.1 to Project 1.2."""
+def compile_sp0(program: dict[str, Any], identity: CompilerIdentity) -> dict[str, Any]:
+    """Compile the implemented drum/direct/harmony subset to Project 1.2."""
     if program.get("schema") != "cps.song-program" or program.get("schema_version") != "0.1.0":
         raise CompileError("SCHEMA_VERSION_UNSUPPORTED")
     if any(
@@ -541,6 +541,11 @@ def compile_direct_sp0(program: dict[str, Any], identity: CompilerIdentity) -> d
         )
     )
     return project
+
+
+def compile_direct_sp0(program: dict[str, Any], identity: CompilerIdentity) -> dict[str, Any]:
+    """Backward-compatible name for the original compiler vertical slice."""
+    return compile_sp0(program, identity)
 
 
 def build_lineage_index(program: dict[str, Any], project: dict[str, Any]) -> dict[str, Any]:

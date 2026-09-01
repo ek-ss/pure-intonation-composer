@@ -1,6 +1,6 @@
 """Deterministic GEN0 SongProgram resolvers."""
 
-from .compiler import CompileError, CompilerIdentity, build_lineage_index, compile_direct_sp0
+from .compiler import CompileError, CompilerIdentity, build_lineage_index, compile_direct_sp0, compile_sp0
 from .resolver import resolve_joint_bnb, resolve_progression
 from .renderer import RenderError, RenderResult, render_reference
 from .search import (
@@ -33,6 +33,7 @@ __all__ = [
     "canonical_bytes",
     "build_lineage_index",
     "compile_direct_sp0",
+    "compile_sp0",
     "descriptor_values",
     "descriptor_result_from_project",
     "fingerprint_distance_q",
