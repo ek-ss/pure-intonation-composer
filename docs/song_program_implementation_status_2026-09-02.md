@@ -121,6 +121,66 @@ Each milestone should land with an authoritative golden, negative and boundary
 fixtures, an independent oracle where identity bytes are involved, cache
 parity where applicable, and cross-process byte equality.
 
+## Immediately implementable scope
+
+The following work can begin from the current `main` without inventing new
+normative data or waiting for perceptual calibration.
+
+### P1 — Drum compiler lowering
+
+Extend `compile_direct_sp0` into the next compiler capability slice:
+
+- accept a `rhythm_cell` realization on a drums track;
+- resolve every non-null rhythm `lane_id` through the track `drum_map`;
+- emit Project 1.2 drum provenance with deterministic instance, semantic, and
+  event IDs;
+- apply rotate, repeat, velocity, gate, section bounds, event limits, and
+  polyphony validation already used by the direct-note slice;
+- reject missing lanes, pitched material on a drums track, and drum material on
+  a pitched track with stable codes and JSON pointers.
+
+Completion requires a drum golden, unmapped-lane negative, section-boundary
+case, cross-process byte equality, and successful GEN0-C rendering against the
+checked-in drum asset.
+
+### P2 — Single-occurrence GEN0-A harmony lowering
+
+Use the checked-in `minimal_triad_song_program.json` and
+`resolved_triad_project.json` as the authoritative end-to-end target:
+
+- build the exact resolver query from lattice, ChordIntent, root anchor, track
+  range, and compiler manifest;
+- call the production GEN0-A resolver and select its first canonical core;
+- construct ResolvedChord, one HarmonyOccurrence, and chord-voice events;
+- recompute intent/domain/chord/event identities independently;
+- produce bytes identical to the stored triad Project and expected sidecar.
+
+Completion requires golden equality, no-solution and budget-exhaustion typed
+failures, cache cold/hit parity, input-order invariance, and cross-process
+equality. GEN0-B is not needed for this milestone.
+
+### P3 — Standalone Project 1.2 validator
+
+The schema and Project contract already define the required validation order.
+Implement semantic validation separately from the compiler so generated and
+externally supplied Projects follow the same path. Start with direct and drum
+unions, then add ResolvedChord validation with P2. Completion requires every
+checked-in `project_negative_cases.json` case to fail at its declared stage and
+pointer, while both Project goldens pass 100 parse/serialize cycles.
+
+### P4 — Compiler-produced LineageIndex
+
+After P1/P2 establish all emitted-instance kinds, generate one canonical
+LineageIndex beside Project and CompileReport. This unlocks Project-derived
+descriptor/fingerprint extraction. Mutation-derived lineage edges remain a
+later extension; the initial compiler path needs only source lineage roots and
+identity transform edges.
+
+P1, P2 query construction, and P3 schema-independent validator scaffolding can
+be developed in parallel. P2 lowering must wait for its query/core equality
+test; P4 should wait until instance identity for P1 and P2 is stable. The
+connected search runner should not begin before P3 and P4 are complete.
+
 ## Relevant commits
 
 - `7602196` — GEN0 SongProgram resolvers;
