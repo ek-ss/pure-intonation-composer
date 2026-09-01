@@ -67,6 +67,28 @@ Persistent outputs use `descriptor_result.schema.json` and
 spec hashes. Descriptor nulls remain explicit and fingerprint component hashes
 remain in spec order.
 
+For compiler-origin material, `material_core` is the complete canonical
+SongProgram material object with only its top-level `id` omitted. Placement is
+not part of a material object and therefore requires no additional exclusion.
+Both the initial `lineage_hash` and `lineage_root_hash` are:
+
+```text
+SHA256("cps.material-lineage/v1\0" + canonical_json(material_core))
+```
+
+`program_lineage_root_hash` hashes the sorted unique lineage-root hash array
+under `cps.program-lineage-root/v1`. `project_hash` is the Project 1.2 artifact
+hash defined by the Project contract, including compiler build identity.
+
+For each lineage, compiler-origin instances sort by `(at_tick,id UTF-8)` and
+each instance after the first records one edge from its predecessor. With no
+rhythm transform the operation is `identity` and `identity=true`. The SP0
+rotate list is combined left-to-right by integer addition and stored as
+`rotate_ticks:<signed-decimal-total>` with `identity=false`, except a zero
+total, which canonicalizes to `identity`. No edge is fabricated for the first
+instance of a lineage. Mutation-created edges use their separately defined
+typed operation identity.
+
 `foreground` is exact: every drum event and every pitched event whose track
 role is `melody`; bass, harmony, and texture are not foreground. For rhythmic
 syncopation an eligible event is foreground, quantizable, positive-duration,

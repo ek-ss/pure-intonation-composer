@@ -1,6 +1,6 @@
 """Deterministic GEN0 SongProgram resolvers."""
 
-from .compiler import CompileError, CompilerIdentity, compile_direct_sp0
+from .compiler import CompileError, CompilerIdentity, build_lineage_index, compile_direct_sp0
 from .resolver import resolve_joint_bnb, resolve_progression
 from .renderer import RenderError, RenderResult, render_reference
 from .search import (
@@ -16,6 +16,7 @@ from .search import (
     seal_record,
     update_archive_record,
 )
+from .validator import ProjectValidationError, validate_project
 
 __all__ = [
     "ArchiveCandidate",
@@ -24,8 +25,10 @@ __all__ = [
     "LocalRunStore",
     "RenderError",
     "RenderResult",
+    "ProjectValidationError",
     "action_id",
     "canonical_bytes",
+    "build_lineage_index",
     "compile_direct_sp0",
     "descriptor_values",
     "fingerprint_distance_q",
@@ -37,4 +40,5 @@ __all__ = [
     "sampler_choice",
     "seal_record",
     "update_archive_record",
+    "validate_project",
 ]
