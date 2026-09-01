@@ -39,6 +39,13 @@ ordinal 0..31, absolute tick, and SongProgram JSON Pointer. `EventSource`
 contains material-instance ID, source-step ordinal 0..63,
 `emitted_voice_ordinal` 0..7, and semantic address.
 
+MaterialInstanceId v1 is derived from the realization ID and repeat ordinal.
+Remove a leading `real_` when present, otherwise use the complete realization
+ID as the stem. Repeat zero is `"mi_" + stem`; later repeats are
+`"mi_" + stem + "_" + unsigned_decimal(repeat_ordinal)`. The result must
+match the Project symbol-ID grammar and be unique; truncation, hashing, or
+collision repair is forbidden and fails `MATERIAL_INSTANCE_ID_INVALID`.
+
 SemanticAddressEncoding v1 is UTF-8 canonical JSON, with no whitespace and only
 JSON-required escaping, of `["cps.semantic-address",1,section_id,
 realization_id,repeat_ordinal,material_id,source_step_ordinal,
@@ -98,6 +105,13 @@ id = "ev_" + base32lower_no_pad(SHA256(preimage))[0:20]
 ```
 
 The compiler computes semantic address, then event ID, then final event order.
+
+Event velocity is derived before EventId computation. For a rhythm step with
+`accent_q=A` and realization `velocity_scale_q=S`, compute
+`v=RHE(125*A*S/100000000)`, then clamp to `1..127`. This deliberately reserves
+two MIDI velocity codes at unity gain and makes a zero accent a minimally
+audible event rather than deleting it. Duration is
+`max(1,RHE(source_duration_ticks*gate_scale_q/10000))`.
 
 ## ResolvedChord
 
