@@ -185,20 +185,19 @@ P1 through P4 are now implemented by `749d3d9` and `a239253`. The connected
 search runner should not begin until the remaining Mutation semantics below are
 closed and GEN0-B compiler lowering has golden equality.
 
-### Current specification blockers
+### Recently closed Mutation specifications
 
-- `rotate_rhythm.parameters.steps` does not define whether one step is an
-  ordinal permutation, a fixed tick grid, or a rhythm-derived quantum. Typed
-  Mutation application cannot implement this operation without changing its
-  musical meaning.
-- `replace_distribution_choice` does not map each `(owner_kind,field,choice_id)`
-  tuple to an authoritative SongProgram value source.
-- mutation-created LineageIndex roots need an exact creating-action preimage
-  and transform-edge operation encoding.
+- `rotate_rhythm.parameters.steps` is a displacement over an invariant
+  rhythm-derived GCD quantum, with an exact inverse rule;
+- `replace_distribution_choice` resolves through a content-addressed
+  MutationChoiceCatalog bound by Search RunManifest 1.2;
+- mutation-created LineageIndex roots use the action, mutation, creation
+  ordinal, and canonical material core; mutation edges have a closed string
+  encoding and sort order.
 
-These three items should be resolved together before implementing the eight-op
-Mutation applicator. Sampler-to-complete-SongProgram construction also remains
-separate from the currently implemented deterministic choice-stream primitive.
+These decisions, their schemas, and fixed preimage fixtures are now ready for
+the eight-op Mutation applicator. Sampler-to-complete-SongProgram construction
+remains separate from the deterministic choice-stream primitive.
 
 ## Relevant commits
 

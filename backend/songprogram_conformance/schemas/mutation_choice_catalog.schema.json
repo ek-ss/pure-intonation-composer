@@ -1,0 +1,6 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema","$id":"https://cps.local/schemas/mutation_choice_catalog.schema.json","title":"CPS MutationChoiceCatalog v1","type":"object","additionalProperties":false,
+  "required":["schema","schema_version","entries"],
+  "properties":{"schema":{"const":"cps.mutation-choice-catalog"},"schema_version":{"const":"1.0.0"},"entries":{"type":"array","minItems":1,"items":{"$ref":"#/$defs/entry"}}},
+  "$defs":{"choiceId":{"type":"string","pattern":"^choice_[a-z2-7]{20}$"},"entry":{"type":"object","additionalProperties":false,"required":["choice_id","owner_kind","field","value"],"properties":{"choice_id":{"$ref":"#/$defs/choiceId"},"owner_kind":{"enum":["section","material","track","production"]},"field":{"enum":["role","development_stage","mapping","profile_id"]},"value":{"oneOf":[{"type":"string","minLength":1,"maxLength":80},{"type":"integer","minimum":-10000,"maximum":10000},{"type":"boolean"}]}}}}
+}

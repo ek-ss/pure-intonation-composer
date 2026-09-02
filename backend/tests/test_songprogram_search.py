@@ -73,7 +73,8 @@ def test_record_identity_and_local_cas_match_fixture(tmp_path: Path) -> None:
     assert action_id(run_hash, 0, 0, 0) == expected["action_id"]
     assert seal_record(expected) == expected
     store = LocalRunStore(tmp_path, run_hash)
-    payload = (FIXTURES / "cas" / "sha256" / "32" / "b6e5c13ca4db2962b7d3ea1bc96127a74c9a839d365acb94028f727b3710e9").read_bytes()
+    payload_hex = expected["payload_hash"].removeprefix("sha256:")
+    payload = (FIXTURES / "cas" / "sha256" / payload_hex[:2] / payload_hex[2:]).read_bytes()
     assert store.put(payload) == expected["payload_hash"]
     assert store.put(payload) == expected["payload_hash"]
     assert store.append({key: value for key, value in expected.items() if key != "record_hash"}) == expected

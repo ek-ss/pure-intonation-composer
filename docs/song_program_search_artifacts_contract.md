@@ -5,8 +5,8 @@
 ## 1. Identity and canonical bytes
 
 SamplerManifest, DescriptorSpec, FingerprintSpec, QDManifest, PlannerManifest,
-LineageIndex, Mutation, RunRecord, and Checkpoint use their checked-in closed
-schemas. Manifest objects do not contain their own digest. Their canonical
+MutationChoiceCatalog, LineageIndex, Mutation, RunRecord, and Checkpoint use
+their checked-in closed schemas. Manifest objects do not contain their own digest. Their canonical
 bytes are UTF-8 canonical JSON with NFC strings, UTF-8-byte-sorted object keys,
 preserved array order, shortest decimal integers, no whitespace, and one final
 LF. A manifest digest is:
@@ -17,7 +17,8 @@ LF. A manifest digest is:
 
 Domains are respectively `cps.sampler-manifest/v1`,
 `cps.descriptor-spec/v1`, `cps.fingerprint-spec/v1`, `cps.qd-manifest/v1`,
-`cps.planner-manifest/v1`, and `cps.lineage-index/v1`. Array order is normative
+`cps.planner-manifest/v1`, `cps.mutation-choice-catalog/v1`, and
+`cps.lineage-index/v1`. Array order is normative
 unless a field explicitly requires sorting. No runtime default fills an absent
 field.
 
@@ -158,6 +159,39 @@ insertion predecessor; delete requires it null. Chord steps are canonicalized
 and revalidated against divisions/equave. Violations are
 `MUTATION_PARAMETER_INVALID` before dependency traversal.
 
+`rotate_rhythm.steps` is a rhythm-derived-grid displacement, not an ordinal
+array rotation and not a globally fixed tick grid. For the targeted
+RhythmCell, sort distinct onsets and form their positive cyclic gaps, including
+the wrap from the last onset to `length_ticks + first_onset`. The immutable
+rotation quantum is `gcd(length_ticks, every duration_ticks, every positive
+cyclic onset gap)`, with zero gaps omitted. Shift every source step by
+`steps * quantum` ticks modulo `length_ticks`; duration, accent, and lane remain
+attached to the step. Sort by `(new_at_tick, original_source_ordinal)` and then
+discard the temporary ordinal. The quantum is invariant under rotation, so
+applying `n` and then `-n` restores canonical bytes.
+
+`replace_distribution_choice` resolves only through the
+`MutationChoiceCatalog` whose digest is mandatory in Search RunManifest 1.2.
+The closed supported `(owner_kind,field)` pairs are `(section,role)`,
+`(section,development_stage)`, `(material,mapping)`, `(track,role)`, and
+`(production,profile_id)`. A catalog entry core is exactly
+`{owner_kind,field,value}` and its ID is:
+
+```text
+"choice_" + base32lower_no_pad(SHA256(
+  UTF8("cps.mutation-choice/v1\0") + canonical_json(entry_core)
+))[0:20]
+```
+
+Catalog canonical bytes and digest use the artifact rules with domain
+`cps.mutation-choice-catalog/v1`. Entries sort by
+`(owner_kind UTF-8,field UTF-8,choice_id UTF-8)` and duplicate cores, IDs, or
+triples reject. Resolution requires one exact catalog match for owner kind,
+field, and choice ID. Missing, ambiguous, digest-mismatched, or incompatible
+choices fail `MUTATION_CHOICE_UNRESOLVED`; no sampler-table, model-text,
+environment, or current-value fallback is permitted. `owner_id` selects the
+target object and is absent from choice identity, allowing reuse across owners.
+
 - material -> realizations using it -> emitted instances/events;
 - rhythm -> materials referring to it -> their realization closure;
 - ChordIntent -> harmony materials referring to it -> their closure;
@@ -171,6 +205,29 @@ and revalidated against divisions/equave. Violations are
 superset declarations reject `MUTATION_SCOPE_MISMATCH`. Locks match these roots
 before application. Sequential proposal application recomputes closure after
 each mutation. SongProgram §19 is superseded by this vocabulary for 0.1.
+
+For lineage-preserving mutations, both lineage hashes remain unchanged and
+each derived-instance edge uses the exact operation string
+`mutation/<operation>/<mutation_id>`. `identity` is true exactly when the
+canonical material/instance musical core is byte-identical before and after
+application; a nonzero request may therefore be a canonical identity.
+
+A genuinely new material has no parent lineage. In its creating action's
+canonical mutation order, assign `creation_ordinal` from zero and derive both
+its initial lineage and root hash as:
+
+```text
+SHA256(
+  UTF8("cps.mutation-lineage-root/v1\0") || UTF8(action_id) || NUL ||
+  UTF8(mutation_id) || NUL || u32be(creation_ordinal) ||
+  canonical_json(new_material_without_id)
+)
+```
+
+The same tuple reproduces the same root; any changed component creates a new
+root. Transform edges sort by `(to_instance_id UTF-8,from_instance_id UTF-8,
+operation UTF-8)`. The first instance of a new root has no fabricated parent
+edge.
 
 ## 7. PlannerManifest
 

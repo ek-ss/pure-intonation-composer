@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import hashlib
+import base64
 import json
+import math
 import os
 import struct
 import subprocess
@@ -65,6 +67,36 @@ def test_mutation_vocabulary_is_one_closed_shared_set() -> None:
     assert planner["allowed_operations"] == operations
     positive = _json("mutation_cases.json")["positive"][0]
     assert positive["operation"] == positive["parameters"]["kind"] == "rotate_rhythm"
+
+
+def test_mutation_choice_catalog_is_content_addressed_and_run_bound() -> None:
+    catalog = _json("mutation_choice_catalog.json")
+    run = _json("run_manifest.json")
+    assert run["schema_version"] == "1.2.0"
+    assert run["mutation_choice_catalog_hash"] == manifest_digest("cps.mutation-choice-catalog/v1", catalog)
+    observed = []
+    for entry in catalog["entries"]:
+        core = {key: entry[key] for key in ("owner_kind", "field", "value")}
+        digest = hashlib.sha256(b"cps.mutation-choice/v1\0" + canonical_bytes(core)).digest()
+        choice_id = "choice_" + base64.b32encode(digest).decode("ascii").lower().rstrip("=")[:20]
+        assert entry["choice_id"] == choice_id
+        observed.append((entry["owner_kind"].encode(), entry["field"].encode(), choice_id.encode()))
+    assert observed == sorted(observed)
+    assert len(observed) == len(set(observed))
+
+
+def test_mutation_rotation_and_lineage_preimages_are_frozen() -> None:
+    cases = _json("mutation_semantics_cases.json")
+    rotation = cases["rotation"]
+    onsets = sorted({step["at_tick"] for step in rotation["steps"]})
+    gaps = [right - left for left, right in zip(onsets, onsets[1:])] + [rotation["length_ticks"] + onsets[0] - onsets[-1]]
+    quantum = math.gcd(rotation["length_ticks"], *(step["duration_ticks"] for step in rotation["steps"]), *(gap for gap in gaps if gap > 0))
+    assert quantum == rotation["expected_quantum_ticks"]
+    assert sorted((step["at_tick"] + rotation["displacement_steps"] * quantum) % rotation["length_ticks"] for step in rotation["steps"]) == rotation["expected_onsets"]
+    lineage = cases["lineage_creation"]
+    preimage = b"cps.mutation-lineage-root/v1\0" + lineage["action_id"].encode() + b"\0" + lineage["mutation_id"].encode() + b"\0" + struct.pack(">I", lineage["creation_ordinal"]) + canonical_bytes(lineage["material_core"])
+    assert sha(preimage) == lineage["expected_root_hash"]
+    assert lineage["expected_edge_operation"] == f"mutation/rotate_rhythm/{lineage['mutation_id']}"
 
 
 def test_run_record_action_hash_chain_and_framing() -> None:

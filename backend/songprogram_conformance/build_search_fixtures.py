@@ -4,6 +4,9 @@ from __future__ import annotations
 
 import json
 import struct
+import base64
+import hashlib
+import math
 from pathlib import Path
 from typing import Any, cast
 
@@ -27,6 +30,12 @@ def _choice(*pairs: tuple[Any, int]) -> list[dict[str, Any]]:
 
 def _write(out: Path, name: str, value: object) -> None:
     (out / name).write_bytes(canonical_bytes(value))
+
+
+def _choice_id(owner_kind: str, field: str, value: object) -> str:
+    core = {"owner_kind": owner_kind, "field": field, "value": value}
+    digest = hashlib.sha256(b"cps.mutation-choice/v1\0" + canonical_bytes(core)).digest()
+    return "choice_" + base64.b32encode(digest).decode("ascii").lower().rstrip("=")[:20]
 
 
 def build(out: Path = OUT) -> None:
@@ -84,10 +93,49 @@ def build(out: Path = OUT) -> None:
     _write(out, "qd_manifest.json", qd)
     _write(out, "planner_manifest.json", planner)
 
+    choice_values = [
+        ("section", "role", value) for value in ("intro", "verse", "build", "drop", "break", "final", "outro")
+    ] + [
+        ("section", "development_stage", value) for value in ("introduce", "repeat", "develop", "contrast", "recall", "close")
+    ] + [
+        ("material", "mapping", value) for value in ("cycle", "zip")
+    ] + [
+        ("track", "role", value) for value in ("drums", "bass", "harmony", "melody", "texture")
+    ] + [("production", "profile_id", "sp0_static")]
+    choice_catalog = {
+        "schema": "cps.mutation-choice-catalog", "schema_version": "1.0.0",
+        "entries": sorted(
+            [{"choice_id": _choice_id(owner, field, value), "owner_kind": owner, "field": field, "value": value} for owner, field, value in choice_values],
+            key=lambda item: (item["owner_kind"].encode(), item["field"].encode(), item["choice_id"].encode()),
+        ),
+    }
+    _write(out, "mutation_choice_catalog.json", choice_catalog)
+    choice_catalog_hash = manifest_digest("cps.mutation-choice-catalog/v1", choice_catalog)
+
+    rotation_steps: list[dict[str, Any]] = [
+        {"at_tick": 0, "duration_ticks": 120, "accent_q": 8000, "lane_id": None},
+        {"at_tick": 360, "duration_ticks": 240, "accent_q": 6000, "lane_id": None},
+        {"at_tick": 960, "duration_ticks": 120, "accent_q": 7000, "lane_id": None},
+    ]
+    onsets = sorted({int(item["at_tick"]) for item in rotation_steps})
+    gaps = [right - left for left, right in zip(onsets, onsets[1:])] + [1920 + onsets[0] - onsets[-1]]
+    quantum = math.gcd(1920, *(int(item["duration_ticks"]) for item in rotation_steps), *(gap for gap in gaps if gap > 0))
+    action = "act_aaaaaaaaaaaaaaaaaaaaaaaaaa"
+    mutation_id = "mut_aaaaaaaaaaaaaaaaaaaa"
+    material_core = {"kind": "direct_vector_cell", "rhythm_id": "rhythm_a", "vectors": [[0, 0]], "mapping": "cycle", "register_delta": 0}
+    lineage_preimage = b"cps.mutation-lineage-root/v1\0" + action.encode() + b"\0" + mutation_id.encode() + b"\0" + struct.pack(">I", 0) + canonical_bytes(material_core)
+    semantics = {
+        "schema": "cps.mutation-semantics-cases", "schema_version": "1.0.0",
+        "rotation": {"length_ticks": 1920, "steps": rotation_steps, "displacement_steps": 1, "expected_quantum_ticks": quantum, "expected_onsets": sorted((int(item["at_tick"]) + quantum) % 1920 for item in rotation_steps)},
+        "choice": choice_catalog["entries"][0],
+        "lineage_creation": {"action_id": action, "mutation_id": mutation_id, "creation_ordinal": 0, "material_core": material_core, "expected_root_hash": sha(lineage_preimage), "expected_edge_operation": f"mutation/rotate_rhythm/{mutation_id}"},
+    }
+    _write(out, "mutation_semantics_cases.json", semantics)
+
     sampler_hash = manifest_digest("cps.sampler-manifest/v1", sampler)
     qd_hash = manifest_digest("cps.qd-manifest/v1", qd)
     planner_hash = manifest_digest("cps.planner-manifest/v1", planner)
-    run = {"schema":"cps.search-run-manifest","schema_version":"1.1.0","root_seed":7,"sampler_manifest_hash":sampler_hash,"compiler_manifest_hash":sampler["compiler_manifest_hash"],"evaluation_manifest_hash":qd["evaluation_manifest_hash"],"qd_manifest_hash":qd_hash,"planner_manifest_hash":planner_hash,"population_size":1000,"maximum_rounds":32,"candidates_per_round":16,"patience_rounds":8,"planner_call_budget":128,"compile_logical_budget":1000000000,"render_frame_budget":1000000000,"operational_deadline_seconds":None,"mutation_schema_hash":_hash_file(SCHEMAS / "mutation.schema.json"),"run_record_schema_hash":_hash_file(SCHEMAS / "search_run_record.schema.json"),"checkpoint_schema_hash":_hash_file(SCHEMAS / "search_checkpoint.schema.json"),"artifact_store":{"algorithm":"local-content-addressed/v1","cas_root":"cas/sha256","run_root":"runs","record_framing":"u64be-length-canonical-json/v1","atomic_write":"same-directory-create-if-absent-fsync/v1"}}
+    run = {"schema":"cps.search-run-manifest","schema_version":"1.2.0","root_seed":7,"sampler_manifest_hash":sampler_hash,"compiler_manifest_hash":sampler["compiler_manifest_hash"],"evaluation_manifest_hash":qd["evaluation_manifest_hash"],"qd_manifest_hash":qd_hash,"planner_manifest_hash":planner_hash,"mutation_choice_catalog_hash":choice_catalog_hash,"population_size":1000,"maximum_rounds":32,"candidates_per_round":16,"patience_rounds":8,"planner_call_budget":128,"compile_logical_budget":1000000000,"render_frame_budget":1000000000,"operational_deadline_seconds":None,"mutation_schema_hash":_hash_file(SCHEMAS / "mutation.schema.json"),"run_record_schema_hash":_hash_file(SCHEMAS / "search_run_record.schema.json"),"checkpoint_schema_hash":_hash_file(SCHEMAS / "search_checkpoint.schema.json"),"artifact_store":{"algorithm":"local-content-addressed/v1","cas_root":"cas/sha256","run_root":"runs","record_framing":"u64be-length-canonical-json/v1","atomic_write":"same-directory-create-if-absent-fsync/v1"}}
     _write(out, "run_manifest.json", run)
     run_hash = manifest_digest("cps.search-run-manifest/v1", run)
 
