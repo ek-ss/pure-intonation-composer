@@ -167,6 +167,10 @@ partial candidates are not compiled. Deterministic fallback enumerates the same
 allowed mutations by `(operation,target_id,canonical_parameters)` using a named
 path-addressed stream.
 
+The complete normative algorithm, operation effects, dependency roots, locks,
+failure priority, lineage behavior, and Project invalidation are specified by
+`song_program_mutation_application_contract.md`.
+
 ## 8. Run state, termination, and recovery
 
 RunManifest fixes population size, maximum rounds, candidates/round, compilation

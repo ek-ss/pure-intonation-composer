@@ -182,8 +182,8 @@ later extension; the initial compiler path needs only source lineage roots and
 identity transform edges.
 
 P1 through P4 are now implemented by `749d3d9` and `a239253`. The connected
-search runner should not begin until the remaining Mutation semantics below are
-closed and GEN0-B compiler lowering has golden equality.
+search runner should not begin until the Mutation applicator has conformance
+coverage and GEN0-B compiler lowering has golden equality.
 
 ### Recently closed Mutation specifications
 
@@ -196,7 +196,11 @@ closed and GEN0-B compiler lowering has golden equality.
   encoding and sort order.
 
 These decisions, their schemas, and fixed preimage fixtures are now ready for
-the eight-op Mutation applicator. Sampler-to-complete-SongProgram construction
+the eight-op Mutation applicator. The complete normative application order,
+actual dependency roots, root-exact lock behavior, eight operation effects,
+Project invalidation, lineage behavior, and failure priority are now fixed in
+`song_program_mutation_application_contract.md`; the former Mutation semantic
+specification blocker is closed. Sampler-to-complete-SongProgram construction
 remains separate from the deterministic choice-stream primitive.
 
 ## Relevant commits

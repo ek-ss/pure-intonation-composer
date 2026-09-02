@@ -137,6 +137,12 @@ and previous record hash.
 
 ## 6. Mutation and dependency scope
 
+The normative application order, complete root table, lock behavior, operation
+effects, Project invalidation, and failure priority are defined by
+`song_program_mutation_application_contract.md`. This section defines shared
+artifact encodings and is subordinate to that contract where application
+semantics are concerned.
+
 Mutation schema `1.0.0` has exactly eight operations:
 
 1. `replace_bounded_scalar`;
