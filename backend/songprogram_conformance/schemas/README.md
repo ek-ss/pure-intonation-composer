@@ -8,6 +8,9 @@ for the SP0 conformance pack.
 - `compiler_manifest.schema.json`: compiler identity, exact resolver identity,
   and the SP0 operation-budget profile.
 - `charge_receipt.schema.json`: deterministic root and child logical charges.
+- `mutation_application_request.schema.json`: fully bound inline Mutation input.
+- `mutation_impact_report.schema.json`: ordered pre/post closure and invalidation.
+- `mutation_application_receipt.schema.json`: cache-neutral atomic audit receipt.
 - `compile_report.schema.json`: success/failure report, cache telemetry, search
   totals, and typed failure details. It is not part of Project identity.
 - `cache_entry.schema.json`: content-addressed exact chord-query cache envelope.
