@@ -16,6 +16,7 @@ for the SP0 conformance pack.
 - `charge_receipt_1_1.schema.json`: typed GEN0-B root/child receipt.
 - `gen0b_compiler_evidence.schema.json`: query/result/Project lowering proof.
 - `compile_report_1_1.schema.json`: cold GEN0-B outcome and evidence binding.
+- `chord_member_melody_report.schema.json`: exact melody-to-selected-voice proof.
 - `compile_report.schema.json`: success/failure report, cache telemetry, search
   totals, and typed failure details. It is not part of Project identity.
 - `cache_entry.schema.json`: content-addressed exact chord-query cache envelope.
