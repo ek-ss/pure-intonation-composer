@@ -44,6 +44,11 @@ before starts at equal ticks; exceeding maximum polyphony fails conflict.
 For consecutive distinct onset groups on a melody track, every Cartesian pitch
 pair between groups must be within the inclusive
 `maximum_melodic_jump_millicents`; simultaneous events create no jump pair.
+Within an onset group, use Project event canonical order. Test jump pairs in
+previous-group event order then current-group event order and report the
+current event of the first violating pair. For polyphony, process all ends,
+then starts one at a time in Project event order and report the first start
+that makes the count exceed the ceiling.
 
 Failure order is selected-chord integrity; melody symbols/role/rhythm; zip
 length; temporal expansion/section bounds; raw sort; active cardinality;
@@ -85,9 +90,22 @@ failed evidence field. Melody structural failures use `REFERENCE_NOT_FOUND`,
 `MATERIAL_TRACK_ROLE_MISMATCH`, `MAPPING_LENGTH_MISMATCH`,
 `EVENT_SECTION_OVERFLOW`, or `EVENT_ID_COLLISION` at the source SongProgram
 pointer. Binding conflicts use `MELODY_HARMONY_CONFLICT`, stage
-`melody_binding`, pointer `/realizations/<index>/repeat/<r>/steps/<s>`, and the
-first raw binding ordinal. Its CompileReport error snapshot is exactly
-`{"binding_ordinal":n}`; pre-binding failures and selected-integrity failures
-use `{}`. Jump/polyphony point to the later-onset Project event's originating
-SongProgram path. Their snapshot contains `binding_ordinal` only when that
-event is a resolved-melody binding; otherwise it is `{}`.
+`melody_binding`. Active/member/register conflicts point to the owning
+`/realizations/<index>`; step timing/mapping conflicts point to
+`/materials/<rhythm_material_index>/steps/<post_rotation_step_ordinal>`.
+Expanded coordinates never appear in a JSON Pointer. The CompileReport error
+snapshot is exactly `{"binding_ordinal":n,"repeat_ordinal":r,
+"source_step_ordinal":s}` for a raw binding; pre-binding and
+selected-integrity failures use `{}`. Jump/polyphony point to the later-onset
+Project event's source realization pointer. For a resolved-melody event the
+snapshot uses the same three-key object; for a direct event it is exactly
+`{"repeat_ordinal":r,"source_step_ordinal":s}`.
+
+Structural pointers are exact: a missing reference points to its referencing
+field, checking realization `section_id`, `track_id`, `material_id`, then melody
+material `rhythm_id` in raw realization order. `MATERIAL_TRACK_ROLE_MISMATCH`
+points to `/realizations/<index>/track_id`; `MAPPING_LENGTH_MISMATCH` points to
+`/materials/<melody_material_index>/mapping`; `EVENT_SECTION_OVERFLOW` points
+to `/realizations/<index>`; `EVENT_ID_COLLISION` points to the later raw
+record's `/realizations/<index>`. Collection indices are pre-mutation canonical
+SongProgram array indices.
