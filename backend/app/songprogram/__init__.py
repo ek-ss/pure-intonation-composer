@@ -1,6 +1,26 @@
 """Deterministic GEN0 SongProgram resolvers."""
 
-from .compiler import CompileError, CompilerIdentity, build_lineage_index, compile_direct_sp0, compile_sp0
+from .compiler import (
+    CompileError,
+    CompilerIdentity,
+    Gen0BCompileArtifacts,
+    build_lineage_index,
+    compile_direct_sp0,
+    compile_connected_gen0b,
+    compile_gen0b,
+    compile_gen0b_report,
+    compile_sp0,
+)
+from .connected import (
+    ConnectedCache,
+    ConnectedExecution,
+    ConnectedExecutionError,
+    artifact_hash as connected_artifact_hash,
+    build_cache_entry,
+    execute_connected,
+    run_connected_batch,
+    validate_cache_entry,
+)
 from .resolver import resolve_joint_bnb, resolve_progression
 from .renderer import RenderError, RenderResult, render_reference
 from .search import (
@@ -25,6 +45,10 @@ __all__ = [
     "ArchiveCandidate",
     "CompileError",
     "CompilerIdentity",
+    "Gen0BCompileArtifacts",
+    "ConnectedCache",
+    "ConnectedExecution",
+    "ConnectedExecutionError",
     "LocalRunStore",
     "RenderError",
     "RenderResult",
@@ -32,9 +56,15 @@ __all__ = [
     "action_id",
     "canonical_bytes",
     "build_lineage_index",
+    "build_cache_entry",
     "compile_direct_sp0",
+    "compile_connected_gen0b",
+    "compile_gen0b",
+    "compile_gen0b_report",
     "compile_sp0",
+    "connected_artifact_hash",
     "descriptor_values",
+    "execute_connected",
     "descriptor_result_from_project",
     "fingerprint_distance_q",
     "fingerprint_payloads_from_project",
@@ -44,8 +74,10 @@ __all__ = [
     "resolve_joint_bnb",
     "resolve_progression",
     "render_reference",
+    "run_connected_batch",
     "sampler_choice",
     "seal_record",
     "update_archive_record",
+    "validate_cache_entry",
     "validate_project",
 ]

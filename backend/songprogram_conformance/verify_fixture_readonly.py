@@ -36,6 +36,7 @@ BUILDER_PATH_MARKERS = (
     "songprogram_conformance/build_",
     "songprogram_conformance/generate_",
 )
+AUTHORITY_MODULE_PREFIX = "songprogram_conformance"
 
 
 class FixtureReadonlyViolation(AssertionError):
@@ -92,7 +93,7 @@ def _builder_reference(value: str) -> bool:
 
 
 def production_builder_references(repository_root: Path) -> list[str]:
-    """Find direct imports or literal subprocess/module references to builders."""
+    """Find authority imports or literal subprocess/module builder references."""
 
     violations: list[str] = []
     source_root = repository_root / PRODUCTION_ROOT
@@ -102,9 +103,18 @@ def production_builder_references(repository_root: Path) -> list[str]:
         for node in ast.walk(tree):
             values: list[str] = []
             if isinstance(node, ast.Import):
+                for alias in node.names:
+                    if alias.name == AUTHORITY_MODULE_PREFIX or alias.name.startswith(
+                        AUTHORITY_MODULE_PREFIX + "."
+                    ) and not _builder_reference(alias.name):
+                        violations.append(f"{relative}:{node.lineno}: {alias.name}")
                 values.extend(alias.name for alias in node.names)
             elif isinstance(node, ast.ImportFrom):
                 module = node.module or ""
+                if module == AUTHORITY_MODULE_PREFIX or module.startswith(
+                    AUTHORITY_MODULE_PREFIX + "."
+                ) and not _builder_reference(module):
+                    violations.append(f"{relative}:{node.lineno}: {module}")
                 values.extend(f"{module}.{alias.name}" for alias in node.names)
             elif isinstance(node, ast.Constant) and isinstance(node.value, str):
                 values.append(node.value)

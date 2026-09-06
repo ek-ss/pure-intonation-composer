@@ -780,3 +780,313 @@ def build_lineage_index(program: dict[str, Any], project: dict[str, Any]) -> dic
         "instances": instances,
         "transform_edges": edges,
     }
+
+
+# GEN0-B sidecars deliberately live beside the SP0 lowering entry point.  The
+# Project compiler above remains the source of Project bytes; this layer only
+# observes the same canonical lowering and constructs the separately hashed
+# report/evidence/receipt artifacts required by the GEN0-B contract.
+@dataclass(frozen=True)
+class Gen0BCompileArtifacts:
+    project: dict[str, Any] | None
+    report: dict[str, Any]
+    evidence: dict[str, Any] | None
+    root_opcode_stream: dict[str, Any] | None
+    child_opcode_streams: tuple[dict[str, Any], ...]
+
+
+def _artifact_hash(domain: str, value: Any) -> str:
+    """GEN0-B artifact hash (canonical JSON plus its required final LF)."""
+    return "sha256:" + hashlib.sha256(domain.encode("utf-8") + b"\0" + _canonical(value) + b"\n").hexdigest()
+
+
+def _bare_hash(value: Any) -> str:
+    return "sha256:" + hashlib.sha256(_canonical(value)).hexdigest()
+
+
+def _manifest_identity(manifest: dict[str, Any]) -> CompilerIdentity:
+    try:
+        return CompilerIdentity(
+            manifest["build_id"], manifest["resolver"]["build_id"],
+            manifest["resolver"]["profile_hash"], manifest["budget_profile"]["digest"],
+            manifest["instrument_catalog_digest"], manifest["numeric_contract"],
+        )
+    except (KeyError, TypeError) as error:
+        raise CompileError("COMPILER_MANIFEST_INVALID") from error
+
+
+def _gen0b_validate_manifest(manifest: dict[str, Any]) -> None:
+    """Validate the subset that changes compiler observable semantics."""
+    try:
+        profile = manifest["budget_profile"]
+        progression = manifest["progression_resolver"]
+        required_root = {"progression_states", "progression_edges"}
+        required_child = {"progression_states", "progression_edges"}
+        if (
+            manifest.get("schema") != "cps.compiler-manifest"
+            or manifest.get("schema_version") != "1.1.0"
+            or progression.get("algorithm") != "gen0-progression-exact/v1"
+            or progression.get("search_completeness") != "exact"
+            or not 1 <= progression["candidates_per_intent"] <= 24
+            or profile.get("id") != "gen0-progression-exact-v1"
+            or not required_root <= set(profile["root_ceilings"])
+            or not required_child <= set(profile["child_ceilings"])
+            or not {"progression_occurrences", "progression_candidates_per_occurrence"} <= set(profile["shape_limits"])
+        ):
+            raise KeyError
+        computed_build = "cb_" + _b32(
+            b"cps.compiler-build/v1\0" + _canonical({key: value for key, value in manifest.items() if key != "build_id"}), 26
+        )
+        if manifest["build_id"] != computed_build:
+            raise KeyError
+    except (KeyError, TypeError):
+        raise CompileError("COMPILER_MANIFEST_INVALID") from None
+
+
+def _gen0b_harmony_expansion(
+    program: dict[str, Any], project: dict[str, Any], identity: CompilerIdentity, candidates_per_intent: int
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[tuple[dict[str, Any], dict[str, Any]]]]:
+    """Reconstruct the immutable occurrence and progression payloads.
+
+    This is intentionally independent of the Project's compact occurrence
+    representation: evidence must retain all source occurrence fields.
+    """
+    materials = {item["id"]: item for item in program["materials"]}
+    sections = {item["id"]: item for item in program["form"]}
+    tracks = {item["id"]: item for item in program["tracks"]}
+    intents = {item["id"]: item for item in program["chord_intents"]}
+    ticks_per_bar = program["clock"]["beats_per_bar"] * program["clock"]["ticks_per_beat"]
+    cursor = 0
+    starts: dict[str, int] = {}
+    for section in program["form"]:
+        starts[section["id"]] = cursor
+        cursor += section["bars"] * ticks_per_bar
+    lattice = project["lattice"]
+    cache: dict[bytes, list[dict[str, Any]]] = {}
+    expanded: list[dict[str, Any]] = []
+    for realization in program["realizations"]:
+        material = materials[realization["material_id"]]
+        track = tracks[realization["track_id"]]
+        if material["kind"] != "harmony_intent_cell" or track["role"] != "harmony":
+            continue
+        rhythm = materials[material["rhythm_id"]]
+        section = sections[realization["section_id"]]
+        rotation = sum(item["ticks"] for item in realization["rhythm_transforms"])
+        for repeat in range(realization["repeat"]):
+            instance_tick = starts[section["id"]] + realization["at_tick"] + repeat * realization["every_ticks"]
+            for step_ordinal, step in enumerate(rhythm["steps"]):
+                if material["mapping"] == "zip" and (
+                    step_ordinal >= len(material["root_anchors"]) or step_ordinal >= len(material["chord_intent_ids"])
+                ):
+                    raise CompileError("MAPPING_LENGTH_MISMATCH")
+                anchor = [a + b for a, b in zip(material["root_anchors"][step_ordinal % len(material["root_anchors"])], section["tonal_center"], strict=True)]
+                intent = intents[material["chord_intent_ids"][step_ordinal % len(material["chord_intent_ids"])]]
+                oracle_query = _harmony_query(program, intent, anchor)
+                key = _canonical(oracle_query)
+                if key not in cache:
+                    cores = resolve_joint_bnb(oracle_query, candidates_per_intent)
+                    if not cores:
+                        raise CompileError("NO_JOINT_CHORD_SOLUTION")
+                    cache[key] = [_chord_from_core(core, lattice=lattice, intent=intent, anchor=anchor, identity=identity) for core in cores]
+                onset = instance_tick + (step["at_tick"] + rotation) % rhythm["length_ticks"]
+                duration = max(1, _rhe(Fraction(step["duration_ticks"] * realization["gate_scale_q"], 10_000)))
+                occurrence_id = _harmony_occurrence_id(section["id"], realization["id"], repeat, material["id"], step_ordinal)
+                expanded.append({
+                    "occurrence_id": occurrence_id, "section_id": section["id"], "track_id": track["id"],
+                    "realization_id": realization["id"], "repeat_ordinal": repeat, "material_id": material["id"],
+                    "source_step_ordinal": step_ordinal, "start_tick": onset, "duration_ticks": duration,
+                    "intent_id": intent["id"], "intent_hash": cache[key][0]["intent_hash"], "root_anchor": anchor,
+                    "_candidates": cache[key], "_track": track,
+                })
+    expanded.sort(key=lambda item: (item["track_id"].encode(), item["start_tick"], item["section_id"].encode(), item["realization_id"].encode(), item["repeat_ordinal"], item["source_step_ordinal"]))
+    public = [{key: value for key, value in item.items() if not key.startswith("_")} for item in expanded]
+    distinct: list[tuple[dict[str, Any], dict[str, Any]]] = []
+    seen: set[tuple[str, str, tuple[int, ...]]] = set()
+    for item in expanded:
+        chord = item["_candidates"][0]
+        key = (chord["domain_hash"], chord["intent_hash"], tuple(item["root_anchor"]))
+        if key not in seen:
+            seen.add(key)
+            distinct.append((item, chord))
+    distinct.sort(key=lambda item: (item[1]["domain_hash"], item[1]["intent_hash"], item[0]["root_anchor"]))
+    return public, expanded, distinct
+
+
+def compile_gen0b(program: dict[str, Any], manifest: dict[str, Any]) -> Gen0BCompileArtifacts:
+    """Compile a GEN0-B program and publish its verifiable 1.1 sidecars.
+
+    ``compile_sp0`` retains its Project-only API.  Callers that need budget
+    and resolver evidence use this explicit GEN0-B entry point.
+    """
+    from .gen0b_receipt import (
+        OpcodeEmitter, child_stream, project_validation, trace_bnb,
+        trace_event_lowering, trace_symbols_and_timeline, usage,
+    )
+
+    _gen0b_validate_manifest(manifest)
+    identity = _manifest_identity(manifest)
+    source_hash = _sha(b"cps.song-program/0.1\0", {key: value for key, value in program.items() if key != "program_id"})
+    manifest_hash = _artifact_hash("cps.compiler-manifest/v1.1", manifest)
+    request = {"song_program": program, "compiler_manifest": manifest, "instrument_catalog_digest": manifest["instrument_catalog_digest"]}
+    input_hash = _artifact_hash("cps.compile-request/v1", request)
+    emitter = OpcodeEmitter(input_hash)
+    emitter.structural_parse(program)
+    trace_symbols_and_timeline(emitter, program)
+    children: list[dict[str, Any]] = []
+    streams: list[dict[str, Any]] = []
+    evidence: dict[str, Any] | None = None
+    project: dict[str, Any] | None = None
+    try:
+        project = compile_sp0(program, identity)
+        occurrences, expanded, distinct = _gen0b_harmony_expansion(
+            program, project, identity, manifest["progression_resolver"]["candidates_per_intent"]
+        )
+        emitter.charged_sort(len(occurrences))
+        gen0a_summaries: list[dict[str, Any]] = []
+        for occurrence, chord in distinct:
+            query = _harmony_query(program, next(item for item in program["chord_intents"] if _sha(b"cps.chord-intent/v1\0", item) == chord["intent_hash"]), occurrence["root_anchor"])
+            query_hash = _bare_hash(query)
+            child_id = "chord_" + query_hash[7:23]
+            stats = trace_bnb(emitter, program["lattice"], next(item for item in program["chord_intents"] if _sha(b"cps.chord-intent/v1\0", item) == chord["intent_hash"]), occurrence["root_anchor"], child_id, manifest["progression_resolver"]["candidates_per_intent"], tuple(occurrence["_track"]["register_millicents"]))
+            emitter.charged_sort(len(_progression_candidate(chord)["voices"]), child_id)
+            gen0a_summaries.append({"query_hash": query_hash, "domain_hash": chord["domain_hash"], "intent_hash": chord["intent_hash"], "root_anchor": occurrence["root_anchor"], "requested_k": manifest["progression_resolver"]["candidates_per_intent"], "ordered_core_hashes": [_core_hash(candidate) for candidate in occurrence["_candidates"]], "_child_id": child_id, "_stats": stats})
+        runs: list[tuple[str, list[dict[str, Any]]]] = []
+        for track_id in sorted({item["track_id"] for item in expanded}, key=lambda item: item.encode()):
+            items = [item for item in expanded if item["track_id"] == track_id]
+            current: list[dict[str, Any]] = []
+            end = -1
+            for item in items:
+                if current and item["start_tick"] > end:
+                    runs.append((track_id, current)); current = []
+                current.append(item); end = max(end, item["start_tick"] + item["duration_ticks"])
+            if current: runs.append((track_id, current))
+        runs.sort(key=lambda item: (item[1][0]["start_tick"], item[0].encode(), item[1][0]["occurrence_id"].encode()))
+        progression_runs: list[dict[str, Any]] = []
+        for ordinal, (track_id, run) in enumerate(runs):
+            query = {"schema": "cps.progression-query", "schema_version": "1.2.0", "algorithm": manifest["progression_resolver"]["algorithm"], "numeric_contract": identity.numeric_contract, "budget_profile": manifest["budget_profile"]["id"], "domain_hash": project["lattice"]["domain_hash"], "domain_equave": project["lattice"]["equave"], "maximum_voice_motion_millicents": manifest["progression_resolver"]["maximum_voice_motion_millicents"], "crossing_policy": manifest["progression_resolver"]["crossing_policy"], "occurrences": []}
+            for item in run:
+                query["occurrences"].append({"id": item["occurrence_id"], "start_tick": item["start_tick"], "duration_ticks": item["duration_ticks"], "track_id": track_id, "register_millicents": item["_track"]["register_millicents"], "maximum_polyphony": item["_track"]["maximum_polyphony"], "overlapping_nonprogression_pitched_events": 0, "intent_hash": item["intent_hash"], "root_anchor": item["root_anchor"], "candidate_cores": [_progression_candidate(chord) for chord in item["_candidates"]]})
+            query_hash = _artifact_hash("cps.progression-query/v1", query)
+            child_id = "progression_" + query_hash[7:23]
+            emitter.progression([item["candidate_cores"] for item in query["occurrences"]], child_id)
+            result = resolve_progression(query)
+            result_hash = _artifact_hash("cps.progression-result/v1", result)
+            progression_runs.append({"query_ordinal": ordinal, "track_id": track_id, "occurrence_ids": [item["occurrence_id"] for item in run], "query": query, "query_hash": query_hash, "result": result, "result_hash": result_hash, "_child_id": child_id})
+        emitter.charged_sort(len(project["resolved_chords"])); emitter.charged_sort(len(project["harmony_occurrences"]))
+        bindings = [event for event in project["events"] if (event.get("pitch_provenance") or {}).get("kind") == "resolved_melody"]
+        emitter.charged_sort(len(bindings)); trace_event_lowering(emitter, project); emitter.charged_sort(len(project["events"])); project_validation(emitter, project)
+        root = emitter.stream()
+        for summary in gen0a_summaries:
+            stream = child_stream(root, summary["_child_id"], summary["query_hash"]); streams.append(stream)
+            counted = usage(stream["records"]); names = ("chord_search_nodes", "pair_relations", "numeric_eval_units", "exact_arithmetic_units", "ordering_units")
+            child = {"kind": "chord_query", "query_id": summary["_child_id"], "input_hash": summary["query_hash"], "status": "complete", "usage": {name: counted[name] for name in names}, "opcode_stream_hash": stream["stream_hash"]}; child["usage"]["total_logical_units"] = sum(child["usage"].values()); children.append(child)
+            summary["child_receipt_digest"] = _artifact_hash("cps.charge-receipt-child/v1.1", child)
+        for run in progression_runs:
+            stream = child_stream(root, run["_child_id"], run["query_hash"]); streams.append(stream)
+            counted = usage(stream["records"]); child = {"kind": "progression_query", "query_id": run["_child_id"], "input_hash": run["query_hash"], "status": "complete", "usage": {name: counted[name] for name in ("progression_states", "progression_edges")}, "opcode_stream_hash": stream["stream_hash"]}; child["usage"]["total_logical_units"] = sum(child["usage"].values()); children.append(child)
+            run["child_receipt_digest"] = _artifact_hash("cps.charge-receipt-child/v1.1", child)
+        receipt = {"schema": "cps.charge-receipt", "schema_version": "1.1.0", "budget_profile_id": manifest["budget_profile"]["id"], "budget_profile_digest": manifest["budget_profile"]["digest"], "input_hash": input_hash, "status": "complete", "usage": usage(root["records"]), "children": children, "opcode_stream_hash": root["stream_hash"]}
+        project_hash = _sha(project["compiler"]["build_id"].encode() + b"\0project/1.2.0\0", project)
+        selected_by_occurrence = {item["occurrence_id"]: item for run in progression_runs for item in run["result"]["canonical_path_key"]}
+        project_occurrences = {item["start_tick"]: item for item in project["harmony_occurrences"]}
+        evidence = {"schema": "cps.gen0b-compiler-evidence", "schema_version": "1.0.0", "source_program_hash": source_hash, "compiler_manifest_hash": manifest_hash, "occurrences": occurrences, "gen0a_results": [{key: value for key, value in summary.items() if not key.startswith("_")} for summary in gen0a_summaries], "progression_runs": [], "resolved_chord_ids": [item["id"] for item in project["resolved_chords"]], "event_ids": [item["id"] for item in project["events"]], "project_hash": project_hash, "root_receipt_digest": _artifact_hash("cps.charge-receipt/v1.1", receipt)}
+        chords_by_core = {_core_hash(chord): chord for chord in project["resolved_chords"]}
+        occurrence_to_project = {item["start_tick"]: item for item in project["harmony_occurrences"]}
+        for run in progression_runs:
+            selected = []
+            for item in run["query"]["occurrences"]:
+                core_hash = next(record["resolved_core_hash"] for record in run["result"]["canonical_path_key"] if record["occurrence_id"] == item["id"])
+                project_occurrence = occurrence_to_project[item["start_tick"]]
+                selected.append({"occurrence_id": item["id"], "selected_core_hash": core_hash, "resolved_chord_id": chords_by_core[core_hash]["id"], "project_chord_index": project_occurrence["chord_index"]})
+            evidence["progression_runs"].append({key: value for key, value in run.items() if not key.startswith("_")} | {"selected": selected})
+        evidence["evidence_hash"] = _artifact_hash("cps.gen0b-compiler-evidence/v1", evidence)
+        report = {"schema": "cps.compile-report", "schema_version": "1.1.0", "source_program_hash": source_hash, "compiler_manifest_hash": manifest_hash, "compiler_build_id": identity.build_id, "budget_profile_digest": identity.budget_profile_digest, "status": "success", "project_hash": project_hash, "evidence_hash": evidence["evidence_hash"], "receipt": receipt, "search_statistics": {"chord_query_count": len(gen0a_summaries), "chord_candidates_examined": sum(item["_stats"]["complete_nodes"] for item in gen0a_summaries), "chord_eligible_candidates": sum(item["_stats"]["eligible"] for item in gen0a_summaries), "progression_query_count": len(progression_runs), "progression_states": receipt["usage"]["progression_states"], "progression_edges": receipt["usage"]["progression_edges"]}, "error": None}
+        return Gen0BCompileArtifacts(project, report, evidence, root, tuple(streams))
+    except CompileError:
+        root = emitter.stream()
+        receipt = {"schema": "cps.charge-receipt", "schema_version": "1.1.0", "budget_profile_id": manifest["budget_profile"]["id"], "budget_profile_digest": manifest["budget_profile"]["digest"], "input_hash": input_hash, "status": "complete", "usage": usage(root["records"]), "children": children, "opcode_stream_hash": root["stream_hash"]}
+        report = {"schema": "cps.compile-report", "schema_version": "1.1.0", "source_program_hash": source_hash, "compiler_manifest_hash": manifest_hash, "compiler_build_id": identity.build_id, "budget_profile_digest": identity.budget_profile_digest, "status": "failure", "project_hash": None, "evidence_hash": None, "receipt": receipt, "search_statistics": {"chord_query_count": 0, "chord_candidates_examined": 0, "chord_eligible_candidates": 0, "progression_query_count": 0, "progression_states": receipt["usage"]["progression_states"], "progression_edges": receipt["usage"]["progression_edges"]}, "error": {"code": "COMPILATION_FAILED", "stage": "compile", "pointer": "", "counter": None, "requested": None, "used": None, "ceiling": None, "child_query_id": None, "snapshot": receipt["usage"], "partial_project": None}}
+        return Gen0BCompileArtifacts(None, report, None, root, tuple(streams))
+
+
+def compile_gen0b_report(program: dict[str, Any], manifest: dict[str, Any]) -> dict[str, Any]:
+    """Convenience API for consumers that persist CompileReport only."""
+    return compile_gen0b(program, manifest).report
+
+
+def _gen0b_melody_report(program: dict[str, Any], artifacts: Gen0BCompileArtifacts) -> dict[str, Any]:
+    assert artifacts.project is not None and artifacts.evidence is not None
+    project, evidence = artifacts.project, artifacts.evidence
+    materials = {item["id"]: item for item in program["materials"]}
+    occurrence_by_id = {item["occurrence_id"]: item for item in evidence["occurrences"]}
+    selected = {
+        item["occurrence_id"]: item
+        for run in evidence["progression_runs"]
+        for item in run["selected"]
+    }
+    project_occurrences = {item["chord_index"]: item for item in project["harmony_occurrences"]}
+    bindings = []
+    for event in project["events"]:
+        provenance = event.get("pitch_provenance") or {}
+        if provenance.get("kind") != "resolved_melody":
+            continue
+        material = materials[provenance["melody_intent_id"]]
+        point_ordinal = event["source"]["source_step_ordinal"] % len(material["points"])
+        point = material["points"][point_ordinal]
+        occurrence = project_occurrences[event["chord_index"]]
+        active_id = next(
+            item["occurrence_id"] for item in evidence["occurrences"]
+            if item["section_id"] == event["section_id"]
+            and item["start_tick"] == occurrence["start_tick"]
+            and item["duration_ticks"] == occurrence["duration_ticks"]
+        )
+        source = event["source"]
+        bindings.append({
+            "binding_ordinal": len(bindings), "section_id": event["section_id"], "track_id": event["track_id"],
+            "realization_id": next(item["realization_id"] for item in project["material_instances"] if item["id"] == source["material_instance_id"]),
+            "repeat_ordinal": next(item["repeat_ordinal"] for item in project["material_instances"] if item["id"] == source["material_instance_id"]),
+            "material_id": material["id"], "source_step_ordinal": source["source_step_ordinal"],
+            "point_ordinal": point_ordinal, "start_tick": event["start_tick"], "duration_ticks": event["duration_ticks"],
+            "member": point["member"], "active_occurrence_id": active_id,
+            "active_track_id": occurrence_by_id[active_id]["track_id"], "project_chord_index": event["chord_index"],
+            "selected_core_hash": selected[active_id]["selected_core_hash"],
+            "resolved_chord_id": provenance["active_resolved_chord_id"],
+            "shape_voice_ordinal": next(
+                chord["target_voice_ordinals"].index(point["member"])
+                for chord in project["resolved_chords"] if chord["id"] == provenance["active_resolved_chord_id"]
+            ),
+            "source_vector": provenance["source_vector"], "equave_exponent": provenance["equave_exponent"],
+            "exact_ratio": event["ratio"], "event_id": event["id"],
+        })
+    report = {
+        "schema": "cps.chord-member-melody-report", "schema_version": "1.0.0",
+        "source_program_hash": evidence["source_program_hash"], "gen0b_evidence_hash": evidence["evidence_hash"],
+        "project_hash": evidence["project_hash"], "bindings": bindings,
+    }
+    report["report_hash"] = _artifact_hash("cps.chord-member-melody-report/v1", report)
+    return report
+
+
+def compile_connected_gen0b(program: dict[str, Any], manifest: dict[str, Any]) -> dict[str, Any]:
+    """Connected-executor adapter around the receipt-capable GEN0-B API."""
+    artifacts = compile_gen0b(program, manifest)
+    if artifacts.report["status"] != "success":
+        return {
+            "status": "compile_failure", "project": None, "compiler_evidence": None,
+            "melody_report": None, "compile_report": artifacts.report,
+            "opcode_stream_bundle": None, "error": artifacts.report["error"],
+        }
+    bundle = {
+        "schema": "cps.opcode-stream-bundle", "schema_version": "1.0.0",
+        "root": artifacts.root_opcode_stream,
+        "children": [
+            {"kind": child["kind"], "query_id": child["query_id"], "stream": stream}
+            for child, stream in zip(artifacts.report["receipt"]["children"], artifacts.child_opcode_streams, strict=True)
+        ],
+    }
+    bundle["bundle_hash"] = _artifact_hash("cps.opcode-stream-bundle/v1", bundle)
+    return {
+        "status": "success", "project": artifacts.project, "compiler_evidence": artifacts.evidence,
+        "melody_report": _gen0b_melody_report(program, artifacts), "compile_report": artifacts.report,
+        "opcode_stream_bundle": bundle, "error": None,
+    }

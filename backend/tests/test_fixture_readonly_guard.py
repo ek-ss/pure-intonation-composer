@@ -64,3 +64,19 @@ def test_production_import_of_builder_is_rejected(tmp_path: Path) -> None:
     ]
     with pytest.raises(FixtureReadonlyViolation, match="must not invoke"):
         verify(root)
+
+
+def test_production_import_of_oracle_is_rejected(tmp_path: Path) -> None:
+    root = _repository(tmp_path)
+    source = root / "backend" / "app" / "implementation.py"
+    source.write_text(
+        "from songprogram_conformance.gen0b_receipt_oracle import usage\n",
+        encoding="utf-8",
+    )
+
+    references = production_builder_references(root)
+    assert references == [
+        "backend/app/implementation.py:1: songprogram_conformance.gen0b_receipt_oracle"
+    ]
+    with pytest.raises(FixtureReadonlyViolation, match="must not invoke"):
+        verify(root)

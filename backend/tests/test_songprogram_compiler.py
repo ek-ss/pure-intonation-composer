@@ -10,7 +10,14 @@ from typing import Any
 
 import pytest
 
-from app.songprogram.compiler import CompileError, CompilerIdentity, build_lineage_index, compile_direct_sp0
+from app.songprogram.compiler import (
+    CompileError,
+    CompilerIdentity,
+    build_lineage_index,
+    compile_direct_sp0,
+    compile_gen0b,
+    compile_gen0b_report,
+)
 from app.songprogram.renderer import render_reference
 from app.songprogram.search import canonical_bytes
 
@@ -142,6 +149,21 @@ def test_gen0b_chord_member_requires_one_active_member() -> None:
     program["materials"][-1]["points"][0]["member"] = 7
     with pytest.raises(CompileError, match="MELODY_HARMONY_CONFLICT"):
         compile_direct_sp0(program, identity)
+
+
+def test_gen0b_compile_report_receipt_evidence_and_opcode_streams_match_goldens() -> None:
+    manifest = json.loads((COMPILER_FIXTURES / "gen0b_compiler_manifest.json").read_text())
+    program = json.loads((COMPILER_FIXTURES / "gen0b_melody_song_program.json").read_text())
+    artifacts = compile_gen0b(program, manifest)
+    assert artifacts.project == json.loads((COMPILER_FIXTURES / "gen0b_melody_project.json").read_text())
+    assert artifacts.report == json.loads((COMPILER_FIXTURES / "gen0b_compile_report.json").read_text())
+    assert artifacts.evidence == json.loads((COMPILER_FIXTURES / "gen0b_compiler_evidence.json").read_text())
+    assert artifacts.root_opcode_stream == json.loads((COMPILER_FIXTURES / "gen0b_root_opcode_stream.json").read_text())
+    assert list(artifacts.child_opcode_streams) == [
+        json.loads((COMPILER_FIXTURES / "gen0b_chord_opcode_stream.json").read_text()),
+        json.loads((COMPILER_FIXTURES / "gen0b_progression_opcode_stream.json").read_text()),
+    ]
+    assert compile_gen0b_report(program, manifest) == artifacts.report
 
 
 def test_compiler_lineage_index_records_identity_and_rotate_edges() -> None:
