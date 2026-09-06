@@ -11,7 +11,7 @@ from decimal import Decimal, ROUND_HALF_EVEN, localcontext
 from fractions import Fraction
 from typing import Any
 
-from .resolver import resolve_joint_bnb
+from .resolver import resolve_joint_bnb, resolve_progression
 
 
 class CompileError(ValueError):
@@ -67,6 +67,35 @@ def resolve_single_harmony(program: dict[str, Any], intent: dict[str, Any], anch
     if not results:
         raise CompileError("NO_JOINT_CHORD_SOLUTION")
     return results[0]
+
+
+def _harmony_query(program: dict[str, Any], intent: dict[str, Any], anchor: list[int]) -> dict[str, Any]:
+    """Lower one SongProgram chord occurrence to the frozen GEN0-A query."""
+    lattice = program["lattice"]
+    return {
+        "schema": "cps.sp0-oracle-query/v1",
+        "numeric_contract": "cps-numeric/decimal-log2-rhe-v1",
+        "domain": {
+            "equave": lattice["equave"], "generators": lattice["generators"],
+            "coordinate_bounds": lattice["coordinate_bounds"],
+            "register_bounds": lattice["register_bounds"],
+            "maximum_odd_limit": lattice["maximum_odd_limit"],
+            "maximum_reduced_complexity_bits": lattice["pitch_exploration"]["maximum_reduced_complexity_bits"],
+        },
+        "intent": {
+            "reference_equave": intent["reference"]["equave"],
+            "reference_divisions": intent["reference"]["divisions"],
+            "steps": intent["reference"]["steps"],
+            "bass_policy": intent["voicing"]["bass_policy"],
+            "bass_target_ordinal": intent["voicing"]["bass_target_ordinal"],
+            "minimum_spacing_millicents": intent["voicing"]["minimum_spacing_millicents"],
+            "maximum_span_millicents": intent["voicing"]["maximum_span_millicents"],
+            "maximum_pair_error_millicents": intent["recognition"]["maximum_pair_error_millicents"],
+            "maximum_pair_rms_millicents": intent["recognition"]["maximum_pair_rms_millicents"],
+            "complexity_budget": intent["complexity_budget"],
+        },
+        "anchor": {"vector": anchor, "equave_exponent": 0},
+    }
 
 
 def _canonical(value: Any) -> bytes:
@@ -139,6 +168,66 @@ def _semantic_address(
     return "sa_" + _b32(_canonical(core), 26)
 
 
+def _harmony_occurrence_id(section: str, realization: str, repeat: int, material: str, step: int) -> str:
+    core = [section, realization, repeat, material, step]
+    return "hoc_" + _b32(b"cps.harmony-query-occurrence/v1\0" + _canonical(core) + b"\n", 26)
+
+
+def _core_hash(chord: dict[str, Any]) -> str:
+    return "sha256:" + hashlib.sha256(
+        b"cps.resolved-chord/v1\0" + _canonical({key: value for key, value in chord.items() if key != "id"})
+    ).hexdigest()
+
+
+def _chord_from_core(
+    core: dict[str, Any], *, lattice: dict[str, Any], intent: dict[str, Any], anchor: list[int], identity: CompilerIdentity
+) -> dict[str, Any]:
+    offsets = [
+        [coordinate - origin for coordinate, origin in zip(vector, anchor, strict=True)]
+        for vector in core["vectors"]
+    ]
+    chord = {
+        "id": "", "domain_hash": lattice["domain_hash"],
+        "intent_hash": _sha(b"cps.chord-intent/v1\0", intent),
+        "resolver_build_id": identity.resolver_build_id,
+        "numeric_contract": identity.numeric_contract, "search_completeness": "exact",
+        "reference_equave": intent["reference"]["equave"],
+        "reference_divisions": intent["reference"]["divisions"],
+        "canonical_steps": core["canonical_steps"],
+        "eligibility_contract": {**intent["voicing"], **intent["recognition"], "complexity_budget": intent["complexity_budget"]},
+        "anchor_vector": anchor, "voice_offsets": offsets,
+        "equave_exponents": core["equave_exponents"], "exact_ratios": core["exact_ratios"],
+        "target_voice_ordinals": list(range(len(core["vectors"]))),
+        "pair_errors_millicents": core["pair_errors_millicents"],
+        "maximum_pair_error_millicents": core["pair_max_millicents"],
+        "pair_rms_error_millicents": core["pair_rms_millicents"],
+        "complexity_score": core["complexity_score"],
+    }
+    chord["id"] = _resolved_chord_id(chord)
+    return chord
+
+
+def _progression_candidate(chord: dict[str, Any]) -> dict[str, Any]:
+    voices = []
+    for shape, target in enumerate(chord["target_voice_ordinals"]):
+        vector = [a + b for a, b in zip(chord["anchor_vector"], chord["voice_offsets"][shape], strict=True)]
+        voices.append({
+            "target_ordinal": target, "absolute_vector": vector,
+            "equave_exponent": chord["equave_exponents"][shape],
+            "exact_ratio": chord["exact_ratios"][shape],
+            "ratio_millicents": _mc(_ratio(chord["exact_ratios"][shape])),
+        })
+    voices.sort(key=lambda voice: (voice["ratio_millicents"], voice["target_ordinal"], voice["absolute_vector"], voice["equave_exponent"], voice["exact_ratio"]))
+    return {
+        "core_hash": _core_hash(chord), "resolved_chord": chord,
+        "domain_hash": chord["domain_hash"], "intent_hash": chord["intent_hash"],
+        "anchor_vector": chord["anchor_vector"], "voices": voices,
+        "local_pair_rms_millicents": chord["pair_rms_error_millicents"],
+        "local_pair_max_millicents": chord["maximum_pair_error_millicents"],
+        "local_complexity": chord["complexity_score"],
+    }
+
+
 def _event_id(event: dict[str, Any]) -> str:
     source = event["source"]
     core = {
@@ -208,7 +297,13 @@ def compile_sp0(program: dict[str, Any], identity: CompilerIdentity) -> dict[str
     if program.get("schema") != "cps.song-program" or program.get("schema_version") != "0.1.0":
         raise CompileError("SCHEMA_VERSION_UNSUPPORTED")
     if any(
-        material.get("kind") not in {"rhythm_cell", "direct_vector_cell", "harmony_intent_cell"}
+        material.get("kind") not in {"rhythm_cell", "direct_vector_cell", "harmony_intent_cell", "melody_intent"}
+        for material in program["materials"]
+    ):
+        raise CompileError("UNSUPPORTED_COMPILER_SLICE")
+    if any(
+        material.get("kind") == "melody_intent"
+        and not {"id", "rhythm_id", "points", "mapping"}.issubset(material)
         for material in program["materials"]
     ):
         raise CompileError("UNSUPPORTED_COMPILER_SLICE")
@@ -287,6 +382,9 @@ def compile_sp0(program: dict[str, Any], identity: CompilerIdentity) -> dict[str
     generators = [_ratio(item) for item in lattice["generators"]]
     section_starts = {item["id"]: item["start_bar"] * ticks_per_bar for item in form}
     used_instances: set[str] = set()
+    harmony_drafts: list[dict[str, Any]] = []
+    melody_drafts: list[dict[str, Any]] = []
+    harmony_cache: dict[bytes, list[dict[str, Any]]] = {}
     for realization_index, realization in enumerate(program["realizations"]):
         try:
             section, track, material = (
@@ -401,25 +499,37 @@ def compile_sp0(program: dict[str, Any], identity: CompilerIdentity) -> dict[str
                     except KeyError as error:
                         raise CompileError("REFERENCE_NOT_FOUND") from error
                     anchor = [left + right for left, right in zip(material["root_anchors"][item_index], section["tonal_center"], strict=True)]
-                    core = resolve_single_harmony(program, intent, anchor)
-                    offsets = [[coordinate - origin for coordinate, origin in zip(vector, anchor, strict=True)] for vector in core["vectors"]]
-                    eligibility = {**intent["voicing"], **intent["recognition"], "complexity_budget": intent["complexity_budget"]}
-                    chord = {"id": "", "domain_hash": lattice["domain_hash"], "intent_hash": _sha(b"cps.chord-intent/v1\0", intent), "resolver_build_id": identity.resolver_build_id, "numeric_contract": identity.numeric_contract, "search_completeness": "exact", "reference_equave": intent["reference"]["equave"], "reference_divisions": intent["reference"]["divisions"], "canonical_steps": core["canonical_steps"], "eligibility_contract": eligibility, "anchor_vector": anchor, "voice_offsets": offsets, "equave_exponents": core["equave_exponents"], "exact_ratios": core["exact_ratios"], "target_voice_ordinals": list(range(len(core["vectors"]))), "pair_errors_millicents": core["pair_errors_millicents"], "maximum_pair_error_millicents": core["pair_max_millicents"], "pair_rms_error_millicents": core["pair_rms_millicents"], "complexity_score": core["complexity_score"]}
-                    chord["id"] = _resolved_chord_id(chord)
-                    if all(existing["id"] != chord["id"] for existing in project["resolved_chords"]):
-                        project["resolved_chords"].append(chord)
+                    query = _harmony_query(program, intent, anchor)
+                    query_key = _canonical(query)
+                    if query_key not in harmony_cache:
+                        cores = resolve_joint_bnb(query, 24)
+                        if not cores:
+                            raise CompileError("NO_JOINT_CHORD_SOLUTION")
+                        harmony_cache[query_key] = [_chord_from_core(core, lattice=lattice, intent=intent, anchor=anchor, identity=identity) for core in cores]
                     onset = instance_tick + (step["at_tick"] + rotations) % rhythm["length_ticks"]
                     duration = max(1, _rhe(Fraction(step["duration_ticks"] * realization["gate_scale_q"], 10_000)))
                     if onset + duration > section_starts[section["id"]] + section["bars"] * ticks_per_bar:
                         raise CompileError("EVENT_SECTION_OVERFLOW")
-                    chord_index = len(project["harmony_occurrences"])
-                    project["harmony_occurrences"].append({"chord_index": chord_index, "section_id": section["id"], "start_tick": onset, "duration_ticks": duration, "resolved_chord_id": chord["id"]})
                     velocity = min(127, max(1, _rhe(Fraction(125 * step["accent_q"] * realization["velocity_scale_q"], 100_000_000))))
-                    for ordinal, (vector, offset, exponent, ratio) in enumerate(zip(core["vectors"], offsets, core["equave_exponents"], core["exact_ratios"], strict=True)):
-                        address = _semantic_address(section["id"], realization["id"], repeat, material["id"], step_index, ordinal)
-                        event = {"id": "", "kind": "note", "track_id": track["id"], "section_id": section["id"], "start_tick": onset, "duration_ticks": duration, "velocity": velocity, "articulation": "normal", "drum_note": None, "ratio": ratio, "chord_index": chord_index, "pitch_provenance": {"kind": "resolved_chord_voice", "resolved_chord_id": chord["id"], "target_voice_ordinal": ordinal, "shape_voice_ordinal": ordinal, "anchor_vector": anchor, "offset_vector": offset, "final_vector": vector, "equave_exponent": exponent, "final_ratio": ratio}, "source": {"material_instance_id": instance_id, "source_step_ordinal": step_index, "emitted_voice_ordinal": ordinal, "semantic_address": address}}
-                        event["id"] = _event_id(event)
-                        project["events"].append(event)
+                    harmony_drafts.append({"id": _harmony_occurrence_id(section["id"], realization["id"], repeat, material["id"], step_index), "section": section, "track": track, "material": material, "realization": realization, "repeat": repeat, "instance_id": instance_id, "step_index": step_index, "onset": onset, "duration": duration, "velocity": velocity, "anchor": anchor, "candidates": harmony_cache[query_key]})
+            continue
+        if material["kind"] == "melody_intent" and track["role"] == "melody":
+            rotations = sum(transform["ticks"] for transform in realization["rhythm_transforms"])
+            for repeat in range(realization["repeat"]):
+                instance_id = _instance_id(realization["id"], repeat)
+                if instance_id in used_instances:
+                    raise CompileError("MATERIAL_INSTANCE_ID_INVALID")
+                used_instances.add(instance_id)
+                instance_tick = section_starts[section["id"]] + realization["at_tick"] + repeat * realization["every_ticks"]
+                project["material_instances"].append({"id": instance_id, "material_id": material["id"], "realization_id": realization["id"], "section_id": section["id"], "track_id": track["id"], "repeat_ordinal": repeat, "at_tick": instance_tick, "source_program_path": f"/realizations/{realization_index}"})
+                for step_index, step in enumerate(rhythm["steps"]):
+                    if material["mapping"] == "zip" and step_index >= len(material["points"]):
+                        raise CompileError("MAPPING_LENGTH_MISMATCH")
+                    onset = instance_tick + (step["at_tick"] + rotations) % rhythm["length_ticks"]
+                    duration = max(1, _rhe(Fraction(step["duration_ticks"] * realization["gate_scale_q"], 10_000)))
+                    if onset + duration > section_starts[section["id"]] + section["bars"] * ticks_per_bar:
+                        raise CompileError("EVENT_SECTION_OVERFLOW")
+                    melody_drafts.append({"section": section, "track": track, "material": material, "realization": realization, "repeat": repeat, "instance_id": instance_id, "step_index": step_index, "point": material["points"][step_index % len(material["points"])], "onset": onset, "duration": duration, "velocity": min(127, max(1, _rhe(Fraction(125 * step["accent_q"] * realization["velocity_scale_q"], 100_000_000))))})
             continue
         if material["kind"] != "direct_vector_cell" or track["role"] == "drums":
             raise CompileError("UNSUPPORTED_COMPILER_SLICE")
@@ -526,6 +636,81 @@ def compile_sp0(program: dict[str, Any], identity: CompilerIdentity) -> dict[str
                 }
                 event["id"] = _event_id(event)
                 project["events"].append(event)
+    # GEN0-B resolves whole harmony tracks jointly.  Candidates are generated by
+    # GEN0-A, then the exact progression resolver picks one core per occurrence
+    # before any harmony or melody event is emitted.
+    selected_drafts: list[tuple[dict[str, Any], dict[str, Any]]] = []
+    drafts_by_track: dict[str, list[dict[str, Any]]] = {}
+    for draft in harmony_drafts:
+        drafts_by_track.setdefault(draft["track"]["id"], []).append(draft)
+    for track_id in sorted(drafts_by_track, key=lambda item: item.encode()):
+        drafts = sorted(drafts_by_track[track_id], key=lambda item: (item["onset"], item["id"].encode()))
+        query = {
+            "schema": "cps.progression-query", "schema_version": "1.2.0",
+            "algorithm": "gen0-progression-exact/v1", "numeric_contract": identity.numeric_contract,
+            "budget_profile": "gen0-progression-exact-v1", "domain_hash": lattice["domain_hash"],
+            "domain_equave": lattice["equave"], "maximum_voice_motion_millicents": 2_400_000,
+            "crossing_policy": "forbid", "occurrences": [],
+        }
+        for draft in drafts:
+            query["occurrences"].append({
+                "id": draft["id"], "start_tick": draft["onset"], "duration_ticks": draft["duration"],
+                "track_id": track_id, "register_millicents": draft["track"]["register_millicents"],
+                "maximum_polyphony": draft["track"]["maximum_polyphony"],
+                "overlapping_nonprogression_pitched_events": 0,
+                "intent_hash": draft["candidates"][0]["intent_hash"], "root_anchor": draft["anchor"],
+                "candidate_cores": [_progression_candidate(chord) for chord in draft["candidates"]],
+            })
+        try:
+            path = resolve_progression(query)
+        except ValueError as error:
+            raise CompileError("PROGRESSION_NO_PATH") from error
+        for draft, core_hash in zip(drafts, path["selected_core_hashes"], strict=True):
+            selected = next((chord for chord in draft["candidates"] if _core_hash(chord) == core_hash), None)
+            if selected is None:  # Defensive: resolver output is always a candidate core.
+                raise CompileError("PROGRESSION_NO_PATH")
+            selected_drafts.append((draft, selected))
+
+    selected_drafts.sort(key=lambda item: (item[0]["onset"], item[0]["track"]["id"].encode(), item[0]["id"].encode()))
+    for chord_index, (draft, chord) in enumerate(selected_drafts):
+        if all(existing["id"] != chord["id"] for existing in project["resolved_chords"]):
+            project["resolved_chords"].append(chord)
+        project["harmony_occurrences"].append({
+            "chord_index": chord_index, "section_id": draft["section"]["id"], "start_tick": draft["onset"],
+            "duration_ticks": draft["duration"], "resolved_chord_id": chord["id"],
+        })
+        for shape, (offset, exponent, ratio, target) in enumerate(zip(chord["voice_offsets"], chord["equave_exponents"], chord["exact_ratios"], chord["target_voice_ordinals"], strict=True)):
+            vector = [left + right for left, right in zip(chord["anchor_vector"], offset, strict=True)]
+            address = _semantic_address(draft["section"]["id"], draft["realization"]["id"], draft["repeat"], draft["material"]["id"], draft["step_index"], shape)
+            event = {"id": "", "kind": "note", "track_id": draft["track"]["id"], "section_id": draft["section"]["id"], "start_tick": draft["onset"], "duration_ticks": draft["duration"], "velocity": draft["velocity"], "articulation": "normal", "drum_note": None, "ratio": ratio, "chord_index": chord_index, "pitch_provenance": {"kind": "resolved_chord_voice", "resolved_chord_id": chord["id"], "target_voice_ordinal": target, "shape_voice_ordinal": shape, "anchor_vector": chord["anchor_vector"], "offset_vector": offset, "final_vector": vector, "equave_exponent": exponent, "final_ratio": ratio}, "source": {"material_instance_id": draft["instance_id"], "source_step_ordinal": draft["step_index"], "emitted_voice_ordinal": shape, "semantic_address": address}}
+            event["id"] = _event_id(event)
+            project["events"].append(event)
+
+    chords_by_id = {chord["id"]: chord for chord in project["resolved_chords"]}
+    for draft in melody_drafts:
+        end = draft["onset"] + draft["duration"]
+        active = [
+            occurrence for occurrence in project["harmony_occurrences"]
+            if occurrence["section_id"] == draft["section"]["id"]
+            and occurrence["start_tick"] <= draft["onset"]
+            and end <= occurrence["start_tick"] + occurrence["duration_ticks"]
+        ]
+        if len(active) != 1:
+            raise CompileError("MELODY_HARMONY_CONFLICT")
+        occurrence = active[0]
+        chord = chords_by_id[occurrence["resolved_chord_id"]]
+        member = draft["point"]["member"]
+        try:
+            shape = chord["target_voice_ordinals"].index(member)
+        except ValueError as error:
+            raise CompileError("MELODY_HARMONY_CONFLICT") from error
+        offset, exponent, ratio = chord["voice_offsets"][shape], chord["equave_exponents"][shape], chord["exact_ratios"][shape]
+        vector = [left + right for left, right in zip(chord["anchor_vector"], offset, strict=True)]
+        address = _semantic_address(draft["section"]["id"], draft["realization"]["id"], draft["repeat"], draft["material"]["id"], draft["step_index"])
+        event = {"id": "", "kind": "note", "track_id": draft["track"]["id"], "section_id": draft["section"]["id"], "start_tick": draft["onset"], "duration_ticks": draft["duration"], "velocity": draft["velocity"], "articulation": "normal", "drum_note": None, "ratio": ratio, "chord_index": occurrence["chord_index"], "pitch_provenance": {"kind": "resolved_melody", "melody_intent_id": draft["material"]["id"], "relation": "chord_member", "active_resolved_chord_id": chord["id"], "active_target_voice_ordinal": member, "next_resolved_chord_id": None, "source_vector": offset, "relation_delta_vector": [0 for _ in offset], "tonal_center_delta_vector": [0 for _ in offset], "final_vector": vector, "equave_exponent": exponent, "final_ratio": ratio}, "source": {"material_instance_id": draft["instance_id"], "source_step_ordinal": draft["step_index"], "emitted_voice_ordinal": 0, "semantic_address": address}}
+        event["id"] = _event_id(event)
+        project["events"].append(event)
+
     if not project["events"] or len(project["events"]) > program["limits"]["max_events"]:
         raise CompileError("EVENT_LIMIT_EXCEEDED")
     project["material_instances"].sort(key=lambda item: item["id"].encode())

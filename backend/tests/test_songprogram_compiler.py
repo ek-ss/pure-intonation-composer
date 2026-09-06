@@ -16,6 +16,7 @@ from app.songprogram.search import canonical_bytes
 
 
 PACK = Path(__file__).resolve().parents[1] / "songprogram_conformance" / "fixtures" / "pack"
+COMPILER_FIXTURES = Path(__file__).resolve().parents[1] / "songprogram_conformance" / "fixtures" / "compiler"
 IDENTITY = CompilerIdentity(
     build_id="fixture-build",
     resolver_build_id="fixture-resolver",
@@ -118,6 +119,29 @@ def test_single_harmony_matches_authoritative_triad_golden() -> None:
     identity = CompilerIdentity(manifest["build_id"], manifest["resolver"]["build_id"], manifest["resolver"]["profile_hash"], manifest["budget_profile"]["digest"], manifest["instrument_catalog_digest"])
     actual = compile_direct_sp0(_load("minimal_triad_song_program.json"), identity)
     assert actual == _load("resolved_triad_project.json")
+
+
+def test_gen0b_lowers_top_k_progression_and_chord_member_melody() -> None:
+    manifest = json.loads((COMPILER_FIXTURES / "gen0b_compiler_manifest.json").read_text())
+    identity = CompilerIdentity(
+        manifest["build_id"], manifest["resolver"]["build_id"], manifest["resolver"]["profile_hash"],
+        manifest["budget_profile"]["digest"], manifest["instrument_catalog_digest"],
+    )
+    program = json.loads((COMPILER_FIXTURES / "gen0b_melody_song_program.json").read_text())
+    expected = json.loads((COMPILER_FIXTURES / "gen0b_melody_project.json").read_text())
+    assert compile_direct_sp0(program, identity) == expected
+
+
+def test_gen0b_chord_member_requires_one_active_member() -> None:
+    manifest = json.loads((COMPILER_FIXTURES / "gen0b_compiler_manifest.json").read_text())
+    identity = CompilerIdentity(
+        manifest["build_id"], manifest["resolver"]["build_id"], manifest["resolver"]["profile_hash"],
+        manifest["budget_profile"]["digest"], manifest["instrument_catalog_digest"],
+    )
+    program = json.loads((COMPILER_FIXTURES / "gen0b_melody_song_program.json").read_text())
+    program["materials"][-1]["points"][0]["member"] = 7
+    with pytest.raises(CompileError, match="MELODY_HARMONY_CONFLICT"):
+        compile_direct_sp0(program, identity)
 
 
 def test_compiler_lineage_index_records_identity_and_rotate_edges() -> None:

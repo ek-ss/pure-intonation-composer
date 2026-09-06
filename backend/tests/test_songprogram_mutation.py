@@ -6,7 +6,12 @@ from pathlib import Path
 
 import pytest
 
-from app.songprogram.mutation import MutationError, apply_mutations, program_hash
+from app.songprogram.mutation import (
+    MutationError,
+    apply_mutation_request,
+    apply_mutations,
+    program_hash,
+)
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -49,3 +54,10 @@ def test_bad_second_mutation_keeps_caller_program_unchanged() -> None:
     with pytest.raises(MutationError, match="MUTATION_REFERENCE_NOT_FOUND"):
         apply_mutations(program, [mutation], [], {"entries": []}, {"entries": []}, "act_x")
     assert program == before
+
+
+def test_application_request_matches_every_checked_in_mutation_fixture() -> None:
+    """The fixture suite is the read-only, byte-derived contract authority."""
+    suite = json.loads((PACK / "mutation" / "cases.json").read_text())
+    for case in suite["cases"]:
+        assert apply_mutation_request(case["request"]) == case["expected"], case["case_id"]

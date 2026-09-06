@@ -166,7 +166,7 @@ def _matching(left: list[dict[str, Any]], right: list[dict[str, Any]], equave_mc
         motions = [abs(right[b]["ratio_millicents"] - left[a]["ratio_millicents"]) for a, b in pairs]
         lost = sum(left[a]["exact_ratio"] != right[b]["exact_ratio"] for a, b in pairs)
         crossing = sum(
-            (left[a]["ratio_millicents"], a) < (left[c]["ratio_millicents"], c)
+            ((left[a]["ratio_millicents"], a) < (left[c]["ratio_millicents"], c))
             != ((right[b]["ratio_millicents"], b) < (right[d]["ratio_millicents"], d))
             for (a, b), (c, d) in combinations(pairs, 2)
         )

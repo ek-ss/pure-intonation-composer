@@ -67,3 +67,32 @@ differ. The full environment matrix and independence rule are normative in
 Fixture builders are oracle-maintainer tools. Production implementation and
 conformance tests consume the checked-in files read-only and MUST NOT invoke a
 builder to replace an expected value after a mismatch.
+
+## Read-only enforcement and oracle updates
+
+Run the guard from `backend/` as part of the normal test command:
+
+```text
+python -m songprogram_conformance.verify_fixture_readonly
+pytest -q
+python -m songprogram_conformance.verify_fixture_readonly
+```
+
+It rejects production imports or literal invocations of fixture builders, and
+uses `git status --porcelain` to reject modified or untracked authoritative
+fixtures, goldens, schemas, oracle references, and contract documents. This
+does not require a CI base ref, merge-base, or network access; the same command
+works in a normal local Git worktree. CI should run it before and after tests so
+that a test-time write is caught as well.
+
+Only an oracle maintainer deliberately changing the authority may use the
+explicit exception below. They must review every protected diff, run the
+independent verifier(s) and the full test suite, and commit the builder/oracle
+change together with its resulting fixtures. Production changes must never use
+this exception.
+
+```text
+python -m songprogram_conformance.build_mutation_fixtures
+python -m songprogram_conformance.verify_fixture_readonly --allow-authoritative-update
+pytest -q
+```
