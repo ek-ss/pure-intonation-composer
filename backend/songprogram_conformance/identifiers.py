@@ -97,6 +97,13 @@ def semantic_address(
     return "sa_" + _base32(_sha256(canonical_bytes(core)), 26)
 
 
+def harmony_occurrence_id(section_id: str, realization_id: str, repeat_ordinal: int,
+                          material_id: str, source_step_ordinal: int) -> str:
+    core=[section_id,realization_id,repeat_ordinal,material_id,source_step_ordinal]
+    return "hoc_" + _base32(_sha256(
+        b"cps.harmony-query-occurrence/v1\0" + canonical_bytes(core) + b"\n"),26)
+
+
 def event_id(event: dict[str, Any]) -> str:
     source = event["source"]
     core = {

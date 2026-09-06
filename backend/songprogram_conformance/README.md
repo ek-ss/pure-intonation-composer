@@ -45,3 +45,25 @@ Fresh-process conformance compares Project bytes, semantic IDs, artifact hashes,
 logical receipts, and stable failure payloads. Only `execution_telemetry` may
 differ. The full environment matrix and independence rule are normative in
 `docs/song_program_conformance_pack.md`.
+
+## Phase-5 authoritative fixtures
+
+- `fixtures/mutation/` contains 41 independently evaluated cases covering all
+  eight typed operations across success, negative, scope, lock, and boundary
+  behavior. `build_mutation_fixtures.py` generates them and
+  `verify_mutation_fixtures.py` verifies checked-in bytes without production
+  applicator imports.
+- `fixtures/compiler/` freezes the closed GEN0-A BnB resolver profile, a
+  three-occurrence progression query/result, expected Project, complete root
+  and child opcode streams/ChargeReceipt, GEN0-B evidence/CompileReport, and
+  chord-member melody report plus failures. `gen0b_receipt_oracle.py` and
+  `gen0b_melody_oracle.py` generate the numeric/search and binding authority
+  without production compiler imports.
+- `fixtures/connected/` freezes the outer cache/runner protocol around a
+  cacheable Mutation failure, including cold/hit/corrupt parity and the exact
+  1/2/4/8-worker matrix. Connected success may bind the compiler authority
+  above without regenerating it.
+
+Fixture builders are oracle-maintainer tools. Production implementation and
+conformance tests consume the checked-in files read-only and MUST NOT invoke a
+builder to replace an expected value after a mismatch.

@@ -63,6 +63,17 @@ per-occurrence child.
   emit its prescribed opcode sequence even when optimized or cached. Any
   stated bound over 4096 bits fails `ARITHMETIC_COMPLEXITY_EXCEEDED` before
   execution.
+
+  For avoidance of doubt, the exact charges are normative rather than merely
+  complexity checks. `FRAC_MUL(a/b,c/d)` and `FRAC_DIV(a/b,c/d)` charge
+  `1+W(L(a))+W(L(b))+W(L(c))+W(L(d))+W(N)+W(D)`, where `N,D` are their stated
+  unreduced numerator and denominator bit bounds. `FRAC_POW(a/b,k)` charges
+  `1+W(L(a))+W(L(b))+W(L(k))+W(N)+W(D)`; signed exponent `k` is an operand
+  component. Integer/fraction ADD and SUB follow the same rule: base one, all
+  operand-component limbs, then both unreduced result-bound limbs. Result-bound
+  limbs are never omitted from a charge. Earlier illustrative 4/5-charge
+  opcode fixtures are superseded and MUST be regenerated from complete
+  operands under this rule.
 - `numeric_eval_units`: ratio/log2 conversion 16; EDO target 8; integer pair
   error 1; RMS `4+pair_count`. NumericContract precision escalation adds no
   logical charge.

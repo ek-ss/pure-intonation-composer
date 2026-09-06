@@ -12,6 +12,8 @@ for the SP0 conformance pack.
 - `mutation_impact_report.schema.json`: ordered pre/post closure and invalidation.
 - `mutation_application_receipt.schema.json`: cache-neutral atomic audit receipt.
 - `compiler_manifest_1_1.schema.json`: GEN0-B compiler/progression authority.
+- `resolver_profile.schema.json`: content-addressed GEN0-A BnB profile bound by
+  CompilerManifest 1.1.
 - `logical_opcode_stream.schema.json`: canonical logical charge records.
 - `charge_receipt_1_1.schema.json`: typed GEN0-B root/child receipt.
 - `gen0b_compiler_evidence.schema.json`: query/result/Project lowering proof.
