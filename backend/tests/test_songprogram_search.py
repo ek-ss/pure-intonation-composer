@@ -12,6 +12,8 @@ import pytest
 from app.songprogram.search import (
     ArchiveCandidate,
     LocalRunStore,
+    ProductionSearchLoop,
+    SearchLoopSeams,
     SearchArtifactError,
     action_id,
     descriptor_values,
@@ -28,6 +30,7 @@ from app.songprogram.search import (
     update_archive_record,
 )
 from app.songprogram.compiler import CompilerIdentity, build_lineage_index, compile_direct_sp0
+from app.songprogram.connected import executor_manifest_digest
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -189,3 +192,40 @@ def test_project_fingerprint_extracts_direct_and_harmony_components() -> None:
     assert payloads["root_anchor_deltas"] == [[0, 0]]
     assert payloads["chord_steps"] == [[0, 4, 7]]
     assert payloads["sounding_intervals"] == ["3/2", "5/3", "5/4"]
+
+
+def test_production_search_loop_records_connected_mutation_failure_and_checkpoint(tmp_path: Path) -> None:
+    """The loop persists a typed candidate even when it has no Project output."""
+    connected = ROOT / "songprogram_conformance" / "fixtures" / "connected"
+    request = json.loads((connected / "mutation_failure_request.json").read_text())
+    search = _fixture("run_manifest.json")
+    descriptor, fingerprint, qd = _fixture("descriptor_spec.json"), _fixture("fingerprint_spec.json"), _fixture("qd_manifest.json")
+    search["compiler_manifest_hash"] = manifest_digest("cps.compiler-manifest/v1.1", request["compiler_manifest"])
+    search["qd_manifest_hash"] = manifest_digest("cps.qd-manifest/v1", qd)
+    search["candidates_per_round"] = 1
+
+    seams = SearchLoopSeams(
+        propose=lambda _action, _round, _candidate, _program: request["mutation_request"],
+        evaluate=lambda *_values: {"quality": [0, 0, 0, 0, 0]},
+    )
+    loop = ProductionSearchLoop(
+        tmp_path, search, executor_manifest=request["executor_manifest"], compiler_manifest=request["compiler_manifest"],
+        descriptor_spec=descriptor, fingerprint_spec=fingerprint, qd_manifest=qd, seams=seams,
+    )
+    result = loop.run(request["mutation_request"]["base_program"], maximum_candidates=1)
+    records = loop.store.records()
+
+    assert result.completed_candidates == 1
+    assert result.compile_logical_units == 0
+    assert [record["kind"] for record in records] == ["run", "planner_response", "candidate", "failure", "checkpoint"]
+    assert records[-1]["record_hash"] == result.last_checkpoint_hash
+    checkpoint = json.loads(loop.store._cas_path(records[-1]["payload_hash"]).read_bytes())
+    assert checkpoint["cursor"] == {"round": 1, "candidate_ordinal": 0, "phase_ordinal": 0}
+    assert checkpoint["next_action_id"] == action_id(loop.run_hash, 1, 0, 0)
+
+    candidate = ArchiveCandidate("sha256:" + "1" * 64, "sha256:" + "2" * 64, "sha256:" + "3" * 64, (1, 2, 3, 4, 5))
+    loop._archive(candidate, (0, 0), 1, 0)
+    loop._archive(candidate, (0, 0), 1, 0)
+    archive_records = [record for record in loop.store.records() if record["kind"] == "archive_update"]
+    revisions = [json.loads(loop.store._cas_path(record["payload_hash"]).read_bytes())["revision"] for record in archive_records]
+    assert revisions == [0, 1]

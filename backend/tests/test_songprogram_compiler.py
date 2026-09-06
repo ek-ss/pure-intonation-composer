@@ -17,6 +17,7 @@ from app.songprogram.compiler import (
     compile_direct_sp0,
     compile_gen0b,
     compile_gen0b_report,
+    initial_material_lineage_seeds,
 )
 from app.songprogram.renderer import render_reference
 from app.songprogram.search import canonical_bytes
@@ -83,6 +84,24 @@ def test_unsupported_harmony_is_a_typed_failure() -> None:
 def test_canonical_project_bytes_are_stable() -> None:
     project = compile_direct_sp0(_load("minimal_direct_song_program.json"), IDENTITY)
     assert canonical_bytes(project).endswith(b"\n")
+
+
+def test_mutated_material_core_retains_initial_lineage_seed() -> None:
+    initial = _load("minimal_direct_song_program.json")
+    seeds = initial_material_lineage_seeds(initial)
+    mutated = _load("minimal_direct_song_program.json")
+    mutated["materials"][1]["register_delta"] = 1
+    project = compile_direct_sp0(mutated, IDENTITY)
+
+    retained = build_lineage_index(mutated, project, seeds)
+    recomputed = build_lineage_index(mutated, project)
+    pitch_instance = next(item for item in project["material_instances"] if item["material_id"] == "pitch_a")
+    retained_record = next(item for item in retained["instances"] if item["material_instance_id"] == pitch_instance["id"])
+    recomputed_record = next(item for item in recomputed["instances"] if item["material_instance_id"] == pitch_instance["id"])
+
+    assert retained_record["lineage_hash"] == seeds["pitch_a"]["lineage_hash"]
+    assert retained_record["lineage_root_hash"] == seeds["pitch_a"]["lineage_root_hash"]
+    assert recomputed_record["lineage_hash"] != retained_record["lineage_hash"]
 
 
 def _drum_program() -> dict[str, Any]:

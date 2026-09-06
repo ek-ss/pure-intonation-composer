@@ -15,10 +15,11 @@ import struct
 import tempfile
 import unicodedata
 from collections import Counter
+from copy import deepcopy
 from dataclasses import dataclass
 from fractions import Fraction
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Any, Callable, Sequence
 
 
 class SearchArtifactError(ValueError):
@@ -542,3 +543,266 @@ class LocalRunStore:
     def _cas_path(self, digest: str) -> Path:
         hex_digest = digest.removeprefix("sha256:")
         return self.cas_root / hex_digest[:2] / hex_digest[2:]
+
+    def records(self) -> list[dict[str, Any]]:
+        """Read and verify the local append-only record framing and hash chain."""
+        if not self.records_path.exists():
+            return []
+        payload = self.records_path.read_bytes()
+        cursor, previous, records = 0, None, []
+        while cursor < len(payload):
+            if len(payload) - cursor < 8:
+                raise SearchArtifactError("RUN_RECORD_TRUNCATED")
+            size = struct.unpack(">Q", payload[cursor : cursor + 8])[0]
+            cursor += 8
+            if len(payload) - cursor < size:
+                raise SearchArtifactError("RUN_RECORD_TRUNCATED")
+            encoded = payload[cursor : cursor + size]
+            cursor += size
+            try:
+                record = json.loads(encoded)
+            except ValueError as error:
+                raise SearchArtifactError("RUN_RECORD_INVALID") from error
+            if canonical_bytes(record) != encoded or record != seal_record(record):
+                raise SearchArtifactError("RUN_RECORD_INVALID")
+            if record.get("run_hash") != self.run_hash or record.get("sequence") != len(records) or record.get("previous_record_hash") != previous:
+                raise SearchArtifactError("RUN_RECORD_CHAIN_INVALID")
+            if not self._cas_path(record["payload_hash"]).is_file():
+                raise SearchArtifactError("RUN_RECORD_PAYLOAD_MISSING")
+            previous = record["record_hash"]
+            records.append(record)
+        return records
+
+
+class SearchLoopError(ValueError):
+    """Closed production-search loop error; no planner or evaluator fallback."""
+
+    def __init__(self, code: str) -> None:
+        super().__init__(code)
+        self.code = code
+
+
+@dataclass(frozen=True)
+class SearchLoopSeams:
+    """Explicit external boundaries for proposal, rendering, and evaluation.
+
+    ``propose`` returns one fully formed MutationApplicationRequest.  This is
+    intentional: it preserves the typed mutation request's catalog, lock and
+    base-program bindings instead of recreating them in the search loop.
+    """
+
+    propose: Callable[[str, int, int, dict[str, Any]], dict[str, Any]]
+    evaluate: Callable[[dict[str, Any], dict[str, Any], dict[str, Any], dict[str, Any]], dict[str, Any]]
+    render: Callable[[dict[str, Any]], dict[str, Any]] | None = None
+    compiler: Callable[[dict[str, Any], dict[str, Any]], dict[str, Any]] | None = None
+
+
+@dataclass(frozen=True)
+class SearchLoopResult:
+    run_hash: str
+    completed_candidates: int
+    compile_logical_units: int
+    render_frames: int
+    archive_heads: dict[tuple[int, int], str]
+    last_checkpoint_hash: str | None
+
+
+class ProductionSearchLoop:
+    """Append-only, deterministic production orchestration around connected work.
+
+    Candidate execution is delegated to :func:`execute_connected`; this class
+    owns only action ordering, durable records/checkpoints, descriptor and
+    fingerprint extraction, and QD archive publication.  It deliberately does
+    not synthesize planner, renderer, or evaluator outputs.
+    """
+
+    def __init__(
+        self,
+        root: Path,
+        run_manifest: dict[str, Any],
+        *,
+        executor_manifest: dict[str, Any],
+        compiler_manifest: dict[str, Any],
+        descriptor_spec: dict[str, Any],
+        fingerprint_spec: dict[str, Any],
+        qd_manifest: dict[str, Any],
+        seams: SearchLoopSeams,
+    ) -> None:
+        from .connected import executor_manifest_digest
+
+        self.run_manifest, self.executor_manifest = deepcopy(run_manifest), deepcopy(executor_manifest)
+        self.compiler_manifest, self.descriptor_spec = deepcopy(compiler_manifest), deepcopy(descriptor_spec)
+        self.fingerprint_spec, self.qd_manifest, self.seams = deepcopy(fingerprint_spec), deepcopy(qd_manifest), seams
+        self.run_hash = manifest_digest("cps.search-run-manifest/v1", self.run_manifest)
+        self.store = LocalRunStore(root, self.run_hash)
+        self._validate_manifests(executor_manifest_digest)
+        self.executor_manifest_digest = executor_manifest_digest(self.executor_manifest)
+        self.history = self.store.records()
+        self.sequence = len(self.history)
+        self.previous_hash = self.history[-1]["record_hash"] if self.history else None
+        self.completed = sum(item["kind"] == "candidate" for item in self.history)
+        self.compile_used = 0
+        self.render_used = 0
+        self.archive_heads: dict[tuple[int, int], str] = {}
+        self.archive_candidates: dict[tuple[int, int], list[ArchiveCandidate]] = {}
+        self.archive_revisions: dict[tuple[int, int], int] = {}
+        self.last_checkpoint_hash: str | None = None
+        self._resumed_program: dict[str, Any] | None = None
+        self.initial_lineage_seeds: dict[str, dict[str, str]] | None = None
+        self._resume_checkpoint()
+
+    def _validate_manifests(self, executor_digest: Callable[[dict[str, Any]], str]) -> None:
+        run = self.run_manifest
+        if run.get("schema") != "cps.search-run-manifest" or run.get("schema_version") != "1.2.0":
+            raise SearchLoopError("RUN_MANIFEST_INVALID")
+        expected = {
+            "compiler_manifest_hash": manifest_digest("cps.compiler-manifest/v1.1", self.compiler_manifest),
+            "qd_manifest_hash": manifest_digest("cps.qd-manifest/v1", self.qd_manifest),
+        }
+        for key, digest in expected.items():
+            if run.get(key) != digest: raise SearchLoopError("RUN_MANIFEST_BINDING_MISMATCH")
+        if self.qd_manifest.get("descriptor_spec_hash") != manifest_digest("cps.descriptor-spec/v1", self.descriptor_spec):
+            raise SearchLoopError("QD_MANIFEST_BINDING_MISMATCH")
+        if self.qd_manifest.get("fingerprint_spec_hash") != manifest_digest("cps.fingerprint-spec/v1", self.fingerprint_spec):
+            raise SearchLoopError("QD_MANIFEST_BINDING_MISMATCH")
+        if executor_digest(self.executor_manifest)[:7] != "sha256:": raise SearchLoopError("EXECUTOR_MANIFEST_INVALID")
+
+    def _resume_checkpoint(self) -> None:
+        """Use the latest checkpoint only after its referenced record is known."""
+        for record in reversed(self.history):
+            if record["kind"] != "checkpoint": continue
+            try:
+                checkpoint = json.loads(self.store._cas_path(record["payload_hash"]).read_bytes())
+                if checkpoint["run_hash"] != self.run_hash: continue
+                if checkpoint["last_sequence"] >= record["sequence"]: continue
+                if checkpoint["last_record_hash"] != self.history[checkpoint["last_sequence"]]["record_hash"]: continue
+                self.compile_used = checkpoint["budget_usage"]["compile_logical_units"]
+                self.render_used = checkpoint["budget_usage"]["render_frames"]
+                self.archive_heads = {tuple(item["cell"]): item["record_hash"] for item in checkpoint["archive_heads"]}
+                for archive_record in self.history[: record["sequence"]]:
+                    if archive_record["kind"] != "archive_update": continue
+                    archive = json.loads(self.store._cas_path(archive_record["payload_hash"]).read_bytes())
+                    cell = tuple(archive["cell"])
+                    self.archive_revisions[cell] = archive["revision"]
+                    self.archive_candidates[cell] = [
+                        ArchiveCandidate(item["program_hash"], item["project_hash"], item["lineage_root_hash"], tuple(item["quality"]))
+                        for item in [archive["champion"], *archive["runners"]]
+                    ]
+                self.last_checkpoint_hash = record["record_hash"]
+                for candidate_record in reversed(self.history[: record["sequence"]]):
+                    if candidate_record["kind"] != "candidate": continue
+                    output = json.loads(self.store._cas_path(candidate_record["payload_hash"]).read_bytes())
+                    if output.get("status") == "success" and isinstance(output.get("resulting_program"), dict):
+                        self._resumed_program = output["resulting_program"]
+                        break
+                return
+            except (KeyError, IndexError, ValueError, OSError):
+                continue
+
+    def _record(self, kind: str, round_index: int, phase: int, candidate: int, payload: dict[str, Any]) -> dict[str, Any]:
+        payload_hash = self.store.put(canonical_bytes(payload))
+        record = self.store.append({"schema": "cps.search-run-record", "schema_version": "1.0.0", "run_hash": self.run_hash,
+                                    "sequence": self.sequence, "action_id": action_id(self.run_hash, round_index, phase, candidate),
+                                    "round": round_index, "phase_ordinal": phase, "candidate_ordinal": candidate,
+                                    "kind": kind, "payload_hash": payload_hash, "previous_record_hash": self.previous_hash})
+        self.sequence += 1; self.previous_hash = record["record_hash"]
+        return record
+
+    def _checkpoint(self, round_index: int, candidate: int) -> None:
+        if self.previous_hash is None: return
+        next_round, next_candidate = divmod(
+            round_index * self.run_manifest["candidates_per_round"] + candidate + 1,
+            self.run_manifest["candidates_per_round"],
+        )
+        heads = [{"cell": list(cell), "record_hash": digest} for cell, digest in sorted(self.archive_heads.items())]
+        checkpoint = {"schema": "cps.search-checkpoint", "schema_version": "1.0.0", "run_hash": self.run_hash,
+                      "last_sequence": self.sequence - 1, "last_record_hash": self.previous_hash,
+                      "next_action_id": action_id(self.run_hash, next_round, 0, next_candidate),
+                      "cursor": {"round": next_round, "candidate_ordinal": next_candidate, "phase_ordinal": 0},
+                      "budget_usage": {"compile_logical_units": self.compile_used, "render_frames": self.render_used, "planner_calls": self.completed},
+                      "planner_calls": self.completed, "patience_rounds": 0, "cancelled": False,
+                      "archive_heads": heads, "champions": []}
+        record = self._record("checkpoint", round_index, 7, candidate, checkpoint)
+        self.last_checkpoint_hash = record["record_hash"]
+
+    def _cell(self, descriptor: dict[str, Any]) -> tuple[int, int] | None:
+        axes = self.descriptor_spec["axes"]
+        values = (descriptor["rhythmic_syncopation_q"], descriptor["material_recurrence_distance_q"])
+        bins = tuple(archive_cell(value, axis["bin_edges"]) for value, axis in zip(values, axes, strict=True))
+        return None if any(value is None for value in bins) else bins  # null is explicitly not archived in v1
+
+    def _archive(self, candidate: ArchiveCandidate, cell: tuple[int, int], round_index: int, candidate_ordinal: int) -> None:
+        candidates = self.archive_candidates.setdefault(cell, [])
+        candidates.append(candidate)
+        revision = self.archive_revisions.get(cell, -1) + 1
+        record = update_archive_record(manifest_digest("cps.qd-manifest/v1", self.qd_manifest), cell, revision, candidates, self.archive_heads.get(cell))
+        archive_record = self._record("archive_update", round_index, 6, candidate_ordinal, record)
+        self.archive_heads[cell] = archive_record["record_hash"]
+        self.archive_revisions[cell] = revision
+
+    def run(self, base_program: dict[str, Any], *, maximum_candidates: int | None = None) -> SearchLoopResult:
+        """Run bounded candidates, committing every semantic event before advance."""
+        from .compiler import build_lineage_index, initial_material_lineage_seeds
+        from .connected import ConnectedCache, execute_connected
+
+        limit = self.run_manifest["maximum_rounds"] * self.run_manifest["candidates_per_round"]
+        if maximum_candidates is not None: limit = min(limit, maximum_candidates)
+        cache = ConnectedCache(self.store.root)
+        current = deepcopy(self._resumed_program if self._resumed_program is not None else base_program)
+        if self.initial_lineage_seeds is None:
+            self.initial_lineage_seeds = initial_material_lineage_seeds(base_program)
+        for ordinal in range(self.completed, limit):
+            round_index, candidate_ordinal = divmod(ordinal, self.run_manifest["candidates_per_round"])
+            if self.completed >= self.run_manifest["planner_call_budget"]:
+                self._record("failure", round_index, 1, candidate_ordinal, {"code": "PLANNER_CALL_BUDGET_EXCEEDED", "used": self.completed})
+                self._checkpoint(round_index, candidate_ordinal)
+                break
+            from .mutation import program_hash
+            sample = {"base_program_hash": program_hash(current), "root_seed": self.run_manifest["root_seed"], "cohort_index": ordinal}
+            self._record("run" if ordinal == 0 and self.sequence == 0 else "planner_request", round_index, 0, candidate_ordinal, sample)
+            proposal = self.seams.propose(action_id(self.run_hash, round_index, 1, candidate_ordinal), round_index, candidate_ordinal, deepcopy(current))
+            if not isinstance(proposal, dict) or proposal.get("base_program") != current:
+                raise SearchLoopError("PROPOSAL_BASE_PROGRAM_MISMATCH")
+            self._record("planner_response", round_index, 1, candidate_ordinal, proposal)
+            connected = {"schema": "cps.connected-request", "schema_version": "1.0.0", "executor_manifest_digest": self.executor_manifest_digest, "executor_manifest": self.executor_manifest, "mutation_request": proposal, "compiler_manifest": self.compiler_manifest}
+            execution = execute_connected(connected, self.seams.compiler, cache)
+            output = execution.output
+            self._record("candidate", round_index, 3, candidate_ordinal, output)
+            report = output["compile_report"]
+            charge = 0 if report is None else report["receipt"]["usage"]["total_logical_units"]
+            if self.compile_used + charge > self.run_manifest["compile_logical_budget"]:
+                self._record("failure", round_index, 3, candidate_ordinal, {"code": "RUN_COMPILE_BUDGET_EXCEEDED", "charge": charge, "used": self.compile_used})
+                self._checkpoint(round_index, candidate_ordinal)
+                break
+            self.compile_used += charge
+            if output["status"] != "success":
+                self._record("failure", round_index, 2, candidate_ordinal, {"status": output["status"], "error": output["error"]})
+                self.completed += 1; self._checkpoint(round_index, candidate_ordinal); continue
+            project = output["project"]
+            try:
+                lineage = build_lineage_index(output["resulting_program"], project, self.initial_lineage_seeds)
+                descriptor = descriptor_result_from_project(project, lineage, self.descriptor_spec)
+                fingerprint = fingerprint_record_from_project(project, lineage, self.fingerprint_spec)
+            except SearchArtifactError as error:
+                self._record("failure", round_index, 5, candidate_ordinal, {"code": error.code, "stage": "evaluate"})
+                self.completed += 1; self._checkpoint(round_index, candidate_ordinal); continue
+            self._record("metric_report", round_index, 5, candidate_ordinal, {"descriptor": descriptor, "fingerprint": fingerprint, "lineage_index": lineage})
+            if self.seams.render is not None:
+                render = self.seams.render(project)
+                frames = render.get("frames", render.get("frame_count", 0))
+                if not isinstance(frames, int) or frames < 0 or self.render_used + frames > self.run_manifest["render_frame_budget"]:
+                    raise SearchLoopError("RENDER_BUDGET_EXCEEDED")
+                self.render_used += frames
+                self._record("artifact_reference", round_index, 4, candidate_ordinal, render)
+            evaluation = self.seams.evaluate(project, descriptor, fingerprint, output)
+            quality = tuple(evaluation.get("quality", ()))
+            if len(quality) != 5 or any(type(value) is not int for value in quality): raise SearchLoopError("EVALUATION_QUALITY_INVALID")
+            evaluation_record = self._record("acceptance_decision", round_index, 5, candidate_ordinal, evaluation)
+            cell = self._cell(descriptor)
+            if cell is not None:
+                candidate = ArchiveCandidate(output["mutation_receipt"]["result_program_hash"], report["project_hash"], lineage["program_lineage_root_hash"], quality)
+                self._archive(candidate, cell, round_index, candidate_ordinal)
+            current = deepcopy(output["resulting_program"])
+            self.completed += 1
+            self._checkpoint(round_index, candidate_ordinal)
+        return SearchLoopResult(self.run_hash, self.completed, self.compile_used, self.render_used, dict(self.archive_heads), self.last_checkpoint_hash)

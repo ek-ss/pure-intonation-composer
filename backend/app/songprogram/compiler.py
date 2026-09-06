@@ -733,31 +733,52 @@ def compile_direct_sp0(program: dict[str, Any], identity: CompilerIdentity) -> d
     return compile_sp0(program, identity)
 
 
-def build_lineage_index(program: dict[str, Any], project: dict[str, Any]) -> dict[str, Any]:
-    """Build the canonical compiler-origin LineageIndex for a compiled Project."""
+def initial_material_lineage_seeds(program: dict[str, Any]) -> dict[str, dict[str, str]]:
+    """Freeze v1 material lineage at a run's initial SongProgram boundary."""
+    seeds: dict[str, dict[str, str]] = {}
+    for material in program["materials"]:
+        material_id = material["id"]
+        if material_id in seeds:
+            raise CompileError("SYMBOL_DUPLICATE")
+        lineage_hash = _sha(b"cps.material-lineage/v1\0", {key: value for key, value in material.items() if key != "id"})
+        seeds[material_id] = {"lineage_hash": lineage_hash, "lineage_root_hash": lineage_hash}
+    return seeds
+
+
+def build_lineage_index(
+    program: dict[str, Any], project: dict[str, Any], material_lineage_seeds: dict[str, dict[str, str]] | None = None,
+) -> dict[str, Any]:
+    """Build a LineageIndex, optionally retaining initial material lineage seeds.
+
+    All eight current Mutation v1 operations retain material identity; callers
+    running a mutation search therefore pass the initial run seeds so a changed
+    material core does not accidentally appear as a new lineage.
+    """
     materials = {material["id"]: material for material in program["materials"]}
     realizations = {realization["id"]: realization for realization in program["realizations"]}
-    lineage_by_material = {
-        material_id: _sha(
-            b"cps.material-lineage/v1\0",
-            {key: value for key, value in material.items() if key != "id"},
-        )
-        for material_id, material in materials.items()
-    }
+    seeds = initial_material_lineage_seeds(program) if material_lineage_seeds is None else material_lineage_seeds
+    if set(seeds) != set(materials):
+        raise CompileError("LINEAGE_SEED_SET_MISMATCH")
+    lineage_by_material: dict[str, dict[str, str]] = {}
+    for material_id in materials:
+        seed = seeds[material_id]
+        if set(seed) != {"lineage_hash", "lineage_root_hash"} or not all(isinstance(seed[key], str) and seed[key].startswith("sha256:") for key in seed):
+            raise CompileError("LINEAGE_SEED_INVALID")
+        lineage_by_material[material_id] = seed
     instances = []
     by_lineage: dict[str, list[dict[str, Any]]] = {}
     for instance in project["material_instances"]:
         try:
-            lineage_hash = lineage_by_material[instance["material_id"]]
+            lineage = lineage_by_material[instance["material_id"]]
         except KeyError as error:
             raise CompileError("REFERENCE_NOT_FOUND") from error
         record = {
             "material_instance_id": instance["id"],
-            "lineage_hash": lineage_hash,
-            "lineage_root_hash": lineage_hash,
+            "lineage_hash": lineage["lineage_hash"],
+            "lineage_root_hash": lineage["lineage_root_hash"],
         }
         instances.append(record)
-        by_lineage.setdefault(lineage_hash, []).append(instance)
+        by_lineage.setdefault(lineage["lineage_hash"], []).append(instance)
     instances.sort(key=lambda item: item["material_instance_id"].encode())
     edges = []
     for lineage_hash in sorted(by_lineage):
@@ -769,7 +790,7 @@ def build_lineage_index(program: dict[str, Any], project: dict[str, Any]) -> dic
                 raise CompileError("REFERENCE_NOT_FOUND") from error
             rotate_total = sum(transform["ticks"] for transform in transforms)
             edges.append({"from_instance_id": previous["id"], "to_instance_id": current["id"], "operation": "identity" if rotate_total == 0 else f"rotate_ticks:{rotate_total}", "identity": rotate_total == 0})
-    roots = sorted(set(lineage_by_material.values()))
+    roots = sorted({seed["lineage_root_hash"] for seed in lineage_by_material.values()})
     project_bytes = _canonical(project)
     project_hash = "sha256:" + hashlib.sha256(project["compiler"]["build_id"].encode() + b"\0project/1.2.0\0" + project_bytes).hexdigest()
     return {
