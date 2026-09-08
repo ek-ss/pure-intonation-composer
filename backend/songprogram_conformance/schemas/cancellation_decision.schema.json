@@ -1,0 +1,107 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cps.local/schemas/cancellation_decision.schema.json",
+  "title": "CPS CancellationDecision v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "schema_version",
+    "run_hash",
+    "request_hash",
+    "effective_cutoff_action_id",
+    "cutoff_coordinate",
+    "last_committable_action_id",
+    "status",
+    "champion_at_cutoff",
+    "archive_heads_hash",
+    "decision_hash"
+  ],
+  "properties": {
+    "schema": {
+      "const": "cps.cancellation-decision"
+    },
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "run_hash": {
+      "$ref": "#/$defs/sha"
+    },
+    "request_hash": {
+      "$ref": "#/$defs/sha"
+    },
+    "effective_cutoff_action_id": {
+      "$ref": "#/$defs/action"
+    },
+    "cutoff_coordinate": { "$ref": "#/$defs/coordinate" },
+    "last_committable_action_id": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/$defs/action"
+        }
+      ]
+    },
+    "status": {
+      "const": "accepted"
+    },
+    "champion_at_cutoff": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/$defs/champion"
+        }
+      ]
+    },
+    "archive_heads_hash": {
+      "$ref": "#/$defs/sha"
+    },
+    "decision_hash": {
+      "$ref": "#/$defs/sha"
+    }
+  },
+  "$defs": {
+    "sha": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "action": {
+      "type": "string",
+      "pattern": "^act_[a-z2-7]{26}$"
+    },
+    "coordinate": {
+      "type": "object", "additionalProperties": false,
+      "required": ["round", "phase_ordinal", "candidate_ordinal"],
+      "properties": {
+        "round": { "$ref": "#/$defs/u64" },
+        "phase_ordinal": { "type": "integer", "minimum": 0, "maximum": 13 },
+        "candidate_ordinal": { "$ref": "#/$defs/u64" }
+      }
+    },
+    "u64": { "type": "integer", "minimum": 0, "maximum": 18446744073709551615 },
+    "champion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "program_hash",
+        "project_hash",
+        "evaluation_report_hash"
+      ],
+      "properties": {
+        "program_hash": {
+          "$ref": "#/$defs/sha"
+        },
+        "project_hash": {
+          "$ref": "#/$defs/sha"
+        },
+        "evaluation_report_hash": {
+          "$ref": "#/$defs/sha"
+        }
+      }
+    }
+  }
+}

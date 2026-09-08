@@ -1,0 +1,196 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://cps.local/schemas/fallback_result.schema.json",
+    "title": "CPS DeterministicFallbackResult v1",
+    "oneOf": [
+        {
+            "$ref": "#/$defs/success"
+        },
+        {
+            "$ref": "#/$defs/failure"
+        }
+    ],
+    "$defs": {
+        "sha": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "trace": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "fallback_attempt_ordinal",
+                "mutation_ordinal",
+                "decision_kind",
+                "counter",
+                "path_hash",
+                "eligible_table_hash",
+                "selected_value_hash"
+            ],
+            "properties": {
+                "fallback_attempt_ordinal": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 15
+                },
+                "counter": { "const": 0 },
+                "mutation_ordinal": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 3
+                },
+                "decision_kind": {
+                    "enum": [
+                        "operation",
+                        "owner_kind",
+                        "owner_id",
+                        "field_or_index",
+                        "parameter"
+                    ]
+                },
+                "path_hash": {
+                    "$ref": "#/$defs/sha"
+                },
+                "eligible_table_hash": {
+                    "$ref": "#/$defs/sha"
+                },
+                "selected_value_hash": {
+                    "$ref": "#/$defs/sha"
+                }
+            }
+        },
+        "success": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "schema",
+                "schema_version",
+                "status",
+                "mutations",
+                "application_receipt_hashes",
+                "final_program_hash",
+                "attempts_consumed",
+                "decision_trace",
+                "request_hash",
+                "fallback_manifest_hash",
+                "base_program_hash",
+                "action_coordinate",
+                "requested_mutation_count",
+                "result_hash"
+            ],
+            "properties": {
+                "schema": {
+                    "const": "cps.fallback-result"
+                },
+                "schema_version": {
+                    "const": "1.0.0"
+                },
+                "status": {
+                    "const": "success"
+                },
+                "mutations": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 4,
+                    "items": {
+                        "$ref": "mutation.schema.json"
+                    }
+                },
+                "application_receipt_hashes": {
+                    "type": "array", "minItems": 1, "maxItems": 4,
+                    "items": { "$ref": "#/$defs/sha" }
+                },
+                "final_program_hash": {
+                    "$ref": "#/$defs/sha"
+                },
+                "attempts_consumed": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 16
+                },
+                "decision_trace": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "$ref": "#/$defs/trace"
+                    }
+                },
+                "request_hash": { "$ref": "#/$defs/sha" },
+                "fallback_manifest_hash": { "$ref": "#/$defs/sha" },
+                "base_program_hash": { "$ref": "#/$defs/sha" },
+                "action_coordinate": { "$ref": "#/$defs/actionCoordinate" },
+                "requested_mutation_count": { "type": "integer", "minimum": 1, "maximum": 4 },
+                "result_hash": { "$ref": "#/$defs/sha" }
+            }
+        },
+        "failure": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "schema",
+                "schema_version",
+                "status",
+                "error",
+                "attempts_consumed",
+                "partial_candidate",
+                "request_hash",
+                "fallback_manifest_hash",
+                "base_program_hash",
+                "action_coordinate",
+                "requested_mutation_count",
+                "decision_trace",
+                "result_hash"
+            ],
+            "properties": {
+                "schema": {
+                    "const": "cps.fallback-result"
+                },
+                "schema_version": {
+                    "const": "1.0.0"
+                },
+                "status": {
+                    "const": "failure"
+                },
+                "error": {
+                    "enum": [
+                        "FALLBACK_REQUEST_INVALID",
+                        "FALLBACK_RUN_MANIFEST_MISMATCH",
+                        "FALLBACK_PLANNER_MANIFEST_MISMATCH",
+                        "FALLBACK_MANIFEST_MISMATCH",
+                        "FALLBACK_CHOICE_CATALOG_MISMATCH",
+                        "FALLBACK_PROGRAM_HASH_MISMATCH",
+                        "FALLBACK_LOCKS_INVALID",
+                        "FALLBACK_ACTION_COORDINATE_INVALID",
+                        "FALLBACK_NO_ELIGIBLE_OPERATION",
+                        "FALLBACK_ATTEMPTS_EXHAUSTED",
+                        "FALLBACK_MUTATION_APPLICATION_FAILED"
+                    ]
+                },
+                "attempts_consumed": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 16
+                },
+                "partial_candidate": {
+                    "type": "null"
+                },
+                "request_hash": { "$ref": "#/$defs/sha" },
+                "fallback_manifest_hash": { "$ref": "#/$defs/sha" },
+                "base_program_hash": { "$ref": "#/$defs/sha" },
+                "action_coordinate": { "$ref": "#/$defs/actionCoordinate" },
+                "requested_mutation_count": { "type": "integer", "minimum": 1, "maximum": 4 },
+                "decision_trace": { "type": "array", "items": { "$ref": "#/$defs/trace" } },
+                "result_hash": { "$ref": "#/$defs/sha" }
+            }
+        },
+        "actionCoordinate": {
+            "type": "object", "additionalProperties": false,
+            "required": ["run_id", "round", "candidate"],
+            "properties": {
+                "run_id": { "type": "string", "minLength": 1, "maxLength": 120 },
+                "round": { "type": "integer", "minimum": 0 },
+                "candidate": { "type": "integer", "minimum": 0 }
+            }
+        }
+    }
+}

@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cps.local/schemas/render_charge.schema.json",
+  "title": "CPS RenderCharge v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "schema_version",
+    "run_hash",
+    "request_hash",
+    "charge_unit",
+    "requested_frames",
+    "used_before",
+    "ceiling",
+    "reservation_status",
+    "used_after",
+    "charge_hash"
+  ],
+  "properties": {
+    "schema": {
+      "const": "cps.render-charge"
+    },
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "run_hash": {
+      "$ref": "#/$defs/sha"
+    },
+    "request_hash": {
+      "$ref": "#/$defs/sha"
+    },
+    "charge_unit": {
+      "const": "output_frame"
+    },
+    "requested_frames": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 18446744073709551615
+    },
+    "used_before": {
+      "$ref": "#/$defs/u64"
+    },
+    "ceiling": {
+      "$ref": "#/$defs/u64"
+    },
+    "reservation_status": {
+      "enum": [
+        "reserved",
+        "rejected"
+      ]
+    },
+    "used_after": {
+      "$ref": "#/$defs/u64"
+    },
+    "charge_hash": {
+      "$ref": "#/$defs/sha"
+    }
+  },
+  "$defs": {
+    "sha": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "u64": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 18446744073709551615
+    }
+  }
+}

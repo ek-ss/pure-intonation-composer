@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cps.local/schemas/render_request.schema.json",
+  "title": "CPS RenderRequest v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "schema_version",
+    "run_hash",
+    "candidate_ordinal",
+    "project_hash",
+    "render_manifest_digest",
+    "selection_policy_hash",
+    "excerpt",
+    "tail_frames",
+    "purpose",
+    "request_hash"
+  ],
+  "properties": {
+    "schema": {
+      "const": "cps.render-request"
+    },
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "run_hash": {
+      "$ref": "#/$defs/sha"
+    },
+    "candidate_ordinal": {
+      "$ref": "#/$defs/u64"
+    },
+    "project_hash": {
+      "$ref": "#/$defs/sha"
+    },
+    "render_manifest_digest": {
+      "$ref": "#/$defs/sha"
+    },
+    "selection_policy_hash": {
+      "$ref": "#/$defs/sha"
+    },
+    "excerpt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "start_frame",
+        "content_frames"
+      ],
+      "properties": {
+        "start_frame": {
+          "$ref": "#/$defs/u64"
+        },
+        "content_frames": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4294967295
+        }
+      }
+    },
+    "tail_frames": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 1048576
+    },
+    "purpose": {
+      "const": "evaluation_preview"
+    },
+    "request_hash": {
+      "$ref": "#/$defs/sha"
+    }
+  },
+  "$defs": {
+    "sha": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "u64": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 18446744073709551615
+    }
+  }
+}

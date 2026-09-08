@@ -1,0 +1,342 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://cps.local/schemas/fallback_manifest.schema.json",
+    "title": "CPS DeterministicFallbackManifest v1",
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+        "schema",
+        "schema_version",
+        "algorithm",
+        "stream_domain",
+        "choice_algorithm",
+        "planner_manifest_hash",
+        "mutation_schema_hash",
+        "mutation_choice_catalog_hash",
+        "mutation_application_contract_hash",
+        "maximum_attempts_per_candidate",
+        "maximum_mutations",
+        "operation_table",
+        "parameter_tables"
+    ],
+    "properties": {
+        "schema": {
+            "const": "cps.fallback-manifest"
+        },
+        "schema_version": {
+            "const": "1.0.0"
+        },
+        "algorithm": {
+            "const": "typed-weighted-fallback/v1"
+        },
+        "stream_domain": {
+            "const": "cps.mutation-fallback/v1"
+        },
+        "choice_algorithm": {
+            "const": "sha256-u64-mod-cumulative/v1"
+        },
+        "planner_manifest_hash": {
+            "$ref": "#/$defs/sha"
+        },
+        "mutation_schema_hash": {
+            "$ref": "#/$defs/sha"
+        },
+        "mutation_choice_catalog_hash": {
+            "$ref": "#/$defs/sha"
+        },
+        "mutation_application_contract_hash": {
+            "$ref": "#/$defs/sha"
+        },
+        "maximum_attempts_per_candidate": {
+            "const": 16
+        },
+        "maximum_mutations": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 4
+        },
+        "operation_table": {
+            "type": "array",
+            "minItems": 8,
+            "maxItems": 8,
+            "items": {
+                "$ref": "#/$defs/operationChoice"
+            }
+        },
+        "parameter_tables": {
+            "$ref": "#/$defs/parameterTables"
+        }
+    },
+    "$defs": {
+        "sha": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_-]{0,79}$"
+        },
+        "weight": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 18446744073709551615
+        },
+        "operation": {
+            "enum": [
+                "replace_bounded_scalar",
+                "replace_distribution_choice",
+                "transpose_material_vector",
+                "rotate_rhythm",
+                "replace_chord_intent_reference",
+                "replace_root_anchor_item",
+                "edit_section",
+                "swap_track_catalog_entry"
+            ]
+        },
+        "operationChoice": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "operation",
+                "weight"
+            ],
+            "properties": {
+                "operation": {
+                    "$ref": "#/$defs/operation"
+                },
+                "weight": {
+                    "$ref": "#/$defs/weight"
+                }
+            }
+        },
+        "intChoice": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "value",
+                "weight"
+            ],
+            "properties": {
+                "value": {
+                    "type": "integer"
+                },
+                "weight": {
+                    "$ref": "#/$defs/weight"
+                }
+            }
+        },
+        "idChoice": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "value",
+                "weight"
+            ],
+            "properties": {
+                "value": {
+                    "$ref": "#/$defs/id"
+                },
+                "weight": {
+                    "$ref": "#/$defs/weight"
+                }
+            }
+        },
+        "vectorChoice": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "value",
+                "weight"
+            ],
+            "properties": {
+                "value": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 3,
+                    "items": {
+                        "type": "integer",
+                        "minimum": -1,
+                        "maximum": 1
+                    }
+                },
+                "weight": {
+                    "$ref": "#/$defs/weight"
+                }
+            }
+        },
+        "chordReference": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "equave",
+                "divisions",
+                "steps"
+            ],
+            "properties": {
+                "equave": {
+                    "type": "string",
+                    "pattern": "^[1-9][0-9]*/[1-9][0-9]*$"
+                },
+                "divisions": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 96
+                },
+                "steps": {
+                    "type": "array",
+                    "minItems": 2,
+                    "maxItems": 8,
+                    "uniqueItems": true,
+                    "items": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 95
+                    }
+                }
+            }
+        },
+        "chordChoice": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "value",
+                "weight"
+            ],
+            "properties": {
+                "value": {
+                    "$ref": "#/$defs/chordReference"
+                },
+                "weight": {
+                    "$ref": "#/$defs/weight"
+                }
+            }
+        },
+        "editChoice": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "value",
+                "weight"
+            ],
+            "properties": {
+                "value": {
+                    "enum": [
+                        "duplicate",
+                        "delete"
+                    ]
+                },
+                "weight": {
+                    "$ref": "#/$defs/weight"
+                }
+            }
+        },
+        "scalarTable": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "owner_kind",
+                "field",
+                "choices"
+            ],
+            "properties": {
+                "owner_kind": {
+                    "enum": [
+                        "section",
+                        "realization",
+                        "production"
+                    ]
+                },
+                "field": {
+                    "enum": [
+                        "bars",
+                        "velocity_scale_q",
+                        "gate_scale_q",
+                        "gain_q",
+                        "pan_q"
+                    ]
+                },
+                "choices": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "$ref": "#/$defs/intChoice"
+                    }
+                }
+            }
+        },
+        "parameterTables": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "bounded_scalars",
+                "distribution_choice_ids",
+                "transpose_unit_vectors",
+                "rotate_ordinal_steps",
+                "chord_references",
+                "root_anchor_unit_vectors",
+                "edit_actions",
+                "instrument_entry_ids"
+            ],
+            "properties": {
+                "bounded_scalars": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "$ref": "#/$defs/scalarTable"
+                    }
+                },
+                "distribution_choice_ids": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "$ref": "#/$defs/idChoice"
+                    }
+                },
+                "transpose_unit_vectors": {
+                    "type": "array",
+                    "minItems": 2,
+                    "items": {
+                        "$ref": "#/$defs/vectorChoice"
+                    }
+                },
+                "rotate_ordinal_steps": {
+                    "type": "array",
+                    "minItems": 8,
+                    "maxItems": 8,
+                    "items": {
+                        "$ref": "#/$defs/intChoice"
+                    }
+                },
+                "chord_references": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "$ref": "#/$defs/chordChoice"
+                    }
+                },
+                "root_anchor_unit_vectors": {
+                    "type": "array",
+                    "minItems": 2,
+                    "items": {
+                        "$ref": "#/$defs/vectorChoice"
+                    }
+                },
+                "edit_actions": {
+                    "type": "array",
+                    "minItems": 2,
+                    "maxItems": 2,
+                    "items": {
+                        "$ref": "#/$defs/editChoice"
+                    }
+                },
+                "instrument_entry_ids": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "$ref": "#/$defs/idChoice"
+                    }
+                }
+            }
+        }
+    }
+}

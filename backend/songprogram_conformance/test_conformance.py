@@ -20,6 +20,62 @@ from .reference import (
 HERE = Path(__file__).parent
 
 
+def test_search_decision_schemas_are_closed_draft_2020_12() -> None:
+    schema_names = (
+        "archive_admission_policy.schema.json",
+        "archive_admission_decision.schema.json",
+        "challenger_acceptance_policy.schema.json",
+        "challenger_acceptance_decision.schema.json",
+        "near_duplicate_decision.schema.json",
+        "stopping_policy.schema.json",
+        "round_decision.schema.json",
+        "cancellation_request.schema.json",
+        "cancellation_decision.schema.json",
+        "render_selection_policy.schema.json",
+        "render_request.schema.json",
+        "render_charge.schema.json",
+        "render_result.schema.json",
+        "search_run_manifest_1_3.schema.json",
+        "search_checkpoint_1_1.schema.json",
+        "search_run_record_1_1.schema.json",
+    )
+    for name in schema_names:
+        schema = json.loads((HERE / "schemas" / name).read_text(encoding="utf-8"))
+        assert schema["$schema"] == "https://json-schema.org/draft/2020-12/schema"
+        assert schema["type"] == "object"
+        assert schema["additionalProperties"] is False
+
+
+def test_search_manifest_1_3_binds_every_decision_policy() -> None:
+    schema = json.loads(
+        (HERE / "schemas" / "search_run_manifest_1_3.schema.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    required = set(schema["required"])
+    assert {
+        "genre_intent_hash",
+        "fingerprint_spec_hash",
+        "archive_admission_policy_hash",
+        "challenger_acceptance_policy_hash",
+        "stopping_policy_hash",
+        "render_selection_policy_hash",
+        "fallback_manifest_hash",
+        "broad_prior_production_manifest_hash",
+    } <= required
+
+
+def test_challenger_policy_has_no_absolute_acceptance_gate() -> None:
+    schema = json.loads(
+        (HERE / "schemas" / "challenger_acceptance_policy.schema.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    serialized = json.dumps(schema, sort_keys=True)
+    assert "minimum_score" not in serialized
+    assert "required_consecutive" not in serialized
+
+
 def _load(name: str) -> dict[str, Any]:
     return json.loads((HERE / "goldens" / name).read_text())
 

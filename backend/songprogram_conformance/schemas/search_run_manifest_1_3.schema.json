@@ -1,0 +1,172 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cps.local/schemas/search_run_manifest_1_3.schema.json",
+  "title": "CPS Search RunManifest v1.3",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "schema_version",
+    "root_seed",
+    "sampler_manifest_hash",
+    "fallback_manifest_hash",
+    "broad_prior_production_manifest_hash",
+    "compiler_manifest_hash",
+    "evaluation_manifest_hash",
+    "genre_intent_hash",
+    "qd_manifest_hash",
+    "planner_manifest_hash",
+    "mutation_choice_catalog_hash",
+    "fingerprint_spec_hash",
+    "archive_admission_policy_hash",
+    "challenger_acceptance_policy_hash",
+    "stopping_policy_hash",
+    "render_selection_policy_hash",
+    "population_size",
+    "candidates_per_round",
+    "planner_call_budget",
+    "compile_logical_budget",
+    "render_frame_budget",
+    "operational_deadline_seconds",
+    "mutation_schema_hash",
+    "run_record_schema_hash",
+    "checkpoint_schema_hash",
+    "artifact_store"
+  ],
+  "properties": {
+    "schema": {
+      "const": "cps.search-run-manifest"
+    },
+    "schema_version": {
+      "const": "1.3.0"
+    },
+    "root_seed": {
+      "$ref": "#/$defs/u64"
+    },
+    "sampler_manifest_hash": {
+      "$ref": "#/$defs/sha"
+    },
+    "fallback_manifest_hash": {
+      "$ref": "#/$defs/sha"
+    },
+    "broad_prior_production_manifest_hash": {
+      "$ref": "#/$defs/sha"
+    },
+    "compiler_manifest_hash": {
+      "$ref": "#/$defs/sha"
+    },
+    "evaluation_manifest_hash": {
+      "$ref": "#/$defs/sha"
+    },
+    "genre_intent_hash": {
+      "$ref": "#/$defs/sha"
+    },
+    "qd_manifest_hash": {
+      "$ref": "#/$defs/sha"
+    },
+    "planner_manifest_hash": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/$defs/sha"
+        }
+      ]
+    },
+    "mutation_choice_catalog_hash": {
+      "$ref": "#/$defs/sha"
+    },
+    "fingerprint_spec_hash": {
+      "$ref": "#/$defs/sha"
+    },
+    "archive_admission_policy_hash": {
+      "$ref": "#/$defs/sha"
+    },
+    "challenger_acceptance_policy_hash": {
+      "$ref": "#/$defs/sha"
+    },
+    "stopping_policy_hash": {
+      "$ref": "#/$defs/sha"
+    },
+    "render_selection_policy_hash": {
+      "$ref": "#/$defs/sha"
+    },
+    "population_size": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 10000
+    },
+    "candidates_per_round": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 1000
+    },
+    "planner_call_budget": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100000
+    },
+    "compile_logical_budget": {
+      "$ref": "#/$defs/u64"
+    },
+    "render_frame_budget": {
+      "$ref": "#/$defs/u64"
+    },
+    "operational_deadline_seconds": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 1
+    },
+    "mutation_schema_hash": {
+      "$ref": "#/$defs/sha"
+    },
+    "run_record_schema_hash": {
+      "$ref": "#/$defs/sha"
+    },
+    "checkpoint_schema_hash": {
+      "$ref": "#/$defs/sha"
+    },
+    "artifact_store": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "algorithm",
+        "cas_root",
+        "run_root",
+        "record_framing",
+        "atomic_write"
+      ],
+      "properties": {
+        "algorithm": {
+          "const": "local-content-addressed/v1"
+        },
+        "cas_root": {
+          "const": "cas/sha256"
+        },
+        "run_root": {
+          "const": "runs"
+        },
+        "record_framing": {
+          "const": "u64be-length-canonical-json/v1"
+        },
+        "atomic_write": {
+          "const": "same-directory-create-if-absent-fsync/v1"
+        }
+      }
+    }
+  },
+  "$defs": {
+    "sha": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "u64": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 18446744073709551615
+    }
+  }
+}

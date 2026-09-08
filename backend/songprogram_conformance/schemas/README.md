@@ -34,6 +34,29 @@ for the SP0 conformance pack.
 - `cache_entry.schema.json`: content-addressed exact chord-query cache envelope.
 - `fixture_manifest.schema.json`: paths, digests, expected status, and exact
   error metadata for independently verified fixtures.
+- `archive_admission_*`: QD cell eligibility and deterministic replacement.
+- `challenger_acceptance_*`: GenreIntent-bound Pareto comparison; these schemas
+  deliberately contain no fixed minimum score or consecutive-round gate.
+- `near_duplicate_decision.schema.json`: symbolic duplicate decision committed
+  before render selection.
+- `stopping_policy.schema.json` and `round_decision.schema.json`: material
+  archive improvement, patience, and stop precedence.
+- `cancellation_*`: barrier-observed cancellation and its canonical cutoff.
+- `render_selection_policy.schema.json`, `render_request.schema.json`, and
+  `render_charge.schema.json`, and `render_result.schema.json`: deterministic
+  preview selection, reservation, cache/failure outcome, and frame budget.
+- `search_run_manifest_1_3.schema.json`, `search_run_record_1_1.schema.json`, and
+  `search_checkpoint_1_1.schema.json`: fully policy-bound orchestration. The
+  older 1.2/1.0 schemas remain available for stored legacy runs.
+- `fallback_manifest.schema.json`, `fallback_request.schema.json`, and
+  `fallback_result.schema.json`: deterministic typed-mutation fallback,
+  independent attempt stream, exact locks, and atomic success/failure envelopes.
+- `broad_prior_production_manifest.schema.json`: role-by-role instrument,
+  register, polyphony, drum-map, gain, and pan lowering. Completed instrument
+  maps are deliberately not representable.
+- `broad_prior_production_request.schema.json` and
+  `broad_prior_production_result.schema.json`: causal input/output binding,
+  rejection counters, ordered role decisions, and hash-complete traces.
 
 All object schemas use `additionalProperties: false`; nullable values must be
 present where listed as required. Cross-record invariants that JSON Schema

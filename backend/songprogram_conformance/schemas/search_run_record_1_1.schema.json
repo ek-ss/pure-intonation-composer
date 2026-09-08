@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cps.local/schemas/search_run_record_1_1.schema.json",
+  "title": "CPS Search RunRecord v1.1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "schema_version",
+    "run_hash",
+    "sequence",
+    "action_id",
+    "round",
+    "phase_ordinal",
+    "candidate_ordinal",
+    "kind",
+    "payload_hash",
+    "previous_record_hash",
+    "record_hash"
+  ],
+  "properties": {
+    "schema": {
+      "const": "cps.search-run-record"
+    },
+    "schema_version": {
+      "const": "1.1.0"
+    },
+    "run_hash": {
+      "$ref": "#/$defs/sha"
+    },
+    "sequence": {
+      "$ref": "#/$defs/u64"
+    },
+    "action_id": {
+      "type": "string",
+      "pattern": "^act_[a-z2-7]{26}$"
+    },
+    "round": {
+      "$ref": "#/$defs/u64"
+    },
+    "phase_ordinal": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 13
+    },
+    "candidate_ordinal": {
+      "$ref": "#/$defs/u64"
+    },
+    "kind": {
+      "enum": [
+        "run",
+        "candidate",
+        "lineage_edge",
+        "artifact_reference",
+        "metric_report",
+        "planner_request",
+        "planner_response",
+        "near_duplicate_decision",
+        "render_reservation",
+        "render_dispatch",
+        "render_result",
+        "challenger_acceptance_decision",
+        "archive_admission_decision",
+        "archive_update",
+        "round_decision",
+        "checkpoint",
+        "failure",
+        "cancellation_request",
+        "cancellation_decision",
+        "stop_decision"
+      ]
+    },
+    "payload_hash": {
+      "$ref": "#/$defs/sha"
+    },
+    "previous_record_hash": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/$defs/sha"
+        }
+      ]
+    },
+    "record_hash": {
+      "$ref": "#/$defs/sha"
+    }
+  },
+  "$defs": {
+    "sha": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "u64": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 18446744073709551615
+    }
+  }
+}

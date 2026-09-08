@@ -1,0 +1,137 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://cps.local/schemas/fallback_request.schema.json",
+    "title": "CPS DeterministicFallbackRequest v1",
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+        "schema",
+        "schema_version",
+        "root_seed",
+        "action_coordinate",
+        "run_manifest_hash",
+        "planner_manifest_hash",
+        "fallback_manifest",
+        "fallback_manifest_hash",
+        "mutation_choice_catalog_hash",
+        "program",
+        "program_hash",
+        "locked_roots",
+        "diagnostic_codes",
+        "requested_mutation_count",
+        "request_hash"
+    ],
+    "properties": {
+        "schema": {
+            "const": "cps.fallback-request"
+        },
+        "schema_version": {
+            "const": "1.0.0"
+        },
+        "root_seed": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 18446744073709551615
+        },
+        "action_coordinate": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "run_id",
+                "round",
+                "candidate"
+            ],
+            "properties": {
+                "run_id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                },
+                "round": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "candidate": {
+                    "type": "integer",
+                    "minimum": 0
+                }
+            }
+        },
+        "run_manifest_hash": {
+            "$ref": "#/$defs/sha"
+        },
+        "planner_manifest_hash": {
+            "$ref": "#/$defs/sha"
+        },
+        "fallback_manifest": {
+            "$ref": "fallback_manifest.schema.json"
+        },
+        "fallback_manifest_hash": {
+            "$ref": "#/$defs/sha"
+        },
+        "mutation_choice_catalog_hash": {
+            "$ref": "#/$defs/sha"
+        },
+        "program": {
+            "$ref": "song_program_0_1.schema.json"
+        },
+        "program_hash": {
+            "$ref": "#/$defs/sha"
+        },
+        "locked_roots": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+                "$ref": "#/$defs/root"
+            }
+        },
+        "diagnostic_codes": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+                "type": "string",
+                "pattern": "^[A-Z][A-Z0-9_]{0,79}$"
+            }
+        },
+        "requested_mutation_count": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 4
+        },
+        "request_hash": {
+            "$ref": "#/$defs/sha"
+        }
+    },
+    "$defs": {
+        "sha": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "root": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "kind",
+                "id"
+            ],
+            "properties": {
+                "kind": {
+                    "enum": [
+                        "material",
+                        "rhythm",
+                        "chord_intent",
+                        "section",
+                        "realization",
+                        "track",
+                        "production",
+                        "global_form"
+                    ]
+                },
+                "id": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9_-]{0,79}$"
+                }
+            }
+        }
+    }
+}

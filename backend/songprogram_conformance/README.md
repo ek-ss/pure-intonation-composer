@@ -46,6 +46,12 @@ logical receipts, and stable failure payloads. Only `execution_telemetry` may
 differ. The full environment matrix and independence rule are normative in
 `docs/song_program_conformance_pack.md`.
 
+Search orchestration 1.3 additionally binds archive admission, GenreIntent
+challenger comparison, fingerprint duplicate classification, stopping, and
+render selection by policy hash. Its normative ordering and cancellation
+barrier are documented in `docs/song_program_search_decision_contract.md`.
+Near-duplicate decisions are always recorded before any render reservation.
+
 ## Phase-5 authoritative fixtures
 
 - `fixtures/mutation/` contains 41 independently evaluated cases covering all
