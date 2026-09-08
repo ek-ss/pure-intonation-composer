@@ -1,0 +1,36 @@
+{
+  "archive": [
+    "candidate_better",
+    true,
+    "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+  ],
+  "challenger": [
+    "challenger_dominates",
+    "not_needed",
+    true,
+    "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+  ],
+  "near_duplicate": [
+    "near_duplicate",
+    "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    {
+      "program_hash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+      "fingerprint_hash": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+      "component_distances_q": [
+        40,
+        30
+      ],
+      "aggregate_distance_q": 70
+    }
+  ],
+  "comparison_set_hash": "sha256:426329e3a6892db22f6a6b69dc2774856a01b391c83e60601a01c3e2b3ff586a",
+  "stopping": [
+    0,
+    null
+  ],
+  "cancellation_action_id": "act_pkrrcwtb5ha2j73lhsgxad4ocf",
+  "render": [
+    "reserved",
+    1400
+  ]
+}

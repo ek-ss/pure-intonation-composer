@@ -1,0 +1,97 @@
+[
+  {
+    "id": "action_id_mismatch",
+    "call": "validate_action",
+    "input": {
+      "run_hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "round": 1,
+      "phase_ordinal": 3,
+      "candidate_ordinal": 2,
+      "action_id": "act_aaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  },
+  {
+    "id": "charge_arithmetic",
+    "call": "validate_charge",
+    "input": {
+      "used_before": 600,
+      "requested_frames": 400,
+      "ceiling": 1000,
+      "reservation_status": "reserved",
+      "used_after": 999
+    }
+  },
+  {
+    "id": "comparison_unsorted",
+    "call": "comparison_set_hash",
+    "input": [
+      "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+      "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+    ]
+  },
+  {
+    "id": "duplicate_component",
+    "call": "validate_components",
+    "input": [
+      {
+        "id": "genre",
+        "direction": "maximize",
+        "margin_q": 10,
+        "ordinal": 0,
+        "source": {
+          "artifact_kind": "evaluation_report",
+          "schema_hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "json_pointer": "/metrics/genre"
+        }
+      },
+      {
+        "id": "genre",
+        "direction": "minimize",
+        "margin_q": 5,
+        "ordinal": 1,
+        "source": {
+          "artifact_kind": "evaluation_report",
+          "schema_hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "json_pointer": "/metrics/artifact"
+        }
+      }
+    ]
+  },
+  {
+    "id": "ordinal_gap",
+    "call": "validate_components",
+    "input": [
+      {
+        "id": "genre",
+        "direction": "maximize",
+        "margin_q": 10,
+        "ordinal": 0,
+        "source": {
+          "artifact_kind": "evaluation_report",
+          "schema_hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "json_pointer": "/metrics/genre"
+        }
+      },
+      {
+        "id": "artifact",
+        "direction": "minimize",
+        "margin_q": 5,
+        "ordinal": 2,
+        "source": {
+          "artifact_kind": "evaluation_report",
+          "schema_hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "json_pointer": "/metrics/artifact"
+        }
+      }
+    ]
+  },
+  {
+    "id": "render_zero",
+    "call": "reserve_render",
+    "input": {
+      "used_before": 0,
+      "requested": 0,
+      "ceiling": 10
+    }
+  }
+]

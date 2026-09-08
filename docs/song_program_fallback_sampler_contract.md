@@ -26,7 +26,10 @@ SHA256(UTF8(domain + "\0") || u64be(root_seed) || canonical_json(path))
 ```
 
 Fallback paths are `[run_manifest_hash,round,candidate,fallback_attempt_ordinal,
-mutation_ordinal,decision_kind,owner_kind,owner_id]`. Production paths are
+mutation_ordinal,decision_kind,...selected_prefix]`; the selected prefix is
+empty for the operation draw and then contains, in order, operation,
+owner-kind, owner-ID, and field-or-index as those values become available.
+Production paths are
 `[sampler_manifest_hash,production_rejection_ordinal,"production",role,field]`.
 Tables sort entries by canonical value bytes. Selection is `u64 mod
 sum(positive weights)` over the cumulative weights of eligible entries. Zero
@@ -115,6 +118,32 @@ before a draw; reaching the ceiling permits no next draw. Other failures do not
 retry. Success requires exactly `requested_mutation_count` mutations. An
 applier rejection after eligibility is contract drift and terminates.
 
+At every stage first filter complete eligible rows by the already selected
+prefix, then rebuild the cumulative table. Operation choices retain their
+manifest operation weights, but operations with no remaining row are omitted.
+Distinct `owner_kind`, `owner_id`, and `field_or_index` tokens each have weight
+one and sort by canonical token bytes. Parameter choices use the weight of their
+raw manifest row. Their paths append the selected operation and the complete
+selected prefix, so no two stages or prefixes share a draw. Vector parameter
+rows are eligible only when their length equals `D =
+len(current_program.lattice.generators)`.
+
+`mutation_id` is `mut_` plus the first 20 base32lower-no-pad characters of
+`SHA256(UTF8("cps.fallback-mutation-id/v1\0") ||
+UTF8(fallback_request_hash) || u64be(round) || u64be(candidate) ||
+u64be(fallback_attempt_ordinal) || u32be(mutation_ordinal) ||
+canonical_json_with_final_LF(mutation_core))`. The core is the complete Mutation
+object with only `mutation_id` omitted and therefore includes
+`base_program_hash`. Retry duplicate detection
+instead compares canonical Mutation core with both `mutation_id` and
+`base_program_hash` removed.
+
+The completed batch is submitted once in one
+`MutationApplicationRequest 1.1`; the fallback result binds one corresponding
+`MutationApplicationReceipt`. No per-mutation application request or receipt is
+published. The applier still validates and applies its ordered mutations
+sequentially and atomically.
+
 Failure precedence is:
 
 ```text
@@ -166,6 +195,14 @@ range, catalog maximum polyphony, and required drum lanes. Registers are never
 intersected or clamped. Drum maps copy immutable named catalog mappings into
 SongProgram. No compatible choice rejects the seed; it does not remove the
 role, change equave, or substitute an unlisted instrument.
+
+For a pitched catalog endpoint frequency `F` and Program base frequency `B`,
+derive its base-relative endpoint as `ratio_mc(F/B)` using NumericContract
+round-half-even. The selected register `[lo,hi]` is compatible exactly when
+`catalog_lo_mc <= lo <= hi <= catalog_hi_mc`; endpoints are inclusive and the
+equave is irrelevant. Invalid/non-positive frequencies, overflow, or numeric
+conversion failure is `SAMPLER_PRODUCTION_VALUE_INVALID`. The compiler later
+revalidates every exact event frequency against the catalog range.
 
 The manifest stores profile choices as `(profile_id, profile_payload_hash)` and
 drum-map choices as `(drum_map_id, drum_map, drum_map_payload_hash)`. Hashes are

@@ -52,6 +52,20 @@ render selection by policy hash. Its normative ordering and cancellation
 barrier are documented in `docs/song_program_search_decision_contract.md`.
 Near-duplicate decisions are always recorded before any render reservation.
 
+Fallback and broad-prior production have a production-independent reference in
+`fallback_sampler_oracle.py`. Its maintainer builder and authoritative
+success/retry/lock/exhaustion, weighted-boundary, and register-endpoint cases
+live under `fixtures/fallback_sampler/`; consumers must not invoke the builder.
+
+`search_decision_oracle.py` is the production-independent semantic authority
+for archive, challenger, near-duplicate, stopping, cancellation, and preview
+render decisions. It additionally validates action-ID derivation, component
+source uniqueness, comparison-set membership/hash, and render charge
+arithmetic. Authoritative success, negative, and exact-boundary inputs and
+expected sidecars live in `fixtures/search_decisions/`; regenerate them only
+with `python -m backend.songprogram_conformance.build_search_decision_fixtures`
+from the repository root.
+
 ## Phase-5 authoritative fixtures
 
 - `fixtures/mutation/` contains 41 independently evaluated cases covering all

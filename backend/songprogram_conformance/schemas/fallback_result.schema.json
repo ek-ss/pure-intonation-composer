@@ -67,7 +67,7 @@
                 "schema_version",
                 "status",
                 "mutations",
-                "application_receipt_hashes",
+                "application_receipt_hash",
                 "final_program_hash",
                 "attempts_consumed",
                 "decision_trace",
@@ -96,9 +96,8 @@
                         "$ref": "mutation.schema.json"
                     }
                 },
-                "application_receipt_hashes": {
-                    "type": "array", "minItems": 1, "maxItems": 4,
-                    "items": { "$ref": "#/$defs/sha" }
+                "application_receipt_hash": {
+                    "$ref": "#/$defs/sha"
                 },
                 "final_program_hash": {
                     "$ref": "#/$defs/sha"

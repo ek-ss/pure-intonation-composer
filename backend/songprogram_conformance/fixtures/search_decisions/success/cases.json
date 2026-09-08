@@ -1,0 +1,103 @@
+{
+  "archive": {
+    "directions": [
+      "maximize",
+      "minimize"
+    ],
+    "candidate_quality": [
+      90,
+      2
+    ],
+    "candidate_hash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "incumbent_quality": [
+      80,
+      4
+    ],
+    "incumbent_hash": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+    "eligible": true
+  },
+  "challenger": {
+    "metrics": [
+      {
+        "id": "genre",
+        "direction": "maximize",
+        "margin_q": 10,
+        "ordinal": 0,
+        "source": {
+          "artifact_kind": "evaluation_report",
+          "schema_hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "json_pointer": "/metrics/genre"
+        }
+      },
+      {
+        "id": "artifact",
+        "direction": "minimize",
+        "margin_q": 5,
+        "ordinal": 1,
+        "source": {
+          "artifact_kind": "evaluation_report",
+          "schema_hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "json_pointer": "/metrics/artifact"
+        }
+      }
+    ],
+    "challenger": [
+      120,
+      20
+    ],
+    "champion": [
+      100,
+      30
+    ],
+    "challenger_hash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "champion_hash": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+    "hard_checks_passed": true
+  },
+  "near_duplicate": {
+    "candidate_hash": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+    "threshold_q": 100,
+    "comparisons": [
+      {
+        "program_hash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "fingerprint_hash": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+        "component_distances_q": [
+          40,
+          30
+        ],
+        "aggregate_distance_q": 70
+      },
+      {
+        "program_hash": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+        "fingerprint_hash": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+        "component_distances_q": [
+          90,
+          20
+        ],
+        "aggregate_distance_q": 110
+      }
+    ]
+  },
+  "stopping": {
+    "improved": true,
+    "patience_before": 4,
+    "patience_limit": 5,
+    "round_": 2,
+    "maximum_rounds": 10,
+    "cancelled": false,
+    "budget_exhausted": false,
+    "accepted": false
+  },
+  "cancellation": {
+    "run_hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "coordinate": {
+      "round": 2,
+      "phase_ordinal": 7,
+      "candidate_ordinal": 3
+    }
+  },
+  "render": {
+    "used_before": 1000,
+    "requested": 400,
+    "ceiling": 2000
+  }
+}

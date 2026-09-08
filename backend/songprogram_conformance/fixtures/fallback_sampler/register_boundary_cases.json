@@ -1,0 +1,1 @@
+{"base_frequency_millihz":440000,"cases":[{"expected":"compatible","register":[-1200000,1200000]},{"expected":"below_by_1","register":[-1200001,1200000]},{"expected":"above_by_1","register":[-1200000,1200001]}],"catalog_endpoint_mc":[-1200000,1200000],"catalog_frequency_millihz":[220000,880000]}

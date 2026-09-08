@@ -1,0 +1,1 @@
+{"cases":[{"draw":0,"expected":"a"},{"draw":1,"expected":"b"},{"draw":2,"expected":"b"},{"draw":3,"expected":"a"},{"draw":18446744073709551615,"expected":"a"}],"table":[{"value":"a","weight":1},{"value":"b","weight":2}]}

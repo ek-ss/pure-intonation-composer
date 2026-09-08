@@ -1,0 +1,9 @@
+{
+  "archive_empty_occupied_tie": "success/archive,boundary/archive_empty,boundary/archive_hash_tie",
+  "pareto_directions_and_exact_margin": "success/challenger,boundary/challenger_exact_margins",
+  "duplicate_threshold_adjacent": "success/near_duplicate,boundary/near_exact_threshold,boundary/near_threshold_plus_one",
+  "render_exact_and_plus_one": "boundary/render_exact,boundary/render_plus_one",
+  "patience_and_simultaneous_stop": "boundary/patience_exact,boundary/stop_precedence",
+  "action_id_and_cancel_cutoff": "success/cancellation,negative/action_id_mismatch",
+  "semantic_negatives": "negative/cases.json"
+}

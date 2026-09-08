@@ -1,0 +1,125 @@
+{
+  "archive_empty": {
+    "directions": [
+      "maximize"
+    ],
+    "candidate_quality": [
+      1
+    ],
+    "candidate_hash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "incumbent_quality": null,
+    "incumbent_hash": null,
+    "eligible": true
+  },
+  "archive_hash_tie": {
+    "directions": [
+      "maximize"
+    ],
+    "candidate_quality": [
+      1
+    ],
+    "candidate_hash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "incumbent_quality": [
+      1
+    ],
+    "incumbent_hash": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+    "eligible": true
+  },
+  "challenger_exact_margins": {
+    "metrics": [
+      {
+        "id": "genre",
+        "direction": "maximize",
+        "margin_q": 10,
+        "ordinal": 0,
+        "source": {
+          "artifact_kind": "evaluation_report",
+          "schema_hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "json_pointer": "/metrics/genre"
+        }
+      },
+      {
+        "id": "artifact",
+        "direction": "minimize",
+        "margin_q": 5,
+        "ordinal": 1,
+        "source": {
+          "artifact_kind": "evaluation_report",
+          "schema_hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "json_pointer": "/metrics/artifact"
+        }
+      }
+    ],
+    "challenger": [
+      110,
+      25
+    ],
+    "champion": [
+      100,
+      30
+    ],
+    "challenger_hash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "champion_hash": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+    "hard_checks_passed": true
+  },
+  "near_exact_threshold": {
+    "candidate_hash": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+    "threshold_q": 100,
+    "comparisons": [
+      {
+        "program_hash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "fingerprint_hash": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+        "component_distances_q": [
+          60,
+          40
+        ],
+        "aggregate_distance_q": 100
+      }
+    ]
+  },
+  "near_threshold_plus_one": {
+    "candidate_hash": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+    "threshold_q": 99,
+    "comparisons": [
+      {
+        "program_hash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "fingerprint_hash": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+        "component_distances_q": [
+          60,
+          40
+        ],
+        "aggregate_distance_q": 100
+      }
+    ]
+  },
+  "render_exact": {
+    "used_before": 600,
+    "requested": 400,
+    "ceiling": 1000
+  },
+  "render_plus_one": {
+    "used_before": 600,
+    "requested": 401,
+    "ceiling": 1000
+  },
+  "stop_precedence": {
+    "improved": false,
+    "patience_before": 4,
+    "patience_limit": 5,
+    "round_": 9,
+    "maximum_rounds": 10,
+    "cancelled": true,
+    "budget_exhausted": true,
+    "accepted": true
+  },
+  "patience_exact": {
+    "improved": false,
+    "patience_before": 4,
+    "patience_limit": 5,
+    "round_": 1,
+    "maximum_rounds": 10,
+    "cancelled": false,
+    "budget_exhausted": false,
+    "accepted": false
+  }
+}

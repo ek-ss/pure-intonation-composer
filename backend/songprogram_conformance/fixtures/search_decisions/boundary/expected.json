@@ -1,0 +1,60 @@
+{
+  "archive_empty": [
+    "empty_cell",
+    true,
+    "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+  ],
+  "archive_hash_tie": [
+    "exact_tie",
+    true,
+    "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+  ],
+  "challenger_exact_margins": [
+    "non_dominated",
+    "challenger",
+    true,
+    "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+  ],
+  "near_exact_threshold": [
+    "near_duplicate",
+    "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    {
+      "program_hash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+      "fingerprint_hash": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+      "component_distances_q": [
+        60,
+        40
+      ],
+      "aggregate_distance_q": 100
+    }
+  ],
+  "near_threshold_plus_one": [
+    "distinct",
+    "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+    {
+      "program_hash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+      "fingerprint_hash": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+      "component_distances_q": [
+        60,
+        40
+      ],
+      "aggregate_distance_q": 100
+    }
+  ],
+  "render_exact": [
+    "reserved",
+    1000
+  ],
+  "render_plus_one": [
+    "rejected",
+    600
+  ],
+  "stop_precedence": [
+    5,
+    "cancelled"
+  ],
+  "patience_exact": [
+    5,
+    "patience"
+  ]
+}

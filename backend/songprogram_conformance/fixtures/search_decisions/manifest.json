@@ -1,0 +1,12 @@
+{
+  "schema": "cps.search-decision-fixture-manifest",
+  "schema_version": "1.0.0",
+  "oracle": "backend.songprogram_conformance.search_decision_oracle",
+  "success": "success/cases.json",
+  "success_expected": "success/expected.json",
+  "boundary": "boundary/cases.json",
+  "boundary_expected": "boundary/expected.json",
+  "negative": "negative/cases.json",
+  "negative_expected": "negative/expected.json",
+  "coverage": "coverage.json"
+}

@@ -1,0 +1,26 @@
+{
+  "action_id_mismatch": {
+    "code": "ACTION_ID_MISMATCH",
+    "pointer": "/action_id"
+  },
+  "charge_arithmetic": {
+    "code": "RENDER_CHARGE_ARITHMETIC_MISMATCH",
+    "pointer": ""
+  },
+  "comparison_unsorted": {
+    "code": "COMPARISON_SET_NOT_SORTED",
+    "pointer": ""
+  },
+  "duplicate_component": {
+    "code": "DUPLICATE_COMPONENT_ID",
+    "pointer": ""
+  },
+  "ordinal_gap": {
+    "code": "INVALID_COMPONENT_ORDINAL",
+    "pointer": ""
+  },
+  "render_zero": {
+    "code": "INVALID_RENDER_BUDGET",
+    "pointer": ""
+  }
+}
