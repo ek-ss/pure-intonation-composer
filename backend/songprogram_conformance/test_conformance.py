@@ -76,6 +76,27 @@ def test_challenger_policy_has_no_absolute_acceptance_gate() -> None:
     assert "required_consecutive" not in serialized
 
 
+def test_broad_prior_result_uses_normative_sampler_failures() -> None:
+    schema = json.loads(
+        (HERE / "schemas" / "broad_prior_production_result.schema.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert schema["properties"]["error"]["enum"] == [
+        None,
+        "SAMPLER_PRODUCTION_MANIFEST_INVALID",
+        "SAMPLER_CATALOG_MISMATCH",
+        "SAMPLER_ACTIVE_ROLE_INVALID",
+        "SAMPLER_PRODUCTION_PROFILE_UNAVAILABLE",
+        "SAMPLER_NO_COMPATIBLE_INSTRUMENT",
+        "SAMPLER_NO_COMPATIBLE_REGISTER",
+        "SAMPLER_NO_COMPATIBLE_POLYPHONY",
+        "SAMPLER_DRUM_MAP_INVALID",
+        "SAMPLER_PRODUCTION_VALUE_INVALID",
+        "SAMPLER_RESULT_INVALID",
+    ]
+
+
 def _load(name: str) -> dict[str, Any]:
     return json.loads((HERE / "goldens" / name).read_text())
 

@@ -72,6 +72,9 @@ canonical_json(object_without_its_hash_field)`. Domains are
 `cps.drum-map-profile/v1`, `cps.production-lowering-manifest/v1`,
 `cps.production-lowering-request/v1`, and
 `cps.production-lowering-result/v1`. Every referenced hash is recomputed.
+Every fallback or production trace `path_hash` is
+`artifact_hash("cps.choice-path/v1", {"path": path})`; hashing the bare path
+array, its displayed text, or the random-choice preimage is non-conforming.
 
 Weighted tables sort by canonical value bytes, contain no duplicate value, and
 have each weight and their checked sum in `1..2^64-1`. Eligible mutation tuples
@@ -195,6 +198,14 @@ range, catalog maximum polyphony, and required drum lanes. Registers are never
 intersected or clamped. Drum maps copy immutable named catalog mappings into
 SongProgram. No compatible choice rejects the seed; it does not remove the
 role, change equave, or substitute an unlisted instrument.
+
+The structural Program already contains exactly one track shell for every
+active role and no track for an inactive role. Lowering preserves canonical
+track order, every track ID, and all realization bindings. It replaces only
+the selected instrument, register, maximum polyphony, drum map, and the static
+production fields named by this contract. A missing, duplicate, or extra role
+track is `SAMPLER_RESULT_INVALID`; lowering never invents a track ID or repairs
+a realization reference.
 
 For a pitched catalog endpoint frequency `F` and Program base frequency `B`,
 derive its base-relative endpoint as `ratio_mc(F/B)` using NumericContract
