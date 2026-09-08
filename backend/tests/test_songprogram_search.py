@@ -16,6 +16,7 @@ from app.songprogram.search import (
     SearchLoopSeams,
     SearchArtifactError,
     action_id,
+    canonical_bytes,
     descriptor_values,
     descriptor_result_from_project,
     fingerprint_distance_q,
@@ -82,6 +83,29 @@ def test_record_identity_and_local_cas_match_fixture(tmp_path: Path) -> None:
     assert store.put(payload) == expected["payload_hash"]
     assert store.append({key: value for key, value in expected.items() if key != "record_hash"}) == expected
     assert store.records_path.read_bytes() == (FIXTURES / "records.log").read_bytes()
+
+
+def test_local_run_store_rejects_stale_concurrent_append(tmp_path: Path) -> None:
+    run_hash = "sha256:" + "1" * 64
+    first = LocalRunStore(tmp_path, run_hash)
+    stale = LocalRunStore(tmp_path, run_hash)
+    payload_hash = first.put(canonical_bytes({"value": 1}))
+    core = {
+        "schema": "cps.search-run-record",
+        "schema_version": "1.0.0",
+        "run_hash": run_hash,
+        "sequence": 0,
+        "action_id": action_id(run_hash, 0, 0, 0),
+        "round": 0,
+        "phase_ordinal": 0,
+        "candidate_ordinal": 0,
+        "kind": "run",
+        "payload_hash": payload_hash,
+        "previous_record_hash": None,
+    }
+    first.append(core)
+    with pytest.raises(SearchArtifactError, match="RUN_RECORD_APPEND_CONFLICT"):
+        stale.append(core)
 
 
 def test_sampler_and_action_boundaries_reject_without_fallback() -> None:
@@ -200,24 +224,30 @@ def test_production_search_loop_records_connected_mutation_failure_and_checkpoin
     request = json.loads((connected / "mutation_failure_request.json").read_text())
     search = _fixture("run_manifest.json")
     descriptor, fingerprint, qd = _fixture("descriptor_spec.json"), _fixture("fingerprint_spec.json"), _fixture("qd_manifest.json")
+    planner = _fixture("planner_manifest.json")
     search["compiler_manifest_hash"] = manifest_digest("cps.compiler-manifest/v1.1", request["compiler_manifest"])
     search["qd_manifest_hash"] = manifest_digest("cps.qd-manifest/v1", qd)
+    search["planner_manifest_hash"] = manifest_digest("cps.planner-manifest/v1", planner)
     search["candidates_per_round"] = 1
 
+    def propose(action: str, _round: int, _candidate: int, _program: dict[str, Any]) -> dict[str, Any]:
+        proposal = dict(request["mutation_request"], action_id=action)
+        return {"status": "success", "mutation_request": proposal}
+
     seams = SearchLoopSeams(
-        propose=lambda _action, _round, _candidate, _program: request["mutation_request"],
+        propose=propose,
         evaluate=lambda *_values: {"quality": [0, 0, 0, 0, 0]},
     )
     loop = ProductionSearchLoop(
         tmp_path, search, executor_manifest=request["executor_manifest"], compiler_manifest=request["compiler_manifest"],
-        descriptor_spec=descriptor, fingerprint_spec=fingerprint, qd_manifest=qd, seams=seams,
+        descriptor_spec=descriptor, fingerprint_spec=fingerprint, qd_manifest=qd, planner_manifest=planner, seams=seams,
     )
     result = loop.run(request["mutation_request"]["base_program"], maximum_candidates=1)
     records = loop.store.records()
 
     assert result.completed_candidates == 1
     assert result.compile_logical_units == 0
-    assert [record["kind"] for record in records] == ["run", "planner_response", "candidate", "failure", "checkpoint"]
+    assert [record["kind"] for record in records] == ["run", "planner_response", "artifact_reference", "candidate", "failure", "checkpoint"]
     assert records[-1]["record_hash"] == result.last_checkpoint_hash
     checkpoint = json.loads(loop.store._cas_path(records[-1]["payload_hash"]).read_bytes())
     assert checkpoint["cursor"] == {"round": 1, "candidate_ordinal": 0, "phase_ordinal": 0}
