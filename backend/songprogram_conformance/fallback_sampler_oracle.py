@@ -25,7 +25,7 @@ class SemanticError(ValueError):
 
 def artifact_hash(domain: str, value: dict[str, Any], hash_field: str | None = None) -> str:
     core = {k: v for k, v in value.items() if k != hash_field}
-    digest = hashlib.sha256(domain.encode() + b"\0" + canonical_bytes(core)).hexdigest()
+    digest = hashlib.sha256(domain.encode() + b"\0" + canonical_bytes(core) + b"\n").hexdigest()
     return "sha256:" + digest
 
 
@@ -84,7 +84,7 @@ def fallback_mutation_id(request_hash: str, round_: int, candidate: int, attempt
                          ordinal: int, core: dict[str, Any]) -> str:
     raw = (b"cps.fallback-mutation-id/v1\0" + request_hash.encode() +
            round_.to_bytes(8, "big") + candidate.to_bytes(8, "big") +
-           attempt.to_bytes(8, "big") + ordinal.to_bytes(4, "big") + canonical_bytes(core))
+           attempt.to_bytes(8, "big") + ordinal.to_bytes(4, "big") + canonical_bytes(core) + b"\n")
     return "mut_" + base64.b32encode(hashlib.sha256(raw).digest()).decode().lower().rstrip("=")[:20]
 
 

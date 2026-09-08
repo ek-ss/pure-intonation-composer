@@ -248,9 +248,13 @@ SAMPLER_PRODUCTION_VALUE_INVALID
 SAMPLER_RESULT_INVALID
 ```
 
-Every rejection records its production counter, path, eligible-table digest,
-and first error. It then advances only `production_rejection_ordinal`; form and
-material streams are unchanged.
+Every trace row records only a completed draw. A failure result stores the
+attempt's first typed error in its top-level `error` and preserves the exact
+prefix of draw rows completed before that error; it never invents a selected
+value for a failed draw. If a complete assignment is rejected and another
+attempt is permitted, all of that assignment's completed rows remain in the
+trace under its rejection ordinal. Advancing an attempt changes only
+`production_rejection_ordinal`; form and material streams are unchanged.
 
 The ordinal starts at zero and must be below
 `maximum_production_rejections` before a draw. Each field path uses counter zero.
