@@ -1,0 +1,179 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cps.local/schemas/planner_response.schema.json",
+  "title": "SearchLoop13 PlannerResponse v1",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/success"
+    },
+    {
+      "$ref": "#/$defs/failure"
+    }
+  ],
+  "$defs": {
+    "sha": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "base": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "schema_version",
+        "status",
+        "run_hash",
+        "context_hash",
+        "source_decision_hash",
+        "planner_manifest_hash",
+        "source_program_hash",
+        "request_hash",
+        "mutation_proposal",
+        "proposal_hash",
+        "diagnostic",
+        "response_hash"
+      ],
+      "properties": {
+        "schema": {
+          "const": "cps.planner-response"
+        },
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "status": {
+          "enum": [
+            "success",
+            "failure"
+          ]
+        },
+        "run_hash": {
+          "$ref": "#/$defs/sha"
+        },
+        "context_hash": {
+          "$ref": "#/$defs/sha"
+        },
+        "source_decision_hash": {
+          "$ref": "#/$defs/sha"
+        },
+        "planner_manifest_hash": {
+          "$ref": "#/$defs/sha"
+        },
+        "source_program_hash": {
+          "$ref": "#/$defs/sha"
+        },
+        "request_hash": {
+          "$ref": "#/$defs/sha"
+        },
+        "mutation_proposal": {
+          "oneOf": [
+            {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 4,
+              "items": {"$ref": "mutation.schema.json"}
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "proposal_hash": {
+          "oneOf": [
+            {"$ref": "#/$defs/sha"},
+            {"type": "null"}
+          ]
+        },
+        "diagnostic": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            null,
+            "REQUEST_INVALID",
+            "CONTEXT_MISMATCH",
+            "MANIFEST_MISMATCH",
+            "SOURCE_MISMATCH",
+            "REQUEST_TOO_LARGE",
+            "PROVIDER_UNAVAILABLE",
+            "TIMEOUT",
+            "RESPONSE_TOO_LARGE",
+            "RESPONSE_SCHEMA_INVALID",
+            "OPERATION_NOT_ALLOWED",
+            "MUTATION_COUNT_INVALID",
+            "RESULT_INVALID"
+          ]
+        },
+        "response_hash": {
+          "$ref": "#/$defs/sha"
+        }
+      }
+    },
+    "success": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/base"
+        },
+      {
+        "type": "object",
+        "additionalProperties": {},
+        "properties": {
+            "status": {
+              "const": "success"
+            },
+            "mutation_proposal": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 4,
+              "items": {"$ref": "mutation.schema.json"}
+            },
+            "proposal_hash": {
+              "$ref": "#/$defs/sha"
+            },
+            "diagnostic": {
+              "type": "null"
+            }
+          }
+        }
+      ]
+    },
+    "failure": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/base"
+        },
+      {
+        "type": "object",
+        "additionalProperties": {},
+        "properties": {
+            "status": {
+              "const": "failure"
+            },
+            "mutation_proposal": {
+              "type": "null"
+            },
+            "proposal_hash": {
+              "type": "null"
+            },
+            "diagnostic": {
+              "enum": [
+                "REQUEST_INVALID",
+                "CONTEXT_MISMATCH",
+                "MANIFEST_MISMATCH",
+                "SOURCE_MISMATCH",
+                "REQUEST_TOO_LARGE",
+                "PROVIDER_UNAVAILABLE",
+                "TIMEOUT",
+                "RESPONSE_TOO_LARGE",
+                "RESPONSE_SCHEMA_INVALID",
+                "OPERATION_NOT_ALLOWED",
+                "MUTATION_COUNT_INVALID",
+                "RESULT_INVALID"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}

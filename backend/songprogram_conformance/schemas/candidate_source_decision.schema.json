@@ -1,0 +1,168 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cps.local/schemas/candidate_source_decision.schema.json",
+  "title": "SearchLoop13 CandidateSourceDecision v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "schema_version",
+    "run_hash",
+    "context_hash",
+    "candidate_source_policy_hash",
+    "round",
+    "candidate_ordinal",
+    "cohort_index",
+    "locked_roots",
+    "source",
+    "decision_hash"
+  ],
+  "properties": {
+    "schema": {
+      "const": "cps.candidate-source-decision"
+    },
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "run_hash": {
+      "$ref": "#/$defs/sha"
+    },
+    "context_hash": {
+      "$ref": "#/$defs/sha"
+    },
+    "candidate_source_policy_hash": {
+      "$ref": "#/$defs/sha"
+    },
+    "round": {
+      "$ref": "#/$defs/u64"
+    },
+    "candidate_ordinal": {
+      "$ref": "#/$defs/u64"
+    },
+    "cohort_index": {
+      "$ref": "#/$defs/u64"
+    },
+    "locked_roots": {
+      "type": "array",
+      "maxItems": 512,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/root"
+      }
+    },
+    "source": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/initial"
+        },
+        {
+          "$ref": "#/$defs/archive"
+        }
+      ]
+    },
+    "decision_hash": {
+      "$ref": "#/$defs/sha"
+    }
+  },
+  "$defs": {
+    "sha": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "u64": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 18446744073709551615
+    },
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80
+    },
+    "root": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "id"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "material",
+            "rhythm",
+            "chord_intent",
+            "section",
+            "realization",
+            "track",
+            "production",
+            "global_form"
+          ]
+        },
+        "id": {
+          "$ref": "#/$defs/id"
+        }
+      }
+    },
+    "initial": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "root_seed",
+        "cohort_index",
+        "sampler_manifest_hash"
+      ],
+      "properties": {
+        "kind": {
+          "const": "initial_sampler"
+        },
+        "root_seed": {
+          "$ref": "#/$defs/u64"
+        },
+        "cohort_index": {
+          "$ref": "#/$defs/u64"
+        },
+        "sampler_manifest_hash": {
+          "$ref": "#/$defs/sha"
+        }
+      }
+    },
+    "archive": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "source_occurrence_ordinal",
+        "round_start_archive_heads_hash",
+        "selected_archive_update_record_hash",
+        "archive_admission_decision_hash",
+        "parent_program_hash",
+        "parent_program"
+      ],
+      "properties": {
+        "kind": {
+          "const": "archive_parent"
+        },
+        "source_occurrence_ordinal": {
+          "$ref": "#/$defs/u64"
+        },
+        "round_start_archive_heads_hash": {
+          "$ref": "#/$defs/sha"
+        },
+        "selected_archive_update_record_hash": {
+          "$ref": "#/$defs/sha"
+        },
+        "archive_admission_decision_hash": {
+          "$ref": "#/$defs/sha"
+        },
+        "parent_program_hash": {
+          "$ref": "#/$defs/sha"
+        },
+        "parent_program": {
+          "$ref": "song_program_0_1.schema.json"
+        }
+      }
+    }
+  }
+}

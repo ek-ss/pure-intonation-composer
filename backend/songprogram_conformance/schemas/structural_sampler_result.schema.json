@@ -1,0 +1,161 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cps.local/schemas/structural_sampler_result.schema.json",
+  "title": "SearchLoop13 StructuralSamplerResult v1",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/success"
+    },
+    {
+      "$ref": "#/$defs/failure"
+    }
+  ],
+  "$defs": {
+    "sha": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "u64": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 18446744073709551615
+    },
+    "base": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "schema_version",
+        "status",
+        "run_hash",
+        "context_hash",
+        "source_decision_hash",
+        "sampler_manifest_hash",
+        "request_hash",
+        "structural_program_schema_hash",
+        "structural_program_hash",
+        "rejections_consumed",
+        "decision_trace_hash",
+        "error",
+        "result_hash"
+      ],
+      "properties": {
+        "schema": {
+          "const": "cps.structural-sampler-result"
+        },
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "status": {
+          "enum": [
+            "success",
+            "failure"
+          ]
+        },
+        "run_hash": {
+          "$ref": "#/$defs/sha"
+        },
+        "context_hash": {
+          "$ref": "#/$defs/sha"
+        },
+        "source_decision_hash": {
+          "$ref": "#/$defs/sha"
+        },
+        "sampler_manifest_hash": {
+          "$ref": "#/$defs/sha"
+        },
+        "request_hash": {
+          "$ref": "#/$defs/sha"
+        },
+        "structural_program_schema_hash": {
+          "$ref": "#/$defs/sha"
+        },
+        "structural_program_hash": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/sha"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "rejections_consumed": {
+          "$ref": "#/$defs/u64"
+        },
+        "decision_trace_hash": {
+          "$ref": "#/$defs/sha"
+        },
+        "error": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            null,
+            "SAMPLER_REQUEST_INVALID",
+            "SAMPLER_CONTEXT_MISMATCH",
+            "SAMPLER_MANIFEST_MISMATCH",
+            "SAMPLER_SOURCE_MISMATCH",
+            "SAMPLER_REJECTIONS_EXHAUSTED",
+            "SAMPLER_RESULT_INVALID"
+          ]
+        },
+        "result_hash": {
+          "$ref": "#/$defs/sha"
+        }
+      }
+    },
+    "success": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/base"
+        },
+      {
+        "type": "object",
+        "additionalProperties": {},
+        "properties": {
+            "status": {
+              "const": "success"
+            },
+            "structural_program_hash": {
+              "$ref": "#/$defs/sha"
+            },
+            "error": {
+              "type": "null"
+            }
+          }
+        }
+      ]
+    },
+    "failure": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/base"
+        },
+      {
+        "type": "object",
+        "additionalProperties": {},
+        "properties": {
+            "status": {
+              "const": "failure"
+            },
+            "structural_program_hash": {
+              "type": "null"
+            },
+            "error": {
+              "enum": [
+                "SAMPLER_REQUEST_INVALID",
+                "SAMPLER_CONTEXT_MISMATCH",
+                "SAMPLER_MANIFEST_MISMATCH",
+                "SAMPLER_SOURCE_MISMATCH",
+                "SAMPLER_REJECTIONS_EXHAUSTED",
+                "SAMPLER_RESULT_INVALID"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}

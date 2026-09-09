@@ -59,6 +59,13 @@ for the SP0 conformance pack.
 - `broad_prior_production_request.schema.json` and
   `broad_prior_production_result.schema.json`: causal input/output binding,
   rejection counters, ordered role decisions, and hash-complete traces.
+- `candidate_source_decision.schema.json`: exact initial/archive source choice,
+  candidate coordinate, policy, and lock binding for SearchLoop 1.3.
+- `structural_sampler_request.schema.json` and
+  `structural_sampler_result.schema.json`: immutable broad-prior invocation and
+  success/failure result without embedding the produced SongProgram bytes.
+- `planner_request.schema.json` and `planner_response.schema.json`: immutable
+  planner evidence/budget input and typed mutation-or-diagnostic outcome.
 
 All object schemas use `additionalProperties: false`; nullable values must be
 present where listed as required. Cross-record invariants that JSON Schema
