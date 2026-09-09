@@ -31,15 +31,21 @@ or ordinals, and invalid pointers make the candidate ineligible.
 
 ## Canonical action coordinate
 
-Actions are ordered by `(round, phase_ordinal, candidate_ordinal)` as unsigned
-integers. Phases are fixed: `0 sample_or_plan`, `1 fallback`, `2 mutate`,
+Actions are ordered by `(round, phase_ordinal, candidate_ordinal,
+event_ordinal)` as unsigned integers. `event_ordinal` is u16 and assigned by
+the fixed SearchLoop13 schedule; it is not derived from physical completion,
+cache outcome, or a retry. Phases are fixed: `0 sample_or_plan`, `1 fallback`, `2 mutate`,
 `3 compile`, `4 fingerprint`, `5 duplicate`, `6 render_reserve`,
 `7 render_dispatch`, `8 evaluate`, `9 challenger`, `10 archive`, `11 round`,
-`12 checkpoint`, `13 cancel`. An unused candidate coordinate is zero.
-`action_id` is `act_` plus the first 130 bits of
-`SHA-256("cps-action-id/v1\\0" || run_hash_ascii || u64be(round) ||
-u8(phase_ordinal) || u64be(candidate_ordinal))`, base32-lower without padding.
-The tuple, not lexical ID order, is authoritative. Duplicate tuples are invalid.
+`12 checkpoint`, `13 reserved`. Cancellation is a control-barrier event at any
+ordinary phase, not a phase-13 action. An unused candidate coordinate is zero.
+For RunManifest 1.3, `action_id` is `act_` plus the first 130 bits of
+`SHA-256("cps-action-id/v2\\0" || run_hash_ascii || u64be(round) ||
+u8(phase_ordinal) || u64be(candidate_ordinal) || u16be(event_ordinal))`,
+base32-lower without padding. The tuple, not lexical ID order, is authoritative.
+Duplicate tuples are invalid. RunManifest 1.2 retains its legacy action-ID
+algorithm and cannot be resumed by SearchLoop13. The full event schedule and
+resume rules are normative in `song_program_search_loop_1_3_contract.md`.
 
 ## Canonical processing order
 
@@ -134,11 +140,12 @@ a decision input.
 
 ## Run records and checkpoints
 
-`RunRecord 1.1` adds explicit decision kinds while preserving the v1 hash chain.
-`SearchCheckpoint 1.1` stores acceptance/champion state and a typed termination
-reference. Checkpoints summarize committed records and never become an
-alternative source of truth. Version 1.2 run manifests and 1.0 records remain
-valid legacy contracts but cannot be mixed into a 1.3 run.
+`RunRecord 1.1` adds explicit decision kinds and `event_ordinal` while
+preserving the v1 hash chain. `SearchCheckpoint 1.1` stores the complete next
+coordinate, acceptance/champion state, and a typed termination reference.
+Checkpoints summarize committed records and never become an alternative source
+of truth. Version 1.2 run manifests and 1.0 records remain valid legacy
+contracts but cannot be mixed into a 1.3 run.
 
 ## Required conformance cases
 

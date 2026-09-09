@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cps.local/schemas/fallback_manifest_1_1.schema.json",
+  "title": "CPS DeterministicFallbackManifest v1.1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema", "schema_version", "algorithm", "stream_domain", "choice_algorithm",
+    "planner_manifest_hash", "mutation_schema_hash", "mutation_choice_catalog_hash",
+    "mutation_application_contract_hash", "maximum_attempts_per_candidate",
+    "maximum_mutations", "operation_table", "parameter_tables"
+  ],
+  "properties": {
+    "schema": {"const": "cps.fallback-manifest"},
+    "schema_version": {"const": "1.1.0"},
+    "algorithm": {"const": "typed-weighted-fallback/v1"},
+    "stream_domain": {"const": "cps.mutation-fallback/v1"},
+    "choice_algorithm": {"const": "sha256-u64-mod-cumulative/v1"},
+    "planner_manifest_hash": {"oneOf": [{"$ref": "#/$defs/sha"}, {"type": "null"}]},
+    "mutation_schema_hash": {"$ref": "#/$defs/sha"},
+    "mutation_choice_catalog_hash": {"$ref": "#/$defs/sha"},
+    "mutation_application_contract_hash": {"$ref": "#/$defs/sha"},
+    "maximum_attempts_per_candidate": {"const": 16},
+    "maximum_mutations": {"type": "integer", "minimum": 1, "maximum": 4},
+    "operation_table": {"type": "array", "minItems": 8, "maxItems": 8, "items": {"$ref": "fallback_manifest.schema.json#/$defs/operationChoice"}},
+    "parameter_tables": {"$ref": "fallback_manifest.schema.json#/$defs/parameterTables"}
+  },
+  "$defs": {
+    "sha": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+  }
+}

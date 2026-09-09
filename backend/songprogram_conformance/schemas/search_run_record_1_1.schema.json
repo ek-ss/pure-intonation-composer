@@ -13,6 +13,7 @@
     "round",
     "phase_ordinal",
     "candidate_ordinal",
+    "event_ordinal",
     "kind",
     "payload_hash",
     "previous_record_hash",
@@ -46,6 +47,9 @@
     "candidate_ordinal": {
       "$ref": "#/$defs/u64"
     },
+    "event_ordinal": {
+      "$ref": "#/$defs/u16"
+    },
     "kind": {
       "enum": [
         "run",
@@ -53,12 +57,26 @@
         "lineage_edge",
         "artifact_reference",
         "metric_report",
+        "candidate_source_decision",
+        "sampler_request",
+        "sampler_result",
+        "production_request",
+        "production_result",
         "planner_request",
         "planner_response",
+        "fallback_request",
+        "fallback_result",
+        "mutation_request",
+        "mutation_result",
+        "compile_request",
+        "compile_result",
+        "fingerprint_result",
         "near_duplicate_decision",
+        "render_request",
         "render_reservation",
         "render_dispatch",
         "render_result",
+        "evaluation_request",
         "challenger_acceptance_decision",
         "archive_admission_decision",
         "archive_update",
@@ -96,6 +114,11 @@
       "type": "integer",
       "minimum": 0,
       "maximum": 18446744073709551615
+    },
+    "u16": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 65535
     }
   }
 }

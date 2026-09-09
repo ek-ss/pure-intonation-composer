@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import hashlib
+import base64
 from decimal import ROUND_FLOOR, getcontext
 from fractions import Fraction
 from pathlib import Path
@@ -18,6 +19,26 @@ from .reference import (
 )
 
 HERE = Path(__file__).parent
+
+
+SEARCH_LOOP_13_EVENT_SCHEDULE = (
+    (0, 2, "candidate_source_decision"), (0, 3, "sampler_request"), (0, 4, "sampler_result"), (0, 5, "production_request"), (0, 6, "production_result"),
+    (1, 2, "planner_request"), (1, 3, "planner_response"), (1, 4, "fallback_request"), (1, 5, "mutation_request"),
+    (2, 2, "mutation_result"), (2, 3, "fallback_result"), (3, 2, "compile_request"), (3, 3, "compile_result"),
+    (4, 2, "fingerprint_result"), (5, 2, "near_duplicate_decision"), (6, 2, "render_request"), (6, 3, "render_reservation"),
+    (7, 2, "render_dispatch"), (7, 3, "render_result"), (8, 2, "evaluation_request"), (8, 3, "metric_report"),
+    (9, 2, "challenger_acceptance_decision"), (10, 2, "archive_admission_decision"), (10, 3, "archive_update"),
+    (11, 2, "round_decision"), (12, 2, "checkpoint"),
+)
+SEARCH_LOOP_13_CONTROL_EVENTS = ((0, "cancellation_request"), (1, "cancellation_decision"))
+
+
+def _search_loop_13_action_id(run_hash: str, phase: int, event: int) -> str:
+    payload = (
+        b"cps-action-id/v2\0" + run_hash.encode("ascii") + (0).to_bytes(8, "big")
+        + bytes([phase]) + (0).to_bytes(8, "big") + event.to_bytes(2, "big")
+    )
+    return "act_" + base64.b32encode(hashlib.sha256(payload).digest()).decode("ascii").lower()[:26]
 
 
 def test_search_decision_schemas_are_closed_draft_2020_12() -> None:
@@ -38,6 +59,11 @@ def test_search_decision_schemas_are_closed_draft_2020_12() -> None:
         "search_run_manifest_1_3.schema.json",
         "search_checkpoint_1_1.schema.json",
         "search_run_record_1_1.schema.json",
+        "candidate_source_policy.schema.json",
+        "search_loop_13_context.schema.json",
+        "fallback_manifest_1_1.schema.json",
+        "fallback_request_1_1.schema.json",
+        "search_loop_13_event_payload.schema.json",
     )
     for name in schema_names:
         schema = json.loads((HERE / "schemas" / name).read_text(encoding="utf-8"))
@@ -62,7 +88,77 @@ def test_search_manifest_1_3_binds_every_decision_policy() -> None:
         "render_selection_policy_hash",
         "fallback_manifest_hash",
         "broad_prior_production_manifest_hash",
+        "candidate_source_policy_hash",
+        "search_loop_context_schema_hash", "event_payload_schema_hash",
+        "candidate_source_decision_schema_hash", "sampler_request_schema_hash",
+        "sampler_result_schema_hash", "planner_request_schema_hash",
+        "planner_response_schema_hash", "evaluation_manifest_schema_hash",
+        "evaluation_request_schema_hash", "evaluation_report_schema_hash",
     } <= required
+
+
+def test_search_loop_13_coordinate_and_context_are_closed() -> None:
+    record = json.loads(
+        (HERE / "schemas" / "search_run_record_1_1.schema.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    checkpoint = json.loads(
+        (HERE / "schemas" / "search_checkpoint_1_1.schema.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert "event_ordinal" in record["required"]
+    assert record["properties"]["event_ordinal"]["$ref"] == "#/$defs/u16"
+    assert checkpoint["properties"]["cursor"]["required"][-1] == "event_ordinal"
+    assert checkpoint["properties"]["cursor"]["properties"]["phase_ordinal"]["maximum"] == 13
+    assert checkpoint["properties"]["cursor"]["properties"]["event_ordinal"]["$ref"] == "#/$defs/u16"
+    kinds = set(record["properties"]["kind"]["enum"])
+    assert {
+        "sampler_request", "sampler_result", "production_request", "production_result",
+        "fallback_request", "fallback_result", "mutation_request", "mutation_result",
+        "planner_request", "planner_response", "evaluation_request",
+    } <= kinds
+    coordinates = [(phase, event) for phase, event, _kind in SEARCH_LOOP_13_EVENT_SCHEDULE]
+    assert len(coordinates) == len(set(coordinates))
+    action_ids = [_search_loop_13_action_id("sha256:" + "a" * 64, phase, event) for phase, event in coordinates]
+    assert len(action_ids) == len(set(action_ids))
+    assert {kind for _phase, _event, kind in SEARCH_LOOP_13_EVENT_SCHEDULE} <= kinds
+    assert {kind for _event, kind in SEARCH_LOOP_13_CONTROL_EVENTS} <= kinds
+    assert [event for event, _kind in SEARCH_LOOP_13_CONTROL_EVENTS] == [0, 1]
+    assert (2, "checkpoint") not in SEARCH_LOOP_13_CONTROL_EVENTS
+
+    source = json.loads(
+        (HERE / "schemas" / "candidate_source_policy.schema.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert source["properties"]["selection_algorithm"]["const"] == "candidate-ordinal-mod-source-cycle/v1"
+    assert source["properties"]["archive_parent"]["properties"]["parent_index_rule"]["const"] == "source-occurrence-ordinal-mod-sorted-round-start-champions/v1"
+    assert source["properties"]["archive_parent"]["properties"]["empty_archive_behavior"]["const"] == "initial_sampler/v1"
+    for name in ("fallback_manifest_1_1.schema.json", "fallback_request_1_1.schema.json"):
+        fallback = json.loads((HERE / "schemas" / name).read_text(encoding="utf-8"))
+        assert {"type": "null"} in fallback["properties"]["planner_manifest_hash"]["oneOf"]
+
+
+def test_search_loop_13_does_not_rewrite_legacy_contract_schemas() -> None:
+    legacy_run = json.loads(
+        (HERE / "schemas" / "search_run_manifest.schema.json").read_text(encoding="utf-8")
+    )
+    legacy_record = json.loads(
+        (HERE / "schemas" / "search_run_record.schema.json").read_text(encoding="utf-8")
+    )
+    legacy_checkpoint = json.loads(
+        (HERE / "schemas" / "search_checkpoint.schema.json").read_text(encoding="utf-8")
+    )
+    legacy_fallback = json.loads(
+        (HERE / "schemas" / "fallback_request.schema.json").read_text(encoding="utf-8")
+    )
+    assert legacy_run["properties"]["schema_version"]["const"] == "1.2.0"
+    assert "candidate_source_policy_hash" not in legacy_run["properties"]
+    assert "event_ordinal" not in legacy_record["properties"]
+    assert "event_ordinal" not in legacy_checkpoint["$defs"]["cursor"]["properties"]
+    assert legacy_fallback["properties"]["planner_manifest_hash"] == {"$ref": "#/$defs/sha"}
 
 
 def test_challenger_policy_has_no_absolute_acceptance_gate() -> None:
