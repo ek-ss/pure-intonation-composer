@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cps.local/schemas/compile_only_request.schema.json",
+  "title": "SearchLoop13 CompileOnlyRequest v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "schema_version", "context_hash", "source_decision_hash", "mutation_result_event_payload_hash", "mutation_application_receipt_hash", "result_program", "result_program_hash", "compiler_manifest_hash", "request_hash"],
+  "properties": {
+    "schema": {"const": "cps.compile-only-request"},
+    "schema_version": {"const": "1.0.0"},
+    "context_hash": {"$ref": "#/$defs/sha"},
+    "source_decision_hash": {"$ref": "#/$defs/sha"},
+    "mutation_result_event_payload_hash": {"$ref": "#/$defs/sha"},
+    "mutation_application_receipt_hash": {"$ref": "#/$defs/sha"},
+    "result_program": {"$ref": "song_program_0_1.schema.json"},
+    "result_program_hash": {"$ref": "#/$defs/sha"},
+    "compiler_manifest_hash": {"$ref": "#/$defs/sha"},
+    "request_hash": {"$ref": "#/$defs/sha"}
+  },
+  "$defs": {"sha": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}}
+}

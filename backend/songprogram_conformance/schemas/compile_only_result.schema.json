@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cps.local/schemas/compile_only_result.schema.json",
+  "title": "SearchLoop13 CompileOnlyResult v1",
+  "oneOf": [{"$ref": "#/$defs/success"}, {"$ref": "#/$defs/failure"}],
+  "$defs": {
+    "sha": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "u64": {"type": "integer", "minimum": 0, "maximum": 18446744073709551615},
+    "base": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema", "schema_version", "status", "run_hash", "context_hash", "request_hash", "mutation_application_receipt_hash", "result_program_hash", "compiler_manifest_hash", "cache_key_hash", "cache_outcome", "project_hash", "compile_report_hash", "logical_charge", "error", "result_hash"],
+      "properties": {
+        "schema": {"const": "cps.compile-only-result"}, "schema_version": {"const": "1.0.0"},
+        "status": {"enum": ["success", "failure"]}, "run_hash": {"$ref": "#/$defs/sha"}, "context_hash": {"$ref": "#/$defs/sha"},
+        "request_hash": {"$ref": "#/$defs/sha"}, "mutation_application_receipt_hash": {"$ref": "#/$defs/sha"}, "result_program_hash": {"$ref": "#/$defs/sha"}, "compiler_manifest_hash": {"$ref": "#/$defs/sha"},
+        "cache_key_hash": {"$ref": "#/$defs/sha"}, "cache_outcome": {"enum": ["cold", "hit"]},
+        "project_hash": {"oneOf": [{"$ref": "#/$defs/sha"}, {"type": "null"}]}, "compile_report_hash": {"$ref": "#/$defs/sha"},
+        "logical_charge": {"$ref": "#/$defs/u64"},
+        "error": {"type": ["string", "null"], "enum": [null, "COMPILE_REQUEST_INVALID", "COMPILE_CONTEXT_MISMATCH", "COMPILE_MANIFEST_MISMATCH", "COMPILE_SOURCE_MISMATCH", "COMPILE_PROGRAM_MISMATCH", "COMPILE_BUDGET_EXHAUSTED", "COMPILE_FAILED", "COMPILE_RESULT_INVALID"]},
+        "result_hash": {"$ref": "#/$defs/sha"}
+      }
+    },
+    "success": {"allOf": [{"$ref": "#/$defs/base"}, {"type": "object", "additionalProperties": {}, "properties": {"status": {"const": "success"}, "project_hash": {"$ref": "#/$defs/sha"}, "error": {"type": "null"}}}]},
+    "failure": {"allOf": [{"$ref": "#/$defs/base"}, {"type": "object", "additionalProperties": {}, "properties": {"status": {"const": "failure"}, "project_hash": {"type": "null"}, "error": {"enum": ["COMPILE_REQUEST_INVALID", "COMPILE_CONTEXT_MISMATCH", "COMPILE_MANIFEST_MISMATCH", "COMPILE_SOURCE_MISMATCH", "COMPILE_PROGRAM_MISMATCH", "COMPILE_BUDGET_EXHAUSTED", "COMPILE_FAILED", "COMPILE_RESULT_INVALID"]}}}]}
+  }
+}

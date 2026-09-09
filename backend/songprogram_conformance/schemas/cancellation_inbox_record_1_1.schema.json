@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cps.local/schemas/cancellation_inbox_record_1_1.schema.json",
+  "title": "SearchLoop13 CancellationInboxRecord v1.1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "schema_version", "run_hash", "request_schema_hash", "raw_request_bytes_base64", "raw_request_digest", "request_hash", "acceptance_sequence", "inbox_hash"],
+  "properties": {
+    "schema": {"const": "cps.cancellation-inbox-record"}, "schema_version": {"const": "1.1.0"},
+    "run_hash": {"$ref": "#/$defs/sha"}, "request_schema_hash": {"$ref": "#/$defs/sha"}, "raw_request_bytes_base64": {"type": "string", "pattern": "^[A-Za-z0-9+/]*={0,2}$"},
+    "raw_request_digest": {"$ref": "#/$defs/sha"}, "request_hash": {"$ref": "#/$defs/sha"}, "acceptance_sequence": {"$ref": "#/$defs/u64"}, "inbox_hash": {"$ref": "#/$defs/sha"}
+  },
+  "$defs": {"sha": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}, "u64": {"type": "integer", "minimum": 0, "maximum": 18446744073709551615}}
+}

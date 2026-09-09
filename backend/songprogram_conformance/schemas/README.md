@@ -66,6 +66,16 @@ for the SP0 conformance pack.
   success/failure result without embedding the produced SongProgram bytes.
 - `planner_request.schema.json` and `planner_response.schema.json`: immutable
   planner evidence/budget input and typed mutation-or-diagnostic outcome.
+- `evaluation_manifest.schema.json`, `evaluation_request.schema.json`, and
+  `evaluation_report.schema.json`: closed evaluator declarations, causally
+  bound evidence selection, and integer-or-explicit-missing evaluation output.
+- `compile_only_{request,result,cache_entry}.schema.json`: phase-3-only compile
+  input, replayable output, and the result-bound logical cache entry. They never
+  apply a mutation.
+- `cancellation_inbox_record_1_1.schema.json` and
+  `cancellation_decision_1_1.schema.json`: immutable SearchLoop13 external
+  cancellation intake and digest-selected cutoff; legacy cancellation schemas
+  remain unchanged.
 
 All object schemas use `additionalProperties: false`; nullable values must be
 present where listed as required. Cross-record invariants that JSON Schema

@@ -4,12 +4,13 @@
   "title": "CPS SearchLoop13 Event Payload Binding v1",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema", "schema_version", "kind", "context_hash", "source_decision_hash", "artifact_hash", "artifact_schema_hash"],
+  "required": ["schema", "schema_version", "kind", "run_hash", "context_hash", "action_id", "coordinate", "source_decision_hash", "artifact_hash", "artifact_schema_hash"],
   "properties": {
     "schema": {"const": "cps.search-loop-13-event-payload"}, "schema_version": {"const": "1.0.0"},
     "kind": {"enum": ["candidate_source_decision","sampler_request","sampler_result","production_request","production_result","planner_request","planner_response","fallback_request","mutation_request","mutation_result","fallback_result","compile_request","compile_result","fingerprint_result","near_duplicate_decision","render_request","render_reservation","render_dispatch","render_result","evaluation_request","metric_report","challenger_acceptance_decision","archive_admission_decision","archive_update","round_decision","checkpoint","cancellation_request","cancellation_decision"]},
+    "run_hash": {"$ref": "#/$defs/sha"}, "action_id": {"type": "string", "pattern": "^act_[a-z2-7]{26}$"}, "coordinate": {"$ref": "#/$defs/coordinate"},
     "context_hash": {"$ref": "#/$defs/sha"}, "source_decision_hash": {"oneOf": [{"$ref": "#/$defs/sha"}, {"type": "null"}]},
     "artifact_hash": {"$ref": "#/$defs/sha"}, "artifact_schema_hash": {"$ref": "#/$defs/sha"}
   },
-  "$defs": {"sha": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}}
+  "$defs": {"sha": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}, "u64": {"type": "integer", "minimum": 0, "maximum": 18446744073709551615}, "coordinate": {"type": "object", "additionalProperties": false, "required": ["round", "phase_ordinal", "candidate_ordinal", "event_ordinal"], "properties": {"round": {"$ref": "#/$defs/u64"}, "phase_ordinal": {"type": "integer", "minimum": 0, "maximum": 13}, "candidate_ordinal": {"$ref": "#/$defs/u64"}, "event_ordinal": {"type": "integer", "minimum": 0, "maximum": 65535}}}}
 }

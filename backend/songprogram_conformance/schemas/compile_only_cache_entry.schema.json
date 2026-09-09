@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cps.local/schemas/compile_only_cache_entry.schema.json",
+  "title": "SearchLoop13 CompileOnlyCacheEntry v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "schema_version", "request_hash", "compile_result_hash", "mutation_application_receipt_hash", "result_program_hash", "project_hash", "compile_report_hash", "logical_charge", "entry_hash"],
+  "properties": {
+    "schema": {"const": "cps.compile-only-cache-entry"}, "schema_version": {"const": "1.0.0"},
+    "request_hash": {"$ref": "#/$defs/sha"}, "compile_result_hash": {"$ref": "#/$defs/sha"}, "mutation_application_receipt_hash": {"$ref": "#/$defs/sha"}, "result_program_hash": {"$ref": "#/$defs/sha"},
+    "project_hash": {"oneOf": [{"$ref": "#/$defs/sha"}, {"type": "null"}]}, "compile_report_hash": {"$ref": "#/$defs/sha"}, "logical_charge": {"$ref": "#/$defs/u64"}, "entry_hash": {"$ref": "#/$defs/sha"}
+  },
+  "$defs": {"sha": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}, "u64": {"type": "integer", "minimum": 0, "maximum": 18446744073709551615}}
+}

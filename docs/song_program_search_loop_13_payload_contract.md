@@ -1,14 +1,17 @@
 # SearchLoop13 payload envelopes
 
-**Status:** normative for Group A only. Evaluation, compile-only/cache, and
-cancellation-inbox payloads remain SPEC-BLOCKER until later groups define their
-closed schemas and failure precedence.
+**Status:** normative for Groups A--C. Group C defines compile-only/cache and
+cancellation-inbox payloads. They are SearchLoop13-only and never alter the
+legacy connected executor or legacy cancellation schemas.
 
-All envelopes are `1.0.0`, closed objects, and self-hash by
+All envelopes are closed objects and self-hash by
 `cps-artifact-hash/v1\0 || schema || \0 || schema_version || \0 || canonical_json`
 with only their named self-hash omitted. Producer payload bytes are not copied:
 their hash and producer schema hash are causal inputs. A mismatched context,
 producer schema, or self hash is terminal `CONTEXT_BINDING_MISMATCH`.
+The Group-A/B/C machine envelopes use `1.0.0`, except the explicitly versioned
+SearchLoop13 cancellation inbox and decision envelopes, which use `1.1.0` to
+remain distinct from the untouched legacy cancellation schemas.
 
 `CandidateSourceDecision` binds run/context/policy hashes, coordinate, locked
 roots, and exactly one source: initial `(root_seed, cohort_index)` or archive
@@ -105,11 +108,142 @@ canonical proposal array in domain `cps.planner-mutation-proposal` version
 `1.0.0`. A later phase-1 MutationApplicationRequest binds `response_hash` and
 `proposal_hash`; PlannerResponse MUST NOT name that future request. Failure has
 null proposal and proposal hash and one frozen diagnostic. This list is also
-the mandatory first-failure-wins validation precedence: `REQUEST_INVALID`,
-`CONTEXT_MISMATCH`, `MANIFEST_MISMATCH`, `SOURCE_MISMATCH`,
-`REQUEST_TOO_LARGE`, `PROVIDER_UNAVAILABLE`, `TIMEOUT`, `RESPONSE_TOO_LARGE`,
-`RESPONSE_SCHEMA_INVALID`, `OPERATION_NOT_ALLOWED`, `MUTATION_COUNT_INVALID`,
-`RESULT_INVALID`. Rationale and raw provider output are forbidden. Provider
+the mandatory first-failure-wins validation precedence:
+`PLANNER_REQUEST_INVALID`, `PLANNER_CONTEXT_MISMATCH`,
+`PLANNER_MANIFEST_MISMATCH`, `PLANNER_SOURCE_MISMATCH`,
+`PLANNER_REQUEST_TOO_LARGE`, `PLANNER_PROVIDER_UNAVAILABLE`,
+`PLANNER_TIMEOUT`, `PLANNER_RESPONSE_TOO_LARGE`,
+`PLANNER_RESPONSE_SCHEMA_INVALID`, `PLANNER_OPERATION_NOT_ALLOWED`,
+`PLANNER_MUTATION_COUNT_INVALID`, `PLANNER_RESULT_INVALID`. Rationale and raw
+provider output are forbidden. Provider
 text, exception text, latency, timestamps, and retry counts are forbidden.
 Planner-null creates neither request nor response. Committing PlannerRequest
 consumes one planner call; producing or replaying PlannerResponse consumes none.
+
+## Group B: evaluation
+
+The machine schemas are `evaluation_manifest.schema.json`,
+`evaluation_request.schema.json`, and `evaluation_report.schema.json`; their
+self-hash members are `manifest_hash`, `request_hash`, and `report_hash`.
+RunManifest fields `evaluation_manifest_schema_hash`,
+`evaluation_request_schema_hash`, and `evaluation_report_schema_hash`, and the
+same three raw-schema bindings in `RunContext.schema_hashes`, MUST equal the raw
+SHA-256 of the parsing schemas. `evaluation_manifest_hash` MUST equal the
+RunManifest and RunContext artifact binding. SearchLoop event kind
+`evaluation_request` maps to EvaluationRequest; legacy-stable event kind
+`metric_report` maps to EvaluationReport and MUST carry its report and schema
+hashes. It does not denote a second report format.
+
+### EvaluationManifest
+
+The manifest binds the evaluator ID, version, build hash, and GenreIntent hash.
+`hard_checks` and `metrics` are unique and sorted by ID UTF-8. Each declaration
+has exactly one source resolver `(artifact_kind, schema_hash, json_pointer)` and
+states whether render evidence is required. A metric also fixes its direction;
+all metric values are integers. Source pointers are RFC 6901 pointers evaluated
+against the canonical producer document after its schema and artifact hashes
+have been verified. Missing pointers, wrong types, and schema/hash mismatches
+are errors, never implicit zeroes.
+
+### EvaluationRequest
+
+The request binds run, context, source decision, manifest, GenreIntent, source
+Program, compiled Project and CompileReport, FingerprintRecord, optional
+NearDuplicateDecision, and render evidence by artifact and producer-schema
+hashes. A null near-duplicate hash means that decision was not produced.
+Render evidence has exactly one state: `available` supplies RenderResult and
+audio hashes with null reason; `not_selected` supplies neither and reason
+`not_selected`; `failed` supplies the failed RenderResult hash, no audio hash,
+and reason `render_failed`. These states are distinct from an all-zero digest.
+
+### EvaluationReport and policy resolution
+
+On success, `hard_checks` and `metrics` have the same lengths, IDs, and order as
+their manifest declarations. Every hard check contains a boolean `passed` and
+non-empty causal evidence. Every metric contains either an integer `value`,
+null reason, and its evidence; or null value, an explicit reason
+(`source_unavailable`, `render_not_selected`, `render_failed`, or
+`not_applicable`), and only the available evidence. A declaration with
+`required_render=true` cannot produce a value when render state is not
+`available`. Failure reports contain empty result arrays.
+
+The following EvaluationReport failure list is the mandatory
+first-failure-wins validation precedence:
+`EVALUATION_REQUEST_INVALID`, `EVALUATION_CONTEXT_MISMATCH`,
+`EVALUATION_MANIFEST_MISMATCH`, `EVALUATION_GENRE_INTENT_MISMATCH`,
+`EVALUATION_SOURCE_MISMATCH`, `EVALUATION_PROJECT_MISMATCH`,
+`EVALUATION_FINGERPRINT_MISMATCH`,
+`EVALUATION_RENDER_EVIDENCE_MISMATCH`, `EVALUATION_RESULT_INVALID`.
+
+Decision-policy IDs resolve without search. Each
+`required_hard_checks[i]` MUST name exactly one manifest hard check and its
+report row. An archive/challenger source selecting an evaluation metric MUST use
+`artifact_kind=evaluation_report`, the bound EvaluationReport raw schema hash,
+and pointer `/metrics/N/value`, where `N` is the sole manifest/report row whose
+ID equals the policy component ID. A hard-check pointer analogously is
+`/hard_checks/N/passed`. Any other pointer for those policy components is
+invalid. A required policy metric with a missing value makes that decision
+ineligible; it is never coerced to zero.
+
+## Group C: compile-only/cache and cancellation control inbox
+
+The machine schemas are `compile_only_request.schema.json`,
+`compile_only_result.schema.json`, `compile_only_cache_entry.schema.json`,
+`cancellation_inbox_record_1_1.schema.json`, and
+`cancellation_decision_1_1.schema.json`. Their self-hash members are,
+respectively, `request_hash`, `result_hash`, `entry_hash`, `inbox_hash`, and
+`decision_hash`. A Group-C payload is wrapped by the closed
+`search_loop_13_event_payload.schema.json` binding, which repeats the run,
+context, action ID, and four-part coordinate. The binding coordinate must equal
+the RunRecord coordinate and its action ID must be recomputed by the v2 action
+ID formula.
+
+### CompileOnlyRequest, Result, and CacheEntry
+
+`CompileOnlyRequest` is phase-3 input only. It binds its source decision, the
+exact phase-2 `mutation_result_event_payload_hash`, successful
+`mutation_application_receipt_hash`, and both the complete published result
+Program and its hash, as well as compiler manifest and context. These are the
+three phase-2 causal values; all are required. It has no mutation member and
+calling `execute_connected` or otherwise applying a mutation while satisfying
+it is invalid.
+
+The cache key is exactly the sealed `CompileOnlyRequest.request_hash`.
+`CompileOnlyResult.cache_key_hash` MUST equal that request hash. The result is
+therefore sealed before a CAS entry that binds its result hash, avoiding a
+self-hash cycle. `CompileOnlyCacheEntry.request_hash` is that same cache key;
+it binds the result and receipt hashes and records exactly the semantic
+Project/report hashes and logical charge. A cache entry is valid only if those
+repeated values equal its result and request.
+
+The error list is ordered first-failure-wins:
+`COMPILE_REQUEST_INVALID`, `COMPILE_CONTEXT_MISMATCH`,
+`COMPILE_MANIFEST_MISMATCH`, `COMPILE_SOURCE_MISMATCH`,
+`COMPILE_PROGRAM_MISMATCH`, `COMPILE_BUDGET_EXHAUSTED`, `COMPILE_FAILED`, and
+`COMPILE_RESULT_INVALID`. A sealed request without a result recomputes that
+same request. A committed result replays and never recompiles. Cold and valid
+hit paths must publish the same semantic result and consume the same logical
+charge. A corrupt cache entry is telemetry-only: quarantine it, then cold
+recompute; it is never a semantic result/error/cache outcome. The compile
+budget is checked before the seam; a successful committed result (including a
+hit) increments the logical counter exactly once. A budget failure has zero
+charge and no cache entry.
+
+### CancellationInboxRecord and CancellationDecision 1.1
+
+An inbox record preserves the immutable canonical cancellation-request bytes,
+their raw SHA-256 digest, the request's self hash, request-schema hash, run
+hash, and an acceptance sequence. Validation is ordered: canonical bytes and
+raw digest, request schema/self hash, request run hash, then idempotent inbox
+CAS acceptance. An invalid input produces no inbox record and no cancellation
+event. For a duplicate raw digest, the first accepted record is replayed; a
+new `acceptance_sequence` is allocated only for a distinct accepted digest.
+The sequence is audit-only and never selects the winner.
+
+At each barrier the eligible inbox record with lexicographically lowest raw
+digest wins. `CancellationDecision 1.1` binds that inbox record/digest/request,
+run/context, the next unstarted ordinary four-part cutoff coordinate, recomputed
+cutoff action ID, current champion, and archive heads. It is committed after
+the `cancellation_request` event and before ordinary work at the cutoff.
+Cancellation has no cache or budget charge. A cutoff event ordinal is at least
+2; control events 0 and 1 are reserved for the inbox winner and decision.

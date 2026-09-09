@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cps.local/schemas/evaluation_request.schema.json",
+  "title": "SearchLoop13 EvaluationRequest v1",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema", "schema_version", "run_hash", "context_hash", "source_decision_hash", "evaluation_manifest_hash", "genre_intent_hash", "program_hash", "project_hash", "project_schema_hash", "compile_report_hash", "compile_report_schema_hash", "fingerprint_record_hash", "fingerprint_record_schema_hash", "near_duplicate_decision_hash", "near_duplicate_decision_schema_hash", "render_evidence", "request_hash"],
+  "properties": {
+    "schema": {"const": "cps.evaluation-request"}, "schema_version": {"const": "1.0.0"},
+    "run_hash": {"$ref": "#/$defs/sha"}, "context_hash": {"$ref": "#/$defs/sha"},
+    "source_decision_hash": {"$ref": "#/$defs/sha"}, "evaluation_manifest_hash": {"$ref": "#/$defs/sha"},
+    "genre_intent_hash": {"$ref": "#/$defs/sha"}, "program_hash": {"$ref": "#/$defs/sha"},
+    "project_hash": {"$ref": "#/$defs/sha"}, "project_schema_hash": {"$ref": "#/$defs/sha"},
+    "compile_report_hash": {"$ref": "#/$defs/sha"}, "compile_report_schema_hash": {"$ref": "#/$defs/sha"},
+    "fingerprint_record_hash": {"$ref": "#/$defs/sha"}, "fingerprint_record_schema_hash": {"$ref": "#/$defs/sha"},
+    "near_duplicate_decision_hash": {"oneOf": [{"$ref": "#/$defs/sha"}, {"type": "null"}]},
+    "near_duplicate_decision_schema_hash": {"$ref": "#/$defs/sha"},
+    "render_evidence": {"$ref": "#/$defs/renderEvidence"}, "request_hash": {"$ref": "#/$defs/sha"}
+  },
+  "$defs": {
+    "sha": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "renderEvidence": {
+      "type": "object", "additionalProperties": false,
+      "required": ["status", "render_result_schema_hash", "render_result_hash", "audio_artifact_hash", "missing_reason"],
+      "properties": {
+        "status": {"enum": ["available", "not_selected", "failed"]},
+        "render_result_schema_hash": {"$ref": "#/$defs/sha"},
+        "render_result_hash": {"oneOf": [{"$ref": "#/$defs/sha"}, {"type": "null"}]},
+        "audio_artifact_hash": {"oneOf": [{"$ref": "#/$defs/sha"}, {"type": "null"}]},
+        "missing_reason": {"type": ["string", "null"], "enum": [null, "not_selected", "render_failed"]}
+      },
+      "allOf": [
+        {"if": {"properties": {"status": {"const": "available"}}, "additionalProperties": {}}, "then": {"properties": {"render_result_hash": {"$ref": "#/$defs/sha"}, "audio_artifact_hash": {"$ref": "#/$defs/sha"}, "missing_reason": {"type": "null"}}, "additionalProperties": {}}},
+        {"if": {"properties": {"status": {"const": "not_selected"}}, "additionalProperties": {}}, "then": {"properties": {"render_result_hash": {"type": "null"}, "audio_artifact_hash": {"type": "null"}, "missing_reason": {"const": "not_selected"}}, "additionalProperties": {}}},
+        {"if": {"properties": {"status": {"const": "failed"}}, "additionalProperties": {}}, "then": {"properties": {"render_result_hash": {"$ref": "#/$defs/sha"}, "audio_artifact_hash": {"type": "null"}, "missing_reason": {"const": "render_failed"}}, "additionalProperties": {}}}
+      ]
+    }
+  }
+}
