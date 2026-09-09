@@ -7,29 +7,43 @@
     "sha": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
     "id": {"type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$"},
     "missing": {"enum": ["source_unavailable", "render_not_selected", "render_failed", "not_applicable"]},
-    "evidence": {
+    "sourceBinding": {
       "type": "object", "additionalProperties": false,
-      "required": ["artifact_kind", "artifact_hash", "json_pointer", "evidence_hash"],
+      "required": ["artifact_kind", "artifact_hash", "schema_hash", "json_pointer"],
       "properties": {
         "artifact_kind": {"enum": ["project", "compile_report", "fingerprint_record", "near_duplicate_decision", "render_result", "audio_artifact", "genre_intent"]},
-        "artifact_hash": {"$ref": "#/$defs/sha"},
-        "json_pointer": {"type": "string", "pattern": "^/(?:[^~/]|~0|~1)+(?:/(?:[^~/]|~0|~1)+)*$"},
-        "evidence_hash": {"$ref": "#/$defs/sha"}
+        "artifact_hash": {"$ref": "#/$defs/sha"}, "schema_hash": {"$ref": "#/$defs/sha"},
+        "json_pointer": {"type": "string", "pattern": "^/(?:[^~/]|~0|~1)+(?:/(?:[^~/]|~0|~1)+)*$"}
+      }
+    },
+    "evidence": {
+      "type": "object", "additionalProperties": false,
+      "required": ["source_bindings", "operator", "inputs", "result", "evidence_hash"],
+      "properties": {
+        "source_bindings": {"type": "array", "minItems": 1, "maxItems": 16, "items": {"$ref": "#/$defs/sourceBinding"}},
+        "operator": {"oneOf": [{"$ref": "evaluation_manifest.schema.json#/$defs/hardOperator"}, {"$ref": "evaluation_manifest.schema.json#/$defs/metricOperator"}]},
+        "inputs": {"type": "array", "minItems": 1, "maxItems": 16, "items": {"type": ["integer", "boolean"]}},
+        "result": {"type": ["integer", "boolean"]}, "evidence_hash": {"$ref": "#/$defs/sha"}
       }
     },
     "hardCheck": {
       "type": "object", "additionalProperties": false,
       "required": ["id", "passed", "evidence"],
-      "properties": {"id": {"$ref": "#/$defs/id"}, "passed": {"type": "boolean"}, "evidence": {"type": "array", "minItems": 1, "maxItems": 16, "items": {"$ref": "#/$defs/evidence"}}}
+      "properties": {"id": {"$ref": "#/$defs/id"}, "passed": {"type": "boolean"}, "evidence": {"$ref": "#/$defs/evidence"}}
     },
     "metric": {
       "type": "object", "additionalProperties": false,
-      "required": ["id", "value", "missing_reason", "evidence"],
+      "required": ["id", "value", "missing_reason", "evidence", "available_source_bindings"],
       "properties": {
         "id": {"$ref": "#/$defs/id"}, "value": {"type": ["integer", "null"]},
         "missing_reason": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/missing"}]},
-        "evidence": {"type": "array", "maxItems": 16, "items": {"$ref": "#/$defs/evidence"}}
-      }
+        "evidence": {"oneOf": [{"$ref": "#/$defs/evidence"}, {"type": "null"}]},
+        "available_source_bindings": {"type": "array", "maxItems": 16, "items": {"$ref": "#/$defs/sourceBinding"}}
+      },
+      "allOf": [
+        {"if": {"properties": {"value": {"type": "integer"}}, "required": ["value"], "additionalProperties": {}}, "then": {"properties": {"missing_reason": {"type": "null"}, "evidence": {"$ref": "#/$defs/evidence"}, "available_source_bindings": {"type": "array", "maxItems": 0}}, "additionalProperties": {}}},
+        {"if": {"properties": {"value": {"type": "null"}}, "required": ["value"], "additionalProperties": {}}, "then": {"properties": {"missing_reason": {"$ref": "#/$defs/missing"}, "evidence": {"type": "null"}}, "additionalProperties": {}}}
+      ]
     },
     "base": {
       "type": "object", "additionalProperties": false,

@@ -71,6 +71,16 @@ and is the immutable base Program for phase 1. Fallback receives the successful
 production Program for initial-sampler sources or the selected parent Program
 for archive-parent sources.
 
+At each round barrier the coordinator seals exactly one `ArchiveHeadsSnapshot
+1.0`. Its entries are unique and sorted by `(cell integer lexicographic,
+program_hash raw digest bytes)`. Each entry binds the admitted program, project,
+evaluation report, source `archive_update` RunRecord hash, admission-decision
+artifact hash, and the complete inline parent Program. The inline Program MUST
+canonicalize to the entry's `program_hash`. CandidateSourceDecision copies the
+selected entry's update/admission/program evidence, and its
+`round_start_archive_heads_hash` MUST equal this snapshot's self-hash. A mutable
+archive directory or hash-only parent reference is not source evidence.
+
 ## Action coordinates and IDs
 
 An action coordinate is `(round, phase_ordinal, candidate_ordinal,
@@ -129,15 +139,17 @@ payload status, not as an extra duplicate-coordinate record.
 | 10 | 2/3 | `archive_admission_decision` / `archive_update` | Admission then admitted-candidate CAS update. |
 | 11 | 2 | `round_decision` | Completed-round archive/patience/stop result. |
 | 12 | 2 | `checkpoint` | Summary after phase 11. |
+| 13 | 2 | `checkpoint` | Conditional cancellation-terminal checkpoint only. |
 
 The fallback path is intentionally two-stage. With a planner manifest, phase 1
-first commits PlannerRequest and PlannerResponse. Planner-null omits events 0
-and 1. Planner-null or a sealed planner failure commits FallbackRequest at
-event 2. Every successful path commits its proposed MutationApplicationRequest
-at event 3. Phase 2 applies that exact request once, commits its receipt, then
+first commits PlannerRequest at event 2 and PlannerResponse at event 3.
+Planner-null omits those two events. Planner-null or a sealed planner failure
+commits FallbackRequest at event 4. Every successful path commits its proposed
+MutationApplicationRequest at event 5. Phase 2 applies that exact request once,
+commits its receipt, then
 commits a FallbackResult only for the fallback path. On resume, a committed
 phase-2 receipt is replayed; it is never reapplied.
-Planner-null omits phase-1 events 2 and 3, then uses event 4 and event 5.
+Planner-null uses phase-1 events 4 and 5 after omitting events 2 and 3.
 
 If the committed planner-call count equals `planner_call_budget`, phase 1 does
 not call planner and does not invoke fallback. It records the completed-round
@@ -175,6 +187,20 @@ planner attempt increments `planner_calls` once when its sealed request is
 committed; planner-null increments it zero. Production rejection counts are
 result evidence, not budget consumption.
 
+Every StructuralSamplerResult binds one `StructuralSamplerTrace 1.0`. Attempt
+ordinals and decision ordinals are gapless from zero. Every decision row records
+its canonical path as an array of canonical string/u64 segments, counter, the
+complete index-ordered weighted `table` and its `table_hash`, selected index and
+selected value hash, and a row hash. `table_hash` is SHA-256 of
+`"cps.structural-sampler-table/v1\0" || canonical_json(table) || LF`;
+`row_hash` is SHA-256 of
+`"cps.structural-sampler-decision/v1\0" || canonical_json(row_without_row_hash)
+|| LF`. An attempt is either accepted with a candidate Program hash and no
+rejection or rejected with no candidate and the stable first-failure rejection
+code/evidence. Only the terminal attempt may be accepted. The trace's terminal
+ordinal, rejection count, and accepted Program hash MUST equal the sampler
+result; replay validates the trace before consuming it.
+
 ## Cache, parallel execution, and cancellation
 
 Phase 3 calls a compile-only seam with the Program already published by phase
@@ -202,9 +228,16 @@ and sets the cutoff to that ordinary coordinate. If no request is present both
 events are omitted and ordinary events start at 2. A cutoff forbids all ordinary
 events at or above its coordinate; lower coordinates drain in order. This lets a
 phase-6 reservation drain while cancelling its phase-7 dispatch. The decision
-records the cutoff champion and archive-head hash; at that same barrier only,
-event 2 is a terminal `checkpoint` and all ordinary event-2-or-later work is
-omitted. Thus the terminal checkpoint never requires progressing to phase 12.
+records the cutoff champion and archive-head hash. After every ordinary
+coordinate below the cutoff has sealed and no ordinary coordinate at or above
+it has committed, the coordinator emits the sole cancellation-terminal
+checkpoint at `(round, phase=13, candidate=0, event=2)`. It is legal iff the
+committed decision has `cancelled=true` and no terminal checkpoint already
+exists; its termination is `terminated/cancelled`, and its cursor names
+`(round,13,0,3)` with the corresponding terminal-sentinel `next_action_id`.
+Event 2 in phases 0..12 retains its schedule meaning and is never repurposed as
+a cancellation checkpoint. Thus cancellation cannot collide with an ordinary
+event coordinate and never requires progressing through phase 12.
 
 ## Required implementation tests
 

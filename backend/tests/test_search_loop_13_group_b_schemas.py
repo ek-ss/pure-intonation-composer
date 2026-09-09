@@ -29,8 +29,8 @@ def test_manifest_declarations_close_source_direction_and_render_requirement() -
     manifest = _load("evaluation_manifest.schema.json")
     hard_check = manifest["$defs"]["hardCheck"]
     metric = manifest["$defs"]["metric"]
-    assert hard_check["required"] == ["id", "source", "required_render"]
-    assert metric["required"] == ["id", "source", "direction", "required_render"]
+    assert hard_check["required"] == ["id", "sources", "operator", "required_render"]
+    assert metric["required"] == ["id", "sources", "operator", "direction", "required_render"]
     assert metric["properties"]["direction"]["enum"] == ["maximize", "minimize"]
     assert metric["properties"]["required_render"] == {"type": "boolean"}
     assert manifest["required"][-1] == "manifest_hash"
@@ -68,6 +68,22 @@ def test_report_failure_precedence_and_missing_metric_reasons_are_exact() -> Non
     failure = report["$defs"]["failure"]["allOf"][1]["properties"]
     assert failure["hard_checks"] == {"type": "array", "maxItems": 0}
     assert failure["metrics"] == {"type": "array", "maxItems": 0}
+
+
+def test_report_evidence_and_metric_missing_union_are_closed() -> None:
+    report = _load("evaluation_report.schema.json")
+    evidence = report["$defs"]["evidence"]
+    assert evidence["required"] == ["source_bindings", "operator", "inputs", "result", "evidence_hash"]
+    assert report["$defs"]["hardCheck"]["properties"]["evidence"] == {"$ref": "#/$defs/evidence"}
+    source = report["$defs"]["sourceBinding"]
+    assert source["required"] == ["artifact_kind", "artifact_hash", "schema_hash", "json_pointer"]
+    metric = report["$defs"]["metric"]
+    assert "available_source_bindings" in metric["required"]
+    present, missing = metric["allOf"]
+    assert present["then"]["properties"]["missing_reason"] == {"type": "null"}
+    assert present["then"]["properties"]["evidence"] == {"$ref": "#/$defs/evidence"}
+    assert missing["then"]["properties"]["evidence"] == {"type": "null"}
+    assert missing["then"]["properties"]["missing_reason"] == {"$ref": "#/$defs/missing"}
 
 
 def test_metric_report_event_maps_to_the_single_evaluation_report_contract() -> None:

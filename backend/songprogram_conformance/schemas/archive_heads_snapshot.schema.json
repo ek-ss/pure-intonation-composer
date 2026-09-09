@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cps.local/schemas/archive_heads_snapshot.schema.json",
+  "title": "SearchLoop13 ArchiveHeadsSnapshot v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "schema_version", "run_hash", "context_hash", "round", "entries", "snapshot_hash"],
+  "properties": {
+    "schema": {"const": "cps.archive-heads-snapshot"},
+    "schema_version": {"const": "1.0.0"},
+    "run_hash": {"$ref": "#/$defs/sha"},
+    "context_hash": {"$ref": "#/$defs/sha"},
+    "round": {"$ref": "#/$defs/u64"},
+    "entries": {"type": "array", "maxItems": 65536, "items": {"$ref": "#/$defs/entry"}},
+    "snapshot_hash": {"$ref": "#/$defs/sha"}
+  },
+  "$defs": {
+    "sha": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "u64": {"type": "integer", "minimum": 0, "maximum": 18446744073709551615},
+    "cell": {"type": "array", "minItems": 2, "maxItems": 2, "items": {"type": "integer", "minimum": 0}},
+    "entry": {
+      "type": "object", "additionalProperties": false,
+      "required": ["cell", "program_hash", "project_hash", "evaluation_report_hash", "archive_update_record_hash", "archive_admission_decision_hash", "parent_program"],
+      "properties": {
+        "cell": {"$ref": "#/$defs/cell"},
+        "program_hash": {"$ref": "#/$defs/sha"},
+        "project_hash": {"$ref": "#/$defs/sha"},
+        "evaluation_report_hash": {"$ref": "#/$defs/sha"},
+        "archive_update_record_hash": {"$ref": "#/$defs/sha"},
+        "archive_admission_decision_hash": {"$ref": "#/$defs/sha"},
+        "parent_program": {"$ref": "song_program_0_1.schema.json"}
+      }
+    }
+  }
+}

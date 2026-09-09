@@ -68,7 +68,9 @@ for the SP0 conformance pack.
   planner evidence/budget input and typed mutation-or-diagnostic outcome.
 - `evaluation_manifest.schema.json`, `evaluation_request.schema.json`, and
   `evaluation_report.schema.json`: closed evaluator declarations, causally
-  bound evidence selection, and integer-or-explicit-missing evaluation output.
+  bound evidence selection, closed operator proof, and
+  integer-or-explicit-missing evaluation output. The independent operator and
+  evidence-hash reference is `../evaluation_operator_oracle.py`.
 - `compile_only_{request,result,cache_entry}.schema.json`: phase-3-only compile
   input, replayable output, and the result-bound logical cache entry. They never
   apply a mutation.

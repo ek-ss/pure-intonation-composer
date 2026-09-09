@@ -1,6 +1,6 @@
 # SearchLoop13 payload envelopes
 
-**Status:** normative for Groups A--C. Group C defines compile-only/cache and
+**Status:** normative for Groups A--D. Group C defines compile-only/cache and
 cancellation-inbox payloads. They are SearchLoop13-only and never alter the
 legacy connected executor or legacy cancellation schemas.
 
@@ -103,9 +103,9 @@ unique. Lineage-root hashes sort by raw digest bytes and are unique.
 
 The response repeats request/source/context/planner bindings. A success has a
 closed ordered `mutation_proposal` of one through four complete Mutation
-objects, its `proposal_hash`, and null diagnostic. `proposal_hash` hashes the
-canonical proposal array in domain `cps.planner-mutation-proposal` version
-`1.0.0`. A later phase-1 MutationApplicationRequest binds `response_hash` and
+objects, its `proposal_hash`, and null diagnostic. `proposal_hash` uses the
+exact Group-D closed preimage object and domain prefix below. A later phase-1
+MutationApplicationRequest binds `response_hash` and
 `proposal_hash`; PlannerResponse MUST NOT name that future request. Failure has
 null proposal and proposal hash and one frozen diagnostic. This list is also
 the mandatory first-failure-wins validation precedence:
@@ -247,3 +247,62 @@ cutoff action ID, current champion, and archive heads. It is committed after
 the `cancellation_request` event and before ordinary work at the cutoff.
 Cancellation has no cache or budget charge. A cutoff event ordinal is at least
 2; control events 0 and 1 are reserved for the inbox winner and decision.
+
+## Group D: archive/sampler evidence and terminal cancellation checkpoint
+
+The machine schemas are `archive_heads_snapshot.schema.json`,
+`structural_sampler_trace.schema.json`, and
+`planner_proposal_preimage.schema.json`. Their raw schema bytes are bound by
+the matching `RunManifest 1.3` fields and `RunContext.schema_hashes` entries.
+
+An ArchiveHeadsSnapshot binds run, context, and round. Its entries are unique
+and sorted by `(cell integer lexicographic, program_hash raw digest bytes)`.
+Each entry binds the archive update record, archive admission decision, inline
+parent Program and its canonical hash, compiled Project, and EvaluationReport.
+For an `archive_parent` CandidateSourceDecision, `round_start_archive_heads_hash`
+MUST equal this snapshot hash. The selected entry is
+`source_occurrence_ordinal mod entries.length`; all selected hashes and the
+inline parent Program MUST equal that entry exactly. Selection from an empty
+snapshot is forbidden and uses the policy's recorded initial-sampler branch.
+
+A StructuralSamplerTrace binds the run, context, source decision, sealed
+sampler request, and sampler manifest. Attempts are ordered by consecutive
+zero-based attempt ordinal. Within an attempt, decision rows follow the
+manifest decision-program ordinal and expanded path order. Each row records
+the exact manifest path, counter, complete index-ordered weighted `table`,
+`table_hash`, selected index, selected-value hash, and `row_hash`;
+these values MUST reproduce the path-addressed draw. A rejected attempt has a
+non-null rejection code; an accepted attempt has null rejection and its Program
+hash. Only the terminal attempt may be accepted. `terminal_attempt_ordinal`
+equals the final array index. A successful SamplerResult's
+`rejections_consumed` equals that ordinal. An exhausted result has exactly
+`maximum_rejections_per_seed` rejected attempts and no accepted attempt.
+`decision_trace_hash` MUST equal the trace's `trace_hash`.
+`table_hash` is SHA-256 of
+`"cps.structural-sampler-table/v1\0" || canonical_json(table) || LF`, and
+`row_hash` is SHA-256 of
+`"cps.structural-sampler-decision/v1\0" ||
+canonical_json(row_without_row_hash) || LF`.
+
+Planner proposal hashing never hashes a bare array and never adds an implicit
+wrapper field. The exact preimage is:
+
+```text
+SHA-256(
+  UTF-8("cps.planner-mutation-proposal/v1\0") ||
+  canonical_json_with_final_LF({"mutations": ordered_mutation_array})
+)
+```
+
+The closed preimage object contains only `mutations`. Its schema identity is a
+RunManifest/RunContext binding and is not inserted into the hashed object.
+
+When a CancellationDecision is committed, no ordinary event at or above its
+cutoff may exist. Once all lower coordinates are sealed, the coordinator emits
+the unique terminal checkpoint at `(round, phase=13, candidate=0, event=2)`.
+It is legal only when the matching committed decision has `cancelled=true` and
+no terminal checkpoint already exists. Its cursor is `(round,13,0,3)`, its
+`next_action_id` is the corresponding terminal-sentinel action ID, and its
+termination is exactly `status=terminated`, `reason=cancelled`, with
+`decision_hash` equal to that CancellationDecision hash. Phase 0..12 event 2
+always retains its ordinary scheduled meaning.
