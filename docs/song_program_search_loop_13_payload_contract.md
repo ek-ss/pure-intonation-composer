@@ -365,6 +365,23 @@ equals the final array index. A successful SamplerResult's
 `"cps.structural-sampler-decision/v1\0" ||
 canonical_json(row_without_row_hash) || LF`.
 
+For every attempt, `attempt_seed_hash` is exactly:
+
+```text
+sha256:hex(SHA-256(
+  UTF-8("cps.structural-sampler-attempt-seed/v1\0") ||
+  u64be(root_seed) || u64be(cohort_index) || u64be(attempt_ordinal) ||
+  raw_32_bytes(sampler_manifest_hash)
+))
+```
+
+The seed inputs are unsigned integers in `0..2^64-1`; conversion outside that
+range fails before hashing and is never truncated or reduced modulo `2^64`.
+Attempt ordinals are consecutive from zero and strictly less than
+`sampler_manifest.maximum_rejections_per_seed`, whose maximum is 256. The
+attempt seed is a stream root only; per-decision path/counter derivation remains
+the manifest's `path-addressed-sha256/v1` contract.
+
 Planner proposal hashing never hashes a bare array and never adds an implicit
 wrapper field. The exact preimage is:
 
@@ -396,6 +413,58 @@ event-3 RenderResult MUST then commit as
 corruption-receipt, audio, and failure hashes. It performs no cache lookup or
 renderer call, remains charged, and the phase-13 checkpoint MUST wait for it.
 No other at-or-above-cutoff record is permitted.
+
+## Authoritative fixture closure
+
+An authoritative case is a closed `search_loop_13_fixture_case.schema.json`
+document. Its `inputs` list is unique by role and sorted by role UTF-8 bytes;
+each row binds a repository-relative path, exact raw file SHA-256, parsed
+artifact hash, and raw schema hash. Its root seed, policy hashes, planner
+branch, budgets, and expected stop branch MUST equal the bound RunManifest and
+RunContext. The case self-hashes by the standard artifact rule with only
+`case_hash` omitted. Expected outputs bind the final RunRecord hash as
+`transcript_root_hash`, the closed CAS inventory root, final checkpoint artifact
+hash, cache-publication index hash, and every PCM asset's file/PCM/artifact
+hashes. Files not reachable from these roots are not fixture authority.
+
+The CAS inventory root is a closed `SearchLoop13 CAS Index 1.0`. Its
+`cas_index_schema_hash` is bound in RunManifest/RunContext and copied into the
+fixture expected object; all three raw schema hashes MUST agree. Every entry
+has exactly one locator: repository-relative `path` or logical
+`artifact_role`, plus `content_kind`, artifact hash, schema hash, and exact byte
+length. `schema_hash` is non-null exactly for `json_artifact` and null exactly
+for `raw_pcm`. Entries sort by `(locator.kind UTF-8, locator value UTF-8,
+artifact_hash raw digest bytes)` and that tuple, locator values, and artifact
+hashes are each unique. `index_hash` is the standard artifact hash with only
+`index_hash` omitted, using canonical JSON with no LF. Fixture
+`cas_index_hash` MUST equal it. The index contains every and only object
+reachable from the transcript, final checkpoint, cache-publication index, and
+declared audio assets.
+
+The fixture schema intentionally does not enumerate a universal set of input
+roles. The oracle derives the selected planner/source/render/stop branches,
+walks every hash edge from the case roots, and MUST reject a missing input,
+unreachable extra input, duplicate role, or incorrectly sorted input array.
+This reachable closure, not JSON Schema alone, defines “all inputs.”
+
+ArchiveHeadsSnapshot is the sole canonical archive-head collection object.
+Exactly one `stage=round_before` snapshot is sealed before phase 0 and one
+`stage=round_after` snapshot after all admitted phase-10 archive updates.
+RoundDecision `archive_heads_before_hash` and `archive_heads_after_hash` MUST
+equal those two snapshot artifact hashes. The phase-12 checkpoint
+`archive_heads` entries MUST equal the after snapshot's cells and corresponding
+phase-10 `archive_update` RunRecord hashes. Phase 11 cannot start until the
+after snapshot is sealed.
+
+Every successful cold CompileOnly or render publication is appended to one
+`CachePublicationIndex 1.0`, ordered strictly by action coordinate and then
+kind UTF-8 bytes. Compile rows use the phase-3 event-3 coordinate and
+CompileOnlyCacheEntry; render rows use phase-7 event-3 and RenderCacheEntry.
+Each row binds the sealed request and entry self hashes. Duplicate coordinates,
+request hashes, or entry hashes are invalid. `index_hash` uses the standard
+artifact rule with only itself omitted. The fixture's expected
+`cache_publication_index_hash` makes cold cache bytes authoritative without
+adding a scheduled RunRecord.
 
 ## Group E: planner/fallback causal handoff
 

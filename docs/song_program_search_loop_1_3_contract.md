@@ -176,6 +176,21 @@ declared `cps.search-run-record/v1` domain. CAS payload bytes use the declared
 `u64be-length-canonical-json/v1` framing. The v2 action ID changes coordinate
 identity only; it does not change the record-hash or CAS framing algorithm.
 
+For a normal phase-12 checkpoint after round `r`, `last_sequence` and
+`last_record_hash` are exactly the sequence and hash of the last RunRecord
+committed immediately before the checkpoint record. They never describe the
+checkpoint's own not-yet-appended RunRecord. Its cursor is exactly
+`(round=r+1, phase_ordinal=0, candidate_ordinal=0, event_ordinal=0)` and
+`next_action_id` is the v2 action ID of that coordinate. Incrementing `r` is
+checked u64; overflow rejects checkpoint creation.
+
+Resume first performs the control-inbox barrier check at that cursor. If no
+eligible cancellation exists, events 0 and 1 are omitted and the coordinator
+atomically advances that ordinary coordinate to event 2. A cancellation request
+accepted after this barrier has advanced cannot be inserted retroactively at
+events 0 or 1 of the same coordinate; it is first eligible at the next
+unstarted ordinary-coordinate barrier.
+
 If a sealed request exists without its result, the same request is rerun:
 
 - sampler/production rerun with the same cohort/rejection coordinate;

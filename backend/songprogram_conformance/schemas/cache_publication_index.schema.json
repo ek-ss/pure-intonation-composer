@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cps.local/schemas/cache_publication_index.schema.json",
+  "title": "SearchLoop13 CachePublicationIndex v1",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema", "schema_version", "run_hash", "publications", "index_hash"],
+  "properties": {
+    "schema": {"const": "cps.cache-publication-index"}, "schema_version": {"const": "1.0.0"},
+    "run_hash": {"$ref": "#/$defs/sha"},
+    "publications": {"type": "array", "maxItems": 1000000, "items": {"$ref": "#/$defs/publication"}},
+    "index_hash": {"$ref": "#/$defs/sha"}
+  },
+  "$defs": {
+    "sha": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "u64": {"type": "integer", "minimum": 0, "maximum": 18446744073709551615},
+    "coordinate": {
+      "type": "object", "additionalProperties": false,
+      "required": ["round", "phase_ordinal", "candidate_ordinal", "event_ordinal"],
+      "properties": {
+        "round": {"$ref": "#/$defs/u64"}, "phase_ordinal": {"enum": [3, 7]},
+        "candidate_ordinal": {"$ref": "#/$defs/u64"},
+        "event_ordinal": {"const": 3}
+      }
+    },
+    "publication": {
+      "type": "object", "additionalProperties": false,
+      "required": ["coordinate", "kind", "request_hash", "entry_hash"],
+      "properties": {
+        "coordinate": {"$ref": "#/$defs/coordinate"},
+        "kind": {"enum": ["compile", "render"]},
+        "request_hash": {"$ref": "#/$defs/sha"}, "entry_hash": {"$ref": "#/$defs/sha"}
+      }
+    }
+  }
+}

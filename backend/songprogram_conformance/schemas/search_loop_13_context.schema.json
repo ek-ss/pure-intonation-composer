@@ -98,6 +98,8 @@
         "render_cache_entry",
         "render_cache_corruption_receipt",
         "audio_artifact",
+        "cache_publication_index",
+        "cas_index",
         "challenger_acceptance_decision",
         "archive_admission_decision",
         "qd_archive_record",
@@ -222,6 +224,12 @@
           "$ref": "#/$defs/rawHash"
         },
         "audio_artifact": {
+          "$ref": "#/$defs/rawHash"
+        },
+        "cache_publication_index": {
+          "$ref": "#/$defs/rawHash"
+        },
+        "cas_index": {
           "$ref": "#/$defs/rawHash"
         },
         "challenger_acceptance_decision": {

@@ -4,13 +4,14 @@
   "title": "SearchLoop13 ArchiveHeadsSnapshot v1",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema", "schema_version", "run_hash", "context_hash", "round", "entries", "snapshot_hash"],
+  "required": ["schema", "schema_version", "run_hash", "context_hash", "round", "stage", "entries", "snapshot_hash"],
   "properties": {
     "schema": {"const": "cps.archive-heads-snapshot"},
     "schema_version": {"const": "1.0.0"},
     "run_hash": {"$ref": "#/$defs/sha"},
     "context_hash": {"$ref": "#/$defs/sha"},
     "round": {"$ref": "#/$defs/u64"},
+    "stage": {"enum": ["round_before", "round_after"]},
     "entries": {"type": "array", "maxItems": 65536, "items": {"$ref": "#/$defs/entry"}},
     "snapshot_hash": {"$ref": "#/$defs/sha"}
   },

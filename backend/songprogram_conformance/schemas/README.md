@@ -92,6 +92,12 @@ for the SP0 conformance pack.
   authority and non-event render-cache evidence for SearchLoop13.
 - `audio_artifact.schema.json`: closed 48 kHz, stereo-interleaved little-endian
   PCM32 descriptor binding exact PCM bytes and its reference render report.
+- `cache_publication_index.schema.json`: append-only coordinate-ordered root for
+  cold compile/render cache publications.
+- `search_loop_13_fixture_case.schema.json`: closed authority selecting every
+  fixture input and binding transcript, CAS, cache, checkpoint, and PCM roots.
+- `search_loop_13_cas_index.schema.json`: runtime-bound canonical inventory of
+  every transcript-reachable JSON artifact and raw PCM byte object.
 
 All object schemas use `additionalProperties: false`; nullable values must be
 present where listed as required. Cross-record invariants that JSON Schema

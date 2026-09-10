@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cps.local/schemas/search_loop_13_cas_index.schema.json",
+  "title": "SearchLoop13 CAS Index v1",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema", "schema_version", "run_hash", "entries", "index_hash"],
+  "properties": {
+    "schema": {"const": "cps.search-loop-13-cas-index"}, "schema_version": {"const": "1.0.0"},
+    "run_hash": {"$ref": "#/$defs/sha"},
+    "entries": {"type": "array", "maxItems": 1000000, "items": {"$ref": "#/$defs/entry"}},
+    "index_hash": {"$ref": "#/$defs/sha"}
+  },
+  "$defs": {
+    "sha": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "u64": {"type": "integer", "minimum": 0, "maximum": 18446744073709551615},
+    "pathLocator": {
+      "type": "object", "additionalProperties": false,
+      "required": ["kind", "path"],
+      "properties": {
+        "kind": {"const": "path"},
+        "path": {"type": "string", "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[A-Za-z0-9._/-]{1,240}$"}
+      }
+    },
+    "roleLocator": {
+      "type": "object", "additionalProperties": false,
+      "required": ["kind", "artifact_role"],
+      "properties": {
+        "kind": {"const": "artifact_role"},
+        "artifact_role": {"type": "string", "pattern": "^[a-z][a-z0-9_.-]{0,127}$"}
+      }
+    },
+    "entry": {
+      "type": "object", "additionalProperties": false,
+      "required": ["locator", "content_kind", "artifact_hash", "schema_hash", "byte_length"],
+      "properties": {
+        "locator": {"oneOf": [{"$ref": "#/$defs/pathLocator"}, {"$ref": "#/$defs/roleLocator"}]},
+        "content_kind": {"enum": ["json_artifact", "raw_pcm"]},
+        "artifact_hash": {"$ref": "#/$defs/sha"},
+        "schema_hash": {"oneOf": [{"$ref": "#/$defs/sha"}, {"type": "null"}]},
+        "byte_length": {"$ref": "#/$defs/u64"}
+      },
+      "allOf": [
+        {"if": {"properties": {"content_kind": {"const": "raw_pcm"}}, "required": ["content_kind"], "additionalProperties": {}}, "then": {"properties": {"schema_hash": {"type": "null"}}, "additionalProperties": {}}},
+        {"if": {"properties": {"content_kind": {"const": "json_artifact"}}, "required": ["content_kind"], "additionalProperties": {}}, "then": {"properties": {"schema_hash": {"$ref": "#/$defs/sha"}}, "additionalProperties": {}}}
+      ]
+    }
+  }
+}

@@ -13,8 +13,8 @@
     "source_decision_hash": {"$ref": "#/$defs/sha"},
     "sampler_request_hash": {"$ref": "#/$defs/sha"},
     "sampler_manifest_hash": {"$ref": "#/$defs/sha"},
-    "attempts": {"type": "array", "minItems": 1, "maxItems": 65536, "items": {"$ref": "#/$defs/attempt"}},
-    "terminal_attempt_ordinal": {"$ref": "#/$defs/u64"},
+    "attempts": {"type": "array", "minItems": 1, "maxItems": 256, "items": {"$ref": "#/$defs/attempt"}},
+    "terminal_attempt_ordinal": {"type": "integer", "minimum": 0, "maximum": 255},
     "trace_hash": {"$ref": "#/$defs/sha"}
   },
   "$defs": {
@@ -59,7 +59,7 @@
       "type": "object", "additionalProperties": false,
       "required": ["attempt_ordinal", "attempt_seed_hash", "decisions", "candidate_program_hash", "outcome", "rejection"],
       "properties": {
-        "attempt_ordinal": {"$ref": "#/$defs/u64"},
+        "attempt_ordinal": {"type": "integer", "minimum": 0, "maximum": 255},
         "attempt_seed_hash": {"$ref": "#/$defs/sha"},
         "decisions": {"type": "array", "maxItems": 65536, "items": {"$ref": "#/$defs/decision"}},
         "candidate_program_hash": {"oneOf": [{"$ref": "#/$defs/sha"}, {"type": "null"}]},
