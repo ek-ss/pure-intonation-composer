@@ -4,9 +4,9 @@
   "title": "SearchLoop13 CancellationDecision v1.1",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema", "schema_version", "run_hash", "context_hash", "inbox_record_hash", "raw_request_digest", "request_hash", "effective_cutoff_action_id", "cutoff_coordinate", "last_committable_action_id", "champion_at_cutoff", "archive_heads_hash", "decision_hash"],
+  "required": ["schema", "schema_version", "status", "cancelled", "run_hash", "context_hash", "inbox_record_hash", "raw_request_digest", "request_hash", "effective_cutoff_action_id", "cutoff_coordinate", "last_committable_action_id", "champion_at_cutoff", "archive_heads_hash", "decision_hash"],
   "properties": {
-    "schema": {"const": "cps.cancellation-decision"}, "schema_version": {"const": "1.1.0"}, "run_hash": {"$ref": "#/$defs/sha"}, "context_hash": {"$ref": "#/$defs/sha"},
+    "schema": {"const": "cps.cancellation-decision"}, "schema_version": {"const": "1.1.0"}, "status": {"const": "accepted"}, "cancelled": {"const": true}, "run_hash": {"$ref": "#/$defs/sha"}, "context_hash": {"$ref": "#/$defs/sha"},
     "inbox_record_hash": {"$ref": "#/$defs/sha"}, "raw_request_digest": {"$ref": "#/$defs/sha"}, "request_hash": {"$ref": "#/$defs/sha"}, "effective_cutoff_action_id": {"$ref": "#/$defs/action"}, "cutoff_coordinate": {"$ref": "#/$defs/coordinate"},
     "last_committable_action_id": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/action"}]}, "champion_at_cutoff": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/champion"}]}, "archive_heads_hash": {"$ref": "#/$defs/sha"}, "decision_hash": {"$ref": "#/$defs/sha"}
   },

@@ -5,87 +5,405 @@
   "type": "object",
   "additionalProperties": false,
   "required": [
-    "schema", "schema_version", "run_manifest", "run_hash", "artifacts",
-    "contract_hashes", "schema_hashes", "context_hash"
+    "schema",
+    "schema_version",
+    "run_manifest",
+    "run_hash",
+    "artifacts",
+    "contract_hashes",
+    "schema_hashes",
+    "context_hash"
   ],
   "properties": {
-    "schema": {"const": "cps.search-loop-13-context"},
-    "schema_version": {"const": "1.0.0"},
-    "run_manifest": {"$ref": "search_run_manifest_1_3.schema.json"},
-    "run_hash": {"$ref": "#/$defs/sha"},
-    "artifacts": {"$ref": "#/$defs/artifacts"},
+    "schema": {
+      "const": "cps.search-loop-13-context"
+    },
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "run_manifest": {
+      "$ref": "search_run_manifest_1_3.schema.json"
+    },
+    "run_hash": {
+      "$ref": "#/$defs/sha"
+    },
+    "artifacts": {
+      "$ref": "#/$defs/artifacts"
+    },
     "contract_hashes": {
-      "type": "object", "additionalProperties": false,
-      "required": ["mutation_application", "connected_execution", "fallback_sampler", "broad_prior_production"],
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mutation_application",
+        "connected_execution",
+        "fallback_sampler",
+        "broad_prior_production"
+      ],
       "properties": {
-        "mutation_application": {"$ref": "#/$defs/rawHash"},
-        "connected_execution": {"$ref": "#/$defs/rawHash"},
-        "fallback_sampler": {"$ref": "#/$defs/rawHash"},
-        "broad_prior_production": {"$ref": "#/$defs/rawHash"}
+        "mutation_application": {
+          "$ref": "#/$defs/rawHash"
+        },
+        "connected_execution": {
+          "$ref": "#/$defs/rawHash"
+        },
+        "fallback_sampler": {
+          "$ref": "#/$defs/rawHash"
+        },
+        "broad_prior_production": {
+          "$ref": "#/$defs/rawHash"
+        }
       }
     },
     "schema_hashes": {
-      "type": "object", "additionalProperties": false,
-      "required": ["mutation", "mutation_request", "mutation_receipt", "mutation_impact", "mutation_result", "connected_request", "connected_output", "compile_report", "fingerprint_record", "evaluation_manifest", "evaluation_request", "evaluation_report", "candidate_source_decision", "sampler_request", "sampler_result", "planner_request", "planner_response", "compile_only_request", "compile_only_result", "compile_only_cache_entry", "cancellation_inbox_record", "cancellation_decision", "archive_heads_snapshot", "structural_sampler_trace", "planner_proposal_preimage", "event_payload", "run_record", "checkpoint", "fallback_manifest", "fallback_request"],
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mutation",
+        "mutation_request",
+        "mutation_receipt",
+        "mutation_impact",
+        "connected_request",
+        "connected_output",
+        "compile_report",
+        "fingerprint_record",
+        "evaluation_manifest",
+        "evaluation_request",
+        "evaluation_report",
+        "candidate_source_decision",
+        "sampler_request",
+        "sampler_result",
+        "planner_request",
+        "planner_response",
+        "compile_only_request",
+        "compile_only_result",
+        "compile_only_cache_entry",
+        "cancellation_inbox_record",
+        "cancellation_decision",
+        "archive_heads_snapshot",
+        "structural_sampler_trace",
+        "planner_proposal_preimage",
+        "event_payload",
+        "run_record",
+        "checkpoint",
+        "fallback_manifest",
+        "fallback_request",
+        "production_request",
+        "production_result",
+        "fallback_result",
+        "near_duplicate_decision",
+        "render_request",
+        "render_charge",
+        "render_dispatch_authorization",
+        "render_result",
+        "render_cache_entry",
+        "render_cache_corruption_receipt",
+        "audio_artifact",
+        "challenger_acceptance_decision",
+        "archive_admission_decision",
+        "qd_archive_record",
+        "round_decision"
+      ],
       "properties": {
-        "mutation": {"$ref": "#/$defs/rawHash"}, "mutation_request": {"$ref": "#/$defs/rawHash"}, "mutation_receipt": {"$ref": "#/$defs/rawHash"}, "mutation_impact": {"$ref": "#/$defs/rawHash"}, "mutation_result": {"$ref": "#/$defs/rawHash"}, "connected_request": {"$ref": "#/$defs/rawHash"}, "connected_output": {"$ref": "#/$defs/rawHash"}, "compile_report": {"$ref": "#/$defs/rawHash"}, "fingerprint_record": {"$ref": "#/$defs/rawHash"}, "evaluation_manifest": {"$ref": "#/$defs/rawHash"}, "evaluation_request": {"$ref": "#/$defs/rawHash"}, "evaluation_report": {"$ref": "#/$defs/rawHash"}, "candidate_source_decision": {"$ref": "#/$defs/rawHash"}, "sampler_request": {"$ref": "#/$defs/rawHash"}, "sampler_result": {"$ref": "#/$defs/rawHash"}, "planner_request": {"$ref": "#/$defs/rawHash"}, "planner_response": {"$ref": "#/$defs/rawHash"}, "compile_only_request": {"$ref": "#/$defs/rawHash"}, "compile_only_result": {"$ref": "#/$defs/rawHash"}, "compile_only_cache_entry": {"$ref": "#/$defs/rawHash"}, "cancellation_inbox_record": {"$ref": "#/$defs/rawHash"}, "cancellation_decision": {"$ref": "#/$defs/rawHash"}, "archive_heads_snapshot": {"$ref": "#/$defs/rawHash"}, "structural_sampler_trace": {"$ref": "#/$defs/rawHash"}, "planner_proposal_preimage": {"$ref": "#/$defs/rawHash"}, "event_payload": {"$ref": "#/$defs/rawHash"}, "run_record": {"$ref": "#/$defs/rawHash"}, "checkpoint": {"$ref": "#/$defs/rawHash"}, "fallback_manifest": {"$ref": "#/$defs/rawHash"}, "fallback_request": {"$ref": "#/$defs/rawHash"}
+        "mutation": {
+          "$ref": "#/$defs/rawHash"
+        },
+        "mutation_request": {
+          "$ref": "#/$defs/rawHash"
+        },
+        "mutation_receipt": {
+          "$ref": "#/$defs/rawHash"
+        },
+        "mutation_impact": {
+          "$ref": "#/$defs/rawHash"
+        },
+        "connected_request": {
+          "$ref": "#/$defs/rawHash"
+        },
+        "connected_output": {
+          "$ref": "#/$defs/rawHash"
+        },
+        "compile_report": {
+          "$ref": "#/$defs/rawHash"
+        },
+        "fingerprint_record": {
+          "$ref": "#/$defs/rawHash"
+        },
+        "evaluation_manifest": {
+          "$ref": "#/$defs/rawHash"
+        },
+        "evaluation_request": {
+          "$ref": "#/$defs/rawHash"
+        },
+        "evaluation_report": {
+          "$ref": "#/$defs/rawHash"
+        },
+        "candidate_source_decision": {
+          "$ref": "#/$defs/rawHash"
+        },
+        "sampler_request": {
+          "$ref": "#/$defs/rawHash"
+        },
+        "sampler_result": {
+          "$ref": "#/$defs/rawHash"
+        },
+        "planner_request": {
+          "$ref": "#/$defs/rawHash"
+        },
+        "planner_response": {
+          "$ref": "#/$defs/rawHash"
+        },
+        "compile_only_request": {
+          "$ref": "#/$defs/rawHash"
+        },
+        "compile_only_result": {
+          "$ref": "#/$defs/rawHash"
+        },
+        "compile_only_cache_entry": {
+          "$ref": "#/$defs/rawHash"
+        },
+        "cancellation_inbox_record": {
+          "$ref": "#/$defs/rawHash"
+        },
+        "cancellation_decision": {
+          "$ref": "#/$defs/rawHash"
+        },
+        "archive_heads_snapshot": {
+          "$ref": "#/$defs/rawHash"
+        },
+        "structural_sampler_trace": {
+          "$ref": "#/$defs/rawHash"
+        },
+        "planner_proposal_preimage": {
+          "$ref": "#/$defs/rawHash"
+        },
+        "event_payload": {
+          "$ref": "#/$defs/rawHash"
+        },
+        "run_record": {
+          "$ref": "#/$defs/rawHash"
+        },
+        "checkpoint": {
+          "$ref": "#/$defs/rawHash"
+        },
+        "fallback_manifest": {
+          "$ref": "#/$defs/rawHash"
+        },
+        "fallback_request": {
+          "$ref": "#/$defs/rawHash"
+        },
+        "production_request": {
+          "$ref": "#/$defs/rawHash"
+        },
+        "production_result": {
+          "$ref": "#/$defs/rawHash"
+        },
+        "fallback_result": {
+          "$ref": "#/$defs/rawHash"
+        },
+        "near_duplicate_decision": {
+          "$ref": "#/$defs/rawHash"
+        },
+        "render_request": {
+          "$ref": "#/$defs/rawHash"
+        },
+        "render_charge": {
+          "$ref": "#/$defs/rawHash"
+        },
+        "render_dispatch_authorization": {
+          "$ref": "#/$defs/rawHash"
+        },
+        "render_result": {
+          "$ref": "#/$defs/rawHash"
+        },
+        "render_cache_entry": {
+          "$ref": "#/$defs/rawHash"
+        },
+        "render_cache_corruption_receipt": {
+          "$ref": "#/$defs/rawHash"
+        },
+        "audio_artifact": {
+          "$ref": "#/$defs/rawHash"
+        },
+        "challenger_acceptance_decision": {
+          "$ref": "#/$defs/rawHash"
+        },
+        "archive_admission_decision": {
+          "$ref": "#/$defs/rawHash"
+        },
+        "qd_archive_record": {
+          "$ref": "#/$defs/rawHash"
+        },
+        "round_decision": {
+          "$ref": "#/$defs/rawHash"
+        }
       }
     },
-    "context_hash": {"$ref": "#/$defs/sha"}
+    "context_hash": {
+      "$ref": "#/$defs/sha"
+    }
   },
   "$defs": {
-    "sha": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
-    "base64": {"type": "string", "pattern": "^[A-Za-z0-9+/]*={0,2}$"},
-    "rawHash": {"type": "object", "additionalProperties": false, "required": ["hash", "bytes_base64"], "properties": {"hash": {"$ref": "#/$defs/sha"}, "bytes_base64": {"$ref": "#/$defs/base64"}}},
+    "sha": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "base64": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9+/]*={0,2}$"
+    },
+    "rawHash": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "hash",
+        "bytes_base64"
+      ],
+      "properties": {
+        "hash": {
+          "$ref": "#/$defs/sha"
+        },
+        "bytes_base64": {
+          "$ref": "#/$defs/base64"
+        }
+      }
+    },
     "binding": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["kind", "artifact_hash", "schema_hash", "artifact_bytes_base64", "schema_bytes_base64", "document"],
+      "required": [
+        "kind",
+        "artifact_hash",
+        "schema_hash",
+        "artifact_bytes_base64",
+        "schema_bytes_base64",
+        "document"
+      ],
       "properties": {
-        "kind": {"enum": [
-          "sampler_manifest", "fallback_manifest", "broad_prior_production_manifest",
-          "compiler_manifest", "evaluation_manifest", "genre_intent", "qd_manifest",
-          "planner_manifest", "mutation_choice_catalog", "fingerprint_spec",
-          "archive_admission_policy", "challenger_acceptance_policy", "stopping_policy",
-          "render_selection_policy", "render_manifest", "candidate_source_policy",
-          "instrument_catalog", "executor_manifest"
-        ]},
-        "artifact_hash": {"$ref": "#/$defs/sha"},
-        "schema_hash": {"$ref": "#/$defs/sha"},
-        "artifact_bytes_base64": {"$ref": "#/$defs/base64"},
-        "schema_bytes_base64": {"$ref": "#/$defs/base64"},
-        "document": {"type": "object", "additionalProperties": {}}
+        "kind": {
+          "enum": [
+            "sampler_manifest",
+            "fallback_manifest",
+            "broad_prior_production_manifest",
+            "compiler_manifest",
+            "evaluation_manifest",
+            "genre_intent",
+            "qd_manifest",
+            "planner_manifest",
+            "mutation_choice_catalog",
+            "fingerprint_spec",
+            "archive_admission_policy",
+            "challenger_acceptance_policy",
+            "stopping_policy",
+            "render_selection_policy",
+            "render_manifest",
+            "candidate_source_policy",
+            "instrument_catalog",
+            "executor_manifest"
+          ]
+        },
+        "artifact_hash": {
+          "$ref": "#/$defs/sha"
+        },
+        "schema_hash": {
+          "$ref": "#/$defs/sha"
+        },
+        "artifact_bytes_base64": {
+          "$ref": "#/$defs/base64"
+        },
+        "schema_bytes_base64": {
+          "$ref": "#/$defs/base64"
+        },
+        "document": {
+          "type": "object",
+          "additionalProperties": {}
+        }
       }
     },
     "artifacts": {
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "sampler_manifest", "fallback_manifest", "broad_prior_production_manifest",
-        "compiler_manifest", "evaluation_manifest", "genre_intent", "qd_manifest",
-        "planner_manifest", "mutation_choice_catalog", "fingerprint_spec", "archive_admission_policy",
-        "challenger_acceptance_policy", "stopping_policy", "render_selection_policy",
-        "render_manifest", "candidate_source_policy", "instrument_catalog", "executor_manifest"
+        "sampler_manifest",
+        "fallback_manifest",
+        "broad_prior_production_manifest",
+        "compiler_manifest",
+        "evaluation_manifest",
+        "genre_intent",
+        "qd_manifest",
+        "planner_manifest",
+        "mutation_choice_catalog",
+        "fingerprint_spec",
+        "archive_admission_policy",
+        "challenger_acceptance_policy",
+        "stopping_policy",
+        "render_selection_policy",
+        "render_manifest",
+        "candidate_source_policy",
+        "instrument_catalog",
+        "executor_manifest"
       ],
       "properties": {
-        "sampler_manifest": {"$ref": "#/$defs/binding"},
-        "fallback_manifest": {"$ref": "#/$defs/binding"},
-        "broad_prior_production_manifest": {"$ref": "#/$defs/binding"},
-        "compiler_manifest": {"$ref": "#/$defs/binding"},
-        "evaluation_manifest": {"$ref": "#/$defs/binding"},
-        "genre_intent": {"$ref": "#/$defs/binding"},
-        "qd_manifest": {"$ref": "#/$defs/binding"},
-        "planner_manifest": {"oneOf": [{"$ref": "#/$defs/binding"}, {"type": "null"}]},
-        "mutation_choice_catalog": {"$ref": "#/$defs/binding"},
-        "fingerprint_spec": {"$ref": "#/$defs/binding"},
-        "archive_admission_policy": {"$ref": "#/$defs/binding"},
-        "challenger_acceptance_policy": {"$ref": "#/$defs/binding"},
-        "stopping_policy": {"$ref": "#/$defs/binding"},
-        "render_selection_policy": {"$ref": "#/$defs/binding"},
-        "render_manifest": {"$ref": "#/$defs/binding"},
-        "candidate_source_policy": {"$ref": "#/$defs/binding"},
-        "instrument_catalog": {"$ref": "#/$defs/binding"},
-        "executor_manifest": {"$ref": "#/$defs/binding"}
+        "sampler_manifest": {
+          "$ref": "#/$defs/binding"
+        },
+        "fallback_manifest": {
+          "$ref": "#/$defs/binding"
+        },
+        "broad_prior_production_manifest": {
+          "$ref": "#/$defs/binding"
+        },
+        "compiler_manifest": {
+          "$ref": "#/$defs/binding"
+        },
+        "evaluation_manifest": {
+          "$ref": "#/$defs/binding"
+        },
+        "genre_intent": {
+          "$ref": "#/$defs/binding"
+        },
+        "qd_manifest": {
+          "$ref": "#/$defs/binding"
+        },
+        "planner_manifest": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/binding"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "mutation_choice_catalog": {
+          "$ref": "#/$defs/binding"
+        },
+        "fingerprint_spec": {
+          "$ref": "#/$defs/binding"
+        },
+        "archive_admission_policy": {
+          "$ref": "#/$defs/binding"
+        },
+        "challenger_acceptance_policy": {
+          "$ref": "#/$defs/binding"
+        },
+        "stopping_policy": {
+          "$ref": "#/$defs/binding"
+        },
+        "render_selection_policy": {
+          "$ref": "#/$defs/binding"
+        },
+        "render_manifest": {
+          "$ref": "#/$defs/binding"
+        },
+        "candidate_source_policy": {
+          "$ref": "#/$defs/binding"
+        },
+        "instrument_catalog": {
+          "$ref": "#/$defs/binding"
+        },
+        "executor_manifest": {
+          "$ref": "#/$defs/binding"
+        }
       }
     }
   }

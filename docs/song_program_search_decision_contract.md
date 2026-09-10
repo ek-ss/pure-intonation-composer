@@ -21,6 +21,16 @@ artifact without a self-hash member, no member is removed. Nested hashes and
 nullable members remain. Invalid artifacts are rejected before hashing.
 `run_hash` is the artifact hash of the bound SearchRunManifest 1.3.
 
+For SearchLoop13, a RunRecord never points directly at the scheduled event's
+inner artifact. It points at a closed `cps.search-loop-13-event-payload/1.0.0`
+binding. That binding's `payload_hash` uses the preceding artifact-hash rule,
+omitting only `payload_hash`, with canonical JSON bytes and no trailing LF.
+`RunRecord.payload_hash` equals the binding's `payload_hash`; the binding's
+`artifact_hash` separately names the inner request, result, decision, or
+checkpoint. Complete EventPayload CAS bytes include `payload_hash`, contain no
+LF, and are length-framed as `u64be(byte_length) || canonical_bytes` only when
+transported or appended. The length prefix is never hashed.
+
 RunManifest 1.3 binds `fallback_manifest_hash` and
 `broad_prior_production_manifest_hash`. Binding is one-way: those component
 manifests do not contain the run hash; a request may cite both hashes without a
@@ -116,7 +126,9 @@ the cutoff. Operational timestamps belong to telemetry and are excluded.
 The cancellation barrier runs immediately before reserve and before dispatch.
 Reservation is a committed phase-6 action; dispatch is a distinct phase-7
 action. If cutoff is at or before dispatch, a prior reservation remains charged
-and the result is `cancelled_before_dispatch`. A dispatch committed before
+and phase-7 event 3 alone drains as `cancelled_before_dispatch`, even though it
+is at or above cutoff. It performs no cache lookup or renderer call, and the
+terminal checkpoint waits for it. A dispatch committed before
 cutoff drains to a terminal result and is never refunded. A reservation at or
 after cutoff is neither created nor charged.
 

@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cps.local/schemas/audio_artifact.schema.json",
+  "title": "SearchLoop13 AudioArtifact v1",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema", "schema_version", "encoding", "sample_rate_hz", "channels", "layout", "endianness", "frame_count", "pcm_byte_length", "pcm_sha256", "reference_render_report_hash", "audio_hash"],
+  "properties": {
+    "schema": {"const": "cps.audio-artifact"}, "schema_version": {"const": "1.0.0"},
+    "encoding": {"const": "pcm_s32"}, "sample_rate_hz": {"const": 48000},
+    "channels": {"const": 2}, "layout": {"const": "stereo_interleaved_lr"},
+    "endianness": {"const": "little"},
+    "frame_count": {"$ref": "#/$defs/u64"}, "pcm_byte_length": {"$ref": "#/$defs/u64"},
+    "pcm_sha256": {"$ref": "#/$defs/sha"},
+    "reference_render_report_hash": {"$ref": "#/$defs/sha"},
+    "audio_hash": {"$ref": "#/$defs/sha"}
+  },
+  "$defs": {
+    "sha": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "u64": {"type": "integer", "minimum": 0, "maximum": 18446744073709551615}
+  }
+}

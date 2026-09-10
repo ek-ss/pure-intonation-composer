@@ -169,6 +169,19 @@ attempts consumed, and its own recomputable result hash. Success returns exactly
 the requested mutations, application receipt, final Program hash, and trace;
 failure returns a trace prefix and null partial candidate.
 
+### SearchLoop13 override
+
+The preceding paragraph and failure registry remain normative for legacy
+fallback schemas. A RunManifest 1.3 run instead uses FallbackRequest 1.1,
+MutationApplicationRequest 1.2, and FallbackResult 1.1 as specified by Group E
+of `song_program_search_loop_13_payload_contract.md`. That version adds
+RunContext/source provenance and splits result failure into pre-application
+(no receipt) and application-failed (failed receipt required). Its ordered
+failure registry is the Group-E registry; legacy
+`FALLBACK_RUN_MANIFEST_MISMATCH` and `FALLBACK_PLANNER_MANIFEST_MISMATCH` are
+represented by the more precise context/source/manifest checks and MUST NOT be
+emitted by SearchLoop13.
+
 ## 4. Broad-prior production lowering
 
 The machine form is `broad_prior_production_manifest.schema.json`. The old

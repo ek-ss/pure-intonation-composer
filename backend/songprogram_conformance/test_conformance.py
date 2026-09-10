@@ -136,9 +136,15 @@ def test_search_loop_13_coordinate_and_context_are_closed() -> None:
     assert source["properties"]["selection_algorithm"]["const"] == "candidate-ordinal-mod-source-cycle/v1"
     assert source["properties"]["archive_parent"]["properties"]["parent_index_rule"]["const"] == "source-occurrence-ordinal-mod-sorted-round-start-champions/v1"
     assert source["properties"]["archive_parent"]["properties"]["empty_archive_behavior"]["const"] == "initial_sampler/v1"
-    for name in ("fallback_manifest_1_1.schema.json", "fallback_request_1_1.schema.json"):
-        fallback = json.loads((HERE / "schemas" / name).read_text(encoding="utf-8"))
-        assert {"type": "null"} in fallback["properties"]["planner_manifest_hash"]["oneOf"]
+    fallback_manifest = json.loads(
+        (HERE / "schemas" / "fallback_manifest_1_1.schema.json").read_text(encoding="utf-8")
+    )
+    assert {"type": "null"} in fallback_manifest["properties"]["planner_manifest_hash"]["oneOf"]
+    fallback_request = json.loads(
+        (HERE / "schemas" / "fallback_request_1_1.schema.json").read_text(encoding="utf-8")
+    )
+    assert {"$ref": "#/$defs/plannerNull"} in fallback_request["properties"]["source"]["oneOf"]
+    assert {"$ref": "#/$defs/plannerFailure"} in fallback_request["properties"]["source"]["oneOf"]
 
 
 def test_search_loop_13_does_not_rewrite_legacy_contract_schemas() -> None:

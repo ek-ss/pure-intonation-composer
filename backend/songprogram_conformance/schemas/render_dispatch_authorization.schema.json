@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cps.local/schemas/render_dispatch_authorization.schema.json",
+  "title": "SearchLoop13 RenderDispatchAuthorization v1",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema", "schema_version", "run_hash", "context_hash", "request_hash", "charge_hash", "cache_key_hash", "authorization", "authorization_hash"],
+  "properties": {
+    "schema": {"const": "cps.render-dispatch-authorization"},
+    "schema_version": {"const": "1.0.0"},
+    "run_hash": {"$ref": "#/$defs/sha"}, "context_hash": {"$ref": "#/$defs/sha"},
+    "request_hash": {"$ref": "#/$defs/sha"}, "charge_hash": {"$ref": "#/$defs/sha"},
+    "cache_key_hash": {"$ref": "#/$defs/sha"},
+    "authorization": {"const": "dispatch"},
+    "authorization_hash": {"$ref": "#/$defs/sha"}
+  },
+  "$defs": {"sha": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}}
+}

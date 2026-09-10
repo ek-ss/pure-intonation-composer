@@ -13,6 +13,87 @@ The Group-A/B/C machine envelopes use `1.0.0`, except the explicitly versioned
 SearchLoop13 cancellation inbox and decision envelopes, which use `1.1.0` to
 remain distinct from the untouched legacy cancellation schemas.
 
+### Closed event artifact binding table
+
+For every scheduled event, `kind` selects exactly one artifact schema. The
+EventPayload `artifact_schema_hash`, the named RunManifest field, and the
+`hash` in the named `RunContext.schema_hashes` raw-bytes binding MUST all equal
+the raw SHA-256 of that exact checked-in schema file. No compatible substitute
+schema is allowed.
+
+| EventPayload `kind` | exact artifact schema | RunManifest field | RunContext raw-bytes field |
+|---|---|---|---|
+| `candidate_source_decision` | `candidate_source_decision.schema.json` | `candidate_source_decision_schema_hash` | `candidate_source_decision` |
+| `sampler_request` | `structural_sampler_request.schema.json` | `sampler_request_schema_hash` | `sampler_request` |
+| `sampler_result` | `structural_sampler_result.schema.json` | `sampler_result_schema_hash` | `sampler_result` |
+| `production_request` | `broad_prior_production_request.schema.json` | `production_request_schema_hash` | `production_request` |
+| `production_result` | `broad_prior_production_result.schema.json` | `production_result_schema_hash` | `production_result` |
+| `planner_request` | `planner_request.schema.json` | `planner_request_schema_hash` | `planner_request` |
+| `planner_response` | `planner_response.schema.json` | `planner_response_schema_hash` | `planner_response` |
+| `fallback_request` | `fallback_request_1_1.schema.json` | `fallback_request_schema_hash` | `fallback_request` |
+| `mutation_request` | `mutation_application_request_1_2.schema.json` | `mutation_request_schema_hash` | `mutation_request` |
+| `mutation_result` | `mutation_application_receipt.schema.json` | `mutation_receipt_schema_hash` | `mutation_receipt` |
+| `fallback_result` | `fallback_result_1_1.schema.json` | `fallback_result_schema_hash` | `fallback_result` |
+| `compile_request` | `compile_only_request.schema.json` | `compile_only_request_schema_hash` | `compile_only_request` |
+| `compile_result` | `compile_only_result.schema.json` | `compile_only_result_schema_hash` | `compile_only_result` |
+| `fingerprint_result` | `fingerprint_record.schema.json` | `fingerprint_record_schema_hash` | `fingerprint_record` |
+| `near_duplicate_decision` | `near_duplicate_decision.schema.json` | `near_duplicate_decision_schema_hash` | `near_duplicate_decision` |
+| `render_request` | `render_request.schema.json` | `render_request_schema_hash` | `render_request` |
+| `render_reservation` | `render_charge.schema.json` | `render_charge_schema_hash` | `render_charge` |
+| `render_dispatch` | `render_dispatch_authorization.schema.json` | `render_dispatch_authorization_schema_hash` | `render_dispatch_authorization` |
+| `render_result` | `render_result.schema.json` | `render_result_schema_hash` | `render_result` |
+| `evaluation_request` | `evaluation_request.schema.json` | `evaluation_request_schema_hash` | `evaluation_request` |
+| `metric_report` | `evaluation_report.schema.json` | `evaluation_report_schema_hash` | `evaluation_report` |
+| `challenger_acceptance_decision` | `challenger_acceptance_decision.schema.json` | `challenger_acceptance_decision_schema_hash` | `challenger_acceptance_decision` |
+| `archive_admission_decision` | `archive_admission_decision.schema.json` | `archive_admission_decision_schema_hash` | `archive_admission_decision` |
+| `archive_update` | `qd_archive_record.schema.json` | `qd_archive_record_schema_hash` | `qd_archive_record` |
+| `round_decision` | `round_decision.schema.json` | `round_decision_schema_hash` | `round_decision` |
+| `checkpoint` | `search_checkpoint_1_1.schema.json` | `checkpoint_schema_hash` | `checkpoint` |
+| `cancellation_request` | `cancellation_inbox_record_1_1.schema.json` | `cancellation_inbox_record_schema_hash` | `cancellation_inbox_record` |
+| `cancellation_decision` | `cancellation_decision_1_1.schema.json` | `cancellation_decision_schema_hash` | `cancellation_decision` |
+
+`payload_hash` is the EventPayload's own artifact hash. Its exact preimage is
+`UTF-8("cps-artifact-hash/v1\0" + "cps.search-loop-13-event-payload" +
+"\0" + "1.0.0" + "\0") || canonical_json(payload with only payload_hash
+removed)`, with no trailing LF. `RunRecord.payload_hash` MUST equal this value;
+it MUST NOT equal the inner `artifact_hash` unless an accidental digest
+collision occurs. CAS stores the complete canonical EventPayload bytes,
+including `payload_hash`, with no LF. The `u64be-length-canonical-json/v1`
+framing is `u64be(byte_length) || canonical_bytes` for record transport and
+append validation only and is not part of either artifact-hash preimage.
+
+The non-event render cache artifacts are also closed and run-bound by raw
+schema bytes: `render_cache_entry.schema.json` via
+`render_cache_entry_schema_hash` / `render_cache_entry`, and
+`render_cache_corruption_receipt.schema.json` via
+`render_cache_corruption_receipt_schema_hash` /
+`render_cache_corruption_receipt`. `audio_artifact.schema.json` is bound by
+`audio_artifact_schema_hash` / `audio_artifact`; it describes exactly little-
+endian PCM32, stereo LR interleaved, at 48000 Hz. Semantic validation requires
+`pcm_byte_length == frame_count * 2 * 4`; `pcm_sha256` is `sha256:` plus
+lowercase SHA-256 of the exact unframed PCM bytes, and
+`reference_render_report_hash` binds their producer report.
+
+For render caching, `RenderDispatchAuthorization.cache_key_hash` and
+`RenderCacheEntry.request_hash` MUST both equal the sealed
+`RenderRequest.request_hash`. A corrupt lookup creates a
+RenderCacheCorruptionReceipt before cold recomputation. Its
+`observed_entry_bytes_hash` is `sha256:` plus lowercase SHA-256 of every exact
+raw byte returned by the cache read before parsing or canonicalization. If the
+cache API returns length-framed bytes, the framing bytes are part of that raw
+input and therefore part of the digest; if it returns an unframed object, no
+framing is synthesized. The successful recomputation has outcome `rendered`
+and MUST place the receipt's self hash in `corruption_receipt_hash`. An ordinary
+cold `rendered` result uses null. `cache_hit`, `render_failed`, and
+`cancelled_before_dispatch` always use null. Thus the receipt remains
+telemetry, but its existence is committed into the semantic RenderResult root.
+
+| Auxiliary artifact | exact schema | RunManifest field | RunContext raw-bytes field |
+|---|---|---|---|
+| render cache entry | `render_cache_entry.schema.json` | `render_cache_entry_schema_hash` | `render_cache_entry` |
+| render corruption receipt | `render_cache_corruption_receipt.schema.json` | `render_cache_corruption_receipt_schema_hash` | `render_cache_corruption_receipt` |
+| rendered PCM audio | `audio_artifact.schema.json` | `audio_artifact_schema_hash` | `audio_artifact` |
+
 `CandidateSourceDecision` binds run/context/policy hashes, coordinate, locked
 roots, and exactly one source: initial `(root_seed, cohort_index)` or archive
 `(round_start_archive_heads_hash, selected_archive_update_record_hash,
@@ -298,7 +379,8 @@ The closed preimage object contains only `mutations`. Its schema identity is a
 RunManifest/RunContext binding and is not inserted into the hashed object.
 
 When a CancellationDecision is committed, no ordinary event at or above its
-cutoff may exist. Once all lower coordinates are sealed, the coordinator emits
+cutoff may exist except the single drain result below. Once all lower
+coordinates and that required drain are sealed, the coordinator emits
 the unique terminal checkpoint at `(round, phase=13, candidate=0, event=2)`.
 It is legal only when the matching committed decision has `cancelled=true` and
 no terminal checkpoint already exists. Its cursor is `(round,13,0,3)`, its
@@ -306,3 +388,55 @@ no terminal checkpoint already exists. Its cursor is `(round,13,0,3)`, its
 termination is exactly `status=terminated`, `reason=cancelled`, with
 `decision_hash` equal to that CancellationDecision hash. Phase 0..12 event 2
 always retains its ordinary scheduled meaning.
+
+The sole cutoff exception applies when phase-6 event-3 RenderCharge is already
+committed as `reserved` and phase-7 event-2 dispatch has not started. Phase-7
+event-3 RenderResult MUST then commit as
+`not_dispatched/cancelled_before_dispatch`, with null cache-entry,
+corruption-receipt, audio, and failure hashes. It performs no cache lookup or
+renderer call, remains charged, and the phase-13 checkpoint MUST wait for it.
+No other at-or-above-cutoff record is permitted.
+
+## Group E: planner/fallback causal handoff
+
+SearchLoop13 uses `fallback_request_1_1.schema.json`,
+`mutation_application_request_1_2.schema.json`, and
+`fallback_result_1_1.schema.json`; legacy versions remain unchanged. Matching
+RunManifest raw schema fields and RunContext bindings MUST name these versions.
+
+FallbackRequest 1.1 binds run, context, source decision, and its phase-1 event-4
+v2 coordinate. Its source is exactly `planner_null`, with no fabricated planner
+hash, or `planner_failure`, with the sealed PlannerResponse hash and matching
+ordered `PLANNER_*` diagnostic. Planner success never creates FallbackRequest.
+
+MutationApplicationRequest 1.2 adds context, source decision, and exactly one
+origin: planner `(response_hash,proposal_hash)` or fallback
+`(fallback_request_hash,proposal_hash)`. The Group-D hash of its ordered
+`mutations` MUST equal the origin proposal hash. Its self-hash omits only
+`request_hash`.
+
+FallbackResult 1.1 binds the fallback request and preserves result-specific
+`attempts_consumed` and ordered `decision_trace`. Manifest, base Program,
+event-4 v2 coordinate, requested count, and locks are not duplicated: they are
+resolved from the mandatory sealed FallbackRequest CAS object and MUST validate
+before the Result. Success repeats the ordered mutations/proposal hash, one
+application request, its complete receipt, and final Program hash.
+`pre_application_failure` has no application request or receipt;
+`application_failed` binds the application request, its failed receipt, and the
+attempted mutations/proposal hash, but has no final Program. A committed receipt
+is replayed and the mutation batch never executes twice.
+For success the receipt status is `complete`; for `application_failed` it is
+`failed`. In both cases its `request_hash` MUST equal
+`mutation_application_request_hash`, and the request's fallback origin,
+proposal hash, and ordered mutations MUST equal the Result values.
+
+FallbackResult diagnostics use this first-failure-wins order:
+`FALLBACK_REQUEST_INVALID`, `FALLBACK_CONTEXT_MISMATCH`,
+`FALLBACK_SOURCE_MISMATCH`, `FALLBACK_MANIFEST_MISMATCH`,
+`FALLBACK_CHOICE_CATALOG_MISMATCH`, `FALLBACK_PROGRAM_HASH_MISMATCH`,
+`FALLBACK_LOCKS_INVALID`, `FALLBACK_ACTION_COORDINATE_INVALID`,
+`FALLBACK_NO_ELIGIBLE_OPERATION`, `FALLBACK_ATTEMPTS_EXHAUSTED`,
+`FALLBACK_MUTATION_APPLICATION_FAILED`, `FALLBACK_RESULT_INVALID`.
+
+CancellationDecision 1.1 has `status=accepted` and `cancelled=true`; both
+constants participate in its self hash.

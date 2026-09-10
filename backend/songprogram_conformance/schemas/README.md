@@ -9,8 +9,10 @@ for the SP0 conformance pack.
   and the SP0 operation-budget profile.
 - `charge_receipt.schema.json`: deterministic root and child logical charges.
 - `mutation_application_request.schema.json`: fully bound inline Mutation input.
-- `mutation_application_request_1_1.schema.json`: RunManifest 1.3 batch request;
-  one atomic request carries the complete ordered fallback mutation batch.
+- `mutation_application_request_1_1.schema.json`: legacy batch request; one
+  atomic request carries the complete ordered fallback mutation batch.
+- `mutation_application_request_1_2.schema.json`: RunManifest 1.3 batch request
+  with context, source decision, and planner/fallback proposal provenance.
 - `mutation_impact_report.schema.json`: ordered pre/post closure and invalidation.
 - `mutation_application_receipt.schema.json`: cache-neutral atomic audit receipt.
 - `compiler_manifest_1_1.schema.json`: GEN0-B compiler/progression authority.
@@ -53,6 +55,9 @@ for the SP0 conformance pack.
 - `fallback_manifest.schema.json`, `fallback_request.schema.json`, and
   `fallback_result.schema.json`: deterministic typed-mutation fallback,
   independent attempt stream, exact locks, and atomic success/failure envelopes.
+- `fallback_request_1_1.schema.json`, `mutation_application_request_1_2.schema.json`,
+  and `fallback_result_1_1.schema.json`: SearchLoop13 planner/fallback origin
+  provenance and its single mutation-application receipt chain.
 - `broad_prior_production_manifest.schema.json`: role-by-role instrument,
   register, polyphony, drum-map, gain, and pan lowering. Completed instrument
   maps are deliberately not representable.
@@ -78,6 +83,15 @@ for the SP0 conformance pack.
   `cancellation_decision_1_1.schema.json`: immutable SearchLoop13 external
   cancellation intake and digest-selected cutoff; legacy cancellation schemas
   remain unchanged.
+- `search_loop_13_event_payload.schema.json`: closed outer event binding whose
+  `payload_hash`, rather than its inner `artifact_hash`, is stored in the
+  RunRecord. The exhaustive kind-to-artifact-schema binding table is normative
+  in `docs/song_program_search_loop_13_payload_contract.md`.
+- `render_dispatch_authorization.schema.json`, `render_cache_entry.schema.json`,
+  and `render_cache_corruption_receipt.schema.json`: sealed phase-7 dispatch
+  authority and non-event render-cache evidence for SearchLoop13.
+- `audio_artifact.schema.json`: closed 48 kHz, stereo-interleaved little-endian
+  PCM32 descriptor binding exact PCM bytes and its reference render report.
 
 All object schemas use `additionalProperties: false`; nullable values must be
 present where listed as required. Cross-record invariants that JSON Schema

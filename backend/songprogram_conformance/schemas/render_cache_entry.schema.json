@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cps.local/schemas/render_cache_entry.schema.json",
+  "title": "SearchLoop13 RenderCacheEntry v1",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema", "schema_version", "request_hash", "charge_hash", "audio_artifact_hash", "audio_artifact_schema_hash", "entry_hash"],
+  "properties": {
+    "schema": {"const": "cps.render-cache-entry"}, "schema_version": {"const": "1.0.0"},
+    "request_hash": {"$ref": "#/$defs/sha"}, "charge_hash": {"$ref": "#/$defs/sha"},
+    "audio_artifact_hash": {"$ref": "#/$defs/sha"}, "audio_artifact_schema_hash": {"$ref": "#/$defs/sha"},
+    "entry_hash": {"$ref": "#/$defs/sha"}
+  },
+  "$defs": {"sha": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}}
+}

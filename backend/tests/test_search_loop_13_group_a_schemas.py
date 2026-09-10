@@ -73,10 +73,10 @@ def test_planner_payloads_freeze_missing_metrics_and_diagnostics() -> None:
     ]
     diagnostics = response["$defs"]["base"]["properties"]["diagnostic"]["enum"]
     assert diagnostics == [
-        None, "REQUEST_INVALID", "CONTEXT_MISMATCH", "MANIFEST_MISMATCH",
-        "SOURCE_MISMATCH", "REQUEST_TOO_LARGE", "PROVIDER_UNAVAILABLE",
-        "TIMEOUT", "RESPONSE_TOO_LARGE", "RESPONSE_SCHEMA_INVALID",
-        "OPERATION_NOT_ALLOWED", "MUTATION_COUNT_INVALID", "RESULT_INVALID",
+        None, "PLANNER_REQUEST_INVALID", "PLANNER_CONTEXT_MISMATCH", "PLANNER_MANIFEST_MISMATCH",
+        "PLANNER_SOURCE_MISMATCH", "PLANNER_REQUEST_TOO_LARGE", "PLANNER_PROVIDER_UNAVAILABLE",
+        "PLANNER_TIMEOUT", "PLANNER_RESPONSE_TOO_LARGE", "PLANNER_RESPONSE_SCHEMA_INVALID",
+        "PLANNER_OPERATION_NOT_ALLOWED", "PLANNER_MUTATION_COUNT_INVALID", "PLANNER_RESULT_INVALID",
     ]
     assert response["$defs"]["success"]["allOf"][1]["properties"]["diagnostic"] == {"type": "null"}
     success = response["$defs"]["success"]["allOf"][1]["properties"]

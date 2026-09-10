@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cps.local/schemas/render_cache_corruption_receipt.schema.json",
+  "title": "SearchLoop13 RenderCacheCorruptionReceipt v1",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema", "schema_version", "request_hash", "observed_entry_bytes_hash", "reason", "disposition", "receipt_hash"],
+  "properties": {
+    "schema": {"const": "cps.render-cache-corruption-receipt"}, "schema_version": {"const": "1.0.0"},
+    "request_hash": {"$ref": "#/$defs/sha"}, "observed_entry_bytes_hash": {"$ref": "#/$defs/sha"},
+    "reason": {"enum": ["NON_CANONICAL_BYTES", "SCHEMA_INVALID", "SELF_HASH_MISMATCH", "REQUEST_HASH_MISMATCH", "AUDIO_BINDING_MISMATCH"]},
+    "disposition": {"const": "quarantine_then_cold_recompute"},
+    "receipt_hash": {"$ref": "#/$defs/sha"}
+  },
+  "$defs": {"sha": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}}
+}

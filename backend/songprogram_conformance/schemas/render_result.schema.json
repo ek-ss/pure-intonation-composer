@@ -4,7 +4,7 @@
   "title": "CPS RenderResult v1",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema", "schema_version", "run_hash", "action_id", "request_hash", "charge_hash", "dispatch_status", "outcome", "cache_entry_hash", "audio_artifact_hash", "failure_hash", "result_hash"],
+  "required": ["schema", "schema_version", "run_hash", "action_id", "request_hash", "charge_hash", "dispatch_status", "outcome", "cache_entry_hash", "corruption_receipt_hash", "audio_artifact_hash", "failure_hash", "result_hash"],
   "properties": {
     "schema": { "const": "cps.render-result" },
     "schema_version": { "const": "1.0.0" },
@@ -15,15 +15,16 @@
     "dispatch_status": { "enum": ["not_dispatched", "dispatched"] },
     "outcome": { "enum": ["cancelled_before_dispatch", "cache_hit", "rendered", "render_failed"] },
     "cache_entry_hash": { "oneOf": [{"type":"null"}, {"$ref":"#/$defs/sha"}] },
+    "corruption_receipt_hash": { "oneOf": [{"type":"null"}, {"$ref":"#/$defs/sha"}] },
     "audio_artifact_hash": { "oneOf": [{"type":"null"}, {"$ref":"#/$defs/sha"}] },
     "failure_hash": { "oneOf": [{"type":"null"}, {"$ref":"#/$defs/sha"}] },
     "result_hash": { "$ref": "#/$defs/sha" }
   },
   "$defs": { "sha": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" } },
   "allOf": [
-    { "if": { "properties": { "outcome": { "const": "cancelled_before_dispatch" } }, "additionalProperties": {} }, "then": { "properties": { "dispatch_status": { "const": "not_dispatched" }, "cache_entry_hash": { "type": "null" }, "audio_artifact_hash": { "type": "null" }, "failure_hash": { "type": "null" } }, "additionalProperties": {} } },
-    { "if": { "properties": { "outcome": { "const": "cache_hit" } }, "additionalProperties": {} }, "then": { "properties": { "dispatch_status": { "const": "dispatched" }, "cache_entry_hash": { "$ref": "#/$defs/sha" }, "audio_artifact_hash": { "$ref": "#/$defs/sha" }, "failure_hash": { "type": "null" } }, "additionalProperties": {} } },
+    { "if": { "properties": { "outcome": { "const": "cancelled_before_dispatch" } }, "additionalProperties": {} }, "then": { "properties": { "dispatch_status": { "const": "not_dispatched" }, "cache_entry_hash": { "type": "null" }, "corruption_receipt_hash": { "type": "null" }, "audio_artifact_hash": { "type": "null" }, "failure_hash": { "type": "null" } }, "additionalProperties": {} } },
+    { "if": { "properties": { "outcome": { "const": "cache_hit" } }, "additionalProperties": {} }, "then": { "properties": { "dispatch_status": { "const": "dispatched" }, "cache_entry_hash": { "$ref": "#/$defs/sha" }, "corruption_receipt_hash": { "type": "null" }, "audio_artifact_hash": { "$ref": "#/$defs/sha" }, "failure_hash": { "type": "null" } }, "additionalProperties": {} } },
     { "if": { "properties": { "outcome": { "const": "rendered" } }, "additionalProperties": {} }, "then": { "properties": { "dispatch_status": { "const": "dispatched" }, "cache_entry_hash": { "type": "null" }, "audio_artifact_hash": { "$ref": "#/$defs/sha" }, "failure_hash": { "type": "null" } }, "additionalProperties": {} } },
-    { "if": { "properties": { "outcome": { "const": "render_failed" } }, "additionalProperties": {} }, "then": { "properties": { "dispatch_status": { "const": "dispatched" }, "cache_entry_hash": { "type": "null" }, "audio_artifact_hash": { "type": "null" }, "failure_hash": { "$ref": "#/$defs/sha" } }, "additionalProperties": {} } }
+    { "if": { "properties": { "outcome": { "const": "render_failed" } }, "additionalProperties": {} }, "then": { "properties": { "dispatch_status": { "const": "dispatched" }, "cache_entry_hash": { "type": "null" }, "corruption_receipt_hash": { "type": "null" }, "audio_artifact_hash": { "type": "null" }, "failure_hash": { "$ref": "#/$defs/sha" } }, "additionalProperties": {} } }
   ]
 }

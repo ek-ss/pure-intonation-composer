@@ -40,8 +40,9 @@ the same rule with no self-hash member. A RunContext and every sealed request
 are immutable CAS values.
 
 For `planner_manifest_hash: null`, RunContext's `planner_manifest` is null and
-its `FallbackManifest 1.1` / `FallbackRequest 1.1` `planner_manifest_hash` is
-also null. A RunManifest 1.3 `fallback_manifest_hash` therefore always binds a
+its `FallbackManifest 1.1` `planner_manifest_hash` is also null;
+FallbackRequest 1.1 records this causal condition as `source.kind=planner_null`
+and carries no planner hash. A RunManifest 1.3 `fallback_manifest_hash` therefore always binds a
 FallbackManifest 1.1, never legacy FallbackManifest 1.0. This path makes no
 planner seam call and increments no planner budget. A planner failure
 uses only contract-defined diagnostic codes, never provider text, timestamps,
@@ -114,6 +115,11 @@ RunContext, source decision, concrete payload schema hash, and sealed CAS
 artifact hash. Its request is committed before its calculation/output. `failure` is allowed only as the listed result event's
 payload status, not as an extra duplicate-coordinate record.
 
+The binding has its own `payload_hash`, distinct from its inner
+`artifact_hash`. `RunRecord.payload_hash` MUST equal the former. Event kind,
+exact artifact schema, RunManifest raw-schema field, and RunContext raw schema
+bytes MUST match the closed Group-F table in the payload contract.
+
 | Phase | Event | RunRecord kind | Payload / condition |
 |---:|---:|---|---|
 | any 0..12 | 0 | `cancellation_request` | Conditional control-inbox winner at this barrier. |
@@ -126,7 +132,7 @@ payload status, not as an extra duplicate-coordinate record.
 | 1 | 2 | `planner_request` | Non-null planner manifest only. |
 | 1 | 3 | `planner_response` | Result for event 2; schema-valid proposal or contract-defined failure. |
 | 1 | 4 | `fallback_request` | Planner-null or the sealed failure at event 3 only. |
-| 1 | 5 | `mutation_request` | The sealed MutationApplicationRequest 1.1, planner- or fallback-derived. |
+| 1 | 5 | `mutation_request` | The sealed MutationApplicationRequest 1.2, planner- or fallback-derived. |
 | 2 | 2 | `mutation_result` | The sole application receipt/result for phase-1 event-5 request. |
 | 2 | 3 | `fallback_result` | Fallback path only; binds the phase-2 receipt. |
 | 3 | 2/3 | `compile_request` / `compile_result` | Sealed compile-only request and its result; no mutation application. |
@@ -225,12 +231,16 @@ An external cancellation request is accepted into a control-inbox CAS at any
 time. At each next unstarted ordinary coordinate, the coordinator selects the
 lowest raw request-hash digest among accepted requests, commits events 0 and 1,
 and sets the cutoff to that ordinary coordinate. If no request is present both
-events are omitted and ordinary events start at 2. A cutoff forbids all ordinary
-events at or above its coordinate; lower coordinates drain in order. This lets a
-phase-6 reservation drain while cancelling its phase-7 dispatch. The decision
+events are omitted and ordinary events start at 2. A cutoff forbids ordinary
+events at or above its coordinate except that an already reserved phase-6
+charge with unstarted phase-7 dispatch MUST drain phase-7 event-3 RenderResult
+as `not_dispatched/cancelled_before_dispatch`, without cache lookup or renderer
+call and with all nullable artifact hashes null. Lower coordinates and this sole
+exception drain in order. The decision
 records the cutoff champion and archive-head hash. After every ordinary
-coordinate below the cutoff has sealed and no ordinary coordinate at or above
-it has committed, the coordinator emits the sole cancellation-terminal
+coordinate below the cutoff and any required cancelled-before-dispatch result
+have sealed, and no other coordinate at or above it has committed, the
+coordinator emits the sole cancellation-terminal
 checkpoint at `(round, phase=13, candidate=0, event=2)`. It is legal iff the
 committed decision has `cancelled=true` and no terminal checkpoint already
 exists; its termination is `terminated/cancelled`, and its cursor names
