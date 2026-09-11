@@ -63,3 +63,19 @@ def test_contract_fixes_attempt_stream_and_expansion():
     text = (ROOT.parent.parent / "docs" / "song_program_structural_sampler_1_1_contract.md").read_text()
     for required in ("raw32(attempt_seed_hash)", "{transform}", "counter zero", "SAMPLER_TOTAL_BARS_MISMATCH", "preregistered cohort gate"):
         assert required in text
+
+
+def test_contract_closes_recall_realization_and_coverage_semantics():
+    text = (ROOT.parent.parent / "docs" / "song_program_structural_sampler_1_1_contract.md").read_text()
+    for required in (
+        "complete Cartesian product",
+        "sole exception to the selected-owner rule",
+        "rhythm material maps only to `drums`",
+        "direct-vector material maps to `bass` and `texture`",
+        "SAMPLER_SECTION_UNCOVERED`: a selected section has zero realizations",
+        "nonzero modulo",
+        "cps.structural-song-program/1.0\\0",
+        "explicit fourth argument or as a",
+        "fallback lookup and process-local defaults are",
+    ):
+        assert required in text
