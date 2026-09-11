@@ -73,9 +73,12 @@ def test_contract_closes_recall_realization_and_coverage_semantics():
         "rhythm material maps only to `drums`",
         "direct-vector material maps to `bass` and `texture`",
         "SAMPLER_SECTION_UNCOVERED`: a selected section has zero realizations",
-        "nonzero modulo",
+        "selected `rotate_amount` is nonzero",
         "cps.structural-song-program/1.0\\0",
         "explicit fourth argument or as a",
         "fallback lookup and process-local defaults are",
+        "helper is also the primary material",
+        "signed displacement in rhythm-derived quanta",
+        "ticks = rotate_amount * quantum",
     ):
         assert required in text

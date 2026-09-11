@@ -125,7 +125,18 @@ closed templates. References are resolved by ordinal and dangling references
 reject. Selected section bars are never normalized: their checked sum MUST
 equal selected `total_bars`, otherwise reject.
 
-For each selected material, lowering first creates its rhythm helper using the
+Each selected abstract material ordinal owns exactly one rhythm-cell helper
+with ID `rhythm_prefix + padded_ordinal`. For `material_kind = rhythm`, that
+helper is also the primary material: no `material_prefix` object is created and
+realizations reference the helper ID. For every other kind, lowering also
+creates exactly one primary object with `material_prefix + padded_ordinal`;
+its `rhythm_id` references the helper, and realizations reference the primary
+ID. Consequently a non-rhythm abstract material contributes two entries to
+`materials`, while a rhythm abstract material contributes one. Array order is
+all helpers in abstract-material ordinal order followed by all non-rhythm
+primaries in abstract-material ordinal order.
+
+For each selected material, lowering creates its rhythm helper using the
 selected grid and density. It then emits one realization for every compatible
 active role for every selected recall pair, including the pair's first
 occurrence. Compatibility is frozen: rhythm material maps only to `drums`;
@@ -135,6 +146,16 @@ maps to `harmony` and `texture`; melody-intent material maps to `melody` and
 Within a pair, compatible roles use frozen role order. Placement, transpose,
 scale and transform fields come only from the bound lowering manifest and the
 pair-addressed decisions; an implementation MUST NOT invent defaults.
+
+`rotate_amount` is a signed displacement in rhythm-derived quanta, not ticks
+and not an array ordinal. For its owning rhythm helper, the quantum is the gcd
+of `length_ticks`, every `duration_ticks`, and every positive difference
+between consecutive ascending step `at_tick` values; with one step, the
+difference set is empty. Lowering stores checked integer
+`ticks = rotate_amount * quantum` in `{ "op": "rotate", "ticks": ticks }`.
+An `identity` transform stores no rotate item; retained rotate items preserve
+selected transform ordinal order. Overflow or a nonpositive quantum is
+`SAMPLER_STRUCTURAL_SEMANTIC_INVALID`.
 
 IDs are exactly the manifest prefixes plus zero-padded decimal ordinals:
 section/material/rhythm/chord/realization use widths declared by the manifest;
@@ -189,9 +210,9 @@ The four structural coverage predicates are exact:
 - `SAMPLER_RECALL_MISSING`: no material is realized in two or more distinct
   selected sections.
 - `SAMPLER_NON_IDENTITY_RECALL_MISSING`: no material realized in two or more
-  sections has a later occurrence whose selected rotation is nonzero modulo
-  that material's rhythm-helper step count. A zero step count is structurally
-  invalid before this predicate is evaluated.
+  sections has a later occurrence whose selected `rotate_amount` is nonzero
+  modulo that material's rhythm-helper step count. A zero step count is
+  structurally invalid before this predicate is evaluated.
 
 Predicate traversal is section ordinal for uncovered, frozen role order for
 undershoot, then material ordinal followed by occurrence order for both recall
