@@ -15,10 +15,10 @@ def _load(name: str) -> dict:
 
 MAPPING = {
     "candidate_source_decision": ("candidate_source_decision.schema.json", "candidate_source_decision_schema_hash", "candidate_source_decision"),
-    "sampler_request": ("structural_sampler_request.schema.json", "sampler_request_schema_hash", "sampler_request"),
-    "sampler_result": ("structural_sampler_result.schema.json", "sampler_result_schema_hash", "sampler_result"),
+    "sampler_request": ("structural_sampler_request_1_1.schema.json", "sampler_request_schema_hash", "sampler_request"),
+    "sampler_result": ("structural_sampler_result_1_1.schema.json", "sampler_result_schema_hash", "sampler_result"),
     "production_request": ("broad_prior_production_request_1_1.schema.json", "production_request_schema_hash", "production_request"),
-    "production_result": ("broad_prior_production_result.schema.json", "production_result_schema_hash", "production_result"),
+    "production_result": ("broad_prior_production_result_1_1.schema.json", "production_result_schema_hash", "production_result"),
     "planner_request": ("planner_request.schema.json", "planner_request_schema_hash", "planner_request"),
     "planner_response": ("planner_response.schema.json", "planner_response_schema_hash", "planner_response"),
     "fallback_request": ("fallback_request_1_1.schema.json", "fallback_request_schema_hash", "fallback_request"),
@@ -34,7 +34,7 @@ MAPPING = {
     "render_dispatch": ("render_dispatch_authorization.schema.json", "render_dispatch_authorization_schema_hash", "render_dispatch_authorization"),
     "render_result": ("render_result.schema.json", "render_result_schema_hash", "render_result"),
     "evaluation_request": ("evaluation_request.schema.json", "evaluation_request_schema_hash", "evaluation_request"),
-    "metric_report": ("evaluation_report.schema.json", "evaluation_report_schema_hash", "evaluation_report"),
+    "metric_report": ("evaluation_report_1_1.schema.json", "evaluation_report_schema_hash", "evaluation_report"),
     "challenger_acceptance_decision": ("challenger_acceptance_decision_1_1.schema.json", "challenger_acceptance_decision_schema_hash", "challenger_acceptance_decision"),
     "archive_admission_decision": ("archive_admission_decision.schema.json", "archive_admission_decision_schema_hash", "archive_admission_decision"),
     "archive_update": ("qd_archive_record.schema.json", "qd_archive_record_schema_hash", "qd_archive_record"),

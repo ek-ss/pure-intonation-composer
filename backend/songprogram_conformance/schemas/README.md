@@ -61,15 +61,19 @@ for the SP0 conformance pack.
 - `broad_prior_production_manifest.schema.json`: role-by-role instrument,
   register, polyphony, drum-map, gain, and pan lowering. Completed instrument
   maps are deliberately not representable.
-- `broad_prior_production_request.schema.json` (legacy complete-Program input),
-  `broad_prior_production_request_1_1.schema.json` (SearchLoop13 structural input), and
-  `broad_prior_production_result.schema.json`: causal input/output binding,
+- `broad_prior_production_request.schema.json` and
+  `broad_prior_production_result.schema.json` are the legacy 1.0 pair.
+  `broad_prior_production_request_1_1.schema.json` and
+  `broad_prior_production_result_1_1.schema.json` are the SearchLoop13 structural
+  input pair with complete run/context/source/manifest/catalog causality,
   rejection counters, ordered role decisions, and hash-complete traces.
 - `candidate_source_decision.schema.json`: exact initial/archive source choice,
   candidate coordinate, policy, and lock binding for SearchLoop 1.3.
-- `structural_sampler_request.schema.json` and
-  `structural_sampler_result.schema.json`: immutable broad-prior invocation and
-  success/failure result without embedding the produced SongProgram bytes.
+- `structural_sampler_request.schema.json`, `structural_sampler_trace.schema.json`,
+  and `structural_sampler_result.schema.json` are legacy v1.0 envelopes.
+  Their `_1_1` counterparts bind the sampler/lowering/payload/evidence schemas,
+  inline every rejection proof, and close complete-versus-incomplete candidate
+  hash nullability.
 - `planner_request.schema.json` and `planner_response.schema.json`: immutable
   planner evidence/budget input and typed mutation-or-diagnostic outcome.
 - `evaluation_manifest.schema.json`, `evaluation_request.schema.json`, and
@@ -107,6 +111,10 @@ for the SP0 conformance pack.
   bound to its exact source audio segment.
 - `genre_similarity_spec.schema.json`: exact normalized-L1 and lower-median
   aggregation contract for calibrated genre similarity.
+- `tokenizer_manifest.schema.json` and `planner_tool_catalog.schema.json`:
+  closed planner token-counting and tool-declaration authorities.
+- `search_loop_13_fixture_suite_index.schema.json`: ordered authoritative suite
+  root with mandatory success/failure/cache/cancel/parallel coverage.
 
 All object schemas use `additionalProperties: false`; nullable values must be
 present where listed as required. Cross-record invariants that JSON Schema

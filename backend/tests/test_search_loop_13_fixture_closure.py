@@ -17,17 +17,19 @@ def test_fixture_case_binds_all_authority_roots() -> None:
     assert schema["additionalProperties"] is False
     assert schema["required"] == [
         "schema", "schema_version", "case_id", "root_seed", "edge_registry", "inputs",
-        "policies", "budgets", "stop_branch", "expected", "case_hash",
+        "policies", "budgets", "cache_scenario", "parallel_scenario", "stop_branch", "expected", "case_hash",
     ]
-    expected = schema["$defs"]["expected"]
+    expected = schema["$defs"]["normalExpected"]
     assert expected["required"] == [
+        "terminal_kind",
         "transcript_root_hash", "cas_index_hash", "cas_index_schema_hash",
         "cache_publication_index_hash", "final_checkpoint_hash",
-        "audio_pcm_assets",
+        "failure", "audio_pcm_assets",
     ]
     assert schema["$defs"]["input"]["required"] == [
         "role", "path", "raw_file_sha256", "artifact_hash", "schema_hash",
     ]
+    assert schema["$defs"]["budgets"]["properties"]["operational_deadline_seconds"] == {"type": "null"}
 
 
 def test_archive_snapshots_close_round_before_and_after() -> None:
@@ -89,3 +91,30 @@ def test_fixture_edge_registry_closes_hash_traversal() -> None:
     text = (ROOT.parent / "docs" / "song_program_search_loop_13_payload_contract.md").read_text(encoding="utf-8")
     assert "walks only registry-declared hash edges" in text
     assert "terminates validation\nas `CONFORMANCE_VIOLATION`" in text
+
+
+def test_fixture_suite_and_violation_branch_are_closed() -> None:
+    suite = load("search_loop_13_fixture_suite_index.schema.json")
+    assert suite["additionalProperties"] is False
+    assert suite["properties"]["required_coverage"]["minItems"] == 10
+    assert suite["properties"]["required_coverage"]["maxItems"] == 10
+    case = load("search_loop_13_fixture_case.schema.json")
+    assert "conformance_violation" in case["properties"]["stop_branch"]["enum"]
+    violation = case["$defs"]["violationExpected"]
+    assert violation["properties"]["final_checkpoint_hash"] == {"type": "null"}
+    assert load("conformance_violation_evidence.schema.json")["additionalProperties"] is False
+
+
+def test_cache_and_parallel_scenarios_are_closed() -> None:
+    case = load("search_loop_13_fixture_case.schema.json")
+    assert case["$defs"]["cacheScenario"]["additionalProperties"] is False
+    assert case["$defs"]["parallelScenario"]["properties"]["worker_count"]["enum"] == [1, 2, 4, 8]
+    assert case["$defs"]["parallelScenario"]["properties"]["completion_permutation"]["uniqueItems"] is True
+
+
+def test_planner_dependency_assets_are_byte_closed() -> None:
+    tool = load("planner_tool_catalog.schema.json")["$defs"]["tool"]
+    assert "input_schema" not in tool["properties"]
+    assert {"input_schema_hash", "canonical_schema_bytes_base64", "byte_length"} <= set(tool["required"])
+    tokenizer = load("tokenizer_manifest.schema.json")
+    assert {"implementation_asset", "vocabulary_asset", "merges_asset", "normalization_asset"} <= set(tokenizer["required"])

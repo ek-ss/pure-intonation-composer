@@ -1,0 +1,151 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cps.local/schemas/structural_sampler_result_1_1.schema.json",
+  "title": "StructuralSamplerResult v1.1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "schema_version",
+    "status",
+    "run_hash",
+    "context_hash",
+    "source_decision_hash",
+    "request_hash",
+    "sampler_manifest_hash",
+    "structural_lowering_manifest_hash",
+    "structural_program_schema_hash",
+    "structural_rejection_evidence_schema_hash",
+    "structural_program_hash",
+    "rejections_consumed",
+    "decision_trace_hash",
+    "terminal_rejection_evidence_hash",
+    "error",
+    "result_hash"
+  ],
+  "properties": {
+    "schema": {
+      "const": "cps.structural-sampler-result"
+    },
+    "schema_version": {
+      "const": "1.1.0"
+    },
+    "status": {
+      "enum": [
+        "success",
+        "failure"
+      ]
+    },
+    "run_hash": {
+      "$ref": "#/$defs/sha"
+    },
+    "context_hash": {
+      "$ref": "#/$defs/sha"
+    },
+    "source_decision_hash": {
+      "$ref": "#/$defs/sha"
+    },
+    "request_hash": {
+      "$ref": "#/$defs/sha"
+    },
+    "sampler_manifest_hash": {
+      "$ref": "#/$defs/sha"
+    },
+    "structural_lowering_manifest_hash": {
+      "$ref": "#/$defs/sha"
+    },
+    "structural_program_schema_hash": {
+      "$ref": "#/$defs/sha"
+    },
+    "structural_rejection_evidence_schema_hash": {
+      "$ref": "#/$defs/sha"
+    },
+    "structural_program_hash": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/sha"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "rejections_consumed": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 256
+    },
+    "decision_trace_hash": {
+      "oneOf": [
+        {"$ref": "#/$defs/sha"},
+        {"type": "null"}
+      ]
+    },
+    "terminal_rejection_evidence_hash": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/sha"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "error": {
+      "enum": [
+        null,
+        "SAMPLER_REQUEST_INVALID",
+        "SAMPLER_CONTEXT_MISMATCH",
+        "SAMPLER_MANIFEST_MISMATCH",
+        "SAMPLER_LOWERING_MANIFEST_MISMATCH",
+        "SAMPLER_SOURCE_MISMATCH",
+        "SAMPLER_REJECTIONS_EXHAUSTED",
+        "SAMPLER_RESULT_INVALID"
+      ]
+    },
+    "result_hash": {
+      "$ref": "#/$defs/sha"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "success"
+          }
+        },
+        "additionalProperties": {}
+      },
+      "then": {
+        "properties": {
+          "structural_program_hash": {
+            "$ref": "#/$defs/sha"
+          },
+        "terminal_rejection_evidence_hash": {"type": "null"},
+        "decision_trace_hash": {"$ref": "#/$defs/sha"},
+          "error": {
+            "type": "null"
+          }
+        },
+        "additionalProperties": {}
+      },
+      "else": {
+        "properties": {
+          "structural_program_hash": {
+            "type": "null"
+          },
+          "error": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": {}
+      }
+    },
+    {
+      "if": {"properties": {"error": {"const": "SAMPLER_REJECTIONS_EXHAUSTED"}}, "required": ["error"], "additionalProperties": {}},
+      "then": {"properties": {"decision_trace_hash": {"$ref": "#/$defs/sha"}, "terminal_rejection_evidence_hash": {"$ref": "#/$defs/sha"}}, "additionalProperties": {}},
+      "else": {"if": {"properties": {"status": {"const": "failure"}}, "additionalProperties": {}}, "then": {"properties": {"decision_trace_hash": {"type": "null"}, "terminal_rejection_evidence_hash": {"type": "null"}, "rejections_consumed": {"const": 0}}, "additionalProperties": {}}, "additionalProperties": {}}
+    }
+  ]
+}

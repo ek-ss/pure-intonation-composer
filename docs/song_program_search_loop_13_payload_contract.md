@@ -24,10 +24,10 @@ schema is allowed.
 | EventPayload `kind` | exact artifact schema | RunManifest field | RunContext raw-bytes field |
 |---|---|---|---|
 | `candidate_source_decision` | `candidate_source_decision.schema.json` | `candidate_source_decision_schema_hash` | `candidate_source_decision` |
-| `sampler_request` | `structural_sampler_request.schema.json` | `sampler_request_schema_hash` | `sampler_request` |
-| `sampler_result` | `structural_sampler_result.schema.json` | `sampler_result_schema_hash` | `sampler_result` |
+| `sampler_request` | `structural_sampler_request_1_1.schema.json` | `sampler_request_schema_hash` | `sampler_request` |
+| `sampler_result` | `structural_sampler_result_1_1.schema.json` | `sampler_result_schema_hash` | `sampler_result` |
 | `production_request` | `broad_prior_production_request_1_1.schema.json` | `production_request_schema_hash` | `production_request` |
-| `production_result` | `broad_prior_production_result.schema.json` | `production_result_schema_hash` | `production_result` |
+| `production_result` | `broad_prior_production_result_1_1.schema.json` | `production_result_schema_hash` | `production_result` |
 | `planner_request` | `planner_request.schema.json` | `planner_request_schema_hash` | `planner_request` |
 | `planner_response` | `planner_response.schema.json` | `planner_response_schema_hash` | `planner_response` |
 | `fallback_request` | `fallback_request_1_1.schema.json` | `fallback_request_schema_hash` | `fallback_request` |
@@ -43,7 +43,7 @@ schema is allowed.
 | `render_dispatch` | `render_dispatch_authorization.schema.json` | `render_dispatch_authorization_schema_hash` | `render_dispatch_authorization` |
 | `render_result` | `render_result.schema.json` | `render_result_schema_hash` | `render_result` |
 | `evaluation_request` | `evaluation_request.schema.json` | `evaluation_request_schema_hash` | `evaluation_request` |
-| `metric_report` | `evaluation_report.schema.json` | `evaluation_report_schema_hash` | `evaluation_report` |
+| `metric_report` | `evaluation_report_1_1.schema.json` | `evaluation_report_schema_hash` | `evaluation_report` |
 | `challenger_acceptance_decision` | `challenger_acceptance_decision_1_1.schema.json` | `challenger_acceptance_decision_schema_hash` | `challenger_acceptance_decision` |
 | `archive_admission_decision` | `archive_admission_decision.schema.json` | `archive_admission_decision_schema_hash` | `archive_admission_decision` |
 | `archive_update` | `qd_archive_record.schema.json` | `qd_archive_record_schema_hash` | `qd_archive_record` |
@@ -166,6 +166,18 @@ candidate count. No unselected-branch field is permitted.
 
 ### StructuralSamplerRequest and Result
 
+A SearchLoop13 run bound to SamplerManifest 1.1 uses
+`structural_sampler_request_1_1.schema.json`,
+`structural_sampler_trace_1_1.schema.json`, and
+`structural_sampler_result_1_1.schema.json`; the unversioned files are legacy
+SamplerManifest 1.0 envelopes only. Request, trace, and result repeat the exact
+sampler, StructuralLoweringManifest, structural Program schema, and structural
+rejection-evidence schema hashes from the RunContext. Their self hashes use,
+respectively, domains `cps.structural-sampler-request/v1.1\0`,
+`cps.structural-sampler-trace/v1.1\0`, and
+`cps.structural-sampler-result/v1.1\0`, followed by canonical bytes with final
+LF of the object with its self-hash member omitted.
+
 A sampler request is legal only for an `initial_sampler` source. Its root seed,
 cohort, source-decision hash, and sampler-manifest hash are copied exactly from
 that decision/context. `structural_program_schema_hash` identifies the sealed
@@ -183,6 +195,33 @@ validation precedence: `SAMPLER_REQUEST_INVALID`,
 `SAMPLER_RESULT_INVALID`. A successful attempt
 after `r` rejected attempts stores `r`; exhaustion stores exactly
 `sampler_manifest.maximum_rejections_per_seed`.
+
+Every rejected v1.1 trace attempt inlines exactly one closed
+StructuralRejectionEvidence and repeats its evidence hash. The evidence hash
+must recompute under `cps.structural-rejection-evidence/v1\0`. A failure before
+a complete schema-valid structural Program has null `candidate_program_hash`;
+a hard-constraint rejection after complete lowering has the canonical
+structural Program hash. Codes 1 through 5 and 12 in the Structural Sampler 1.1
+precedence have a null candidate hash; codes 6 through 11 and 13 have the
+canonical candidate hash. Success has a Program hash and null evidence. The
+terminal evidence hash in a failed result equals the last attempt's evidence
+hash; it is null on success. Exhaustion has non-null trace and terminal
+evidence hashes. An envelope/binding failure has both hashes null,
+`rejections_consumed=0`, and creates no artificial attempt. Exhaustion is the
+only producer-attempt failure;
+envelope/binding failures precede it in the result error order. Within an
+attempt the Structural Sampler 1.1 rejection precedence remains authoritative.
+
+The v1.1 production pair is
+`broad_prior_production_request_1_1.schema.json` and
+`broad_prior_production_result_1_1.schema.json`. Result 1.1 repeats the run,
+context, source, sampler, structural-lowering, production-lowering, catalog,
+request, and structural Program hashes exactly. Result 1.0 cannot answer a 1.1
+request. Its self hash domain is `cps.broad-prior-production-result/v1.1\0`.
+Production first-failure order is the result schema enum order. Success alone
+has output; failure has null output. The output Program canonicalizes to its
+`program_hash` and must be SongProgram 0.1 with all tracks/production supplied
+only by the bound ProductionLoweringManifest.
 
 ### PlannerRequest and Response
 
@@ -227,6 +266,38 @@ request hash without a provider call; two first executions may legally share a
 run hash but have different transcript roots and may never overwrite or merge
 one another. Authoritative fixtures supply a sealed response seam and never
 call a live provider.
+
+TokenizerManifest fixes algorithm/implementation/vocabulary, normalization,
+ordered special tokens and counting. PlannerToolCatalog contains the complete
+ordered, closed declarations; tool names are unique and UTF-8 sorted, and each
+declaration hash covers the declaration without that hash. RunManifest and
+RunContext bind both raw schemas and the nullable artifacts. The tokenizer is
+non-null exactly when a token ceiling is non-null. The catalog is null exactly
+for `tool_policy=disabled`; otherwise it is non-null.
+
+Manifest/policy duplicate validation is first-failure-wins in this order:
+planner manifest hash; provider; model; model snapshot; prompt asset hash;
+manifest `input_schema_hash` equals the PlannerRequest raw schema hash;
+manifest `output_schema_hash` equals both policy `response_schema_hash` and the
+PlannerResponse raw schema hash; manifest `maximum_request_bytes` equals policy
+`maximum_input_bytes`; manifest `maximum_response_bytes` equals policy
+`maximum_output_bytes`; tokenizer nullability/hash; then tool-policy catalog
+nullability/hash. A mismatch yields `PLANNER_MANIFEST_MISMATCH` before request
+size, provider, timeout, or response validation.
+
+Each tokenizer implementation, vocabulary, merges, and normalization asset
+stores content kind, exact raw-byte SHA-256 and byte length; nullable assets
+are absent only where the algorithm declares them unused. Special-token
+`bytes_hash` is raw SHA-256 of exactly `UTF8(utf8)`. Tool schemas are not
+embedded: `canonical_schema_bytes_base64` decodes to canonical JSON with no LF,
+its raw SHA-256 equals `input_schema_hash`, and its length equals `byte_length`.
+Each tool `declaration_hash` and the catalog hash use the standard artifact
+rule. Tokenizer assets are registry `external` edges and tool input schemas are
+`raw_schema` edges.
+
+Raw provider bytes, text, token logprobs, request IDs and usage reports are
+operational audit telemetry only. They MUST NOT enter semantic CAS, fixture
+inputs or closure, PlannerResponse, any RunRecord payload, or transcript root.
 
 The response repeats request/source/context/planner bindings. A success has a
 closed ordered `mutation_proposal` of one through four complete Mutation
@@ -472,6 +543,9 @@ RunContext. The case self-hashes by the standard artifact rule with only
 `transcript_root_hash`, the closed CAS inventory root, final checkpoint artifact
 hash, cache-publication index hash, and every PCM asset's file/PCM/artifact
 hashes. Files not reachable from these roots are not fixture authority.
+`operational_deadline_seconds` is necessarily null in an authoritative case:
+wall-clock interruption is operational checkpointing only and cannot select an
+expected transcript boundary or semantic result.
 
 The CAS inventory root is a closed `SearchLoop13 CAS Index 1.0`. Its
 `cas_index_schema_hash` is bound in RunManifest/RunContext and copied into the
@@ -527,6 +601,10 @@ artifact rule with only itself omitted. The fixture's expected
 `cache_publication_index_hash` makes cold cache bytes authoritative without
 adding a scheduled RunRecord.
 
+`operational_deadline_seconds` is necessarily null in an authoritative case.
+Wall-clock interruption is operational checkpointing only and cannot select an
+expected transcript boundary or semantic result.
+
 ### Pure seam conformance failures
 
 Phases 4, 5, 9, 10, and 11 are deterministic pure seams. An invalid input or
@@ -540,6 +618,51 @@ the first failure. This rule covers FingerprintRecord, NearDuplicateDecision,
 ChallengerAcceptanceDecision, ArchiveAdmissionDecision, QDArchiveRecord,
 ArchiveHeadsSnapshot, and RoundDecision. Domain outcomes such as `distinct`,
 `not admitted`, or `not accepted` remain valid results, not failures.
+
+An authoritative FixtureCase with `stop_branch=conformance_violation` uses
+only `violationExpected`: `final_checkpoint_hash` is null, `failure` binds the
+first invalid coordinate and evidence, and `transcript_root_hash` is null iff
+no RunRecord was committed. Every other stop branch uses `normalExpected` and
+has a non-null final checkpoint and null failure.
+
+The failure evidence hash resolves closed ConformanceViolationEvidence. Its
+self hash uses the standard artifact rule and its stage follows the pure-seam
+validation order. Fixture validation order is: fixture schema/self hash;
+`stop_branch`/expected-union equality; edge-registry closure; cache scenario;
+parallel scenario; then suite order/uniqueness/coverage. Stop at the first
+failure.
+
+`SearchLoop13 FixtureSuiteIndex 1.0` is the sole root of an authoritative
+suite. Cases sort by `case_id` UTF-8 bytes, IDs and hashes are unique, and the
+union of their coverage labels equals the fixed ordered `required_coverage`
+list exactly: success, failure, cache cold/hit/corrupt, cancel, and parallel
+1/2/4/8. Extra labels, missing labels, unindexed case files, and indexed hash
+mismatches invalidate the suite. Its self hash uses the standard artifact rule.
+
+CacheScenario fixes cold/hit/corrupt mode, exact initial raw entry bytes and
+hashes, lookup outcome, corruption receipt and publication result. Cold has no
+matching initial entry, miss, null corruption receipt and non-null publication;
+hit has one valid matching entry, hit and both result hashes null; corrupt has
+one matching corrupt raw entry, corrupt-recompute and both hashes non-null.
+ParallelScenario fixes worker count in `{1,2,4,8}`, a permutation containing
+each scheduled parallel action exactly once, and a parity-group hash. All cases
+in one parity group MUST differ only in worker count/permutation and MUST have
+identical semantic expected roots.
+
+Every FixtureEdgeRegistry instance MUST include rows for all hash-bearing
+members reachable from the selected FixtureCase branch. In particular, a
+planner branch includes prompt, invocation policy, tokenizer when non-null,
+tool catalog when non-null, PlannerRequest and PlannerResponse; a patience
+branch includes both archive snapshots, every changed-cell admission/update,
+RoundImprovementEvidence and RoundDecision. Schema digests are `raw_schema`,
+audio payloads are `raw_pcm`, semantic artifacts are `cas_json`, policy-bound
+non-CAS inputs are `external`, and comparison-only hashes are `comparator`.
+Missing, additional, or differently classified rows are invalid.
+
+RunManifest tokenizer/tool hashes, InvocationPolicy hashes and RunContext
+artifact bindings are three-way equal. Planner-null requires all four values
+null. Planner-present applies token/tool nullability above. This check occurs
+at the tokenizer/tool positions in the declared planner mismatch precedence.
 
 ## Group E: planner/fallback causal handoff
 

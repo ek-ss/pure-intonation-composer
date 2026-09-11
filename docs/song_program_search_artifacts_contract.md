@@ -246,7 +246,9 @@ PlannerManifest binds provider/model/snapshot, reasoning effort, prompt bytes
 hash, input/output schema hashes, allowed operations, maximum mutations,
 request/output byte limits, timeout as operational metadata, fallback stream
 domain, and lock/scope policy IDs. Model text cannot expand any bound. The raw
-response is stored by CAS hash; only a schema-valid parsed Mutation list is
+provider response is audit telemetry only: it is excluded from semantic CAS,
+fixture closure, records, and transcript roots. PlannerResponse is the sole
+canonical semantic artifact, and only its schema-valid parsed Mutation list is
 actionable.
 
 ## 8. Append-only run state and CAS

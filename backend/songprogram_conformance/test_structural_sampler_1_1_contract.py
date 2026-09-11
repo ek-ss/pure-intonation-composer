@@ -35,10 +35,28 @@ def test_rejection_precedence_is_exact():
 
 
 def test_new_schema_pack_resolves():
-    for name in ("structural_song_program_1_0.schema.json", "structural_lowering_manifest.schema.json", "sampler_manifest_1_1.schema.json", "structural_rejection_evidence_1_1.schema.json"):
+    for name in ("structural_song_program_1_0.schema.json", "structural_lowering_manifest.schema.json", "sampler_manifest_1_1.schema.json", "structural_rejection_evidence_1_1.schema.json", "structural_sampler_request_1_1.schema.json", "structural_sampler_trace_1_1.schema.json", "structural_sampler_result_1_1.schema.json", "broad_prior_production_result_1_1.schema.json"):
         schema = load(name)
         assert schema["$schema"] == "https://json-schema.org/draft/2020-12/schema"
         assert schema["$id"].startswith("https://cps.local/schemas/")
+
+
+def test_v11_envelopes_bind_lowering_and_evidence():
+    request = load("structural_sampler_request_1_1.schema.json")
+    trace = load("structural_sampler_trace_1_1.schema.json")
+    result = load("structural_sampler_result_1_1.schema.json")
+    required = {"sampler_manifest_hash", "structural_lowering_manifest_hash", "structural_program_schema_hash", "structural_rejection_evidence_schema_hash"}
+    assert required <= set(request["required"])
+    assert required <= set(trace["required"])
+    assert required <= set(result["required"])
+    attempts = trace["properties"]["attempts"]["items"]["oneOf"]
+    assert [item["$ref"] for item in attempts] == ["#/$defs/accepted", "#/$defs/rejectedComplete", "#/$defs/rejectedIncomplete"]
+
+
+def test_production_v11_result_repeats_request_causality():
+    schema = load("broad_prior_production_result_1_1.schema.json")
+    for field in ("run_hash", "context_hash", "source_decision_hash", "request_hash", "sampler_manifest_hash", "structural_lowering_manifest_hash", "production_lowering_manifest_hash", "instrument_catalog_digest", "structural_program_hash"):
+        assert field in schema["required"]
 
 
 def test_contract_fixes_attempt_stream_and_expansion():
