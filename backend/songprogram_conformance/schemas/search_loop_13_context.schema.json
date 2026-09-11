@@ -74,6 +74,8 @@
         "sampler_result",
         "planner_request",
         "planner_response",
+        "planner_prompt_asset",
+        "planner_invocation_policy",
         "compile_only_request",
         "compile_only_result",
         "compile_only_cache_entry",
@@ -105,6 +107,7 @@
         "archive_admission_decision",
         "qd_archive_record",
         "round_decision"
+        ,"round_improvement_evidence"
       ],
       "properties": {
         "mutation": {
@@ -155,6 +158,8 @@
         "planner_response": {
           "$ref": "#/$defs/rawHash"
         },
+        "planner_prompt_asset": {"$ref":"#/$defs/rawHash"},
+        "planner_invocation_policy": {"$ref":"#/$defs/rawHash"},
         "compile_only_request": {
           "$ref": "#/$defs/rawHash"
         },
@@ -247,7 +252,8 @@
         },
         "round_decision": {
           "$ref": "#/$defs/rawHash"
-        }
+        },
+        "round_improvement_evidence": {"$ref":"#/$defs/rawHash"}
       }
     },
     "context_hash": {
@@ -301,6 +307,8 @@
             "genre_intent",
             "qd_manifest",
             "planner_manifest",
+            "planner_prompt_asset",
+            "planner_invocation_policy",
             "mutation_choice_catalog",
             "fingerprint_spec",
             "archive_admission_policy",
@@ -343,6 +351,8 @@
         "genre_intent",
         "qd_manifest",
         "planner_manifest",
+        "planner_prompt_asset",
+        "planner_invocation_policy",
         "mutation_choice_catalog",
         "fingerprint_spec",
         "archive_admission_policy",
@@ -386,6 +396,8 @@
             }
           ]
         },
+        "planner_prompt_asset": {"oneOf":[{"$ref":"#/$defs/binding"},{"type":"null"}]},
+        "planner_invocation_policy": {"oneOf":[{"$ref":"#/$defs/binding"},{"type":"null"}]},
         "mutation_choice_catalog": {
           "$ref": "#/$defs/binding"
         },

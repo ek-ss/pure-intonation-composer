@@ -16,6 +16,8 @@
     "genre_intent_hash",
     "qd_manifest_hash",
     "planner_manifest_hash",
+    "planner_prompt_asset_hash",
+    "planner_invocation_policy_hash",
     "mutation_choice_catalog_hash",
     "fingerprint_spec_hash",
     "archive_admission_policy_hash",
@@ -30,6 +32,8 @@
     "sampler_result_schema_hash",
     "planner_request_schema_hash",
     "planner_response_schema_hash",
+    "planner_prompt_asset_schema_hash",
+    "planner_invocation_policy_schema_hash",
     "evaluation_manifest_schema_hash",
     "evaluation_request_schema_hash",
     "evaluation_report_schema_hash",
@@ -63,6 +67,7 @@
     "archive_admission_decision_schema_hash",
     "qd_archive_record_schema_hash",
     "round_decision_schema_hash",
+    "round_improvement_evidence_schema_hash",
     "population_size",
     "candidates_per_round",
     "planner_call_budget",
@@ -115,6 +120,8 @@
         }
       ]
     },
+    "planner_prompt_asset_hash": {"oneOf":[{"type":"null"},{"$ref":"#/$defs/sha"}]},
+    "planner_invocation_policy_hash": {"oneOf":[{"type":"null"},{"$ref":"#/$defs/sha"}]},
     "mutation_choice_catalog_hash": {
       "$ref": "#/$defs/sha"
     },
@@ -143,6 +150,8 @@
     "sampler_result_schema_hash": {"$ref": "#/$defs/sha"},
     "planner_request_schema_hash": {"$ref": "#/$defs/sha"},
     "planner_response_schema_hash": {"$ref": "#/$defs/sha"},
+    "planner_prompt_asset_schema_hash": {"$ref": "#/$defs/sha"},
+    "planner_invocation_policy_schema_hash": {"$ref": "#/$defs/sha"},
     "evaluation_manifest_schema_hash": {"$ref": "#/$defs/sha"},
     "evaluation_request_schema_hash": {"$ref": "#/$defs/sha"},
     "evaluation_report_schema_hash": {"$ref": "#/$defs/sha"},
@@ -176,6 +185,7 @@
     "archive_admission_decision_schema_hash": {"$ref": "#/$defs/sha"},
     "qd_archive_record_schema_hash": {"$ref": "#/$defs/sha"},
     "round_decision_schema_hash": {"$ref": "#/$defs/sha"},
+    "round_improvement_evidence_schema_hash": {"$ref": "#/$defs/sha"},
     "population_size": {
       "type": "integer",
       "minimum": 1,

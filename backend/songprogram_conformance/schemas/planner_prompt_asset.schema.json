@@ -1,0 +1,6 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema","$id":"https://cps.local/schemas/planner_prompt_asset.schema.json","title":"PlannerPromptAsset v1","type":"object","additionalProperties":false,
+  "required":["schema","schema_version","messages","asset_hash"],
+  "properties":{"schema":{"const":"cps.planner-prompt-asset"},"schema_version":{"const":"1.0.0"},"messages":{"type":"array","minItems":1,"maxItems":64,"items":{"$ref":"#/$defs/message"}},"asset_hash":{"$ref":"#/$defs/sha"}},
+  "$defs":{"sha":{"type":"string","pattern":"^sha256:[0-9a-f]{64}$"},"message":{"type":"object","additionalProperties":false,"required":["role","parts"],"properties":{"role":{"enum":["system","developer","user"]},"parts":{"type":"array","minItems":1,"maxItems":64,"items":{"$ref":"#/$defs/part"}}}},"part":{"type":"object","additionalProperties":false,"required":["type","content_utf8","content_bytes_hash"],"properties":{"type":{"const":"text"},"content_utf8":{"type":"string","maxLength":1048576},"content_bytes_hash":{"$ref":"#/$defs/sha"}}}}
+}

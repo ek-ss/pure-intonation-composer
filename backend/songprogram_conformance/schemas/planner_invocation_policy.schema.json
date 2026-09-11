@@ -1,0 +1,155 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cps.local/schemas/planner_invocation_policy.schema.json",
+  "title": "PlannerInvocationPolicy v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "schema_version",
+    "planner_manifest_hash",
+    "prompt_asset_hash",
+    "provider",
+    "model",
+    "model_snapshot",
+    "tokenizer_manifest_hash",
+    "response_schema_hash",
+    "tool_catalog_hash",
+    "assembly",
+    "framing",
+    "maximum_input_bytes",
+    "maximum_output_bytes",
+    "maximum_input_tokens",
+    "maximum_output_tokens",
+    "temperature_q",
+    "top_p_q",
+    "seed",
+    "tool_policy",
+    "policy_hash"
+  ],
+  "properties": {
+    "schema": {
+      "const": "cps.planner-invocation-policy"
+    },
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "planner_manifest_hash": {
+      "$ref": "#/$defs/sha"
+    },
+    "prompt_asset_hash": {
+      "$ref": "#/$defs/sha"
+    },
+    "provider": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80
+    },
+    "model": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80
+    },
+    "model_snapshot": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120
+    },
+    "tokenizer_manifest_hash": {
+      "oneOf": [{"$ref":"#/$defs/sha"},{"type":"null"}]
+    },
+    "response_schema_hash": {
+      "$ref":"#/$defs/sha"
+    },
+    "tool_catalog_hash": {
+      "oneOf": [{"$ref":"#/$defs/sha"},{"type":"null"}]
+    },
+    "assembly": {
+      "const": "prompt-messages-then-canonical-request-json/v1"
+    },
+    "framing": {
+      "const": "role-nul-u64be-length-utf8-content/v1"
+    },
+    "maximum_input_bytes": {
+      "$ref": "#/$defs/positive"
+    },
+    "maximum_output_bytes": {
+      "$ref": "#/$defs/positive"
+    },
+    "maximum_input_tokens": {
+      "$ref": "#/$defs/nullablePositive"
+    },
+    "maximum_output_tokens": {
+      "$ref": "#/$defs/nullablePositive"
+    },
+    "temperature_q": {
+      "$ref": "#/$defs/nullableQ"
+    },
+    "top_p_q": {
+      "$ref": "#/$defs/nullableQ"
+    },
+    "seed": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/$defs/u64"
+        }
+      ]
+    },
+    "tool_policy": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "enum": [
+        null,
+        "disabled",
+        "auto",
+        "required"
+      ]
+    },
+    "policy_hash": {
+      "$ref": "#/$defs/sha"
+    }
+  },
+  "$defs": {
+    "sha": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "u64": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 18446744073709551615
+    },
+    "positive": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 1073741824
+    },
+    "nullablePositive": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/$defs/positive"
+        }
+      ]
+    },
+    "nullableQ": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10000
+        }
+      ]
+    }
+  }
+}

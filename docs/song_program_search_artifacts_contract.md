@@ -135,6 +135,11 @@ runner. At most `cell_capacity-1` are kept. This is the complete meaning of
 `QDArchiveRecord` stores manifest digest, cell, revision, champion, runners,
 and previous record hash.
 
+Semantic validation rejects a duplicate candidate program, a runner sharing a
+lineage root with the champion or another runner, a runner out of the frozen
+total order, or omission of an eligible earlier runner while a later runner is
+stored. These checks precede record self-hash acceptance.
+
 ## 6. Mutation and dependency scope
 
 The normative application order, complete root table, lock behavior, operation

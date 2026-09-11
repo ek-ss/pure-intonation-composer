@@ -195,6 +195,39 @@ each metric has either integer `value` and integer `delta`, or both null and a
 non-null frozen missing-reason code. `failed_constraints` sort by UTF-8 and are
 unique. Lineage-root hashes sort by raw digest bytes and are unique.
 
+PlannerPromptAsset is a closed ordered array of messages and ordered text
+parts. For every part, `content_bytes_hash` is the raw SHA-256 of exactly
+`UTF8(content_utf8)`; normalization, newline insertion, and template expansion
+are forbidden. PlannerInvocationPolicy repeats the manifest's
+provider/model/snapshot and prompt hash and fixes assembly, framing, byte and
+token ceilings, temperature, top-p, seed, and tool policy. An unsupported
+provider control is explicitly null, never omitted or approximated. Its
+`response_schema_hash` binds the only accepted PlannerResponse schema.
+`tokenizer_manifest_hash` is non-null iff either token ceiling is non-null and
+fixes normalization, vocabulary and counting; otherwise both token ceilings
+and that hash are null. `tool_catalog_hash` is null exactly for `disabled`
+tool policy and otherwise binds the complete ordered tool declarations.
+Provider-native hidden tools or tokenizer aliases are forbidden. Its
+assembly byte string is, for every prompt part in array order,
+`UTF8(role) || NUL || u64be(len(content_bytes)) || content_bytes`, followed by
+`u64be(len(canonical_json(PlannerRequest without invocation_request_hash and
+request_hash))) || canonical_json(...)`. `invocation_request_hash` is
+SHA-256 of `"cps.planner-invocation-request/v1\0" || assembly_bytes || LF`.
+Input byte and provider-token counts are checked before invocation; output
+token and byte ceilings are both passed to the provider when non-null and the
+first exceeded ceiling yields the existing size diagnostic.
+
+RunManifest and RunContext bind both artifacts and their raw schemas. They are
+both null iff PlannerManifest is null. FixtureEdgeRegistry MUST declare the
+PlannerRequest edges to prompt asset and invocation policy, and the invocation
+policy edges to planner manifest and prompt asset. The run hash identifies
+sealed inputs, not a nondeterministic provider realization. The transcript
+root identifies the realized response. A committed response is replayed by
+request hash without a provider call; two first executions may legally share a
+run hash but have different transcript roots and may never overwrite or merge
+one another. Authoritative fixtures supply a sealed response seam and never
+call a live provider.
+
 The response repeats request/source/context/planner bindings. A success has a
 closed ordered `mutation_proposal` of one through four complete Mutation
 objects, its `proposal_hash`, and null diagnostic. `proposal_hash` uses the

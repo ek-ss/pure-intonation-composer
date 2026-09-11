@@ -60,6 +60,12 @@ classification counts, and bootstrap intervals independently recomputable by
 integer arithmetic; the normative formulas and rejection precedence are in
 `docs/song_program_evaluation_operator_contract.md`.
 
+Planner realization is closed by `planner_prompt_asset` and
+`planner_invocation_policy`; round patience is closed by
+`round_improvement_evidence`. These are schema-bound through RunManifest and
+RunContext and have normative hashing and replay rules in the SearchLoop13
+payload and decision contracts.
+
 Fallback and broad-prior production have a production-independent reference in
 `fallback_sampler_oracle.py`. Its maintainer builder and authoritative
 success/retry/lock/exhaustion, weighted-boundary, and register-endpoint cases

@@ -115,6 +115,22 @@ otherwise it increments once per completed round. Stop precedence is
 `patience`. Here `accepted` means a policy-approved challenger selected as the
 run champion; it is not a consecutive-threshold gate.
 
+RoundImprovementEvidence makes that predicate executable. Compare each changed
+cell's before/after champions using ArchiveAdmissionPolicy quality components
+in declared order. At the first unequal numeric component, compute
+`direction_normalized_delta = after-before` for maximize and `before-after`
+for minimize. Later components are ignored. Program-hash tie-breaks are not
+numeric components and never constitute material improvement. A replacement
+meets the threshold iff this delta is positive and at least
+`first_differing_component_min_delta`; a new cell meets it exactly according to
+the policy's `new_cell_is_improvement`. The round improves iff any row meets.
+Rows contain every and only changed cells and sort by raw cell tuple; unchanged
+cells are omitted. `accepted_replacement_hashes` are the corresponding archive
+admission decision hashes, sorted by raw cell tuple, excluding new cells.
+RoundDecision MUST repeat the evidence hashes, counts and boolean exactly;
+patience resets to zero iff the evidence boolean is true, otherwise checked-u64
+increments once. Any mismatch is invalid before stop precedence is evaluated.
+
 ## Cancellation
 
 A cancellation request is external immutable input. At the next canonical
