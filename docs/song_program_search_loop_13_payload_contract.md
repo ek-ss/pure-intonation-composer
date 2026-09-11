@@ -633,7 +633,15 @@ parallel scenario; then suite order/uniqueness/coverage. Stop at the first
 failure.
 
 `SearchLoop13 FixtureSuiteIndex 1.0` is the sole root of an authoritative
-suite. Cases sort by `case_id` UTF-8 bytes, IDs and hashes are unique, and the
+suite. Every case entry contains `path`, `raw_file_sha256`, `case_hash`, and
+`case_schema_hash`. `path` is repository-relative, NFC, contains no `.` or
+`..` segment, and resolves beneath the suite-index directory without symlink
+escape. The validator hashes the exact file bytes for `raw_file_sha256`, then
+parses and validates them with the exact raw schema named by
+`case_schema_hash`, then recomputes `case_hash` by the standard artifact rule.
+No directory scan or filename inference may replace this resolution. Cases
+sort by `case_id` UTF-8 bytes; paths, IDs, raw hashes, and case hashes are
+unique, and the
 union of their coverage labels equals the fixed ordered `required_coverage`
 list exactly: success, failure, cache cold/hit/corrupt, cancel, and parallel
 1/2/4/8. Extra labels, missing labels, unindexed case files, and indexed hash
@@ -644,10 +652,22 @@ hashes, lookup outcome, corruption receipt and publication result. Cold has no
 matching initial entry, miss, null corruption receipt and non-null publication;
 hit has one valid matching entry, hit and both result hashes null; corrupt has
 one matching corrupt raw entry, corrupt-recompute and both hashes non-null.
-ParallelScenario fixes worker count in `{1,2,4,8}`, a permutation containing
-each scheduled parallel action exactly once, and a parity-group hash. All cases
+ParallelScenario fixes worker count in `{1,2,4,8}`, `scheduled_action_ids` in
+canonical action-coordinate order, a `completion_permutation` containing
+exactly that same action-ID set once, and a parity-group hash. An action is
+parallel-eligible iff its ID occurs in `scheduled_action_ids`; neither worker
+count nor observed completion may add an action. All cases
 in one parity group MUST differ only in worker count/permutation and MUST have
 identical semantic expected roots.
+
+CancellationScenario contains zero or more `(inbox_record_hash,
+arrival_barrier_coordinate)` rows in the bound inbox acceptance-sequence order;
+hashes are unique and barrier coordinates are nondecreasing. A record becomes
+observable only immediately before ordinary work at its barrier coordinate and
+remains observable thereafter. `stop_branch=cancelled` requires at least one
+arrival; every other branch may contain only arrivals whose existing control
+inbox rules do not win before its terminal coordinate. Winner and cutoff are
+then computed solely by the existing cancellation ordering rules.
 
 Every FixtureEdgeRegistry instance MUST include rows for all hash-bearing
 members reachable from the selected FixtureCase branch. In particular, a

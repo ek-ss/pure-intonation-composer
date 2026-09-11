@@ -17,7 +17,7 @@ def test_fixture_case_binds_all_authority_roots() -> None:
     assert schema["additionalProperties"] is False
     assert schema["required"] == [
         "schema", "schema_version", "case_id", "root_seed", "edge_registry", "inputs",
-        "policies", "budgets", "cache_scenario", "parallel_scenario", "stop_branch", "expected", "case_hash",
+        "policies", "budgets", "cache_scenario", "parallel_scenario", "cancellation_scenario", "stop_branch", "expected", "case_hash",
     ]
     expected = schema["$defs"]["normalExpected"]
     assert expected["required"] == [
@@ -98,6 +98,9 @@ def test_fixture_suite_and_violation_branch_are_closed() -> None:
     assert suite["additionalProperties"] is False
     assert suite["properties"]["required_coverage"]["minItems"] == 10
     assert suite["properties"]["required_coverage"]["maxItems"] == 10
+    assert suite["$defs"]["case"]["required"] == [
+        "case_id", "path", "raw_file_sha256", "case_hash", "case_schema_hash", "coverage",
+    ]
     case = load("search_loop_13_fixture_case.schema.json")
     assert "conformance_violation" in case["properties"]["stop_branch"]["enum"]
     violation = case["$defs"]["violationExpected"]
@@ -110,6 +113,8 @@ def test_cache_and_parallel_scenarios_are_closed() -> None:
     assert case["$defs"]["cacheScenario"]["additionalProperties"] is False
     assert case["$defs"]["parallelScenario"]["properties"]["worker_count"]["enum"] == [1, 2, 4, 8]
     assert case["$defs"]["parallelScenario"]["properties"]["completion_permutation"]["uniqueItems"] is True
+    assert "scheduled_action_ids" in case["$defs"]["parallelScenario"]["required"]
+    assert "cancellation_scenario" in case["required"]
 
 
 def test_planner_dependency_assets_are_byte_closed() -> None:

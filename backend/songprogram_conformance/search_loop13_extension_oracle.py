@@ -86,7 +86,8 @@ def bootstrap_indices(seed: int, replicate: int, stratum: str, population: int) 
 
 
 def rank_interval(values: Sequence[int], lower_num: int, lower_den: int, upper_num: int, upper_den: int) -> tuple[int, int]:
-    if not values or min(lower_num, upper_num) < 0 or min(lower_den, upper_den) <= 0:
+    if (not values or min(lower_num, upper_num) < 0 or min(lower_den, upper_den) <= 0
+            or lower_num > lower_den or upper_num > upper_den):
         raise ExtensionError("CALIBRATION_RANK_INVALID")
     if lower_num * upper_den > upper_num * lower_den:
         raise ExtensionError("CALIBRATION_RANK_INVALID")

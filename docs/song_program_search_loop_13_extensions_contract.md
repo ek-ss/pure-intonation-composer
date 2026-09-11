@@ -42,9 +42,11 @@ is unique; participant and stratum must belong to the bound cohort/policy.
 For deterministic stratified bootstrap replicate `r`, draw index `i` from a
 stratum of size `n` as `uint64be(SHA256("cps.calibration-bootstrap/v1\\0" ||
 u64be(seed) || u64be(r) || UTF8(stratum) || u64be(i))[0:8]) mod n`. Ranks use
-sorted `n` values at `floor((n-1)*numerator/denominator)`; lower fraction must
-not exceed upper fraction. A zero denominator yields no ratio and its criterion
-fails. All ratio rounding is nonnegative RHE. Calibration decision promotion
+sorted `n` values at `floor((n-1)*numerator/denominator)`. Each rank fraction
+MUST satisfy `0 <= numerator <= denominator`; the lower fraction must not
+exceed the upper fraction by cross multiplication. A violation is
+`CALIBRATION_RANK_INVALID`. A zero denominator in an observed criterion ratio
+yields no ratio and its criterion fails. All ratio rounding is nonnegative RHE. Calibration decision promotion
 requires its promoted metric set and every margin to equal the corresponding
 ChallengerAcceptancePolicy 1.1 row.
 

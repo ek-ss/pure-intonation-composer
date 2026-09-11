@@ -16,6 +16,8 @@ def test_genre_similarity_is_integer_lower_median() -> None:
 def test_bootstrap_rank_and_zero_denominator_are_deterministic() -> None:
     assert bootstrap_indices(7, 2, "a", 4) == bootstrap_indices(7, 2, "a", 4)
     assert rank_interval([4, 1, 9, 2], 1, 4, 3, 4) == (1, 4)
+    with pytest.raises(ExtensionError, match="RANK_INVALID"):
+        rank_interval([1, 2], 5, 4, 1, 1)
     assert criterion_ratio(0, 0) is None
     assert not calibrated_criterion(None, minimum=1)
 
