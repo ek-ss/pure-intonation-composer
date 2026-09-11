@@ -26,12 +26,28 @@ from app.songprogram.search_decisions import (
     reserve_render,
     round_decision,
     select_render_candidates,
+    validate_calibration_rank_policy,
+    validate_cancellation_scenario,
     validate_decision_components,
+    validate_parallel_scenario,
 )
 
 
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURES = ROOT / "songprogram_conformance" / "fixtures" / "search_decisions"
+
+
+def test_search_loop13_cross_field_fixture_validators() -> None:
+    validate_calibration_rank_policy({"lower_rank_numerator": 1, "lower_rank_denominator": 4, "upper_rank_numerator": 3, "upper_rank_denominator": 4})
+    with pytest.raises(SearchArtifactError, match="CALIBRATION_RANK_INVALID"):
+        validate_calibration_rank_policy({"lower_rank_numerator": 5, "lower_rank_denominator": 4, "upper_rank_numerator": 1, "upper_rank_denominator": 1})
+    coordinates = {"act_a": (0, 1, 0, 0), "act_b": (0, 1, 1, 0)}
+    validate_parallel_scenario({"scheduled_action_ids": ["act_a", "act_b"], "completion_permutation": ["act_b", "act_a"]}, coordinates)
+    with pytest.raises(SearchArtifactError, match="PARALLEL_SCENARIO_INVALID"):
+        validate_parallel_scenario({"scheduled_action_ids": ["act_b", "act_a"], "completion_permutation": ["act_a", "act_b"]}, coordinates)
+    validate_cancellation_scenario({"arrivals": [{"inbox_record_hash": "h1", "arrival_barrier_coordinate": {"round": 0, "phase_ordinal": 1, "candidate_ordinal": 0, "event_ordinal": 0}}]}, "cancelled")
+    with pytest.raises(SearchArtifactError, match="CANCELLATION_SCENARIO_INVALID"):
+        validate_cancellation_scenario({"arrivals": []}, "cancelled")
 
 
 def _load(path: str):

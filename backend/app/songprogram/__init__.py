@@ -61,6 +61,9 @@ from .search_decisions import (
     reserve_render,
     round_decision,
     select_render_candidates,
+    validate_calibration_rank_policy,
+    validate_cancellation_scenario,
+    validate_parallel_scenario,
 )
 from .search import (
     ArchiveCandidate,
@@ -158,6 +161,9 @@ __all__ = [
     "seal_record",
     "select_render_candidates",
     "update_archive_record",
+    "validate_calibration_rank_policy",
     "validate_cache_entry",
+    "validate_cancellation_scenario",
+    "validate_parallel_scenario",
     "validate_project",
 ]

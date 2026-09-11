@@ -86,6 +86,60 @@ def resolve_decision_component(source: Mapping[str, str], artifacts: Mapping[str
     return value
 
 
+def validate_calibration_rank_policy(policy: Mapping[str, Any]) -> None:
+    """Validate the cross-field bootstrap rank bounds omitted by JSON Schema."""
+    try:
+        lower_num, lower_den = policy["lower_rank_numerator"], policy["lower_rank_denominator"]
+        upper_num, upper_den = policy["upper_rank_numerator"], policy["upper_rank_denominator"]
+    except KeyError as error:
+        raise SearchArtifactError("CALIBRATION_RANK_INVALID") from error
+    values = (lower_num, lower_den, upper_num, upper_den)
+    if any(isinstance(value, bool) or not isinstance(value, int) for value in values):
+        raise SearchArtifactError("CALIBRATION_RANK_INVALID")
+    if not (0 <= lower_num <= lower_den and 0 <= upper_num <= upper_den):
+        raise SearchArtifactError("CALIBRATION_RANK_INVALID")
+    if lower_num * upper_den > upper_num * lower_den:
+        raise SearchArtifactError("CALIBRATION_RANK_INVALID")
+
+
+def validate_parallel_scenario(scenario: Mapping[str, Any], action_coordinates: Mapping[str, Sequence[int]]) -> None:
+    """Authenticate a fixture's complete scheduled set and completion order."""
+    scheduled, completed = scenario.get("scheduled_action_ids"), scenario.get("completion_permutation")
+    if not isinstance(scheduled, list) or not scheduled or not isinstance(completed, list):
+        raise SearchArtifactError("FIXTURE_PARALLEL_SCENARIO_INVALID")
+    if len(scheduled) != len(set(scheduled)) or len(completed) != len(set(completed)):
+        raise SearchArtifactError("FIXTURE_PARALLEL_SCENARIO_INVALID")
+    if set(scheduled) != set(completed) or set(scheduled) != set(action_coordinates):
+        raise SearchArtifactError("FIXTURE_PARALLEL_SCENARIO_INVALID")
+    try:
+        expected = sorted(scheduled, key=lambda action_id: tuple(action_coordinates[action_id]))
+    except (KeyError, TypeError) as error:
+        raise SearchArtifactError("FIXTURE_PARALLEL_SCENARIO_INVALID") from error
+    if scheduled != expected:
+        raise SearchArtifactError("FIXTURE_PARALLEL_SCENARIO_INVALID")
+
+
+def validate_cancellation_scenario(scenario: Mapping[str, Any], stop_branch: str) -> None:
+    """Validate fixture arrival order at deterministic pre-work barriers."""
+    arrivals = scenario.get("arrivals")
+    if not isinstance(arrivals, list) or (stop_branch == "cancelled" and not arrivals):
+        raise SearchArtifactError("FIXTURE_CANCELLATION_SCENARIO_INVALID")
+    previous: tuple[int, int, int, int] | None = None
+    hashes: set[str] = set()
+    for row in arrivals:
+        try:
+            digest, coordinate = row["inbox_record_hash"], row["arrival_barrier_coordinate"]
+            key = tuple(coordinate[name] for name in ("round", "phase_ordinal", "candidate_ordinal", "event_ordinal"))
+        except (KeyError, TypeError) as error:
+            raise SearchArtifactError("FIXTURE_CANCELLATION_SCENARIO_INVALID") from error
+        if digest in hashes or any(isinstance(value, bool) or not isinstance(value, int) or value < 0 for value in key):
+            raise SearchArtifactError("FIXTURE_CANCELLATION_SCENARIO_INVALID")
+        if previous is not None and key < previous:
+            raise SearchArtifactError("FIXTURE_CANCELLATION_SCENARIO_INVALID")
+        hashes.add(digest)
+        previous = key
+
+
 def archive_admission(
     directions: Sequence[str], candidate_quality: Sequence[int], candidate_hash: str,
     incumbent_quality: Sequence[int] | None, incumbent_hash: str | None, eligible: bool,
