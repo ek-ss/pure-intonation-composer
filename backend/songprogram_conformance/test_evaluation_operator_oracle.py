@@ -1,7 +1,12 @@
+import json
+from pathlib import Path
+
 import pytest
 
 from .canonical import CanonicalJsonError
 from .evaluation_operator_oracle import EvaluationOperatorError, evidence_hash, hard_check, metric, verify_evidence
+
+SCHEMAS = Path(__file__).parent / "schemas"
 
 
 def test_operators_and_round_half_even_positive_and_negative_ties() -> None:
@@ -85,3 +90,15 @@ def test_evidence_must_preserve_manifest_source_order_and_verified_hashes() -> N
             manifest_operator=operator,
             hard=False, evidence=evidence,
         )
+
+
+def test_genre_similarity_authorities_are_closed_and_bound() -> None:
+    intent = json.loads((SCHEMAS / "genre_intent.schema.json").read_text())
+    spec = json.loads((SCHEMAS / "genre_similarity_spec.schema.json").read_text())
+    record = json.loads((SCHEMAS / "genre_feature_record.schema.json").read_text())
+    assert "genre_similarity_spec_hash" in intent["required"]
+    assert spec["properties"]["algorithm"]["const"] == "normalized-l1-q31/v1"
+    assert spec["properties"]["aggregation"]["const"] == "lower-median-reference-score/v1"
+    assert record["properties"]["embedding_q31"]["items"] == {
+        "type": "integer", "minimum": -2147483648, "maximum": 2147483647,
+    }

@@ -56,3 +56,28 @@ validation. The corresponding fixed report failure codes are
 `EVALUATION_SOURCE_TYPE_INVALID`, `EVALUATION_OPERATOR_INVALID`,
 `EVALUATION_OPERATOR_ARITY_INVALID`, `EVALUATION_ACCUMULATOR_OVERFLOW`,
 `EVALUATION_RESULT_OVERFLOW`, and `EVALUATION_RESULT_INVALID`.
+
+## Genre feature and similarity authority
+
+A genre label such as `kawaii_future_bass` is metadata only and never
+determines a score. A `genre_similarity_q` metric is legal only when the
+GenreIntent binds a promoted CalibrationDecision, ReferenceSetManifest,
+FeatureExtractorManifest, and GenreSimilaritySpec. Candidate and reference
+features are closed GenreFeatureRecords. Extractor hash, source audio, segment,
+and dimension are verified before arithmetic. A value outside signed Q1.31, a
+dimension mismatch, an empty calibration partition, or an unpromoted decision
+is `EVALUATION_SOURCE_TYPE_INVALID`; no partial score is emitted.
+
+For `normalized-l1-q31/v1`, dimension `D`, and each calibration reference,
+compute `distance=sum(abs(candidate_i-reference_i))` in checked unsigned
+128-bit arithmetic. Subtraction is mathematical integer subtraction before
+absolute value. Let `M=4294967295*D`; compute
+`score=10000-RHE(10000*distance/M)` using non-negative round-half-even. Sort
+reference scores ascending and select index `(N-1)//2`, the lower median.
+Reference array order therefore cannot affect the result.
+
+FeatureRecord `record_hash` and SimilaritySpec `spec_hash` use
+`cps-artifact-hash/v1` with only their own self-hash removed, canonical JSON,
+and no final LF. The extractor is identified by pinned build, configuration,
+weights, runtime, input contract, and segment policy hashes; substituting a
+newer model is forbidden.

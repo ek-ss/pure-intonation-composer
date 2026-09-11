@@ -103,6 +103,10 @@ for the SP0 conformance pack.
   request, charge, and dispatch authorization.
 - `fixture_edge_registry.schema.json`: fixture-bound declaration of every
   traversable hash pointer, target kind, cardinality, and canonical root role.
+- `genre_feature_record.schema.json`: pinned-extractor signed-Q1.31 embedding
+  bound to its exact source audio segment.
+- `genre_similarity_spec.schema.json`: exact normalized-L1 and lower-median
+  aggregation contract for calibrated genre similarity.
 
 All object schemas use `additionalProperties: false`; nullable values must be
 present where listed as required. Cross-record invariants that JSON Schema

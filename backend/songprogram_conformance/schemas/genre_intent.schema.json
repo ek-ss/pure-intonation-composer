@@ -2,7 +2,7 @@
   "$schema":"https://json-schema.org/draft/2020-12/schema",
   "$id":"https://cps.local/schemas/genre_intent.schema.json",
   "title":"CPS GenreIntent v1","type":"object","additionalProperties":false,
-  "required":["schema","schema_version","intent_id","display_label","requested_tags","metrics","reference_set_manifest_hash","feature_extractor_manifest_hash","calibration_decision_hash","intent_hash"],
+  "required":["schema","schema_version","intent_id","display_label","requested_tags","metrics","reference_set_manifest_hash","feature_extractor_manifest_hash","genre_similarity_spec_hash","calibration_decision_hash","intent_hash"],
   "properties":{
     "schema":{"const":"cps.genre-intent"},"schema_version":{"const":"1.0.0"},
     "intent_id":{"type":"string","pattern":"^[a-z][a-z0-9_.-]{0,127}$"},
@@ -11,6 +11,7 @@
     "metrics":{"type":"array","minItems":1,"maxItems":16,"uniqueItems":true,"items":{"$ref":"#/$defs/metric"}},
     "reference_set_manifest_hash":{"oneOf":[{"$ref":"#/$defs/sha"},{"type":"null"}]},
     "feature_extractor_manifest_hash":{"oneOf":[{"$ref":"#/$defs/sha"},{"type":"null"}]},
+    "genre_similarity_spec_hash":{"oneOf":[{"$ref":"#/$defs/sha"},{"type":"null"}]},
     "calibration_decision_hash":{"oneOf":[{"$ref":"#/$defs/sha"},{"type":"null"}]},
     "intent_hash":{"$ref":"#/$defs/sha"}
   },
@@ -24,7 +25,7 @@
     "symbolicMetric":{"type":"object","additionalProperties":false,"properties":{"kind":{"const":"symbolic_integer"}}}
   },
   "allOf":[
-    {"if":{"properties":{"metrics":{"contains":{"$ref":"#/$defs/genreMetric"}}},"required":["metrics"],"additionalProperties":{}},"then":{"properties":{"reference_set_manifest_hash":{"$ref":"#/$defs/sha"},"feature_extractor_manifest_hash":{"$ref":"#/$defs/sha"},"calibration_decision_hash":{"$ref":"#/$defs/sha"}},"additionalProperties":{}}},
-    {"if":{"properties":{"metrics":{"not":{"contains":{"$ref":"#/$defs/genreMetric"}}}},"required":["metrics"],"additionalProperties":{}},"then":{"properties":{"reference_set_manifest_hash":{"type":"null"},"feature_extractor_manifest_hash":{"type":"null"},"calibration_decision_hash":{"type":"null"}},"additionalProperties":{}}}
+    {"if":{"properties":{"metrics":{"contains":{"$ref":"#/$defs/genreMetric"}}},"required":["metrics"],"additionalProperties":{}},"then":{"properties":{"reference_set_manifest_hash":{"$ref":"#/$defs/sha"},"feature_extractor_manifest_hash":{"$ref":"#/$defs/sha"},"genre_similarity_spec_hash":{"$ref":"#/$defs/sha"},"calibration_decision_hash":{"$ref":"#/$defs/sha"}},"additionalProperties":{}}},
+    {"if":{"properties":{"metrics":{"not":{"contains":{"$ref":"#/$defs/genreMetric"}}}},"required":["metrics"],"additionalProperties":{}},"then":{"properties":{"reference_set_manifest_hash":{"type":"null"},"feature_extractor_manifest_hash":{"type":"null"},"genre_similarity_spec_hash":{"type":"null"},"calibration_decision_hash":{"type":"null"}},"additionalProperties":{}}}
   ]
 }
