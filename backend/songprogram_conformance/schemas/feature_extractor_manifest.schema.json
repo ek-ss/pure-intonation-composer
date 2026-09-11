@@ -1,0 +1,14 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"https://cps.local/schemas/feature_extractor_manifest.schema.json",
+  "title":"CPS Genre FeatureExtractorManifest v1","type":"object","additionalProperties":false,
+  "required":["schema","schema_version","extractor_id","extractor_version","extractor_build_hash","input_audio_contract_hash","model_config_hash","model_weights_hash","runtime_hash","sample_rate_hz","channel_policy","segment_policy","embedding_dimension","quantization","manifest_hash"],
+  "properties":{
+    "schema":{"const":"cps.feature-extractor-manifest"},"schema_version":{"const":"1.0.0"},
+    "extractor_id":{"type":"string","pattern":"^[a-z][a-z0-9_.-]{0,127}$"},"extractor_version":{"type":"string","minLength":1,"maxLength":64},
+    "extractor_build_hash":{"$ref":"#/$defs/sha"},"input_audio_contract_hash":{"$ref":"#/$defs/sha"},"model_config_hash":{"$ref":"#/$defs/sha"},"model_weights_hash":{"$ref":"#/$defs/sha"},"runtime_hash":{"$ref":"#/$defs/sha"},
+    "sample_rate_hz":{"type":"integer","minimum":8000,"maximum":384000},"channel_policy":{"enum":["mono_downmix_rhe_q31/v1","preserve_declared_channels/v1"]},
+    "segment_policy":{"type":"object","additionalProperties":false,"required":["algorithm","start_frame","frame_count"],"properties":{"algorithm":{"const":"fixed-frame-window/v1"},"start_frame":{"$ref":"#/$defs/u64"},"frame_count":{"type":"integer","minimum":1,"maximum":2147483647}}},
+    "embedding_dimension":{"type":"integer","minimum":1,"maximum":16384},"quantization":{"const":"signed_q31_rhe/v1"},"manifest_hash":{"$ref":"#/$defs/sha"}
+  },"$defs":{"sha":{"type":"string","pattern":"^sha256:[0-9a-f]{64}$"},"u64":{"type":"integer","minimum":0,"maximum":18446744073709551615}}
+}

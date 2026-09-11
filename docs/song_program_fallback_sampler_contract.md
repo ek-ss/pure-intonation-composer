@@ -212,13 +212,12 @@ intersected or clamped. Drum maps copy immutable named catalog mappings into
 SongProgram. No compatible choice rejects the seed; it does not remove the
 role, change equave, or substitute an unlisted instrument.
 
-The structural Program already contains exactly one track shell for every
-active role and no track for an inactive role. Lowering preserves canonical
-track order, every track ID, and all realization bindings. It replaces only
-the selected instrument, register, maximum polyphony, drum map, and the static
-production fields named by this contract. A missing, duplicate, or extra role
-track is `SAMPLER_RESULT_INVALID`; lowering never invents a track ID or repairs
-a realization reference.
+Legacy production request 1.0 receives a complete SongProgram and requires one
+pre-existing track shell for every active role. SearchLoop13 with
+SamplerManifest 1.1 instead uses production request 1.1 and the structural
+boundary in `song_program_structural_sampler_1_1_contract.md`: production
+creates canonical `trk_<role>` tracks and converts realization roles to track
+references. The two request versions MUST NOT be mixed.
 
 For a pitched catalog endpoint frequency `F` and Program base frequency `B`,
 derive its base-relative endpoint as `ratio_mc(F/B)` using NumericContract

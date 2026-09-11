@@ -16,7 +16,7 @@ def test_fixture_case_binds_all_authority_roots() -> None:
     schema = load("search_loop_13_fixture_case.schema.json")
     assert schema["additionalProperties"] is False
     assert schema["required"] == [
-        "schema", "schema_version", "case_id", "root_seed", "inputs",
+        "schema", "schema_version", "case_id", "root_seed", "edge_registry", "inputs",
         "policies", "budgets", "stop_branch", "expected", "case_hash",
     ]
     expected = schema["$defs"]["expected"]
@@ -69,3 +69,23 @@ def test_cas_index_is_closed_runtime_bound_inventory() -> None:
     text = (ROOT.parent / "docs" / "song_program_search_loop_13_payload_contract.md").read_text(encoding="utf-8")
     assert "artifact_hash raw digest bytes" in text
     assert "reachable closure, not JSON Schema alone" in text
+
+
+def test_fixture_edge_registry_closes_hash_traversal() -> None:
+    registry = load("fixture_edge_registry.schema.json")
+    assert registry["additionalProperties"] is False
+    edge = registry["$defs"]["edge"]
+    assert edge["required"] == ["json_pointer", "target_kind", "nullable", "cardinality"]
+    assert edge["properties"]["target_kind"]["enum"] == [
+        "cas_json", "raw_pcm", "raw_schema", "external", "comparator"
+    ]
+    case = load("search_loop_13_fixture_case.schema.json")
+    assert "edge_registry" in case["required"]
+    binding = case["$defs"]["edgeRegistryBinding"]
+    assert binding["required"] == [
+        "path", "registry_hash", "registry_schema_hash",
+        "registry_bytes_base64", "registry_schema_bytes_base64",
+    ]
+    text = (ROOT.parent / "docs" / "song_program_search_loop_13_payload_contract.md").read_text(encoding="utf-8")
+    assert "walks only registry-declared hash edges" in text
+    assert "terminates validation\nas `CONFORMANCE_VIOLATION`" in text

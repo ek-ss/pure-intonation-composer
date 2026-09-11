@@ -1,0 +1,17 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"https://cps.local/schemas/broad_prior_production_request_1_1.schema.json",
+  "title":"SearchLoop13 BroadPriorProductionRequest v1.1",
+  "type":"object","additionalProperties":false,
+  "required":["schema","schema_version","run_hash","context_hash","source_decision_hash","root_seed","cohort_index","production_rejection_ordinal","sampler_manifest_hash","structural_lowering_manifest_hash","production_lowering_manifest_hash","instrument_catalog_digest","structural_program_hash","structural_program","active_roles","lattice_equave","request_hash"],
+  "properties":{
+    "schema":{"const":"cps.broad-prior-production-request"},"schema_version":{"const":"1.1.0"},
+    "run_hash":{"$ref":"#/$defs/sha"},"context_hash":{"$ref":"#/$defs/sha"},"source_decision_hash":{"$ref":"#/$defs/sha"},
+    "root_seed":{"$ref":"#/$defs/u64"},"cohort_index":{"$ref":"#/$defs/u64"},"production_rejection_ordinal":{"type":"integer","minimum":0,"maximum":255},
+    "sampler_manifest_hash":{"$ref":"#/$defs/sha"},"structural_lowering_manifest_hash":{"$ref":"#/$defs/sha"},"production_lowering_manifest_hash":{"$ref":"#/$defs/sha"},"instrument_catalog_digest":{"$ref":"#/$defs/sha"},
+    "structural_program_hash":{"$ref":"#/$defs/sha"},"structural_program":{"$ref":"structural_song_program_1_0.schema.json"},
+    "active_roles":{"type":"array","minItems":3,"maxItems":5,"uniqueItems":true,"items":{"enum":["drums","bass","harmony","melody","texture"]}},
+    "lattice_equave":{"type":"string","pattern":"^[1-9][0-9]*/[1-9][0-9]*$"},"request_hash":{"$ref":"#/$defs/sha"}
+  },
+  "$defs":{"sha":{"type":"string","pattern":"^sha256:[0-9a-f]{64}$"},"u64":{"type":"integer","minimum":0,"maximum":18446744073709551615}}
+}

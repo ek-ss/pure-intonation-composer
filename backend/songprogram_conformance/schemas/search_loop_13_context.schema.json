@@ -95,6 +95,7 @@
         "render_charge",
         "render_dispatch_authorization",
         "render_result",
+        "render_failure",
         "render_cache_entry",
         "render_cache_corruption_receipt",
         "audio_artifact",
@@ -215,6 +216,9 @@
           "$ref": "#/$defs/rawHash"
         },
         "render_result": {
+          "$ref": "#/$defs/rawHash"
+        },
+        "render_failure": {
           "$ref": "#/$defs/rawHash"
         },
         "render_cache_entry": {

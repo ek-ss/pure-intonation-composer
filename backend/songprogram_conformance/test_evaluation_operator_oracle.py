@@ -1,7 +1,7 @@
 import pytest
 
 from .canonical import CanonicalJsonError
-from .evaluation_operator_oracle import EvaluationOperatorError, evidence_hash, hard_check, metric
+from .evaluation_operator_oracle import EvaluationOperatorError, evidence_hash, hard_check, metric, verify_evidence
 
 
 def test_operators_and_round_half_even_positive_and_negative_ties() -> None:
@@ -26,6 +26,8 @@ def test_sequential_addition_and_final_signed64_are_checked() -> None:
         metric({"kind": "integer_identity"}, [2**63])
     with pytest.raises(EvaluationOperatorError, match="EVALUATION_RESULT_OVERFLOW"):
         metric({"kind": "integer_identity"}, [-(2**63) - 1])
+    with pytest.raises(EvaluationOperatorError, match="EVALUATION_ACCUMULATOR_OVERFLOW"):
+        metric({"kind": "absolute_difference"}, [-(2**127), 0])
 
 
 def test_operator_arity_shape_and_source_type_are_rejected() -> None:
@@ -43,3 +45,43 @@ def test_evidence_hash_uses_conformance_canonical_nfc_and_final_lf() -> None:
     )
     with pytest.raises(CanonicalJsonError):
         evidence_hash([{"name": "e\u0301"}], {"kind": "integer_identity"}, [1], 1)
+
+
+def test_evidence_must_preserve_manifest_source_order_and_verified_hashes() -> None:
+    sources = [
+        {"artifact_kind": "project", "schema_hash": "sha256:" + "a" * 64, "json_pointer": "/x"},
+        {"artifact_kind": "compile_report", "schema_hash": "sha256:" + "b" * 64, "json_pointer": "/y"},
+    ]
+    bindings = [
+        {**sources[0], "artifact_hash": "sha256:" + "c" * 64},
+        {**sources[1], "artifact_hash": "sha256:" + "d" * 64},
+    ]
+    operator = {"kind": "weighted_sum_q", "weights": [1, 2], "divisor": 2}
+    evidence = {
+        "source_bindings": bindings, "operator": operator, "inputs": [3, 4], "result": 6,
+        "evidence_hash": evidence_hash(bindings, operator, [3, 4], 6),
+    }
+    assert verify_evidence(
+        manifest_sources=sources, artifact_hashes=["sha256:" + "c" * 64, "sha256:" + "d" * 64],
+        manifest_operator=operator,
+        hard=False, evidence=evidence,
+    ) == 6
+    with pytest.raises(EvaluationOperatorError, match="EVALUATION_SOURCE_MISMATCH"):
+        verify_evidence(
+            manifest_sources=sources, artifact_hashes=["sha256:" + "d" * 64, "sha256:" + "c" * 64],
+            manifest_operator=operator,
+            hard=False, evidence=evidence,
+        )
+    with pytest.raises(EvaluationOperatorError, match="EVALUATION_SOURCE_MISMATCH"):
+        verify_evidence(
+            manifest_sources=sources, artifact_hashes=["sha256:" + "c" * 64, "sha256:" + "d" * 64],
+            manifest_operator={"kind": "weighted_sum_q", "weights": [2, 1], "divisor": 2},
+            hard=False, evidence=evidence,
+        )
+    evidence["evidence_hash"] = "sha256:" + "0" * 64
+    with pytest.raises(EvaluationOperatorError, match="EVALUATION_RESULT_INVALID"):
+        verify_evidence(
+            manifest_sources=sources, artifact_hashes=["sha256:" + "c" * 64, "sha256:" + "d" * 64],
+            manifest_operator=operator,
+            hard=False, evidence=evidence,
+        )

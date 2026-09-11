@@ -17,7 +17,7 @@ MAPPING = {
     "candidate_source_decision": ("candidate_source_decision.schema.json", "candidate_source_decision_schema_hash", "candidate_source_decision"),
     "sampler_request": ("structural_sampler_request.schema.json", "sampler_request_schema_hash", "sampler_request"),
     "sampler_result": ("structural_sampler_result.schema.json", "sampler_result_schema_hash", "sampler_result"),
-    "production_request": ("broad_prior_production_request.schema.json", "production_request_schema_hash", "production_request"),
+    "production_request": ("broad_prior_production_request_1_1.schema.json", "production_request_schema_hash", "production_request"),
     "production_result": ("broad_prior_production_result.schema.json", "production_result_schema_hash", "production_result"),
     "planner_request": ("planner_request.schema.json", "planner_request_schema_hash", "planner_request"),
     "planner_response": ("planner_response.schema.json", "planner_response_schema_hash", "planner_response"),
@@ -79,6 +79,12 @@ def test_render_supporting_artifacts_are_closed_and_bound() -> None:
         assert base in context["required"]
     authorization = _load("render_dispatch_authorization.schema.json")
     assert authorization["properties"]["authorization"]["const"] == "dispatch"
+    failure = _load("render_failure.schema.json")
+    assert failure["additionalProperties"] is False
+    assert "render_failure_schema_hash" in manifest["required"]
+    assert "render_failure" in context["required"]
+    assert failure["properties"]["code"]["enum"][0] == "RENDER_REQUEST_INVALID"
+    assert failure["properties"]["code"]["enum"][-1] == "RENDER_RESULT_INVALID"
 
 
 def test_audio_and_corruption_render_contract_is_closed() -> None:

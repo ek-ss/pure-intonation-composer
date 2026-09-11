@@ -61,7 +61,8 @@ for the SP0 conformance pack.
 - `broad_prior_production_manifest.schema.json`: role-by-role instrument,
   register, polyphony, drum-map, gain, and pan lowering. Completed instrument
   maps are deliberately not representable.
-- `broad_prior_production_request.schema.json` and
+- `broad_prior_production_request.schema.json` (legacy complete-Program input),
+  `broad_prior_production_request_1_1.schema.json` (SearchLoop13 structural input), and
   `broad_prior_production_result.schema.json`: causal input/output binding,
   rejection counters, ordered role decisions, and hash-complete traces.
 - `candidate_source_decision.schema.json`: exact initial/archive source choice,
@@ -98,6 +99,10 @@ for the SP0 conformance pack.
   fixture input and binding transcript, CAS, cache, checkpoint, and PCM roots.
 - `search_loop_13_cas_index.schema.json`: runtime-bound canonical inventory of
   every transcript-reachable JSON artifact and raw PCM byte object.
+- `render_failure.schema.json`: closed typed render failure causally bound to
+  request, charge, and dispatch authorization.
+- `fixture_edge_registry.schema.json`: fixture-bound declaration of every
+  traversable hash pointer, target kind, cardinality, and canonical root role.
 
 All object schemas use `additionalProperties: false`; nullable values must be
 present where listed as required. Cross-record invariants that JSON Schema

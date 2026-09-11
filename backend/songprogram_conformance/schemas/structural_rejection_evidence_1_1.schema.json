@@ -1,0 +1,6 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema","$id":"https://cps.local/schemas/structural_rejection_evidence_1_1.schema.json","title":"StructuralRejectionEvidence v1.1","type":"object","additionalProperties":false,
+  "required":["schema","schema_version","attempt_ordinal","code","constraint_id","pointers","actual","expected","evidence_hash"],
+  "properties":{"schema":{"const":"cps.structural-rejection-evidence"},"schema_version":{"const":"1.1.0"},"attempt_ordinal":{"type":"integer","minimum":0,"maximum":255},"code":{"enum":["SAMPLER_LOWERING_BINDING_INVALID","SAMPLER_DECISION_PROGRAM_INVALID","SAMPLER_WEIGHT_SUM_OVERFLOW","SAMPLER_TABLE_EMPTY","SAMPLER_PATH_EXPANSION_INVALID","SAMPLER_TOTAL_BARS_MISMATCH","SAMPLER_ID_COLLISION","SAMPLER_SECTION_UNCOVERED","SAMPLER_SOUNDING_ROLE_UNDERSHOOT","SAMPLER_RECALL_MISSING","SAMPLER_NON_IDENTITY_RECALL_MISSING","SAMPLER_STRUCTURAL_SCHEMA_INVALID","SAMPLER_STRUCTURAL_SEMANTIC_INVALID"]},"constraint_id":{"type":"string","pattern":"^[a-z][a-z0-9_.-]{0,79}$"},"pointers":{"type":"array","uniqueItems":true,"maxItems":64,"items":{"type":"string","pattern":"^(|/(?:[^~/]|~0|~1)*)$"}},"actual":{},"expected":{},"evidence_hash":{"$ref":"#/$defs/sha"}},
+  "$defs":{"sha":{"type":"string","pattern":"^sha256:[0-9a-f]{64}$"}}
+}

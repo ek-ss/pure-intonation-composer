@@ -103,6 +103,65 @@ def hard_check(operator: Any, values: Any) -> bool:
     raise EvaluationOperatorError("EVALUATION_OPERATOR_INVALID")
 
 
+def verify_evidence(
+    *,
+    manifest_sources: Any,
+    artifact_hashes: Any,
+    manifest_operator: Any,
+    hard: bool,
+    evidence: Any,
+) -> bool | int:
+    """Validate one non-missing EvaluationReport evidence row.
+
+    ``manifest_sources`` is the row's ordered source list.  ``artifact_hashes``
+    is an equally ordered list of the already verified request artifacts.  It is
+    deliberately positional: artifact kind is not a unique key and must not be
+    used to reorder or substitute manifest sources.
+    """
+    if not isinstance(manifest_sources, list) or not isinstance(artifact_hashes, list):
+        raise EvaluationOperatorError("EVALUATION_SOURCE_MISMATCH")
+    if not isinstance(evidence, dict) or set(evidence) != {
+        "source_bindings", "operator", "inputs", "result", "evidence_hash"
+    }:
+        raise EvaluationOperatorError("EVALUATION_RESULT_INVALID")
+    bindings, operator, inputs, result = (
+        evidence["source_bindings"], evidence["operator"],
+        evidence["inputs"], evidence["result"],
+    )
+    if (
+        not isinstance(bindings, list)
+        or not isinstance(inputs, list)
+        or len(manifest_sources) == 0
+        or len(bindings) != len(manifest_sources)
+        or len(artifact_hashes) != len(manifest_sources)
+        or len(inputs) != len(manifest_sources)
+    ):
+        raise EvaluationOperatorError("EVALUATION_SOURCE_MISMATCH")
+
+    for expected, artifact_hash, binding in zip(manifest_sources, artifact_hashes, bindings, strict=True):
+        if (
+            not isinstance(expected, dict)
+            or set(expected) != {"artifact_kind", "schema_hash", "json_pointer"}
+            or not isinstance(binding, dict)
+            or set(binding) != {"artifact_kind", "artifact_hash", "schema_hash", "json_pointer"}
+            or not isinstance(artifact_hash, str)
+            or binding["artifact_kind"] != expected["artifact_kind"]
+            or binding["schema_hash"] != expected["schema_hash"]
+            or binding["json_pointer"] != expected["json_pointer"]
+            or binding["artifact_hash"] != artifact_hash
+        ):
+            raise EvaluationOperatorError("EVALUATION_SOURCE_MISMATCH")
+
+    if operator != manifest_operator:
+        raise EvaluationOperatorError("EVALUATION_SOURCE_MISMATCH")
+    computed = hard_check(operator, inputs) if hard else metric(operator, inputs)
+    if result != computed or isinstance(result, bool) != hard:
+        raise EvaluationOperatorError("EVALUATION_RESULT_INVALID")
+    if evidence["evidence_hash"] != evidence_hash(bindings, operator, inputs, result):
+        raise EvaluationOperatorError("EVALUATION_RESULT_INVALID")
+    return computed
+
+
 def evidence_hash(source_bindings: object, operator: object, inputs: object, result: object) -> str:
     value = {"source_bindings": source_bindings, "operator": operator, "inputs": inputs, "result": result}
     return "sha256:" + hashlib.sha256(b"cps.evaluation-evidence/v1\0" + canonical_bytes(value) + b"\n").hexdigest()

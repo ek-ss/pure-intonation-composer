@@ -3,11 +3,12 @@
   "$id": "https://cps.local/schemas/search_loop_13_fixture_case.schema.json",
   "title": "SearchLoop13 Authoritative Fixture Case v1",
   "type": "object", "additionalProperties": false,
-  "required": ["schema", "schema_version", "case_id", "root_seed", "inputs", "policies", "budgets", "stop_branch", "expected", "case_hash"],
+  "required": ["schema", "schema_version", "case_id", "root_seed", "edge_registry", "inputs", "policies", "budgets", "stop_branch", "expected", "case_hash"],
   "properties": {
     "schema": {"const": "cps.search-loop-13-fixture-case"}, "schema_version": {"const": "1.0.0"},
     "case_id": {"type": "string", "pattern": "^[a-z][a-z0-9_-]{0,79}$"},
     "root_seed": {"$ref": "#/$defs/u64"},
+    "edge_registry": {"$ref": "#/$defs/edgeRegistryBinding"},
     "inputs": {"type": "array", "minItems": 1, "maxItems": 256, "items": {"$ref": "#/$defs/input"}},
     "policies": {"$ref": "#/$defs/policies"}, "budgets": {"$ref": "#/$defs/budgets"},
     "stop_branch": {"enum": ["accepted", "logical_budget_exhausted", "maximum_rounds", "patience", "cancelled"]},
@@ -17,6 +18,17 @@
     "sha": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
     "u64": {"type": "integer", "minimum": 0, "maximum": 18446744073709551615},
     "path": {"type": "string", "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[A-Za-z0-9._/-]{1,240}$"},
+    "base64": {"type": "string", "pattern": "^[A-Za-z0-9+/]*={0,2}$"},
+    "edgeRegistryBinding": {
+      "type": "object", "additionalProperties": false,
+      "required": ["path", "registry_hash", "registry_schema_hash", "registry_bytes_base64", "registry_schema_bytes_base64"],
+      "properties": {
+        "path": {"$ref": "#/$defs/path"}, "registry_hash": {"$ref": "#/$defs/sha"},
+        "registry_schema_hash": {"$ref": "#/$defs/sha"},
+        "registry_bytes_base64": {"$ref": "#/$defs/base64"},
+        "registry_schema_bytes_base64": {"$ref": "#/$defs/base64"}
+      }
+    },
     "input": {
       "type": "object", "additionalProperties": false,
       "required": ["role", "path", "raw_file_sha256", "artifact_hash", "schema_hash"],

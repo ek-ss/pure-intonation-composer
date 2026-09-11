@@ -1,6 +1,6 @@
 # SearchLoop13 payload envelopes
 
-**Status:** normative for Groups A--D. Group C defines compile-only/cache and
+**Status:** normative for Groups A--F and authoritative-fixture closure. Group C defines compile-only/cache and
 cancellation-inbox payloads. They are SearchLoop13-only and never alter the
 legacy connected executor or legacy cancellation schemas.
 
@@ -26,7 +26,7 @@ schema is allowed.
 | `candidate_source_decision` | `candidate_source_decision.schema.json` | `candidate_source_decision_schema_hash` | `candidate_source_decision` |
 | `sampler_request` | `structural_sampler_request.schema.json` | `sampler_request_schema_hash` | `sampler_request` |
 | `sampler_result` | `structural_sampler_result.schema.json` | `sampler_result_schema_hash` | `sampler_result` |
-| `production_request` | `broad_prior_production_request.schema.json` | `production_request_schema_hash` | `production_request` |
+| `production_request` | `broad_prior_production_request_1_1.schema.json` | `production_request_schema_hash` | `production_request` |
 | `production_result` | `broad_prior_production_result.schema.json` | `production_result_schema_hash` | `production_result` |
 | `planner_request` | `planner_request.schema.json` | `planner_request_schema_hash` | `planner_request` |
 | `planner_response` | `planner_response.schema.json` | `planner_response_schema_hash` | `planner_response` |
@@ -93,6 +93,19 @@ telemetry, but its existence is committed into the semantic RenderResult root.
 | render cache entry | `render_cache_entry.schema.json` | `render_cache_entry_schema_hash` | `render_cache_entry` |
 | render corruption receipt | `render_cache_corruption_receipt.schema.json` | `render_cache_corruption_receipt_schema_hash` | `render_cache_corruption_receipt` |
 | rendered PCM audio | `audio_artifact.schema.json` | `audio_artifact_schema_hash` | `audio_artifact` |
+| render failure | `render_failure.schema.json` | `render_failure_schema_hash` | `render_failure` |
+
+For `render_failed`, RenderResult `failure_hash` MUST equal a schema-valid
+RenderFailure self hash. The failure repeats run/context, request, reserved
+charge, and dispatch-authorization hashes. Its first-failure-wins code order is:
+`RENDER_REQUEST_INVALID`, `RENDER_CONTEXT_MISMATCH`,
+`RENDER_MANIFEST_MISMATCH`, `RENDER_PROJECT_MISMATCH`,
+`RENDER_CHARGE_MISMATCH`, `RENDER_DISPATCH_AUTHORIZATION_MISMATCH`,
+`RENDER_CACHE_INVALID`, `RENDER_CATALOG_MISMATCH`, `RENDER_ASSET_INVALID`,
+`RENDER_POLYPHONY_EXCEEDED`, `RENDER_ACCUMULATOR_OVERFLOW`, then
+`RENDER_RESULT_INVALID`. Evidence hashes are unique and raw-digest sorted.
+`failure_hash` uses the standard artifact preimage with only itself omitted.
+Every other RenderResult outcome has null `failure_hash`.
 
 `CandidateSourceDecision` binds run/context/policy hashes, coordinate, locked
 roots, and exactly one source: initial `(root_seed, cohort_index)` or archive
@@ -442,10 +455,25 @@ reachable from the transcript, final checkpoint, cache-publication index, and
 declared audio assets.
 
 The fixture schema intentionally does not enumerate a universal set of input
-roles. The oracle derives the selected planner/source/render/stop branches,
-walks every hash edge from the case roots, and MUST reject a missing input,
+roles. It instead embeds the exact canonical bytes and schema bytes for one
+schema-valid `FixtureEdgeRegistry`, verifies both raw schema and registry self
+hashes, and uses no ambient registry. Registry entries are unique and sorted by
+`(schema_id UTF-8, parsed semantic-version tuple)`; edges within an entry are
+unique and sorted by JSON pointer UTF-8. Each edge declares target kind,
+nullability, and cardinality, while each schema/version has at most one
+canonical root role. The oracle derives the selected
+planner/source/render/stop branches, walks only registry-declared hash edges
+from the case roots, and MUST reject a missing input,
 unreachable extra input, duplicate role, or incorrectly sorted input array.
 This reachable closure, not JSON Schema alone, defines “all inputs.”
+
+For `cas_json`, traversal resolves the target artifact in CAS and continues
+using its parsed schema/version registry row. `raw_pcm` and `raw_schema` require
+matching CAS-index entries but do not recurse. `external` verifies the digest
+against the bound external input and does not require CAS membership.
+`comparator` is a value-only digest and is neither fetched nor included in CAS.
+An encountered hash pointer absent from the exact registry row is a fixture
+registry error; registry rows may explicitly omit non-edge diagnostic strings.
 
 ArchiveHeadsSnapshot is the sole canonical archive-head collection object.
 Exactly one `stage=round_before` snapshot is sealed before phase 0 and one
@@ -465,6 +493,20 @@ request hashes, or entry hashes are invalid. `index_hash` uses the standard
 artifact rule with only itself omitted. The fixture's expected
 `cache_publication_index_hash` makes cold cache bytes authoritative without
 adding a scheduled RunRecord.
+
+### Pure seam conformance failures
+
+Phases 4, 5, 9, 10, and 11 are deterministic pure seams. An invalid input or
+non-reproducible result emits no additional RunRecord and terminates validation
+as `CONFORMANCE_VIOLATION`; it never converts the candidate to ineligible and
+never fabricates a failure artifact. Validation order is exact: scheduled
+coordinate/kind and EventPayload binding; RunContext plus bound raw schema;
+artifact schema and self hash; causal artifact hashes in schema property order;
+then operator invariants in the corresponding decision contract order. Stop at
+the first failure. This rule covers FingerprintRecord, NearDuplicateDecision,
+ChallengerAcceptanceDecision, ArchiveAdmissionDecision, QDArchiveRecord,
+ArchiveHeadsSnapshot, and RoundDecision. Domain outcomes such as `distinct`,
+`not admitted`, or `not accepted` remain valid results, not failures.
 
 ## Group E: planner/fallback causal handoff
 

@@ -12,8 +12,8 @@
     "evaluator_version": {"type": "string", "minLength": 1, "maxLength": 64},
     "evaluator_build_hash": {"$ref": "#/$defs/sha"},
     "genre_intent_hash": {"$ref": "#/$defs/sha"},
-    "hard_checks": {"type": "array", "minItems": 1, "maxItems": 64, "items": {"$ref": "#/$defs/hardCheck"}},
-    "metrics": {"type": "array", "minItems": 1, "maxItems": 64, "items": {"$ref": "#/$defs/metric"}},
+    "hard_checks": {"type": "array", "minItems": 1, "maxItems": 64, "uniqueItems": true, "items": {"$ref": "#/$defs/hardCheck"}},
+    "metrics": {"type": "array", "minItems": 1, "maxItems": 64, "uniqueItems": true, "items": {"$ref": "#/$defs/metric"}},
     "manifest_hash": {"$ref": "#/$defs/sha"}
   },
   "$defs": {
@@ -31,12 +31,12 @@
     "hardCheck": {
       "type": "object", "additionalProperties": false,
       "required": ["id", "sources", "operator", "required_render"],
-      "properties": {"id": {"$ref": "#/$defs/id"}, "sources": {"type":"array","minItems":1,"maxItems":16,"items":{"$ref":"#/$defs/source"}}, "operator": {"$ref":"#/$defs/hardOperator"}, "required_render": {"type": "boolean"}}
+      "properties": {"id": {"$ref": "#/$defs/id"}, "sources": {"type":"array","minItems":1,"maxItems":16,"uniqueItems":true,"items":{"$ref":"#/$defs/source"}}, "operator": {"$ref":"#/$defs/hardOperator"}, "required_render": {"type": "boolean"}}
     },
     "metric": {
       "type": "object", "additionalProperties": false,
       "required": ["id", "sources", "operator", "direction", "required_render"],
-      "properties": {"id": {"$ref": "#/$defs/id"}, "sources": {"type":"array","minItems":1,"maxItems":16,"items":{"$ref":"#/$defs/source"}}, "operator": {"$ref":"#/$defs/metricOperator"}, "direction": {"enum": ["maximize", "minimize"]}, "required_render": {"type": "boolean"}}
+      "properties": {"id": {"$ref": "#/$defs/id"}, "sources": {"type":"array","minItems":1,"maxItems":16,"uniqueItems":true,"items":{"$ref":"#/$defs/source"}}, "operator": {"$ref":"#/$defs/metricOperator"}, "direction": {"enum": ["maximize", "minimize"]}, "required_render": {"type": "boolean"}}
     },
     "hardOperator": {"oneOf":[{"type":"object","additionalProperties":false,"required":["kind"],"properties":{"kind":{"const":"bool_identity"}}},{"type":"object","additionalProperties":false,"required":["kind","comparator","threshold"],"properties":{"kind":{"const":"integer_compare"},"comparator":{"enum":["ge","le","eq"]},"threshold":{"type":"integer"}}}]},
     "metricOperator": {"oneOf":[{"type":"object","additionalProperties":false,"required":["kind"],"properties":{"kind":{"const":"integer_identity"}}},{"type":"object","additionalProperties":false,"required":["kind","weights","divisor"],"properties":{"kind":{"const":"weighted_sum_q"},"weights":{"type":"array","minItems":1,"maxItems":16,"items":{"type":"integer"}},"divisor":{"type":"integer","minimum":1}}},{"type":"object","additionalProperties":false,"required":["kind"],"properties":{"kind":{"const":"absolute_difference"}}}]}

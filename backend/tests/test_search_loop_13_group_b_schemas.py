@@ -60,6 +60,11 @@ def test_report_failure_precedence_and_missing_metric_reasons_are_exact() -> Non
         "EVALUATION_PROJECT_MISMATCH",
         "EVALUATION_FINGERPRINT_MISMATCH",
         "EVALUATION_RENDER_EVIDENCE_MISMATCH",
+        "EVALUATION_SOURCE_TYPE_INVALID",
+        "EVALUATION_OPERATOR_INVALID",
+        "EVALUATION_OPERATOR_ARITY_INVALID",
+        "EVALUATION_ACCUMULATOR_OVERFLOW",
+        "EVALUATION_RESULT_OVERFLOW",
         "EVALUATION_RESULT_INVALID",
     ]
     assert report["$defs"]["missing"]["enum"] == [
