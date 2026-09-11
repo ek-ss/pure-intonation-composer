@@ -117,6 +117,46 @@ formula is forbidden. `evaluation_epoch_day` is the sole clock used for
 license expiry (`floor(UTC Unix seconds/86400)` as a non-negative integer).
 Ambient wall time is never consulted, so replay cannot change eligibility.
 
+The operator input is a schema-valid CalibrationResponseSet after the
+precommitted exclusions have been applied. Rows sort by `(stratum, item_id,
+participant_hash, presentation_ordinal)`. Ordinal codes have indices
+`smaller=0, similar=1, larger=2`; `W=[[10000,7500,0],
+[7500,10000,7500],[0,7500,10000]]`. `RHE(a/b)` for non-negative integers is
+`floor(a/b) + 1` exactly when `2*(a mod b) >= b`, otherwise `floor(a/b)`.
+Every quotient below uses that operation, never binary floating point.
+
+Within-rater units are non-null `repeat_pair_id` groups containing exactly two
+rows for one participant and one stratum; any other cardinality is invalid.
+Order each pair by presentation ordinal. For `n` pairs, let `O` be the sum of
+`W[first][second]`, `A[i]` and `B[j]` the first/second marginal counts, and
+`E=sum(A[i]*B[j]*W[i][j])`. The reported value is
+`RHE(10000*max(0,n*O-E)/(10000*n*n-E))`; a zero denominator fails the
+within-rater criterion. Inter-rater units are all unordered distinct-listener
+pairs for each `(stratum,item_id)`; for `m` pairs the value is
+`RHE(sum(W[a][b])/m)`. Precision counts `P = auto_small` rows and
+`TP = auto_small && judgment==similar && !broken`, and is
+`RHE(10000*TP/P)`. False acceptance counts `L = judgment==larger || broken`
+and `FA = L && auto_small`, and is `RHE(10000*FA/L)`. A zero denominator fails
+its criterion; the stored q value is zero. Listener count is the number of
+distinct participant hashes and judgment count is the included row count.
+
+Bootstrap resampling units are repeat pairs for within-rater, complete item
+groups for inter-rater, and individual rows for precision/false acceptance.
+Units never split. Within each statistic and stratum, draw exactly the original
+unit count by the policy's path-addressed rule, then apply the same integer
+formula. CalibrationBootstrapTrace stores precision and false-accept replicate
+values in replicate ordinal order; each array length MUST equal the policy
+replicate count. Evidence counts, point statistics, both arrays, and selected
+ranks MUST be independently recomputed from responses, exclusions, operator,
+and policy before accepting its self hash.
+
+Calibration rejection precedence is: malformed/non-canonical/unresolved input
+(`CALIBRATION_INPUT_INVALID`); unequal policy/operator/dataset/trace bindings
+(`CALIBRATION_CONTEXT_MISMATCH`); reference set; extractor; renderer; cohort or
+assignment/response membership; unmet criterion including a zero denominator;
+then inconsistent counts, replicate arrays, ranks, or result self hash
+(`CALIBRATION_RESULT_INVALID`). Only the first applicable code is emitted.
+
 CalibrationEvidenceSummary contains exactly six criteria in enum order.
 Promotion occurs iff listener/judgment counts, both agreement minima,
 precision lower-bound minimum, false-accept upper-bound maximum, and zero

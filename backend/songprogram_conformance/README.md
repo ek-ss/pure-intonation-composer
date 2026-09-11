@@ -53,6 +53,13 @@ barrier are documented in `docs/song_program_search_decision_contract.md` and
 `docs/song_program_search_loop_1_3_contract.md`.
 Near-duplicate decisions are always recorded before any render reservation.
 
+Genre calibration uses closed `calibration_statistic_operator`,
+`calibration_response_set`, and `calibration_bootstrap_trace` schemas. Together
+with the acceptance policy and evidence summary they make agreement,
+classification counts, and bootstrap intervals independently recomputable by
+integer arithmetic; the normative formulas and rejection precedence are in
+`docs/song_program_evaluation_operator_contract.md`.
+
 Fallback and broad-prior production have a production-independent reference in
 `fallback_sampler_oracle.py`. Its maintainer builder and authoritative
 success/retry/lock/exhaustion, weighted-boundary, and register-endpoint cases
