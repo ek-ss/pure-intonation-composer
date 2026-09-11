@@ -124,3 +124,10 @@ The schemas deliberately encode the SP0 capability boundary: resolved chords
 are exact, Project automation and diagnostics are forbidden, and compiler
 manifest limits describe the small exact profile. Generic `3/1` Project data is
 schema-valid, but exporter capability is checked separately.
+
+Genre authority is closed by `genre_license_policy.schema.json`,
+`reference_source_provenance.schema.json`, `listener_cohort_manifest.schema.json`,
+`blinded_assignment_manifest.schema.json`, `calibration_dataset_manifest.schema.json`,
+`calibration_acceptance_policy.schema.json`, and
+`calibration_evidence_summary.schema.json`. Thresholds remain required policy
+values; none are silently supplied by these schemas.

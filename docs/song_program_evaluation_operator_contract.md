@@ -81,3 +81,51 @@ FeatureRecord `record_hash` and SimilaritySpec `spec_hash` use
 and no final LF. The extractor is identified by pinned build, configuration,
 weights, runtime, input contract, and segment policy hashes; substituting a
 newer model is forbidden.
+
+## Genre reference and calibration authority
+
+GenreLicensePolicy and ReferenceSourceProvenance are closed self-hashed
+artifacts. A reference is eligible only when its rights basis is policy-listed,
+storage, feature-extraction, and evaluation rights are true, it is not revoked,
+and evaluation precedes any expiry. Null raw audio is eligible only for
+`verified_nonretention` with a valid same-extractor FeatureRecord. Reference
+members are unique and sort by `(partition ordinal calibration, validation,
+holdout; reference_id UTF-8)`. All partitions are non-empty and disjoint:
+calibration references compute scores, validation selects thresholds, and
+holdout is used only for promotion.
+
+ListenerCohortManifest fixes sorted unique pseudonymous participants,
+recruitment, eligibility, exclusion, consent, and minimum trials.
+BlindedAssignmentManifest fixes randomization before responses.
+CalibrationDatasetManifest binds cohort, assignment, responses, exclusions,
+and partition membership and requires leakage count zero.
+
+All thresholds are required CalibrationAcceptancePolicy parameters. For
+`deterministic-stratified-bootstrap-q/v1`, sort strata and observations by
+canonical ID. Draw exactly the original stratum count with replacement using
+the first u64be of SHA-256 over `"cps-calibration-bootstrap/v1\0" ||
+u64be(root_seed) || UTF8(statistic_id) || NUL || u64be(replicate) ||
+UTF8(stratum) || NUL || u64be(draw)`, modulo stratum size. Floating point is
+forbidden. Sort `R` replicate values; lower rank is
+`floor(lower_rank_numerator*(R-1)/lower_rank_denominator)` and upper rank is
+`ceil(upper_rank_numerator*(R-1)/upper_rank_denominator)`. Numerators may not
+exceed denominators and lower rank may not exceed upper rank.
+
+The policy's `statistic_operator_hash` resolves a closed integer operator that
+maps each resample to every reported statistic; provider code or an unbound
+formula is forbidden. `evaluation_epoch_day` is the sole clock used for
+license expiry (`floor(UTC Unix seconds/86400)` as a non-negative integer).
+Ambient wall time is never consulted, so replay cannot change eligibility.
+
+CalibrationEvidenceSummary contains exactly six criteria in enum order.
+Promotion occurs iff listener/judgment counts, both agreement minima,
+precision lower-bound minimum, false-accept upper-bound maximum, and zero
+leakage all pass. Promoted metric rows are unique and metric-ID sorted, bind
+their evidence, and satisfy `0 <= NI < IMP <= 10000`.
+
+ChallengerAcceptancePolicy is the operational margin owner. It and its Decision
+bind the promoted CalibrationDecision and exactly repeat NI and IMP per metric.
+For maximize values `c,p`, non-inferiority is `c >= p-NI` and improvement is
+`c > p+IMP`; for minimize, `c <= p+NI` and `c < p-IMP`. Acceptance requires all
+metrics non-inferior and at least one improved. Missing promotion, unequal
+margins, or `NI >= IMP` is ineligible.

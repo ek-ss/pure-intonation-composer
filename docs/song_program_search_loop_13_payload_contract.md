@@ -44,7 +44,7 @@ schema is allowed.
 | `render_result` | `render_result.schema.json` | `render_result_schema_hash` | `render_result` |
 | `evaluation_request` | `evaluation_request.schema.json` | `evaluation_request_schema_hash` | `evaluation_request` |
 | `metric_report` | `evaluation_report.schema.json` | `evaluation_report_schema_hash` | `evaluation_report` |
-| `challenger_acceptance_decision` | `challenger_acceptance_decision.schema.json` | `challenger_acceptance_decision_schema_hash` | `challenger_acceptance_decision` |
+| `challenger_acceptance_decision` | `challenger_acceptance_decision_1_1.schema.json` | `challenger_acceptance_decision_schema_hash` | `challenger_acceptance_decision` |
 | `archive_admission_decision` | `archive_admission_decision.schema.json` | `archive_admission_decision_schema_hash` | `archive_admission_decision` |
 | `archive_update` | `qd_archive_record.schema.json` | `qd_archive_record_schema_hash` | `qd_archive_record` |
 | `round_decision` | `round_decision.schema.json` | `round_decision_schema_hash` | `round_decision` |

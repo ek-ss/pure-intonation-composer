@@ -199,11 +199,15 @@ Where this overview is less specific, that artifact contract is authoritative.
 
 ## 9. GenreIntent and references
 
-GenreIntent names requested descriptors, calibrated metric IDs, non-inferiority
-and improvement margins, optional licensed/internal reference-set digest, and
-plain-language tags. A label such as `kawaii future bass` never selects a hidden
-song template. Reference audio licensing/provenance and split membership are
-mandatory; test references cannot appear in calibration/training partitions.
+GenreIntent names requested descriptors, calibrated metric IDs, the promoted
+CalibrationDecision, an optional licensed/internal reference-set digest, and
+plain-language tags. It does not own Pareto margins. The versioned
+ChallengerAcceptancePolicy is the sole margin authority and MUST bind the same
+GenreIntent and CalibrationDecision; its non-inferiority and improvement
+margins must exactly repeat the promoted per-metric calibration values. A label
+such as `kawaii future bass` never selects a hidden song template. Reference
+audio licensing/provenance and split membership are mandatory; holdout
+references cannot appear in calibration or validation partitions.
 
 ## 10. Phase gates
 
