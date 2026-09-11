@@ -216,3 +216,30 @@ remains separate from the deterministic choice-stream primitive.
 - `749d3d9` — drum and GEN0-A harmony lowering, Project validation, and
   compiler-origin LineageIndex;
 - `a239253` — Project-derived descriptor and fingerprint evaluation.
+
+## 2026-09-12 continuation
+
+The earlier “Not yet connected” list is historical. GEN0-B progression,
+chord-member melody, all eight typed mutations, mutation-created lineage,
+Structural Sampler 1.1, and the Structural-to-production handoff are now
+implemented. SearchLoop13 contracts now also close genre calibration,
+planner/patience authority, fixture graph traversal, parallel scheduling,
+cancellation arrival barriers, and bootstrap rank validation.
+
+Production additions landed in:
+
+- `4654f3c` — typed Mutation and GEN0-B compiler connection;
+- `ebe1886` — Structural Sampler 1.1 and production handoff;
+- `be2f5ba` — calibration/parallel/cancellation cross-field validators.
+
+The current test baseline is 464 passing tests for `backend/tests` plus
+`backend/songprogram_conformance` (the read-only guard is run separately), and
+15 passing read-only/structural/production focused tests after commit.
+
+The next normative milestone is the complete SearchLoop13 runner. Its contract
+is closed, but implementation acceptance is intentionally blocked until an
+independent-oracle owner checks in the first authoritative
+`SearchLoop13 FixtureSuiteIndex 1.0` and referenced case/schema/CAS bytes. The
+production implementer MUST NOT synthesize or update those expected roots.
+Once present, implementation order is suite validator, RunContext factory,
+event scheduler/replay, connected cache, then the 1/2/4/8 worker parity matrix.
