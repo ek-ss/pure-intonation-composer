@@ -25,6 +25,7 @@ from .connected import (
 from .fallback import (
     FallbackError,
     apply_broad_prior_production,
+    apply_structural_broad_prior_production,
     enumerate_fallback_rows,
     execute_broad_prior_production,
     execute_fallback,
@@ -32,9 +33,16 @@ from .fallback import (
     lower_broad_prior_choices,
     propose_fallback,
     register_endpoint_millicents,
+    structural_lowering_manifest_hash,
+    structural_program_hash,
 )
 from .resolver import resolve_joint_bnb, resolve_progression
 from .renderer import RenderError, RenderResult, render_reference
+from .structural_sampler import (
+    StructuralSamplerError,
+    execute_structural_sampler,
+    structural_rejection_evidence_hash,
+)
 from .search_decisions import (
     archive_admission,
     cancellation_cutoff_action_id,
@@ -89,12 +97,14 @@ __all__ = [
     "ProductionSearchLoop",
     "RenderError",
     "RenderResult",
+    "StructuralSamplerError",
     "SearchLoopError",
     "SearchLoopResult",
     "SearchLoopSeams",
     "ProjectValidationError",
     "action_id",
     "apply_broad_prior_production",
+    "apply_structural_broad_prior_production",
     "archive_admission",
     "canonical_bytes",
     "cancellation_cutoff_action_id",
@@ -112,6 +122,7 @@ __all__ = [
     "enumerate_fallback_rows",
     "execute_broad_prior_production",
     "execute_fallback",
+    "execute_structural_sampler",
     "fallback_mutation_id",
     "decision_action_id",
     "decision_artifact_hash",
@@ -137,6 +148,9 @@ __all__ = [
     "render_reference",
     "propose_fallback",
     "register_endpoint_millicents",
+    "structural_lowering_manifest_hash",
+    "structural_program_hash",
+    "structural_rejection_evidence_hash",
     "reserve_render",
     "round_decision",
     "run_connected_batch",

@@ -16,6 +16,8 @@ from app.songprogram.fallback import (
     execute_broad_prior_production,
     execute_fallback,
     lower_broad_prior_choices,
+    structural_lowering_manifest_hash,
+    structural_program_hash,
 )
 from app.songprogram.mutation import program_hash
 from app.songprogram.search import canonical_bytes
@@ -69,6 +71,59 @@ def _production_request() -> tuple[dict[str, object], dict[str, object], dict[st
         "lattice_equave": "2/1", "request_hash": "sha256:" + "f" * 64,
     }
     return request, manifest, catalog
+
+
+def _structural_lowering_manifest() -> dict[str, object]:
+    """A sealed boundary value; production must authenticate but not read it."""
+    manifest: dict[str, object] = {
+        "schema": "cps.structural-lowering-manifest", "schema_version": "1.0.0",
+        "algorithm": "structural-song-program-lowering/v1",
+        "structural_program_schema_hash": "sha256:" + "a" * 64,
+        "id_policy": {}, "clock": {}, "lattice_constants": {}, "section_templates": {},
+        "material_builders": {}, "chord_constants": {}, "realization_constants": {},
+        "rhythm_position_policy": "ascending-even-grid-prefix/v1", "compile_policy": {},
+        "limits": {}, "manifest_hash": "",
+    }
+    manifest["manifest_hash"] = structural_lowering_manifest_hash(manifest)
+    return manifest
+
+
+def _production_v11_request() -> tuple[dict[str, object], dict[str, object], dict[str, object], dict[str, object]]:
+    legacy_request, manifest, catalog = _production_request()
+    manifest.update({
+        "schema": "cps.broad-prior-production-manifest", "schema_version": "1.0.0",
+        "algorithm": "broad-prior-production-lowering/v1",
+        "choice_algorithm": "sha256-u64-mod-cumulative/v1",
+        "role_order": ["drums", "bass", "harmony", "melody", "texture"],
+        "maximum_production_rejections": 16,
+    })
+    structural = deepcopy(legacy_request["program"])
+    structural.pop("tracks")
+    structural.pop("production")
+    structural["schema"] = "cps.structural-song-program"
+    structural["schema_version"] = "1.0.0"
+    structural["realizations"] = [
+        {**deepcopy(structural["realizations"][0]), "id": f"real_{role}", "role": role}
+        for role in ("bass", "harmony", "melody")
+    ]
+    for realization in structural["realizations"]:
+        realization.pop("track_id")
+    structural_manifest = _structural_lowering_manifest()
+    request: dict[str, object] = {
+        "schema": "cps.broad-prior-production-request", "schema_version": "1.1.0",
+        "run_hash": "sha256:" + "1" * 64, "context_hash": "sha256:" + "2" * 64,
+        "source_decision_hash": "sha256:" + "3" * 64,
+        "root_seed": 7, "cohort_index": 0, "production_rejection_ordinal": 0,
+        "sampler_manifest_hash": manifest["sampler_manifest_hash"],
+        "structural_lowering_manifest_hash": structural_manifest["manifest_hash"],
+        "production_lowering_manifest_hash": fallback._artifact_hash("cps.production-lowering-manifest/v1", manifest),
+        "instrument_catalog_digest": legacy_request["instrument_catalog_digest"],
+        "structural_program_hash": structural_program_hash(structural),
+        "structural_program": structural, "active_roles": ["bass", "harmony", "melody"],
+        "lattice_equave": "2/1", "request_hash": "sha256:" + "4" * 64,
+    }
+    request["request_hash"] = fallback._search_decision_hash(request, "request_hash")
+    return request, manifest, catalog, structural_manifest
 
 
 def test_fallback_submits_one_atomic_application_batch(monkeypatch) -> None:
@@ -204,3 +259,31 @@ def test_production_failure_precedence_is_manifest_catalog_active_then_result() 
     active_first["active_roles"] = ["melody", "drums"]
     active_first["structural_program_hash"] = "sha256:" + "0" * 64
     assert execute_broad_prior_production(active_first, manifest, catalog)["error"] == "SAMPLER_ACTIVE_ROLE_INVALID"
+
+
+def test_v11_production_creates_canonical_tracks_and_rebinds_structural_realizations() -> None:
+    request, manifest, catalog, structural_manifest = _production_v11_request()
+    result = execute_broad_prior_production(request, manifest, catalog, structural_manifest)
+    assert result["status"] == "success"
+    assert result["schema_version"] == "1.1.0"
+    assert result["structural_program_hash"] == request["structural_program_hash"]
+    program = result["output"]["program"]
+    assert [track["id"] for track in program["tracks"]] == ["trk_bass", "trk_harmony", "trk_melody"]
+    assert [track["role"] for track in program["tracks"]] == ["bass", "harmony", "melody"]
+    assert [realization["track_id"] for realization in program["realizations"]] == [
+        "trk_bass", "trk_harmony", "trk_melody",
+    ]
+    assert all("role" not in realization for realization in program["realizations"])
+    assert program["production"]["tracks"].keys() == {"trk_bass", "trk_harmony", "trk_melody"}
+    assert result["output"]["program_hash"] == program_hash(program)
+
+
+def test_v11_production_requires_the_exact_structural_lowering_manifest_before_catalog() -> None:
+    request, manifest, catalog, structural_manifest = _production_v11_request()
+    request["instrument_catalog_digest"] = "sha256:" + "0" * 64
+    request["request_hash"] = fallback._search_decision_hash(request, "request_hash")
+    structural_manifest["manifest_hash"] = "sha256:" + "0" * 64
+    result = execute_broad_prior_production(request, manifest, catalog, structural_manifest)
+    assert result["status"] == "failure"
+    assert result["error"] == "SAMPLER_PRODUCTION_MANIFEST_INVALID"
+    assert result["decision_trace"] == []

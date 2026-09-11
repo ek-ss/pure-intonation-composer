@@ -10,6 +10,7 @@ from __future__ import annotations
 import base64
 import copy
 import hashlib
+import re
 from fractions import Fraction
 from typing import Any, Iterable
 
@@ -418,6 +419,23 @@ def _production_draw(table: list[dict[str, Any]], request: dict[str, Any], manif
     return value
 
 
+def _production_program(request: dict[str, Any]) -> dict[str, Any]:
+    """Return the payload owned by the applicable production boundary.
+
+    Production request 1.0 receives a complete SongProgram.  SearchLoop13
+    request 1.1 intentionally receives only the structural predecessor.
+    Keeping this choice in one helper prevents a v1.1 lowering draw from
+    accidentally depending on a synthetic legacy ``program`` field.
+    """
+    if request.get("schema_version") == "1.1.0":
+        program = request.get("structural_program")
+    else:
+        program = request.get("program")
+    if not isinstance(program, dict):
+        raise FallbackError("SAMPLER_RESULT_INVALID")
+    return program
+
+
 def _lower_broad_prior_choices(request: dict[str, Any], manifest: dict[str, Any], catalog: dict[str, Any],
                                trace: list[dict[str, Any]]) -> dict[str, Any]:
     """Resolve broad-prior role choices without altering a SongProgram."""
@@ -430,6 +448,8 @@ def _lower_broad_prior_choices(request: dict[str, Any], manifest: dict[str, Any]
         raise FallbackError("SAMPLER_ACTIVE_ROLE_INVALID")
     index = {item.get("instrument_id"): item for item in catalog.get("entries", [])}
     profile = _production_draw(manifest["profile_ids"], request, manifest, "global", "profile", trace)
+    if not isinstance(profile, dict) or not isinstance(profile.get("profile_id"), str) or not profile["profile_id"]:
+        raise FallbackError("SAMPLER_PRODUCTION_PROFILE_UNAVAILABLE")
     decisions = []
     for role in active:
         instrument_id = _production_draw(manifest["instrument_entries_by_role"][role], request, manifest, role, "instrument", trace)
@@ -442,7 +462,7 @@ def _lower_broad_prior_choices(request: dict[str, Any], manifest: dict[str, Any]
         if role != "drums":
             register = _production_draw(manifest["register_presets_by_role"][role], request, manifest, role, "register", trace)
             try:
-                endpoints = [register_endpoint_millicents(value, request["program"]["lattice"]["base_frequency_millihz"]) for value in instrument["allowed_frequency_millihz"]]
+                endpoints = [register_endpoint_millicents(value, _production_program(request)["lattice"]["base_frequency_millihz"]) for value in instrument["allowed_frequency_millihz"]]
             except (KeyError, TypeError, ValueError, ArithmeticError) as exc:
                 raise FallbackError("SAMPLER_PRODUCTION_VALUE_INVALID") from exc
             if len(endpoints) != 2 or not endpoints[0] <= register[0] <= register[1] <= endpoints[1]:
@@ -520,8 +540,8 @@ def _production_failure(request: dict[str, Any], manifest: dict[str, Any], code:
     return result
 
 
-def execute_broad_prior_production(request: dict[str, Any], manifest: dict[str, Any],
-                                   catalog: dict[str, Any]) -> dict[str, Any]:
+def _execute_broad_prior_production_v1(request: dict[str, Any], manifest: dict[str, Any],
+                                        catalog: dict[str, Any]) -> dict[str, Any]:
     """Lower one broad-prior assignment into a schema-shaped result envelope.
 
     The structural sampler owns the existing track shells.  This lowering is
@@ -588,3 +608,333 @@ def execute_broad_prior_production(request: dict[str, Any], manifest: dict[str, 
               "role_decisions": decisions, "decision_trace": trace, "output": output, "error": None, "result_hash": ""}
     result["result_hash"] = _artifact_hash("cps.production-lowering-result/v1", result, omit="result_hash")
     return result
+
+
+_SHA256 = re.compile(r"^sha256:[0-9a-f]{64}$")
+
+
+def structural_program_hash(program: dict[str, Any]) -> str:
+    """Return the domain-separated CAS identity of a structural payload."""
+    return "sha256:" + hashlib.sha256(
+        b"cps.structural-song-program/1.0\0" + canonical_bytes(program)
+    ).hexdigest()
+
+
+def structural_lowering_manifest_hash(manifest: dict[str, Any]) -> str:
+    """Return the sealed StructuralLoweringManifest identity."""
+    if not isinstance(manifest, dict):
+        raise FallbackError("SAMPLER_PRODUCTION_MANIFEST_INVALID")
+    return _artifact_hash(
+        "cps.structural-lowering-manifest/v1", manifest, omit="manifest_hash",
+    )
+
+
+def _is_sha256(value: Any) -> bool:
+    return isinstance(value, str) and _SHA256.fullmatch(value) is not None
+
+
+def _search_decision_hash(value: dict[str, Any], self_member: str) -> str:
+    payload = {key: item for key, item in value.items() if key != self_member}
+    prefix = (
+        "cps-artifact-hash/v1\0" + payload["schema"] + "\0" + payload["schema_version"] + "\0"
+    ).encode("utf-8")
+    # Search Decision artifacts deliberately omit the canonical trailing LF.
+    return "sha256:" + hashlib.sha256(prefix + canonical_bytes(payload)[:-1]).hexdigest()
+
+
+def _v11_result_base(request: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "schema": "cps.broad-prior-production-result",
+        "schema_version": "1.1.0",
+        "run_hash": request.get("run_hash"),
+        "context_hash": request.get("context_hash"),
+        "source_decision_hash": request.get("source_decision_hash"),
+        "request_hash": request.get("request_hash"),
+        "sampler_manifest_hash": request.get("sampler_manifest_hash"),
+        "structural_lowering_manifest_hash": request.get("structural_lowering_manifest_hash"),
+        "production_lowering_manifest_hash": request.get("production_lowering_manifest_hash"),
+        "instrument_catalog_digest": request.get("instrument_catalog_digest"),
+        "structural_program_hash": request.get("structural_program_hash"),
+    }
+
+
+def _v11_production_failure(request: dict[str, Any], manifest: dict[str, Any], code: str,
+                            rejections: int, trace: list[dict[str, Any]]) -> dict[str, Any]:
+    result = {
+        **_v11_result_base(request),
+        "status": "failure",
+        "rejections_consumed": rejections,
+        "role_decisions": [],
+        "decision_trace": _public_production_trace(trace, manifest),
+        "output": None,
+        "error": code,
+        "result_hash": "",
+    }
+    result["result_hash"] = _artifact_hash(
+        "cps.broad-prior-production-result/v1.1", result, omit="result_hash",
+    )
+    return result
+
+
+def _validate_v11_request_shape(request: dict[str, Any]) -> None:
+    required = {
+        "schema", "schema_version", "run_hash", "context_hash", "source_decision_hash",
+        "root_seed", "cohort_index", "production_rejection_ordinal",
+        "sampler_manifest_hash", "structural_lowering_manifest_hash",
+        "production_lowering_manifest_hash", "instrument_catalog_digest",
+        "structural_program_hash", "structural_program", "active_roles",
+        "lattice_equave", "request_hash",
+    }
+    if set(request) != required or request.get("schema") != "cps.broad-prior-production-request":
+        raise FallbackError("SAMPLER_PRODUCTION_REQUEST_INVALID")
+    for name in (
+        "run_hash", "context_hash", "source_decision_hash", "sampler_manifest_hash",
+        "structural_lowering_manifest_hash", "production_lowering_manifest_hash",
+        "instrument_catalog_digest", "structural_program_hash", "request_hash",
+    ):
+        if not _is_sha256(request.get(name)):
+            raise FallbackError("SAMPLER_PRODUCTION_REQUEST_INVALID")
+    for name in ("root_seed", "cohort_index"):
+        value = request.get(name)
+        if not isinstance(value, int) or isinstance(value, bool) or not 0 <= value <= U64_MAX:
+            raise FallbackError("SAMPLER_PRODUCTION_REQUEST_INVALID")
+    ordinal = request.get("production_rejection_ordinal")
+    if not isinstance(ordinal, int) or isinstance(ordinal, bool) or not 0 <= ordinal <= 255:
+        raise FallbackError("SAMPLER_PRODUCTION_REQUEST_INVALID")
+    if not isinstance(request.get("lattice_equave"), str) or not re.fullmatch(r"[1-9][0-9]*/[1-9][0-9]*", request["lattice_equave"]):
+        raise FallbackError("SAMPLER_PRODUCTION_REQUEST_INVALID")
+    if not isinstance(request.get("structural_program"), dict):
+        raise FallbackError("SAMPLER_PRODUCTION_REQUEST_INVALID")
+    if request["request_hash"] != _search_decision_hash(request, "request_hash"):
+        raise FallbackError("SAMPLER_PRODUCTION_REQUEST_INVALID")
+
+
+def _validate_v11_structural_program(request: dict[str, Any]) -> list[str]:
+    program = request["structural_program"]
+    if program.get("schema") != "cps.structural-song-program" or program.get("schema_version") != "1.0.0":
+        raise FallbackError("SAMPLER_RESULT_INVALID")
+    if "tracks" in program or "production" in program:
+        raise FallbackError("SAMPLER_RESULT_INVALID")
+    if request["structural_program_hash"] != structural_program_hash(program):
+        raise FallbackError("SAMPLER_RESULT_INVALID")
+    try:
+        if request["lattice_equave"] != program["lattice"]["equave"]:
+            raise FallbackError("SAMPLER_RESULT_INVALID")
+        realizations = program["realizations"]
+    except (KeyError, TypeError):
+        raise FallbackError("SAMPLER_RESULT_INVALID") from None
+    active = request.get("active_roles")
+    if not isinstance(active, list) or any(role not in ROLES for role in active):
+        raise FallbackError("SAMPLER_ACTIVE_ROLE_INVALID")
+    ordered_active = [role for role in ROLES if role in active]
+    if active != ordered_active or len(active) != len(set(active)):
+        raise FallbackError("SAMPLER_ACTIVE_ROLE_INVALID")
+    if not isinstance(realizations, list):
+        raise FallbackError("SAMPLER_RESULT_INVALID")
+    for realization in realizations:
+        if not isinstance(realization, dict) or realization.get("role") not in active:
+            raise FallbackError("SAMPLER_ACTIVE_ROLE_INVALID")
+        if "track_id" in realization:
+            raise FallbackError("SAMPLER_RESULT_INVALID")
+    return ordered_active
+
+
+def apply_structural_broad_prior_production(structural_program: dict[str, Any], choices: dict[str, Any], *,
+                                            catalog_digest: str, active_roles: list[str]) -> dict[str, Any]:
+    """Complete a Structural SongProgram at the v1.1 production boundary."""
+    active = [role for role in ROLES if role in active_roles]
+    if active != active_roles or len(active) != len(set(active)):
+        raise FallbackError("SAMPLER_ACTIVE_ROLE_INVALID")
+    if "tracks" in structural_program or "production" in structural_program:
+        raise FallbackError("SAMPLER_RESULT_INVALID")
+    decisions = {item.get("role"): item for item in choices.get("role_decisions", [])}
+    if len(decisions) != len(choices.get("role_decisions", [])) or set(decisions) != set(active):
+        raise FallbackError("SAMPLER_RESULT_INVALID")
+    result = copy.deepcopy(structural_program)
+    result["schema"] = "cps.song-program"
+    result["schema_version"] = "0.1.0"
+    tracks: list[dict[str, Any]] = []
+    mix: dict[str, dict[str, int]] = {}
+    role_to_track = {role: f"trk_{role}" for role in active}
+    if len(set(role_to_track.values())) != len(role_to_track):
+        raise FallbackError("SAMPLER_ACTIVE_ROLE_INVALID")
+    for role in active:
+        decision = decisions[role]
+        track_id = role_to_track[role]
+        drum = decision.get("drum_map")
+        tracks.append({
+            "id": track_id,
+            "role": role,
+            "instrument_id": decision["instrument_id"],
+            "register_millicents": decision["register_millicents"],
+            "maximum_polyphony": decision["maximum_polyphony"],
+            "drum_map": None if drum is None else copy.deepcopy(drum["drum_map"]),
+        })
+        mix[track_id] = {"gain_q": decision["gain_q"], "pan_q": decision["pan_q"]}
+    lowered_realizations = []
+    for realization in result.get("realizations", []):
+        role = realization.get("role")
+        if role not in role_to_track:
+            raise FallbackError("SAMPLER_ACTIVE_ROLE_INVALID")
+        lowered = {key: copy.deepcopy(value) for key, value in realization.items() if key != "role"}
+        lowered["track_id"] = role_to_track[role]
+        lowered_realizations.append(lowered)
+    result["tracks"] = tracks
+    result["realizations"] = lowered_realizations
+    result["production"] = {
+        "profile_id": choices["profile"]["profile_id"],
+        "catalog_digest": catalog_digest,
+        "tracks": mix,
+        "envelopes": [],
+    }
+    return result
+
+
+def _validate_structural_lowering_manifest(request: dict[str, Any], manifest: Any) -> None:
+    """Validate the supplied fourth boundary value before any production draw.
+
+    Production intentionally does not read structural lowering values: that
+    would introduce a second owner for structural fields.  It does, however,
+    authenticate the exact sealed manifest which created the inline payload.
+    """
+    if not isinstance(manifest, dict):
+        raise FallbackError("SAMPLER_PRODUCTION_MANIFEST_INVALID")
+    required = {
+        "schema", "schema_version", "algorithm", "structural_program_schema_hash",
+        "id_policy", "clock", "lattice_constants", "section_templates",
+        "material_builders", "chord_constants", "realization_constants",
+        "rhythm_position_policy", "compile_policy", "limits", "manifest_hash",
+    }
+    if set(manifest) != required:
+        raise FallbackError("SAMPLER_PRODUCTION_MANIFEST_INVALID")
+    if (manifest.get("schema"), manifest.get("schema_version"), manifest.get("algorithm")) != (
+        "cps.structural-lowering-manifest", "1.0.0", "structural-song-program-lowering/v1",
+    ):
+        raise FallbackError("SAMPLER_PRODUCTION_MANIFEST_INVALID")
+    actual = structural_lowering_manifest_hash(manifest)
+    if manifest.get("manifest_hash") != actual or request["structural_lowering_manifest_hash"] != actual:
+        raise FallbackError("SAMPLER_PRODUCTION_MANIFEST_INVALID")
+
+
+def _validate_v11_production_manifest(manifest: Any) -> None:
+    """Reject an unsealed or non-v1 ProductionLoweringManifest before draws."""
+    if not isinstance(manifest, dict):
+        raise FallbackError("SAMPLER_PRODUCTION_MANIFEST_INVALID")
+    required = {
+        "schema", "schema_version", "algorithm", "stream_domain", "choice_algorithm",
+        "sampler_manifest_hash", "instrument_catalog_digest", "maximum_production_rejections",
+        "role_order", "profile_ids", "instrument_entries_by_role", "register_presets_by_role",
+        "polyphony_by_role", "drum_map_profiles", "gain_q_by_role", "pan_q_by_role",
+    }
+    if set(manifest) != required or (
+        manifest.get("schema"), manifest.get("schema_version"), manifest.get("algorithm"),
+        manifest.get("stream_domain"), manifest.get("choice_algorithm"), manifest.get("role_order"),
+    ) != (
+        "cps.broad-prior-production-manifest", "1.0.0", "broad-prior-production-lowering/v1",
+        "cps.broad-prior-production/v1", "sha256-u64-mod-cumulative/v1", list(ROLES),
+    ):
+        raise FallbackError("SAMPLER_PRODUCTION_MANIFEST_INVALID")
+    ceiling = manifest.get("maximum_production_rejections")
+    if not isinstance(ceiling, int) or isinstance(ceiling, bool) or not 1 <= ceiling <= 256:
+        raise FallbackError("SAMPLER_PRODUCTION_MANIFEST_INVALID")
+    try:
+        _weighted_table(manifest["profile_ids"])
+        _weighted_table(manifest["drum_map_profiles"])
+        for role in ROLES:
+            _weighted_table(manifest["instrument_entries_by_role"][role])
+            _weighted_table(manifest["polyphony_by_role"][role])
+            _weighted_table(manifest["gain_q_by_role"][role])
+            _weighted_table(manifest["pan_q_by_role"][role])
+            if role != "drums":
+                _weighted_table(manifest["register_presets_by_role"][role])
+    except (KeyError, TypeError, FallbackError) as exc:
+        raise FallbackError("SAMPLER_PRODUCTION_MANIFEST_INVALID") from exc
+
+
+def _execute_broad_prior_production_v11(request: dict[str, Any], manifest: dict[str, Any],
+                                         catalog: dict[str, Any], structural_manifest: Any) -> dict[str, Any]:
+    try:
+        _validate_v11_request_shape(request)
+    except FallbackError as error:
+        return _v11_production_failure(request, manifest, error.code, 0, [])
+    try:
+        if request["production_lowering_manifest_hash"] != _artifact_hash("cps.production-lowering-manifest/v1", manifest):
+            raise FallbackError("SAMPLER_PRODUCTION_MANIFEST_INVALID")
+        _validate_v11_production_manifest(manifest)
+        _validate_structural_lowering_manifest(request, structural_manifest)
+        catalog_digest = "sha256:" + hashlib.sha256(
+            b"cps.instrument-catalog/v1\0" + canonical_bytes(catalog)
+        ).hexdigest()
+        if request["instrument_catalog_digest"] != catalog_digest:
+            raise FallbackError("SAMPLER_CATALOG_MISMATCH")
+        if request["sampler_manifest_hash"] != manifest.get("sampler_manifest_hash"):
+            raise FallbackError("SAMPLER_PRODUCTION_MANIFEST_INVALID")
+        if manifest.get("role_order") != list(ROLES):
+            raise FallbackError("SAMPLER_PRODUCTION_MANIFEST_INVALID")
+        active = _validate_v11_structural_program(request)
+        ceiling = manifest["maximum_production_rejections"]
+    except FallbackError as error:
+        return _v11_production_failure(request, manifest, error.code, 0, [])
+    except (KeyError, TypeError, ValueError):
+        return _v11_production_failure(request, manifest, "SAMPLER_PRODUCTION_MANIFEST_INVALID", 0, [])
+
+    rejected_trace: list[dict[str, Any]] = []
+    last_error = "SAMPLER_RESULT_INVALID"
+    for rejection in range(request["production_rejection_ordinal"], ceiling):
+        trial = copy.deepcopy(request)
+        trial["production_rejection_ordinal"] = rejection
+        try:
+            choices = lower_broad_prior_choices(trial, manifest, catalog)
+            output_program = apply_structural_broad_prior_production(
+                request["structural_program"], choices, catalog_digest=catalog_digest,
+                active_roles=active,
+            )
+        except FallbackError as error:
+            rejected_trace.extend(error.decision_trace)
+            last_error = error.code
+            continue
+        break
+    else:
+        return _v11_production_failure(request, manifest, last_error, ceiling, rejected_trace)
+
+    decisions = []
+    for decision in choices["role_decisions"]:
+        drum = decision["drum_map"]
+        decisions.append({
+            "role": decision["role"], "instrument_id": decision["instrument_id"],
+            "register_millicents": decision["register_millicents"],
+            "maximum_polyphony": decision["maximum_polyphony"],
+            "drum_map_id": None if drum is None else drum["drum_map_id"],
+            "drum_map": None if drum is None else drum["drum_map"],
+            "drum_map_payload_hash": None if drum is None else drum["drum_map_payload_hash"],
+            "gain_q": decision["gain_q"], "pan_q": decision["pan_q"],
+        })
+    output = {
+        "profile_id": choices["profile"]["profile_id"],
+        "profile_payload_hash": choices["profile"].get("profile_payload_hash"),
+        "catalog_digest": catalog_digest,
+        "program": output_program,
+        "program_hash": program_hash(output_program),
+    }
+    result = {
+        **_v11_result_base(request),
+        "status": "success",
+        "rejections_consumed": rejection,
+        "role_decisions": decisions,
+        "decision_trace": _public_production_trace([*rejected_trace, *choices["decision_trace"]], manifest),
+        "output": output,
+        "error": None,
+        "result_hash": "",
+    }
+    result["result_hash"] = _artifact_hash(
+        "cps.broad-prior-production-result/v1.1", result, omit="result_hash",
+    )
+    return result
+
+
+def execute_broad_prior_production(request: dict[str, Any], manifest: dict[str, Any],
+                                   catalog: dict[str, Any], structural_manifest: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Dispatch the sealed legacy and SearchLoop13 production boundaries."""
+    if request.get("schema_version") == "1.1.0":
+        return _execute_broad_prior_production_v11(request, manifest, catalog, structural_manifest)
+    return _execute_broad_prior_production_v1(request, manifest, catalog)
