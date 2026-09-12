@@ -2,6 +2,7 @@
  "schema": "cps.pil-oracle-case",
  "schema_version": "1.0.0",
  "case_id": "pil_segment_boundary",
+ "description": "Grid/bass/sustained/pitch-distribution boundary rules and half-open intervals.",
  "coverage": [
   "success"
  ],
@@ -74,56 +75,55 @@
    }
   ]
  },
- "assets": {
-  "segmentation_policy": {
-   "schema": "cps.perceptual-segmentation-policy",
-   "schema_version": "1.0.0",
-   "algorithm": "pil-harmonic-segmentation-grid-events/v1",
-   "project_schema_hash": "sha256:960891e2390acb2a3c14e35074de9a56bb0604c9098baff0aada3fbeeeeb167d",
-   "policy_schema_hash": "sha256:77559f2ad4f563c761be20505eec8af4c4a04e63b51b9201df680e280bfa370d",
-   "grid_divisions_per_beat": 1,
-   "minimum_segment_ticks": 480,
-   "sustained_minimum_ticks": 480,
-   "pitch_distribution_change_q": 1000,
-   "duration_coefficient_q": 10000,
-   "metrical_coefficient_q": 0,
-   "persistence_coefficient_q": 0,
-   "bass_coefficient_q": 0,
-   "role_gain_q": {
-    "drums": 0,
-    "bass": 10000,
-    "harmony": 10000,
-    "melody": 10000,
-    "texture": 10000
-   },
-   "bass_role_order": [
-    "bass",
-    "harmony",
-    "melody",
-    "texture",
-    "drums"
-   ],
-   "boundary_priority": [
-    "endpoint",
-    "bass_change",
-    "sustained_change",
-    "pitch_distribution_change",
-    "metrical"
-   ],
-   "boundary_confidence_q": {
-    "endpoint": 10000,
-    "bass_change": 9000,
-    "sustained_change": 8000,
-    "pitch_distribution_change": 7000,
-    "metrical": 6000
-   },
-   "policy_hash": "sha256:e4de32cfdcb25f41e1dc1f8d09cce86df1c3777d5f31176943258dc695dfcd6e"
+ "project_hash": "sha256:2c7c896855dea208aaa82f56f781348b316053e25b1aa6e0cbee8eded9379f76",
+ "segmentation_policy": {
+  "schema": "cps.perceptual-segmentation-policy",
+  "schema_version": "1.0.0",
+  "algorithm": "pil-harmonic-segmentation-grid-events/v1",
+  "project_schema_hash": "sha256:960891e2390acb2a3c14e35074de9a56bb0604c9098baff0aada3fbeeeeb167d",
+  "policy_schema_hash": "sha256:77559f2ad4f563c761be20505eec8af4c4a04e63b51b9201df680e280bfa370d",
+  "grid_divisions_per_beat": 1,
+  "minimum_segment_ticks": 480,
+  "sustained_minimum_ticks": 480,
+  "pitch_distribution_change_q": 1000,
+  "duration_coefficient_q": 10000,
+  "metrical_coefficient_q": 0,
+  "persistence_coefficient_q": 0,
+  "bass_coefficient_q": 0,
+  "role_gain_q": {
+   "drums": 0,
+   "bass": 10000,
+   "harmony": 10000,
+   "melody": 10000,
+   "texture": 10000
   },
-  "feature_spec": null,
-  "chord_vocabulary": null,
-  "voice_matching_policy": null,
-  "trajectory_template_set": null
+  "bass_role_order": [
+   "bass",
+   "harmony",
+   "melody",
+   "texture",
+   "drums"
+  ],
+  "boundary_priority": [
+   "endpoint",
+   "bass_change",
+   "sustained_change",
+   "pitch_distribution_change",
+   "metrical"
+  ],
+  "boundary_confidence_q": {
+   "endpoint": 10000,
+   "bass_change": 9000,
+   "sustained_change": 8000,
+   "pitch_distribution_change": 7000,
+   "metrical": 6000
+  },
+  "policy_hash": "sha256:e4de32cfdcb25f41e1dc1f8d09cce86df1c3777d5f31176943258dc695dfcd6e"
  },
+ "feature_spec": null,
+ "vocabulary": null,
+ "voice_matching_policy": null,
+ "trajectory_template_set": null,
  "native_ji_report_hash": null,
  "expected": {
   "status": null,
@@ -144,6 +144,5 @@
    "424242"
   ]
  },
- "case_hash": null,
- "template_note": "Grid/bass/sustained/pitch-distribution boundary rules and half-open intervals."
+ "case_hash": null
 }

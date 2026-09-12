@@ -2,6 +2,7 @@
  "schema": "cps.pil-oracle-case",
  "schema_version": "1.0.0",
  "case_id": "pil_cross_process_workers",
+ "description": "PYTHONHASHSEED and 1/2/4/8-worker parity matrix.",
  "coverage": [
   "success",
   "cross_process",
@@ -88,13 +89,12 @@
    }
   ]
  },
- "assets": {
-  "segmentation_policy": null,
-  "feature_spec": null,
-  "chord_vocabulary": null,
-  "voice_matching_policy": null,
-  "trajectory_template_set": null
- },
+ "project_hash": "sha256:fcea627e642f1ada6f5e8a8632149ec03c8d8d4694bb5e7ba915e66ac1d0b84a",
+ "segmentation_policy": null,
+ "feature_spec": null,
+ "vocabulary": null,
+ "voice_matching_policy": null,
+ "trajectory_template_set": null,
  "native_ji_report_hash": null,
  "expected": {
   "status": null,
@@ -115,6 +115,5 @@
    "424242"
   ]
  },
- "case_hash": null,
- "template_note": "PYTHONHASHSEED and 1/2/4/8-worker parity matrix."
+ "case_hash": null
 }

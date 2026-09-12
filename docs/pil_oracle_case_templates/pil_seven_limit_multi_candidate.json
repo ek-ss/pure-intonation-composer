@@ -2,6 +2,7 @@
  "schema": "cps.pil-oracle-case",
  "schema_version": "1.0.0",
  "case_id": "pil_seven_limit_multi_candidate",
+ "description": "7-limit chord; every pitch row must retain multiple nonzero candidates.",
  "coverage": [
   "success",
   "equave_2_1"
@@ -93,13 +94,12 @@
    }
   ]
  },
- "assets": {
-  "segmentation_policy": null,
-  "feature_spec": null,
-  "chord_vocabulary": null,
-  "voice_matching_policy": null,
-  "trajectory_template_set": null
- },
+ "project_hash": "sha256:b89cd75ec50c6f4ea090b3f3767c6b41e4ca7b1d0d93f65bfc0665ce843430d7",
+ "segmentation_policy": null,
+ "feature_spec": null,
+ "vocabulary": null,
+ "voice_matching_policy": null,
+ "trajectory_template_set": null,
  "native_ji_report_hash": null,
  "expected": {
   "status": null,
@@ -120,6 +120,5 @@
    "424242"
   ]
  },
- "case_hash": null,
- "template_note": "7-limit chord; every pitch row must retain multiple nonzero candidates."
+ "case_hash": null
 }

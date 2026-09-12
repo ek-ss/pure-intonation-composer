@@ -2,6 +2,7 @@
  "schema": "cps.pil-oracle-case",
  "schema_version": "1.0.0",
  "case_id": "pil_cache_parity",
+ "description": "Cold, hit and corrupt cache executions must be byte-identical.",
  "coverage": [
   "success",
   "cache_cold",
@@ -77,13 +78,12 @@
    }
   ]
  },
- "assets": {
-  "segmentation_policy": null,
-  "feature_spec": null,
-  "chord_vocabulary": null,
-  "voice_matching_policy": null,
-  "trajectory_template_set": null
- },
+ "project_hash": "sha256:600ae43dad7be66806dd96bf13f99360a214728f5ff72fe8c1ccf8b4cb03e3c0",
+ "segmentation_policy": null,
+ "feature_spec": null,
+ "vocabulary": null,
+ "voice_matching_policy": null,
+ "trajectory_template_set": null,
  "native_ji_report_hash": null,
  "expected": {
   "status": null,
@@ -104,6 +104,5 @@
    "424242"
   ]
  },
- "case_hash": null,
- "template_note": "Cold, hit and corrupt cache executions must be byte-identical."
+ "case_hash": null
 }

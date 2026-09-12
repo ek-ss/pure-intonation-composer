@@ -2,6 +2,7 @@
  "schema": "cps.pil-oracle-case",
  "schema_version": "1.0.0",
  "case_id": "pil_kernel_empty_support",
+ "description": "Radius 10000 leaves 16/15 without support: PIL_PITCH_SUPPORT_EMPTY.",
  "coverage": [
   "failure",
   "kernel_empty_support"
@@ -66,13 +67,12 @@
    }
   ]
  },
- "assets": {
-  "segmentation_policy": null,
-  "feature_spec": null,
-  "chord_vocabulary": null,
-  "voice_matching_policy": null,
-  "trajectory_template_set": null
- },
+ "project_hash": "sha256:3395e53452d28e224fa43c4283fa291ae4fb227ce456d204faf74e8601e42adf",
+ "segmentation_policy": null,
+ "feature_spec": null,
+ "vocabulary": null,
+ "voice_matching_policy": null,
+ "trajectory_template_set": null,
  "native_ji_report_hash": null,
  "expected": {
   "status": null,
@@ -93,6 +93,5 @@
    "424242"
   ]
  },
- "case_hash": null,
- "template_note": "Radius 10000 leaves 16/15 without support: PIL_PITCH_SUPPORT_EMPTY."
+ "case_hash": null
 }

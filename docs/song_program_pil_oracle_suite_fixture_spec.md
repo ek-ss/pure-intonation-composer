@@ -68,9 +68,11 @@ separate closed schema and validator entry point with the labels above.
 schema: cps.pil-oracle-case
 schema_version: 1.0.0
 case_id: <^[a-z][a-z0-9_-]{0,39}$, unique across the suite>
+description: <non-empty audit note; not an expected value>
 coverage: [<non-empty unique subset of required_coverage>]
 manifest: <PerceptualInterpretationManifest 1.0, complete incl. manifest_hash>
 project: <ArrangementProject 1.2, complete and standalone-valid>
+project_hash: <recomputed ArrangementProject 1.2 artifact hash>
 segmentation_policy: <null | complete SegmentationPolicy 1.0>
 feature_spec: <null | complete ChordFeatureSpec 1.0>
 vocabulary: <null | complete ChordVocabulary 1.0>
@@ -99,8 +101,8 @@ Rules:
   `canonical_report_sha256: null`; a computation-stage failure records both
   hashes like a success case. The two hash members are either both SHA-256
   values or both null.
-- `project` must recompute to its own artifact hash under spec section 17;
-  PIL tests recompute it rather than trusting a stored copy.
+- `project` must recompute to `project_hash` under spec section 17; PIL tests
+  recompute it rather than trusting the stored binding.
 - `manifest` must recompute to `manifest_hash` under the generic
   `cps-artifact-hash/v1` preimage rule adopted by the Phase 1 implementation;
   if the owner later standardizes a different PIL hash preimage, the Phase 1

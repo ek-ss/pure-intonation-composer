@@ -13,6 +13,13 @@ They are **not** authoritative fixtures:
 - only the **oracle maintainer** may fill golden values and promote cases,
   through the documented authoritative-update workflow.
 
+The generated `project` objects are compact construction inputs used by the
+synthetic operator tests; they are not standalone ArrangementProject 1.2
+fixtures. Before promotion, the oracle maintainer MUST replace each one with a
+standalone-valid ArrangementProject 1.2 payload, recompute `project_hash`, and
+validate it against `arrangement_project_1_2.schema.json`. This conversion is
+an authority task because it fixes the exact event provenance bytes.
+
 Regenerate inputs after a deliberate spec/implementation change:
 
 ```bash
@@ -30,7 +37,8 @@ expected output null.
 
 For each `pil_*.json` case:
 
-1. Execute the case with the reference implementation
+1. Replace/compile the compact Project construction input as described above,
+   then execute the case with the reference implementation
    (`app.songprogram.perceptual.run_perceptual_interpretation`, passing the
    case's `project`, `manifest`, and the non-null entries of `assets`).
 2. Independently review the result against the contract (section 9 mapping

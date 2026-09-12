@@ -2,14 +2,17 @@ from __future__ import annotations
 
 import hashlib
 import json
+from pathlib import Path
 
 import pytest
 
 from app.songprogram.perceptual import PilError
 from app.songprogram.pil_fixture_suite import (
     PIL_REQUIRED_COVERAGE,
+    validate_pil_oracle_case_bindings,
     validate_pil_fixture_suite,
 )
+from app.songprogram import perceptual
 from app.songprogram.search_decisions import decision_artifact_hash
 
 
@@ -76,3 +79,47 @@ def test_pil_suite_rejects_authority_mismatch(tmp_path, change: str) -> None:
     suite["suite_hash"] = decision_artifact_hash(suite, "suite_hash")
     with pytest.raises(PilError, match="PIL_FIXTURE_SUITE_INVALID"):
         validate_pil_fixture_suite(suite, tmp_path, schemas, lambda case, schema: None)
+
+
+def test_case_binding_accepts_full_project_and_phase_exact_null_assets() -> None:
+    fixture = (
+        Path(__file__).resolve().parents[1]
+        / "songprogram_conformance/fixtures/pack/minimal_direct_project.json"
+    )
+    project = json.loads(fixture.read_text(encoding="utf-8"))
+    manifest = {
+        "schema": "cps.perceptual-interpretation-manifest",
+        "schema_version": "1.0.0",
+        "algorithm": "pil-parallel-interpretation/v1",
+        "project_schema_hash": perceptual.PROJECT_SCHEMA_HASH,
+        "numeric_contract_hash": perceptual.NUMERIC_CONTRACT_HASH,
+        "implementation_build_id": perceptual.PIL_IMPLEMENTATION_BUILD_ID,
+        "interpretation_period": "2/1",
+        "pitch_kernel": {
+            "algorithm": "triangular-millicent-q31/v1",
+            "radius_millicents": 100_000,
+            "normalization_total": perceptual.Q31_TOTAL,
+        },
+        "segmentation_policy_schema_hash": perceptual.SEGMENTATION_POLICY_SCHEMA_HASH,
+        "segmentation_policy_hash": "sha256:" + "03" * 32,
+        "feature_spec_hash": "sha256:" + "04" * 32,
+        "vocabulary_hash": "sha256:" + "05" * 32,
+        "voice_matching_policy_hash": "sha256:" + "06" * 32,
+        "trajectory_template_set_hash": "sha256:" + "07" * 32,
+        "genre_model_hash": None,
+    }
+    manifest["manifest_hash"] = perceptual.manifest_hash(manifest)
+    case = {
+        "manifest": manifest,
+        "project": project,
+        "project_hash": perceptual.project_hash(project),
+        "segmentation_policy": None,
+        "feature_spec": None,
+        "vocabulary": None,
+        "voice_matching_policy": None,
+        "trajectory_template_set": None,
+    }
+    validate_pil_oracle_case_bindings(case)
+    case["project_hash"] = "sha256:" + "00" * 32
+    with pytest.raises(PilError, match="PIL_FIXTURE_SUITE_INVALID"):
+        validate_pil_oracle_case_bindings(case)

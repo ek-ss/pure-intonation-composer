@@ -2,6 +2,7 @@
  "schema": "cps.pil-oracle-case",
  "schema_version": "1.0.0",
  "case_id": "pil_tritave_phase_split",
+ "description": "3/1 equave: native phase wraps by 3/1 while the 2/1 interpretation phase differs.",
  "coverage": [
   "success",
   "equave_3_1",
@@ -67,13 +68,12 @@
    }
   ]
  },
- "assets": {
-  "segmentation_policy": null,
-  "feature_spec": null,
-  "chord_vocabulary": null,
-  "voice_matching_policy": null,
-  "trajectory_template_set": null
- },
+ "project_hash": "sha256:9cebf2e15c075b9ae750e0dd3168acdd75e9e5ace418c2967632b0535a4487e1",
+ "segmentation_policy": null,
+ "feature_spec": null,
+ "vocabulary": null,
+ "voice_matching_policy": null,
+ "trajectory_template_set": null,
  "native_ji_report_hash": null,
  "expected": {
   "status": null,
@@ -94,6 +94,5 @@
    "424242"
   ]
  },
- "case_hash": null,
- "template_note": "3/1 equave: native phase wraps by 3/1 while the 2/1 interpretation phase differs."
+ "case_hash": null
 }

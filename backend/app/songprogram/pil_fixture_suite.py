@@ -6,7 +6,9 @@ from pathlib import Path
 from typing import Any, Callable, Mapping
 
 from .fixture_suite import _validate_suite
+from . import perceptual
 from .perceptual import PilError
+from .validator import ProjectValidationError, validate_project
 
 
 PIL_REQUIRED_COVERAGE = [
@@ -61,4 +63,66 @@ def validate_pil_fixture_suite(
     )
 
 
-__all__ = ("PIL_REQUIRED_COVERAGE", "validate_pil_fixture_suite")
+def validate_pil_oracle_case_bindings(case: Mapping[str, Any]) -> None:
+    """Validate phase-exact assets and every locally recomputable case binding."""
+    try:
+        manifest = case["manifest"]
+        project = case["project"]
+        perceptual.validate_manifest(manifest)
+        validate_project(project)
+        if perceptual.project_hash(project) != case.get("project_hash"):
+            _fail()
+
+        policy = case.get("segmentation_policy")
+        spec = case.get("feature_spec")
+        vocabulary = case.get("vocabulary")
+        voice_policy = case.get("voice_matching_policy")
+        templates = case.get("trajectory_template_set")
+        presence = tuple(
+            value is not None for value in (policy, spec, vocabulary, voice_policy, templates)
+        )
+        if presence not in {
+            (False, False, False, False, False),
+            (True, False, False, False, False),
+            (True, True, True, False, False),
+            (True, True, True, True, True),
+        }:
+            _fail()
+        expected_bindings = {}
+        if policy is not None:
+            expected_bindings["segmentation_policy_hash"] = perceptual.segmentation_policy_hash(
+                policy
+            )
+        if spec is not None:
+            expected_bindings["feature_spec_hash"] = perceptual.chord_feature_spec_hash(spec)
+            expected_bindings["vocabulary_hash"] = perceptual.chord_vocabulary_hash(vocabulary)
+        if voice_policy is not None:
+            expected_bindings["voice_matching_policy_hash"] = perceptual.voice_matching_policy_hash(
+                voice_policy
+            )
+            expected_bindings["trajectory_template_set_hash"] = (
+                perceptual.trajectory_template_set_hash(templates)
+            )
+        if any(manifest.get(key) != value for key, value in expected_bindings.items()):
+            _fail()
+        if policy is not None:
+            perceptual.validate_segmentation_policy(policy, manifest)
+        if spec is not None:
+            perceptual.validate_chord_feature_spec(spec, manifest, policy)
+            perceptual.validate_chord_vocabulary(vocabulary, manifest, spec)
+        if voice_policy is not None:
+            perceptual.validate_voice_matching_policy(voice_policy, manifest, spec)
+            perceptual.validate_trajectory_template_set(
+                templates, manifest, spec, vocabulary, voice_policy
+            )
+    except (KeyError, TypeError, ProjectValidationError, PilError) as error:
+        if isinstance(error, PilError) and error.code == "PIL_FIXTURE_SUITE_INVALID":
+            raise
+        _fail()
+
+
+__all__ = (
+    "PIL_REQUIRED_COVERAGE",
+    "validate_pil_fixture_suite",
+    "validate_pil_oracle_case_bindings",
+)

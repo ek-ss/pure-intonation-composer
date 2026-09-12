@@ -315,10 +315,16 @@ def _case(
         "schema": "cps.pil-oracle-case",
         "schema_version": "1.0.0",
         "case_id": case_id,
+        "description": note,
         "coverage": coverage,
         "manifest": manifest,
         "project": project,
-        "assets": assets,
+        "project_hash": perceptual.project_hash(project),
+        "segmentation_policy": assets["segmentation_policy"],
+        "feature_spec": assets["feature_spec"],
+        "vocabulary": assets["chord_vocabulary"],
+        "voice_matching_policy": assets["voice_matching_policy"],
+        "trajectory_template_set": assets["trajectory_template_set"],
         "native_ji_report_hash": None,
         "expected": {
             "status": None,
@@ -331,7 +337,6 @@ def _case(
             "pythonhashseeds": ["0", "1", "424242"],
         },
         "case_hash": None,
-        "template_note": note,
     }
 
 

@@ -2,6 +2,7 @@
  "schema": "cps.pil-oracle-case",
  "schema_version": "1.0.0",
  "case_id": "pil_kernel_boundaries",
+ "description": "Kernel edge/tie geometry; owner declares exact boundary expectations.",
  "coverage": [
   "success",
   "kernel_edge",
@@ -85,13 +86,12 @@
    }
   ]
  },
- "assets": {
-  "segmentation_policy": null,
-  "feature_spec": null,
-  "chord_vocabulary": null,
-  "voice_matching_policy": null,
-  "trajectory_template_set": null
- },
+ "project_hash": "sha256:c3713c087234a2bfb7af9371bc75bcde82fad73e7bb4720ccc27a41176e3acca",
+ "segmentation_policy": null,
+ "feature_spec": null,
+ "vocabulary": null,
+ "voice_matching_policy": null,
+ "trajectory_template_set": null,
  "native_ji_report_hash": null,
  "expected": {
   "status": null,
@@ -112,6 +112,5 @@
    "424242"
   ]
  },
- "case_hash": null,
- "template_note": "Kernel edge/tie geometry; owner declares exact boundary expectations."
+ "case_hash": null
 }
