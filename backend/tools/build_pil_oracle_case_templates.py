@@ -488,7 +488,9 @@ def _phase3_assets():
 
 
 def _phase4_assets(templates: list[dict]):
-    policy, spec, vocabulary = _phase3_assets()
+    policy = _segmentation_policy()
+    spec = _feature_spec(policy)
+    vocabulary = _vocabulary(spec)
     vm_policy = _voice_matching_policy(spec)
     template_set = _template_set(spec, vocabulary, vm_policy, templates)
     return policy, spec, vocabulary, vm_policy, template_set
@@ -585,7 +587,9 @@ def build_cases() -> list[dict]:
     )
 
     # --- Phase 3 (contract section 9 items 1, 3) ---
-    policy, spec, vocabulary = _phase3_assets()
+    policy = _segmentation_policy(bass_role_order=["bass"])
+    spec = _feature_spec(policy)
+    vocabulary = _vocabulary(spec)
     manifest = _bind(
         _manifest(), segmentation_policy=policy, feature_spec=spec, chord_vocabulary=vocabulary
     )
@@ -800,16 +804,22 @@ def build_cases() -> list[dict]:
     )
 
     def _phase4_pair(case_id: str, coverage: list[str], events: list[dict], note: str) -> dict:
-        policy, spec, vocabulary, vm_policy, template_set = _phase4_assets(
-            [
-                {
-                    "id": "pair_probe",
-                    "ordinal": 0,
-                    "steps": [_step("major"), _step("major")],
-                    "transitions": [_transition(0)],
-                }
-            ]
-        )
+        templates = [
+            {
+                "id": "pair_probe",
+                "ordinal": 0,
+                "steps": [_step("major"), _step("major")],
+                "transitions": [_transition(0)],
+            }
+        ]
+        if "trajectory_missing_bass" in coverage:
+            policy = _segmentation_policy(bass_role_order=["drums"])
+            spec = _feature_spec(policy)
+            vocabulary = _vocabulary(spec)
+            vm_policy = _voice_matching_policy(spec)
+            template_set = _template_set(spec, vocabulary, vm_policy, templates)
+        else:
+            policy, spec, vocabulary, vm_policy, template_set = _phase4_assets(templates)
         manifest = _bind(
             _manifest(),
             segmentation_policy=policy,

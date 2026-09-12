@@ -59,3 +59,18 @@ def test_template_inputs_execute_without_mutation_or_hidden_assets() -> None:
         expected_status = "failure" if "kernel_empty_support" in case["coverage"] else "success"
         assert report["status"] == expected_status
         assert case["project"] == original_project
+        coverage = set(case["coverage"])
+        if "ambiguous_winner" in coverage:
+            assert report["segment_interpretations"][0]["best_label"] is None
+        if "missing_bass" in coverage:
+            assert report["segments"][0]["bass_event_id"] is None
+        if "unequal_voice_count" in coverage:
+            matching = report["voice_matching_records"][0]
+            assert matching["unmatched_from_event_ids"]
+            assert not matching["unmatched_to_event_ids"]
+        if "identity_constraint" in coverage:
+            pairs = report["voice_matching_records"][0]["pairs"]
+            assert any(pair["from_event_id"] == pair["to_event_id"] for pair in pairs)
+        if "trajectory_missing_bass" in coverage:
+            scores = report["trajectory_interpretations"][0]["component_scores_q"]
+            assert scores["bass"] is None
