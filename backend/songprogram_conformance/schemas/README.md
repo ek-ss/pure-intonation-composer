@@ -3,6 +3,10 @@
 These Draft 2020-12 JSON Schemas define the closed, machine-readable envelope
 for the SP0 conformance pack.
 
+- `perceptual_interpretation_manifest.schema.json` and
+  `perceptual_interpretation_report.schema.json`: optional parallel PIL
+  authority. These artifacts never replace or reinterpret Native JI evidence.
+
 - `arrangement_project_1_2.schema.json`: immutable playable Project, including
   pitch-provenance unions and inline exact resolved chords.
 - `compiler_manifest.schema.json`: compiler identity, exact resolver identity,

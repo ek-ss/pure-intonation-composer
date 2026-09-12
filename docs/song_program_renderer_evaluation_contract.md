@@ -124,6 +124,12 @@ form a content-addressed `CalibrationDataset`. A `CalibrationDecision` names
 that dataset and promotes specific audit metrics/thresholds. Before promotion,
 no perceptual metric may reject a candidate or affect QD quality.
 
+The Perceptual Interpretation Layer in
+`song_program_perceptual_interpretation_layer_contract.md` is an additional,
+parallel branch. It does not replace this Native JI evaluation, reuse a
+conventional label as native identity, or weaken a Native JI gate. PIL metrics
+remain separately namespaced and audit-only until explicitly promoted.
+
 Listening tasks report separately: technical listenability, genre fit,
 preference, tuning perceptibility, and tuning appropriateness. They use blinded
 random order and include 12-TET matched-render, same-lattice alternate-spelling,
