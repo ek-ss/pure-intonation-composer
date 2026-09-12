@@ -1,4 +1,4 @@
-"""Perceptual Interpretation Layer (PIL) 1.0 — Phase 1 pitch projection.
+"""Perceptual Interpretation Layer (PIL) 1.0 — pitch projection and segmentation.
 
 PIL is a parallel interpretation of an immutable ArrangementProject 1.2.  It
 never replaces, rewrites, or rounds the Project's ratios, vectors, equave
@@ -6,7 +6,7 @@ exponents, ResolvedChords, or Native JI evaluation evidence, and it never
 consumes a Native JI report as a computation input.  ``native_ji_report_hash``
 is nullable correlation metadata only.
 
-Phase 1 scope (perceptual_interpretation_layer_contract.md section 3):
+Implemented scope (perceptual_interpretation_layer_contract.md sections 3-4):
 
 - derive integer ``frequency_millihz`` from the exact event ratio and the
   Project base frequency (RHE, the only rounding primitive defined by the
@@ -18,6 +18,8 @@ Phase 1 scope (perceptual_interpretation_layer_contract.md section 3):
 - soft 12-TET mapping ``triangular-millicent-q31/v1`` with exact largest-
   remainder normalization to 2**31 - 1; hard nearest-note quantization is
   forbidden.
+- manifest-bound deterministic harmonic segmentation with integer salience,
+  globally merged boundaries, stable segment IDs, and Q31 distributions.
 
 Adopted house rules where the PIL contract defers to existing conventions:
 
@@ -669,7 +671,7 @@ def run_perceptual_interpretation(
     cache_dir: str | Path | None = None,
     segmentation_policy: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Run PIL Phase 1 and return a PerceptualInterpretationReport 1.0.
+    """Run PIL pitch projection and optional harmonic segmentation.
 
     The Project and any Native JI evidence are never mutated; a PIL failure
     report stays independent of the Native JI branch and cannot trigger a
