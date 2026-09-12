@@ -3,14 +3,20 @@
 from __future__ import annotations
 
 import hashlib
+import json
+import os
+import subprocess
+import sys
 import tempfile
 from copy import deepcopy
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any, Callable, Mapping
 
 from .fixture_suite import _validate_suite
 from . import perceptual
 from .perceptual import PilError
+from .search_decisions import decision_artifact_hash
 from .validator import ProjectValidationError, validate_project
 
 
@@ -191,9 +197,130 @@ def execute_pil_oracle_case(case: Mapping[str, Any]) -> dict[str, Any]:
     return report
 
 
+def _canonical(value: Any) -> bytes:
+    return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()
+
+
+def _is_sha(value: Any) -> bool:
+    return (
+        isinstance(value, str)
+        and value.startswith("sha256:")
+        and len(value) == 71
+        and all(character in "0123456789abcdef" for character in value[7:])
+    )
+
+
+def _case_results_hash(results: list[dict[str, str]]) -> str:
+    digest = hashlib.sha256(b"cps.pil-case-results/v1\0" + _canonical(results)).hexdigest()
+    return "sha256:" + digest
+
+
+def _subprocess_case(case: Mapping[str, Any], seed: str) -> dict[str, str]:
+    backend = Path(__file__).resolve().parents[2]
+    environment = dict(os.environ)
+    environment["PYTHONHASHSEED"] = seed
+    python_path = environment.get("PYTHONPATH")
+    environment["PYTHONPATH"] = str(backend) + (os.pathsep + python_path if python_path else "")
+    completed = subprocess.run(
+        [sys.executable, "-m", "app.songprogram.pil_fixture_worker"],
+        input=_canonical(case),
+        capture_output=True,
+        cwd=backend,
+        env=environment,
+        check=False,
+    )
+    if completed.returncode != 0:
+        _fail()
+    try:
+        report = json.loads(completed.stdout)
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        _fail()
+    if not isinstance(report, dict):
+        _fail()
+    canonical = perceptual.canonical_report_bytes(report)
+    if (
+        canonical != completed.stdout
+        or not _is_sha(report.get("report_hash"))
+        or report.get("report_hash") != case["expected"]["report_hash"]
+    ):
+        _fail()
+    return {
+        "case_id": case["case_id"],
+        "report_hash": report["report_hash"],
+        "canonical_report_sha256": "sha256:" + hashlib.sha256(canonical).hexdigest(),
+    }
+
+
+def execute_pil_oracle_matrix(suite_hash: str, cases: list[Mapping[str, Any]]) -> dict[str, Any]:
+    """Run the fixed seed/concurrency matrix and return canonical parity evidence."""
+    if not _is_sha(suite_hash) or not cases:
+        _fail()
+    if any(not isinstance(case.get("case_id"), str) for case in cases):
+        _fail()
+    ordered = sorted(cases, key=lambda case: case["case_id"].encode("utf-8"))
+    if ordered != cases or len({case.get("case_id") for case in cases}) != len(cases):
+        _fail()
+    executions = [case.get("execution") for case in cases]
+    if any(not isinstance(item, Mapping) for item in executions):
+        _fail()
+    worker_counts = executions[0].get("worker_counts")
+    seeds = executions[0].get("pythonhashseeds")
+    if (
+        worker_counts != [1, 2, 4, 8]
+        or not isinstance(seeds, list)
+        or not seeds
+        or any(
+            not isinstance(seed, str)
+            or not (
+                seed == "random"
+                or (
+                    seed.isdecimal()
+                    and len(seed) <= 10
+                    and str(int(seed)) == seed
+                    and int(seed) <= 4_294_967_295
+                )
+            )
+            for seed in seeds
+        )
+        or len(seeds) != len(set(seeds))
+        or any(item.get("worker_counts") != worker_counts for item in executions)
+        or any(item.get("pythonhashseeds") != seeds for item in executions)
+    ):
+        _fail()
+
+    baseline: list[dict[str, str]] | None = None
+    rows = []
+    for seed in seeds:
+        for worker_count in worker_counts:
+            with ThreadPoolExecutor(max_workers=worker_count) as pool:
+                results = list(pool.map(lambda case: _subprocess_case(case, seed), cases))
+            if baseline is None:
+                baseline = results
+            elif results != baseline:
+                _fail()
+            rows.append(
+                {
+                    "pythonhashseed": seed,
+                    "worker_count": worker_count,
+                    "case_results_hash": _case_results_hash(results),
+                }
+            )
+    receipt = {
+        "schema": "cps.pil-oracle-matrix-receipt",
+        "schema_version": "1.0.0",
+        "suite_hash": suite_hash,
+        "case_results": baseline,
+        "executions": rows,
+        "matrix_hash": "",
+    }
+    receipt["matrix_hash"] = decision_artifact_hash(receipt, "matrix_hash")
+    return receipt
+
+
 __all__ = (
     "PIL_REQUIRED_COVERAGE",
     "execute_pil_oracle_case",
+    "execute_pil_oracle_matrix",
     "validate_pil_fixture_suite",
     "validate_pil_oracle_case_bindings",
 )

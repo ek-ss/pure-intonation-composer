@@ -10,6 +10,7 @@ from app.songprogram.perceptual import PilError
 from app.songprogram.pil_fixture_suite import (
     PIL_REQUIRED_COVERAGE,
     execute_pil_oracle_case,
+    execute_pil_oracle_matrix,
     validate_pil_oracle_case_bindings,
     validate_pil_fixture_suite,
 )
@@ -143,3 +144,37 @@ def test_case_executor_compares_report_bytes_and_cache_parity() -> None:
     case["expected"]["report_hash"] = "sha256:" + "00" * 32
     with pytest.raises(PilError, match="PIL_FIXTURE_SUITE_INVALID"):
         execute_pil_oracle_case(case)
+
+
+def test_matrix_uses_fresh_processes_and_is_worker_count_invariant() -> None:
+    case = next(case for case in build_cases() if case["case_id"] == "pil_cache_parity")
+    report = perceptual.run_perceptual_interpretation(
+        case["project"], case["manifest"], expected_project_hash=case["project_hash"]
+    )
+    canonical = perceptual.canonical_report_bytes(report)
+    case["expected"] = {
+        "status": report["status"],
+        "error": report["error"],
+        "report_hash": report["report_hash"],
+        "canonical_report_sha256": "sha256:" + hashlib.sha256(canonical).hexdigest(),
+    }
+    case["execution"]["pythonhashseeds"] = ["0"]
+    receipt = execute_pil_oracle_matrix("sha256:" + "ab" * 32, [case])
+    assert [row["worker_count"] for row in receipt["executions"]] == [1, 2, 4, 8]
+    assert len({row["case_results_hash"] for row in receipt["executions"]}) == 1
+    assert receipt["case_results"] == [
+        {
+            "case_id": case["case_id"],
+            "report_hash": report["report_hash"],
+            "canonical_report_sha256": "sha256:" + hashlib.sha256(canonical).hexdigest(),
+        }
+    ]
+    assert receipt["matrix_hash"] == decision_artifact_hash(receipt, "matrix_hash")
+
+
+@pytest.mark.parametrize("seed", ["01", "-1", "4294967296"])
+def test_matrix_rejects_noncanonical_pythonhashseed(seed: str) -> None:
+    case = next(case for case in build_cases() if case["case_id"] == "pil_cache_parity")
+    case["execution"]["pythonhashseeds"] = [seed]
+    with pytest.raises(PilError, match="PIL_FIXTURE_SUITE_INVALID"):
+        execute_pil_oracle_matrix("sha256:" + "ab" * 32, [case])

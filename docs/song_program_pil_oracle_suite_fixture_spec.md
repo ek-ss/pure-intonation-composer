@@ -85,7 +85,7 @@ expected:
   report_hash: <sha256>
   canonical_report_sha256: <sha256 of exact canonical report bytes>
 execution:
-  worker_counts: [1, 2, 4, 8]        # parity matrix for this case
+  worker_counts: [1, 2, 4, 8]        # suite-level subprocess concurrency
   pythonhashseeds: [<seed strings>]  # cross-process parity seeds
 case_hash: <artifact hash, self member excluded>
 ```
@@ -170,3 +170,28 @@ require owner-approved matching policy and trajectory-template payloads.
 - Read-only suite closure failures use `PIL_FIXTURE_SUITE_INVALID`. This code is
   outside runtime PIL report failure precedence because suite authentication
   occurs before a Project/manifest execution request exists.
+
+## 7. Cross-process worker matrix
+
+All cases in one suite MUST declare identical `worker_counts` and
+`pythonhashseeds` arrays. `worker_count` is the maximum number of independent
+case subprocesses in flight; it does not alter or subdivide a case's numeric
+operators. For each `(pythonhashseed, worker_count)` coordinate, every case is
+executed exactly once in a fresh interpreter with `PYTHONHASHSEED` set before
+interpreter startup.
+
+Each seed is either the exact string `random` or the canonical base-10 spelling
+of an integer in `0..4294967295` (no sign and no leading zero except `0`). Seed
+arrays are non-empty and unique.
+
+Cases are dispatched in ascending UTF-8 `case_id` order. Completion order is
+non-authoritative: results are restored to the same case order before hashing.
+Every coordinate MUST produce the same ordered `case_results` bytes. Each row
+contains only `case_id`, `report_hash`, and `canonical_report_sha256`.
+
+`case_results_hash` is SHA-256 over
+`UTF8("cps.pil-case-results/v1\0") || canonical_json(case_results)`. The matrix
+receipt contains the suite hash, the single baseline `case_results`, and rows
+ordered first by `pythonhashseeds` array ordinal and then by `worker_counts`
+array ordinal. Each row records the seed, worker count and results hash. The
+receipt uses the generic artifact hash with only `matrix_hash` removed.

@@ -136,6 +136,8 @@ for the SP0 conformance pack.
 - `pil_oracle_suite_index.schema.json` and `pil_oracle_case.schema.json`:
   read-only PIL suite closure with exact Phase 1–4, cache, process and worker
   coverage; expected report hashes remain owner-supplied authority.
+- `pil_oracle_matrix_receipt.schema.json`: ordered fresh-interpreter
+  PYTHONHASHSEED and 1/2/4/8 subprocess-concurrency parity evidence.
 
 All object schemas use `additionalProperties: false`; nullable values must be
 present where listed as required. Cross-record invariants that JSON Schema
