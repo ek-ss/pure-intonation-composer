@@ -1,0 +1,6 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema","$id":"https://cps.local/schemas/unscored_generation_receipt.schema.json","title":"UnscoredGenerationReceipt v1","type":"object","additionalProperties":false,
+  "required":["schema","schema_version","seed","program_hash","project_hash","catalog_digest","render_manifest_digest","render_report_hash","wav_hash","evaluation_performed","artifact_paths","receipt_hash"],
+  "properties":{"schema":{"const":"cps.unscored-generation-receipt"},"schema_version":{"const":"1.0.0"},"seed":{"type":"integer","minimum":0,"maximum":18446744073709551615},"program_hash":{"$ref":"#/$defs/sha"},"project_hash":{"$ref":"#/$defs/sha"},"catalog_digest":{"$ref":"#/$defs/sha"},"render_manifest_digest":{"$ref":"#/$defs/sha"},"render_report_hash":{"$ref":"#/$defs/sha"},"wav_hash":{"$ref":"#/$defs/sha"},"evaluation_performed":{"const":false},"artifact_paths":{"type":"object","additionalProperties":false,"required":["program","project","render_report","wav"],"properties":{"program":{"const":"song_program.json"},"project":{"const":"project.json"},"render_report":{"const":"render_report.json"},"wav":{"const":"preview.wav"}}},"receipt_hash":{"$ref":"#/$defs/sha"}},
+  "$defs":{"sha":{"type":"string","pattern":"^sha256:[0-9a-f]{64}$"}}
+}

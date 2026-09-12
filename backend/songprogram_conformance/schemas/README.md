@@ -138,6 +138,8 @@ for the SP0 conformance pack.
   coverage; expected report hashes remain owner-supplied authority.
 - `pil_oracle_matrix_receipt.schema.json`: ordered fresh-interpreter
   PYTHONHASHSEED and 1/2/4/8 subprocess-concurrency parity evidence.
+- `unscored_generation_receipt.schema.json`: evaluation-free
+  SongProgram-to-Project-to-WAV artifact binding and output inventory.
 
 All object schemas use `additionalProperties: false`; nullable values must be
 present where listed as required. Cross-record invariants that JSON Schema
