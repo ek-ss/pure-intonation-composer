@@ -16,13 +16,16 @@ Run from the backend directory:
 from __future__ import annotations
 
 import json
+import math
 import sys
+from fractions import Fraction
 from pathlib import Path
 
 BACKEND = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(BACKEND))
 
 from app.songprogram import perceptual  # noqa: E402
+from app.songprogram.compiler import CompilerIdentity, compile_sp0  # noqa: E402
 
 OUT = BACKEND.parent / "docs" / "pil_oracle_case_templates"
 
@@ -47,22 +50,140 @@ def _note(
     }
 
 
+def _factor_exponents(value: Fraction) -> dict[int, int]:
+    result: dict[int, int] = {}
+    for number, sign in ((value.numerator, 1), (value.denominator, -1)):
+        divisor = 2
+        while divisor * divisor <= number:
+            while number % divisor == 0:
+                result[divisor] = result.get(divisor, 0) + sign
+                number //= divisor
+            divisor += 1
+        if number > 1:
+            result[number] = result.get(number, 0) + sign
+    return {prime: exponent for prime, exponent in result.items() if exponent}
+
+
 def _project(events: list[dict], *, equave: str = "2/1", total_ticks: int = 480) -> dict:
-    return {
-        "schema": "cps.arrangement-project",
-        "schema_version": "1.2.0",
-        "compiler": {
-            "build_id": "pil.oracle.template",
-            "numeric_contract": perceptual.NUMERIC_CONTRACT_ID,
-        },
-        "lattice": {"base_frequency_millihz": 220_000, "equave": equave},
-        "clock": {"ticks_per_beat": 480, "beats_per_bar": 4, "total_ticks": total_ticks},
-        "tracks": [
-            {"id": "harmony", "role": "harmony"},
-            {"id": "bass", "role": "bass"},
-        ],
-        "events": events,
+    """Compile compact case notes into a standalone-valid Project 1.2 input."""
+    template_path = (
+        BACKEND / "songprogram_conformance/fixtures/pack/minimal_direct_song_program.json"
+    )
+    program = json.loads(template_path.read_text(encoding="utf-8"))
+    equave_value = Fraction(equave)
+    equave_prime = equave_value.numerator
+    factorizations = [_factor_exponents(Fraction(event["ratio"])) for event in events]
+    generator_primes = sorted(
+        {prime for factors in factorizations for prime in factors if prime != equave_prime}
+    )
+    if not generator_primes:
+        generator_primes = [3 if equave_prime == 2 else 2]
+    if len(generator_primes) > 3:
+        raise ValueError("PIL template exceeds Project 1.2 generator capability")
+
+    vectors = [[factors.get(prime, 0) for prime in generator_primes] for factors in factorizations]
+    equave_exponents = [factors.get(equave_prime, 0) for factors in factorizations]
+    coordinate_bounds = [
+        [
+            min(0, *(vector[index] for vector in vectors)),
+            max(0, *(vector[index] for vector in vectors)),
+        ]
+        for index in range(len(generator_primes))
+    ]
+    program["program_id"] = "pil_oracle_template"
+    program["clock"] = {
+        "tempo_milli_bpm": 120_000,
+        "beats_per_bar": 1,
+        "ticks_per_beat": 480,
     }
+    program["lattice"]["equave"] = equave
+    program["lattice"]["generators"] = [f"{prime}/1" for prime in generator_primes]
+    program["lattice"]["coordinate_bounds"] = coordinate_bounds
+    program["lattice"]["register_bounds"] = [min(equave_exponents), max(equave_exponents)]
+    program["lattice"]["maximum_odd_limit"] = max(generator_primes)
+    program["lattice"]["pitch_exploration"]["maximum_domain_points"] = max(
+        1,
+        (max(equave_exponents) - min(equave_exponents) + 1)
+        * math.prod(high - low + 1 for low, high in coordinate_bounds),
+    )
+    program["form"] = [
+        {
+            **program["form"][0],
+            "id": "section",
+            "bars": total_ticks // 480,
+            "tonal_center": [0] * len(generator_primes),
+        }
+    ]
+    roles = sorted({event.get("track_id", "harmony") for event in events})
+    program["tracks"] = [
+        {
+            "id": role,
+            "role": role,
+            "instrument_id": "pi17",
+            "register_millicents": [-12_000_000, 12_000_000],
+            "maximum_polyphony": 16,
+            "drum_map": None,
+        }
+        for role in roles
+    ]
+    program["production"]["tracks"] = {role: {"gain_q": 8_000, "pan_q": 0} for role in roles}
+    program["materials"] = []
+    program["realizations"] = []
+    for index, (event, vector, exponent) in enumerate(
+        zip(events, vectors, equave_exponents, strict=True)
+    ):
+        rhythm_id, pitch_id = f"rhythm_{index}", f"pitch_{index}"
+        program["materials"].extend(
+            [
+                {
+                    "id": rhythm_id,
+                    "kind": "rhythm_cell",
+                    "length_ticks": total_ticks,
+                    "steps": [
+                        {
+                            "at_tick": 0,
+                            "duration_ticks": event["duration_ticks"],
+                            "accent_q": 8_000,
+                            "lane_id": None,
+                        }
+                    ],
+                },
+                {
+                    "id": pitch_id,
+                    "kind": "direct_vector_cell",
+                    "rhythm_id": rhythm_id,
+                    "vectors": [vector],
+                    "mapping": "cycle",
+                    "register_delta": exponent,
+                },
+            ]
+        )
+        realization = {
+            "repeat": 1,
+            "rhythm_transforms": [],
+            "pitch_transforms": [],
+            "velocity_scale_q": 10_000,
+            "gate_scale_q": 10_000,
+        }
+        realization.update(
+            {
+                "id": f"real_{index}",
+                "section_id": "section",
+                "track_id": event.get("track_id", "harmony"),
+                "material_id": pitch_id,
+                "at_tick": event["start_tick"],
+                "every_ticks": total_ticks,
+            }
+        )
+        program["realizations"].append(realization)
+    identity = CompilerIdentity(
+        build_id="pil.oracle.template.compiler/v1",
+        resolver_build_id="gen0-a-bnb-exact-v1",
+        resolver_profile_hash=_sha(0x11),
+        budget_profile_digest=_sha(0x12),
+        instrument_catalog_digest=_sha(0x13),
+    )
+    return compile_sp0(program, identity)
 
 
 def _manifest(radius: int = 100_000) -> dict:

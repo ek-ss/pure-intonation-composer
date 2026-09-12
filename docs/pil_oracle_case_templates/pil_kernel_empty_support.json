@@ -32,42 +32,139 @@
  "project": {
   "schema": "cps.arrangement-project",
   "schema_version": "1.2.0",
+  "source_program": {
+   "hash": "sha256:5f2b35d02ba44355149fce32ae3d2ead66c9b13b72d7fc36ba3c9698dd6f11d6",
+   "schema": "cps.song-program",
+   "schema_version": "0.1.0"
+  },
   "compiler": {
-   "build_id": "pil.oracle.template",
-   "numeric_contract": "cps-numeric/decimal-log2-rhe-v1"
+   "build_id": "pil.oracle.template.compiler/v1",
+   "numeric_contract": "cps-numeric/decimal-log2-rhe-v1",
+   "resolver_build_id": "gen0-a-bnb-exact-v1",
+   "resolver_profile_hash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+   "budget_profile_digest": "sha256:1212121212121212121212121212121212121212121212121212121212121212",
+   "instrument_catalog_digest": "sha256:1313131313131313131313131313131313131313131313131313131313131313"
   },
   "lattice": {
+   "domain_hash": "sha256:9b2f57c392c6da6a20fb06575d0c1bfd1383869e91f7d578c3273d51a2c8e53e",
    "base_frequency_millihz": 220000,
-   "equave": "2/1"
+   "equave": "2/1",
+   "generators": [
+    "3/1",
+    "5/1"
+   ],
+   "coordinate_bounds": [
+    [
+     -1,
+     0
+    ],
+    [
+     -1,
+     0
+    ]
+   ],
+   "register_bounds": [
+    4,
+    4
+   ],
+   "maximum_odd_limit": 5,
+   "maximum_reduced_complexity_bits": 48
   },
   "clock": {
+   "tempo_milli_bpm": 120000,
+   "beats_per_bar": 1,
    "ticks_per_beat": 480,
-   "beats_per_bar": 4,
+   "bars": 1,
    "total_ticks": 480
   },
   "tracks": [
    {
     "id": "harmony",
-    "role": "harmony"
-   },
-   {
-    "id": "bass",
-    "role": "bass"
+    "role": "harmony",
+    "instrument_id": "pi17",
+    "register_millicents": [
+     -12000000,
+     12000000
+    ],
+    "maximum_polyphony": 16,
+    "drum_map": null
    }
   ],
+  "form": [
+   {
+    "id": "section",
+    "role": "study",
+    "start_bar": 0,
+    "bars": 1
+   }
+  ],
+  "material_instances": [
+   {
+    "id": "mi_0",
+    "material_id": "pitch_0",
+    "realization_id": "real_0",
+    "section_id": "section",
+    "track_id": "harmony",
+    "repeat_ordinal": 0,
+    "at_tick": 0,
+    "source_program_path": "/realizations/0"
+   }
+  ],
+  "resolved_chords": [],
+  "harmony_occurrences": [],
   "events": [
    {
-    "id": "ev_a",
+    "id": "ev_pt3h3glrvsikxdxmiv3y",
     "kind": "note",
     "track_id": "harmony",
+    "section_id": "section",
     "start_tick": 0,
     "duration_ticks": 480,
     "velocity": 100,
-    "ratio": "16/15"
+    "articulation": "normal",
+    "drum_note": null,
+    "ratio": "16/15",
+    "chord_index": null,
+    "pitch_provenance": {
+     "kind": "direct_vector",
+     "material_vector": [
+      -1,
+      -1
+     ],
+     "tonal_center": [
+      0,
+      0
+     ],
+     "register_delta": 4,
+     "register_shift_equaves": 0,
+     "placed_equave_exponent": 0,
+     "final_vector": [
+      -1,
+      -1
+     ],
+     "equave_exponent": 4,
+     "final_ratio": "16/15"
+    },
+    "source": {
+     "material_instance_id": "mi_0",
+     "source_step_ordinal": 0,
+     "emitted_voice_ordinal": 0,
+     "semantic_address": "sa_uyiuvbrl5eybowbjakbr5hmlfx"
+    }
    }
-  ]
+  ],
+  "mix": {
+   "harmony": {
+    "gain_q": 8000,
+    "pan_q": 0
+   }
+  },
+  "render_settings": {
+   "sample_rate": 48000,
+   "channel_layout": "stereo"
+  }
  },
- "project_hash": "sha256:3395e53452d28e224fa43c4283fa291ae4fb227ce456d204faf74e8601e42adf",
+ "project_hash": "sha256:8f0765542de5cbc71f2e92787b96b509c040bf00fab09307a14d4e8d1ea732b1",
  "segmentation_policy": null,
  "feature_spec": null,
  "vocabulary": null,
