@@ -1,0 +1,353 @@
+{
+ "schema": "cps.pil-oracle-case",
+ "schema_version": "1.0.0",
+ "case_id": "pil_passing_tone_delta",
+ "coverage": [
+  "success"
+ ],
+ "manifest": {
+  "schema": "cps.perceptual-interpretation-manifest",
+  "schema_version": "1.0.0",
+  "algorithm": "pil-parallel-interpretation/v1",
+  "project_schema_hash": "sha256:960891e2390acb2a3c14e35074de9a56bb0604c9098baff0aada3fbeeeeb167d",
+  "numeric_contract_hash": "sha256:a24ed6cc9cd96f49792f553c52b6237afcad0c9a3172e6931bb65c3e30ed3abb",
+  "implementation_build_id": "pil.phase4.1.0.0",
+  "interpretation_period": "2/1",
+  "pitch_kernel": {
+   "algorithm": "triangular-millicent-q31/v1",
+   "radius_millicents": 100000,
+   "normalization_total": 2147483647
+  },
+  "segmentation_policy_schema_hash": "sha256:77559f2ad4f563c761be20505eec8af4c4a04e63b51b9201df680e280bfa370d",
+  "segmentation_policy_hash": "sha256:e4de32cfdcb25f41e1dc1f8d09cce86df1c3777d5f31176943258dc695dfcd6e",
+  "feature_spec_hash": "sha256:2f4b53d59aa626bae2aa5822aea42596767b9c1711ff64c199d2e5777d56e08c",
+  "vocabulary_hash": "sha256:9b3647562ac836567d9ee06529d89d50b72b7b89f654d5e72daed8bf315d28b9",
+  "voice_matching_policy_hash": "sha256:0606060606060606060606060606060606060606060606060606060606060606",
+  "trajectory_template_set_hash": "sha256:0707070707070707070707070707070707070707070707070707070707070707",
+  "genre_model_hash": null,
+  "manifest_hash": "sha256:ed24f10e4f916ab826347f31f476564fc183b266322db344df551da97cea91ab"
+ },
+ "project": {
+  "schema": "cps.arrangement-project",
+  "schema_version": "1.2.0",
+  "compiler": {
+   "build_id": "pil.oracle.template",
+   "numeric_contract": "cps-numeric/decimal-log2-rhe-v1"
+  },
+  "lattice": {
+   "base_frequency_millihz": 220000,
+   "equave": "2/1"
+  },
+  "clock": {
+   "ticks_per_beat": 480,
+   "beats_per_bar": 4,
+   "total_ticks": 960
+  },
+  "tracks": [
+   {
+    "id": "harmony",
+    "role": "harmony"
+   },
+   {
+    "id": "bass",
+    "role": "bass"
+   }
+  ],
+  "events": [
+   {
+    "id": "ev_a",
+    "kind": "note",
+    "track_id": "harmony",
+    "start_tick": 0,
+    "duration_ticks": 480,
+    "velocity": 100,
+    "ratio": "1/1"
+   },
+   {
+    "id": "ev_b",
+    "kind": "note",
+    "track_id": "harmony",
+    "start_tick": 0,
+    "duration_ticks": 480,
+    "velocity": 100,
+    "ratio": "5/4"
+   },
+   {
+    "id": "ev_c",
+    "kind": "note",
+    "track_id": "harmony",
+    "start_tick": 0,
+    "duration_ticks": 480,
+    "velocity": 100,
+    "ratio": "3/2"
+   },
+   {
+    "id": "ev_pass",
+    "kind": "note",
+    "track_id": "harmony",
+    "start_tick": 240,
+    "duration_ticks": 120,
+    "velocity": 100,
+    "ratio": "9/8"
+   },
+   {
+    "id": "ev_d",
+    "kind": "note",
+    "track_id": "harmony",
+    "start_tick": 480,
+    "duration_ticks": 480,
+    "velocity": 100,
+    "ratio": "1/1"
+   },
+   {
+    "id": "ev_e",
+    "kind": "note",
+    "track_id": "harmony",
+    "start_tick": 480,
+    "duration_ticks": 480,
+    "velocity": 100,
+    "ratio": "5/4"
+   },
+   {
+    "id": "ev_f",
+    "kind": "note",
+    "track_id": "harmony",
+    "start_tick": 480,
+    "duration_ticks": 480,
+    "velocity": 100,
+    "ratio": "3/2"
+   }
+  ]
+ },
+ "assets": {
+  "segmentation_policy": {
+   "schema": "cps.perceptual-segmentation-policy",
+   "schema_version": "1.0.0",
+   "algorithm": "pil-harmonic-segmentation-grid-events/v1",
+   "project_schema_hash": "sha256:960891e2390acb2a3c14e35074de9a56bb0604c9098baff0aada3fbeeeeb167d",
+   "policy_schema_hash": "sha256:77559f2ad4f563c761be20505eec8af4c4a04e63b51b9201df680e280bfa370d",
+   "grid_divisions_per_beat": 1,
+   "minimum_segment_ticks": 480,
+   "sustained_minimum_ticks": 480,
+   "pitch_distribution_change_q": 1000,
+   "duration_coefficient_q": 10000,
+   "metrical_coefficient_q": 0,
+   "persistence_coefficient_q": 0,
+   "bass_coefficient_q": 0,
+   "role_gain_q": {
+    "drums": 0,
+    "bass": 10000,
+    "harmony": 10000,
+    "melody": 10000,
+    "texture": 10000
+   },
+   "bass_role_order": [
+    "bass",
+    "harmony",
+    "melody",
+    "texture",
+    "drums"
+   ],
+   "boundary_priority": [
+    "endpoint",
+    "bass_change",
+    "sustained_change",
+    "pitch_distribution_change",
+    "metrical"
+   ],
+   "boundary_confidence_q": {
+    "endpoint": 10000,
+    "bass_change": 9000,
+    "sustained_change": 8000,
+    "pitch_distribution_change": 7000,
+    "metrical": 6000
+   },
+   "policy_hash": "sha256:e4de32cfdcb25f41e1dc1f8d09cce86df1c3777d5f31176943258dc695dfcd6e"
+  },
+  "feature_spec": {
+   "schema": "cps.perceptual-chord-feature-spec",
+   "schema_version": "1.0.0",
+   "algorithm": "pil-chord-features-12pc/v1",
+   "feature_spec_schema_hash": "sha256:6744d7e50ce53046d497552d72d7bc2c747dd08650ebb75b00fba52978fec293",
+   "feature_record_schema_hash": "sha256:0e039841d18d1496161ba2283fdbd1dca743fd719288ca465823f03be0add1a6",
+   "project_schema_hash": "sha256:960891e2390acb2a3c14e35074de9a56bb0604c9098baff0aada3fbeeeeb167d",
+   "segmentation_policy_hash": "sha256:e4de32cfdcb25f41e1dc1f8d09cce86df1c3777d5f31176943258dc695dfcd6e",
+   "pitch_distribution_algorithm": "soft-event-mapping-weighted-q31/v1",
+   "interval_distribution_algorithm": "circular-ordered-autocorrelation-q31/v1",
+   "bass_relative_algorithm": "soft-bass-circular-correlation-q31/v1",
+   "register_profile_algorithm": "segment-event-weighted-absolute-millicents/v1",
+   "common_tone_algorithm": "histogram-intersection-q10000/v1",
+   "similarity": {
+    "algorithm": "weighted-normalized-l1-q10000/v1",
+    "pitch_weight": 5000,
+    "interval_weight": 3000,
+    "bass_relative_weight": 2000,
+    "confidence_floor_q": 0,
+    "winner_margin_floor_q": 0,
+    "maximum_candidates": 8
+   },
+   "spec_hash": "sha256:2f4b53d59aa626bae2aa5822aea42596767b9c1711ff64c199d2e5777d56e08c"
+  },
+  "chord_vocabulary": {
+   "schema": "cps.perceptual-chord-vocabulary",
+   "schema_version": "1.0.0",
+   "algorithm": "pil-chord-vocabulary-q31/v1",
+   "vocabulary_schema_hash": "sha256:dde975cb786368d66df8a79ea0457dd0f722fd40958c52efca448f5515edd3df",
+   "interpretation_period": "2/1",
+   "feature_spec_hash": "sha256:2f4b53d59aa626bae2aa5822aea42596767b9c1711ff64c199d2e5777d56e08c",
+   "entries": [
+    {
+     "id": "major",
+     "ordinal": 0,
+     "functional_tension_q": 2000,
+     "pitch_distribution_q31": [
+      {
+       "pitch_class_ordinal": 0,
+       "weight_q31": 715827883
+      },
+      {
+       "pitch_class_ordinal": 4,
+       "weight_q31": 715827882
+      },
+      {
+       "pitch_class_ordinal": 7,
+       "weight_q31": 715827882
+      }
+     ],
+     "interval_distribution_q31": [
+      {
+       "pitch_class_ordinal": 0,
+       "weight_q31": 715827883
+      },
+      {
+       "pitch_class_ordinal": 3,
+       "weight_q31": 238609294
+      },
+      {
+       "pitch_class_ordinal": 4,
+       "weight_q31": 238609294
+      },
+      {
+       "pitch_class_ordinal": 5,
+       "weight_q31": 238609294
+      },
+      {
+       "pitch_class_ordinal": 7,
+       "weight_q31": 238609294
+      },
+      {
+       "pitch_class_ordinal": 8,
+       "weight_q31": 238609294
+      },
+      {
+       "pitch_class_ordinal": 9,
+       "weight_q31": 238609294
+      }
+     ],
+     "bass_relative_distribution_q31": [
+      {
+       "pitch_class_ordinal": 0,
+       "weight_q31": 715827883
+      },
+      {
+       "pitch_class_ordinal": 4,
+       "weight_q31": 715827882
+      },
+      {
+       "pitch_class_ordinal": 7,
+       "weight_q31": 715827882
+      }
+     ]
+    },
+    {
+     "id": "minor",
+     "ordinal": 1,
+     "functional_tension_q": 3000,
+     "pitch_distribution_q31": [
+      {
+       "pitch_class_ordinal": 0,
+       "weight_q31": 715827883
+      },
+      {
+       "pitch_class_ordinal": 3,
+       "weight_q31": 715827882
+      },
+      {
+       "pitch_class_ordinal": 7,
+       "weight_q31": 715827882
+      }
+     ],
+     "interval_distribution_q31": [
+      {
+       "pitch_class_ordinal": 0,
+       "weight_q31": 715827883
+      },
+      {
+       "pitch_class_ordinal": 3,
+       "weight_q31": 238609294
+      },
+      {
+       "pitch_class_ordinal": 4,
+       "weight_q31": 238609294
+      },
+      {
+       "pitch_class_ordinal": 5,
+       "weight_q31": 238609294
+      },
+      {
+       "pitch_class_ordinal": 7,
+       "weight_q31": 238609294
+      },
+      {
+       "pitch_class_ordinal": 8,
+       "weight_q31": 238609294
+      },
+      {
+       "pitch_class_ordinal": 9,
+       "weight_q31": 238609294
+      }
+     ],
+     "bass_relative_distribution_q31": [
+      {
+       "pitch_class_ordinal": 0,
+       "weight_q31": 715827883
+      },
+      {
+       "pitch_class_ordinal": 3,
+       "weight_q31": 715827882
+      },
+      {
+       "pitch_class_ordinal": 7,
+       "weight_q31": 715827882
+      }
+     ]
+    }
+   ],
+   "vocabulary_hash": "sha256:9b3647562ac836567d9ee06529d89d50b72b7b89f654d5e72daed8bf315d28b9"
+  },
+  "voice_matching_policy": null,
+  "trajectory_template_set": null
+ },
+ "native_ji_report_hash": null,
+ "expected": {
+  "status": null,
+  "error": null,
+  "report_hash": null,
+  "canonical_report_sha256": null
+ },
+ "execution": {
+  "worker_counts": [
+   1,
+   2,
+   4,
+   8
+  ],
+  "pythonhashseeds": [
+   "0",
+   "1",
+   "424242"
+  ]
+ },
+ "case_hash": null,
+ "template_note": "Short passing-tone perturbation; owner declares the similarity delta bound."
+}

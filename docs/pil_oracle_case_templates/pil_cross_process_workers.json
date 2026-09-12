@@ -1,0 +1,120 @@
+{
+ "schema": "cps.pil-oracle-case",
+ "schema_version": "1.0.0",
+ "case_id": "pil_cross_process_workers",
+ "coverage": [
+  "success",
+  "cross_process",
+  "parallel_1",
+  "parallel_2",
+  "parallel_4",
+  "parallel_8"
+ ],
+ "manifest": {
+  "schema": "cps.perceptual-interpretation-manifest",
+  "schema_version": "1.0.0",
+  "algorithm": "pil-parallel-interpretation/v1",
+  "project_schema_hash": "sha256:960891e2390acb2a3c14e35074de9a56bb0604c9098baff0aada3fbeeeeb167d",
+  "numeric_contract_hash": "sha256:a24ed6cc9cd96f49792f553c52b6237afcad0c9a3172e6931bb65c3e30ed3abb",
+  "implementation_build_id": "pil.phase4.1.0.0",
+  "interpretation_period": "2/1",
+  "pitch_kernel": {
+   "algorithm": "triangular-millicent-q31/v1",
+   "radius_millicents": 100000,
+   "normalization_total": 2147483647
+  },
+  "segmentation_policy_schema_hash": "sha256:77559f2ad4f563c761be20505eec8af4c4a04e63b51b9201df680e280bfa370d",
+  "segmentation_policy_hash": "sha256:0303030303030303030303030303030303030303030303030303030303030303",
+  "feature_spec_hash": "sha256:0404040404040404040404040404040404040404040404040404040404040404",
+  "vocabulary_hash": "sha256:0505050505050505050505050505050505050505050505050505050505050505",
+  "voice_matching_policy_hash": "sha256:0606060606060606060606060606060606060606060606060606060606060606",
+  "trajectory_template_set_hash": "sha256:0707070707070707070707070707070707070707070707070707070707070707",
+  "genre_model_hash": null,
+  "manifest_hash": "sha256:d5fc725e032a91ac3e7c44c51f20f0003a8343dbba59451128e4e8349c330bc1"
+ },
+ "project": {
+  "schema": "cps.arrangement-project",
+  "schema_version": "1.2.0",
+  "compiler": {
+   "build_id": "pil.oracle.template",
+   "numeric_contract": "cps-numeric/decimal-log2-rhe-v1"
+  },
+  "lattice": {
+   "base_frequency_millihz": 220000,
+   "equave": "2/1"
+  },
+  "clock": {
+   "ticks_per_beat": 480,
+   "beats_per_bar": 4,
+   "total_ticks": 480
+  },
+  "tracks": [
+   {
+    "id": "harmony",
+    "role": "harmony"
+   },
+   {
+    "id": "bass",
+    "role": "bass"
+   }
+  ],
+  "events": [
+   {
+    "id": "ev_a",
+    "kind": "note",
+    "track_id": "harmony",
+    "start_tick": 0,
+    "duration_ticks": 480,
+    "velocity": 100,
+    "ratio": "1/1"
+   },
+   {
+    "id": "ev_b",
+    "kind": "note",
+    "track_id": "harmony",
+    "start_tick": 0,
+    "duration_ticks": 480,
+    "velocity": 100,
+    "ratio": "7/4"
+   },
+   {
+    "id": "ev_c",
+    "kind": "note",
+    "track_id": "harmony",
+    "start_tick": 0,
+    "duration_ticks": 480,
+    "velocity": 100,
+    "ratio": "11/8"
+   }
+  ]
+ },
+ "assets": {
+  "segmentation_policy": null,
+  "feature_spec": null,
+  "chord_vocabulary": null,
+  "voice_matching_policy": null,
+  "trajectory_template_set": null
+ },
+ "native_ji_report_hash": null,
+ "expected": {
+  "status": null,
+  "error": null,
+  "report_hash": null,
+  "canonical_report_sha256": null
+ },
+ "execution": {
+  "worker_counts": [
+   1,
+   2,
+   4,
+   8
+  ],
+  "pythonhashseeds": [
+   "0",
+   "1",
+   "424242"
+  ]
+ },
+ "case_hash": null,
+ "template_note": "PYTHONHASHSEED and 1/2/4/8-worker parity matrix."
+}

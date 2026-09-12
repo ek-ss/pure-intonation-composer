@@ -1,0 +1,171 @@
+{
+ "schema": "cps.pil-oracle-suite-index",
+ "schema_version": "1.0.0",
+ "suite_version": null,
+ "required_coverage": [
+  "success",
+  "failure",
+  "kernel_edge",
+  "kernel_tie",
+  "kernel_empty_support",
+  "equave_2_1",
+  "equave_3_1",
+  "phase_independence",
+  "cache_cold",
+  "cache_hit",
+  "cache_corrupt",
+  "cross_process",
+  "parallel_1",
+  "parallel_2",
+  "parallel_4",
+  "parallel_8"
+ ],
+ "cases": [
+  {
+   "case_id": "pil_12et_ii_v_i",
+   "path": "pil_12et_ii_v_i.json",
+   "raw_file_sha256": null,
+   "case_hash": null,
+   "case_schema_hash": null,
+   "coverage": [
+    "success"
+   ]
+  },
+  {
+   "case_id": "pil_cache_parity",
+   "path": "pil_cache_parity.json",
+   "raw_file_sha256": null,
+   "case_hash": null,
+   "case_schema_hash": null,
+   "coverage": [
+    "success",
+    "cache_cold",
+    "cache_hit",
+    "cache_corrupt"
+   ]
+  },
+  {
+   "case_id": "pil_cross_process_workers",
+   "path": "pil_cross_process_workers.json",
+   "raw_file_sha256": null,
+   "case_hash": null,
+   "case_schema_hash": null,
+   "coverage": [
+    "success",
+    "cross_process",
+    "parallel_1",
+    "parallel_2",
+    "parallel_4",
+    "parallel_8"
+   ]
+  },
+  {
+   "case_id": "pil_exact_ratio_ii_v_i",
+   "path": "pil_exact_ratio_ii_v_i.json",
+   "raw_file_sha256": null,
+   "case_hash": null,
+   "case_schema_hash": null,
+   "coverage": [
+    "success"
+   ]
+  },
+  {
+   "case_id": "pil_kernel_boundaries",
+   "path": "pil_kernel_boundaries.json",
+   "raw_file_sha256": null,
+   "case_hash": null,
+   "case_schema_hash": null,
+   "coverage": [
+    "success",
+    "kernel_edge",
+    "kernel_tie"
+   ]
+  },
+  {
+   "case_id": "pil_kernel_empty_support",
+   "path": "pil_kernel_empty_support.json",
+   "raw_file_sha256": null,
+   "case_hash": null,
+   "case_schema_hash": null,
+   "coverage": [
+    "failure",
+    "kernel_empty_support"
+   ]
+  },
+  {
+   "case_id": "pil_matching_tie",
+   "path": "pil_matching_tie.json",
+   "raw_file_sha256": null,
+   "case_hash": null,
+   "case_schema_hash": null,
+   "coverage": [
+    "success"
+   ]
+  },
+  {
+   "case_id": "pil_nonfunctional_two_reports",
+   "path": "pil_nonfunctional_two_reports.json",
+   "raw_file_sha256": null,
+   "case_hash": null,
+   "case_schema_hash": null,
+   "coverage": [
+    "success"
+   ]
+  },
+  {
+   "case_id": "pil_passing_tone_delta",
+   "path": "pil_passing_tone_delta.json",
+   "raw_file_sha256": null,
+   "case_hash": null,
+   "case_schema_hash": null,
+   "coverage": [
+    "success"
+   ]
+  },
+  {
+   "case_id": "pil_segment_boundary",
+   "path": "pil_segment_boundary.json",
+   "raw_file_sha256": null,
+   "case_hash": null,
+   "case_schema_hash": null,
+   "coverage": [
+    "success"
+   ]
+  },
+  {
+   "case_id": "pil_seven_limit_multi_candidate",
+   "path": "pil_seven_limit_multi_candidate.json",
+   "raw_file_sha256": null,
+   "case_hash": null,
+   "case_schema_hash": null,
+   "coverage": [
+    "success",
+    "equave_2_1"
+   ]
+  },
+  {
+   "case_id": "pil_soft_major_1_1_5_4_3_2",
+   "path": "pil_soft_major_1_1_5_4_3_2.json",
+   "raw_file_sha256": null,
+   "case_hash": null,
+   "case_schema_hash": null,
+   "coverage": [
+    "success"
+   ]
+  },
+  {
+   "case_id": "pil_tritave_phase_split",
+   "path": "pil_tritave_phase_split.json",
+   "raw_file_sha256": null,
+   "case_hash": null,
+   "case_schema_hash": null,
+   "coverage": [
+    "success",
+    "equave_3_1",
+    "phase_independence"
+   ]
+  }
+ ],
+ "suite_hash": null,
+ "template_note": "Index template; all hash fields are owner-filled goldens."
+}
