@@ -461,9 +461,10 @@ null bass removes its weight rather than contributing zero.
 Every template/window result is retained, sorted by
 `(-similarity_q,template_ordinal,start_segment_ordinal)`, then truncated to
 `maximum_results`. `canonical_alignment_key` is
-`[template_ordinal,start_segment_ordinal]`. Match/result IDs use the same
-domain-separated first-32-hex construction over template-set hash, template ID
-and ordered segment IDs. The result embeds component scores, segment IDs and
+`[template_ordinal,start_segment_ordinal]`. `match_id` is `tjm_` plus the first
+32 lowercase hex digits of SHA-256 over
+`UTF8("cps.pil-trajectory-match-id/v1\0") || canonical_json({segment_ids,
+template_id,template_set_hash})`. The result embeds component scores, segment IDs and
 transition record hashes, so no hard chord-label sequence is authoritative.
 
 ### 6.4 Phase, cache and failures

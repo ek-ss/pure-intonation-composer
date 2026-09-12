@@ -9,6 +9,7 @@ implementation build identity (see completion report).
 from __future__ import annotations
 
 import copy
+import hashlib
 import json
 
 import pytest
@@ -232,6 +233,30 @@ def test_identity_constraint_forces_self_pairing() -> None:
     assert self_pairs[0]["absolute_motion_millicents"] == 0
 
 
+def test_decreasing_voice_count_reverses_injection_and_records_unmatched_from() -> None:
+    project = _project(
+        [
+            {**_note("ev_a", "1/1", 0), "velocity": 100},
+            {**_note("ev_b", "5/4", 0), "velocity": 100},
+            {**_note("ev_c", "3/2", 0), "velocity": 100},
+            {**_note("ev_d", "1/1", 480), "velocity": 100},
+            {**_note("ev_e", "3/2", 480), "velocity": 100},
+        ]
+    )
+    project["clock"] = {"ticks_per_beat": 480, "beats_per_bar": 4, "total_ticks": 960}
+    project["tracks"] = [{"id": "harmony", "role": "harmony"}]
+    seg_policy = _policy(grid_divisions_per_beat=1, minimum_segment_ticks=480)
+    spec, _, manifest, report = _phase3(seg_policy, project)
+    vm_policy = _vm_policy(spec, manifest)
+    (record,) = perceptual.match_voices(
+        project, report["pitch_records"], report["segments"], seg_policy, vm_policy
+    )
+    assert len(record["pairs"]) == 2
+    assert len(record["unmatched_from_event_ids"]) == 1
+    assert record["unmatched_to_event_ids"] == []
+    assert record["canonical_matching_key"][:3] == [3, 2, 2]
+
+
 def test_contrary_motion_is_detected() -> None:
     project = _project(
         [
@@ -245,7 +270,10 @@ def test_contrary_motion_is_detected() -> None:
     project["tracks"] = [{"id": "harmony", "role": "harmony"}]
     pitch_records = [
         perceptual.compute_pitch_record(
-            event, base_frequency_millihz=220_000, equave_period_mc=1_200_000, radius_millicents=100_000
+            event,
+            base_frequency_millihz=220_000,
+            equave_period_mc=1_200_000,
+            radius_millicents=100_000,
         )
         for event in project["events"]
     ]
@@ -418,7 +446,18 @@ def test_alignment_scores_sorts_and_truncates() -> None:
     )
     assert len(results) == 1
     result = results[0]
-    assert result["match_id"].startswith("tjm_")
+    match_preimage = {
+        "segment_ids": result["segment_ids"],
+        "template_id": result["template_id"],
+        "template_set_hash": template_set["template_set_hash"],
+    }
+    match_body = json.dumps(
+        match_preimage, ensure_ascii=False, separators=(",", ":"), sort_keys=True
+    ).encode("utf-8")
+    expected_match_id = (
+        "tjm_" + hashlib.sha256(b"cps.pil-trajectory-match-id/v1\0" + match_body).hexdigest()[:32]
+    )
+    assert result["match_id"] == expected_match_id
     assert result["canonical_alignment_key"] == [0, 0]
     assert result["result_hash"] == perceptual.trajectory_result_hash(result)
     assert result["similarity_q"] > 8_000

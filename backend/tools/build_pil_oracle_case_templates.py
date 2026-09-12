@@ -33,7 +33,9 @@ def _sha(byte: int) -> str:
     return "sha256:" + f"{byte:02x}" * 32
 
 
-def _note(event_id: str, ratio: str, start: int, track: str = "harmony", duration: int = 480) -> dict:
+def _note(
+    event_id: str, ratio: str, start: int, track: str = "harmony", duration: int = 480
+) -> dict:
     return {
         "id": event_id,
         "kind": "note",
@@ -237,9 +239,7 @@ def _voice_matching_policy(spec: dict) -> dict:
     return policy
 
 
-def _template_set(
-    spec: dict, vocabulary: dict, vm_policy: dict, templates: list[dict]
-) -> dict:
+def _template_set(spec: dict, vocabulary: dict, vm_policy: dict, templates: list[dict]) -> dict:
     template_set = {
         "schema": "cps.perceptual-trajectory-template-set",
         "schema_version": "1.0.0",
@@ -466,9 +466,7 @@ def build_cases() -> list[dict]:
         _case(
             "pil_soft_major_1_1_5_4_3_2",
             ["success"],
-            _project(
-                [_note("ev_a", "1/1", 0), _note("ev_b", "5/4", 0), _note("ev_c", "3/2", 0)]
-            ),
+            _project([_note("ev_a", "1/1", 0), _note("ev_b", "5/4", 0), _note("ev_c", "3/2", 0)]),
             manifest,
             {
                 "segmentation_policy": policy,

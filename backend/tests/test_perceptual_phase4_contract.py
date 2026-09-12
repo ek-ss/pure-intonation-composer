@@ -32,7 +32,10 @@ def test_matching_policy_closes_orientation_cost_and_kernels() -> None:
     assert properties["identity_constraint"]["const"] == "same-event-id-must-match/v1"
     assert properties["half_period_tie"]["const"] == "negative"
     assert set(properties["cost_weights"]["required"]) == {
-        "absolute_motion", "circular_motion", "pitch_mapping_l1", "role_mismatch"
+        "absolute_motion",
+        "circular_motion",
+        "pitch_mapping_l1",
+        "role_mismatch",
     }
 
 

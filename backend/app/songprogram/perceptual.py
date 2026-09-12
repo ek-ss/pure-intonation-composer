@@ -1201,9 +1201,11 @@ def _pair_metrics(
 
 
 def _best_injection(
-    from_voices: Sequence[Mapping[str, Any]],
-    to_voices: Sequence[Mapping[str, Any]],
+    small_voices: Sequence[Mapping[str, Any]],
+    large_voices: Sequence[Mapping[str, Any]],
     policy: Mapping[str, Any],
+    *,
+    reverse_output: bool = False,
 ) -> list[tuple[int, int]]:
     """Exact minimum-cost injective matching with canonical-key tie-break.
 
@@ -1212,34 +1214,43 @@ def _best_injection(
     contract's ``canonical_matching_key`` order because the pair section
     determines every later unmatched section.
     """
-    from_count, to_count = len(from_voices), len(to_voices)
-    to_id_index = {voice["event_id"]: index for index, voice in enumerate(to_voices)}
-    from_id_index = {voice["event_id"]: index for index, voice in enumerate(from_voices)}
+    small_count, large_count = len(small_voices), len(large_voices)
+    large_id_index = {voice["event_id"]: index for index, voice in enumerate(large_voices)}
+    small_id_index = {voice["event_id"]: index for index, voice in enumerate(small_voices)}
     costs = [
-        [_pair_metrics(from_voices[a], to_voices[b], policy)["pair_cost_q"] for b in range(to_count)]
-        for a in range(from_count)
+        [
+            _pair_metrics(
+                large_voices[b] if reverse_output else small_voices[a],
+                small_voices[a] if reverse_output else large_voices[b],
+                policy,
+            )["pair_cost_q"]
+            for b in range(large_count)
+        ]
+        for a in range(small_count)
     ]
 
     def allowed(a: int, b: int) -> bool:
-        from_id, to_id = from_voices[a]["event_id"], to_voices[b]["event_id"]
-        if from_id in to_id_index and to_id_index[from_id] != b:
+        small_id, large_id = small_voices[a]["event_id"], large_voices[b]["event_id"]
+        if small_id in large_id_index and large_id_index[small_id] != b:
             return False
-        return not (to_id in from_id_index and from_id_index[to_id] != a)
+        return not (large_id in small_id_index and small_id_index[large_id] != a)
 
     memo: dict[tuple[int, int], tuple[int, tuple[tuple[int, int], ...]]] = {}
 
     def solve(a: int, used_mask: int) -> tuple[int, tuple[tuple[int, int], ...]]:
-        if a == from_count:
+        if a == small_count:
             return (0, ())
         state = (a, used_mask)
         if state in memo:
             return memo[state]
         best: tuple[int, tuple[tuple[int, int], ...]] | None = None
-        for b in range(to_count):
+        for b in range(large_count):
             if used_mask >> b & 1 or not allowed(a, b):
                 continue
             sub_cost, sub_pairs = solve(a + 1, used_mask | (1 << b))
-            candidate = (costs[a][b] + sub_cost, ((a, b),) + sub_pairs)
+            output_pair = (b, a) if reverse_output else (a, b)
+            output_pairs = tuple(sorted((output_pair,) + sub_pairs))
+            candidate = (costs[a][b] + sub_cost, output_pairs)
             if best is None or candidate < best:
                 best = candidate
         if best is None:
@@ -1275,7 +1286,11 @@ def match_voices(
         if not from_voices or not to_voices:
             _fail("PIL_VOICE_MATCHING_FAILED")
         from_count, to_count = len(from_voices), len(to_voices)
-        pairs = _best_injection(from_voices, to_voices, policy)
+        pairs = (
+            _best_injection(from_voices, to_voices, policy)
+            if from_count <= to_count
+            else _best_injection(to_voices, from_voices, policy, reverse_output=True)
+        )
         pair_rows = []
         motions = []
         for from_ordinal, to_ordinal in pairs:
@@ -1305,7 +1320,9 @@ def match_voices(
             "schema": "cps.perceptual-voice-matching-record",
             "schema_version": "1.0.0",
             "transition_id": _transition_id(
-                segments[index]["segment_id"], segments[index + 1]["segment_id"], policy["policy_hash"]
+                segments[index]["segment_id"],
+                segments[index + 1]["segment_id"],
+                policy["policy_hash"],
             ),
             "from_segment_id": segments[index]["segment_id"],
             "to_segment_id": segments[index + 1]["segment_id"],
@@ -1316,7 +1333,9 @@ def match_voices(
             "unmatched_from_event_ids": [from_voices[o]["event_id"] for o in unmatched_from],
             "unmatched_to_event_ids": [to_voices[o]["event_id"] for o in unmatched_to],
             "canonical_matching_key": canonical_key,
-            "total_cost_q": _rhe(Fraction(sum(row["pair_cost_q"] for row in pair_rows), len(pair_rows))),
+            "total_cost_q": _rhe(
+                Fraction(sum(row["pair_cost_q"] for row in pair_rows), len(pair_rows))
+            ),
             "common_tone_q": _rhe(
                 Fraction(sum(row["common_tone_q"] for row in pair_rows), len(pair_rows))
             ),
@@ -1464,7 +1483,8 @@ def validate_trajectory_template_set(
         or template_set.get("schema_version") != "1.0.0"
         or template_set.get("algorithm") != "pil-consecutive-trajectory-l1/v1"
         or template_set.get("template_set_schema_hash") != TRAJECTORY_TEMPLATE_SET_SCHEMA_HASH
-        or template_set.get("transition_record_schema_hash") != TRANSITION_FEATURE_RECORD_SCHEMA_HASH
+        or template_set.get("transition_record_schema_hash")
+        != TRANSITION_FEATURE_RECORD_SCHEMA_HASH
         or template_set.get("trajectory_result_schema_hash") != TRAJECTORY_RESULT_SCHEMA_HASH
         or template_set.get("feature_spec_hash") != feature_spec.get("spec_hash")
         or template_set.get("vocabulary_hash") != vocabulary.get("vocabulary_hash")
@@ -1586,15 +1606,13 @@ def validate_trajectory_template_set(
 def _trajectory_match_id(
     template_set_digest: str, template_id: str, segment_ids: Sequence[str]
 ) -> str:
-    """Adopted reading of section 6.3: the same domain-separated first-32-hex
-    construction as ``transition_id``, over the template-set hash, template ID
-    and ordered segment IDs."""
+    """Return the domain-separated Phase 4 trajectory match identifier."""
     body = {
         "segment_ids": list(segment_ids),
         "template_id": template_id,
         "template_set_hash": template_set_digest,
     }
-    digest = hashlib.sha256(b"cps.pil-transition-id/v1\0" + _canonical(body)).hexdigest()
+    digest = hashlib.sha256(b"cps.pil-trajectory-match-id/v1\0" + _canonical(body)).hexdigest()
     return "tjm_" + digest[:32]
 
 
@@ -1671,11 +1689,7 @@ def align_trajectories(
                     10_000
                     - abs(observed["destination_metrical_strength_q"] - target["metrical_target_q"])
                 )
-            bass_q = (
-                None
-                if not bass_scores
-                else _rhe(Fraction(sum(bass_scores), len(bass_scores)))
-            )
+            bass_q = None if not bass_scores else _rhe(Fraction(sum(bass_scores), len(bass_scores)))
             component_scores = {
                 "chord": chord_q,
                 "bass": bass_q,
@@ -1741,7 +1755,11 @@ def align_trajectories(
             result["result_hash"] = trajectory_result_hash(result)
             results.append(result)
     results.sort(
-        key=lambda row: (-row["similarity_q"], row["template_ordinal"], row["start_segment_ordinal"])
+        key=lambda row: (
+            -row["similarity_q"],
+            row["template_ordinal"],
+            row["start_segment_ordinal"],
+        )
     )
     return results[: template_set["alignment"]["maximum_results"]]
 
@@ -2094,9 +2112,10 @@ def _validate_report_bounds(report: Mapping[str, Any]) -> None:
         ordinals = [row["pitch_class_ordinal"] for row in weights]
         if ordinals != sorted(ordinals) or len(set(ordinals)) != len(ordinals):
             _fail("PIL_RESULT_VALIDATION")
-    if report["completed_phase"] in {"chord_similarity", "functional_trajectory"} and report[
-        "status"
-    ] == "success":
+    if (
+        report["completed_phase"] in {"chord_similarity", "functional_trajectory"}
+        and report["status"] == "success"
+    ):
         if not (
             len(report["segments"])
             == len(report["feature_records"])
