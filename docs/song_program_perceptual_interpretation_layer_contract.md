@@ -101,9 +101,10 @@ lookup-table asset, construction oracle and golden boundaries are bound.
 Segmentation operates on Project event timing without modifying events.
 Candidate boundaries are the sorted union of bound beat/sub-beat grid points,
 bass changes, sustained-set changes and pitch-distribution changes. Every rule,
-threshold and weight is an integer in the manifest. Event salience is a checked
-integer function of overlap duration, metrical weight, velocity, track gain,
-persistence and bass salience. Zero-weight events are omitted.
+threshold and weight is an integer in the bound SegmentationPolicy. Event
+salience is a checked integer function of overlap duration, metrical weight,
+velocity, role gain, persistence and bass salience. Zero-weight events are
+omitted.
 
 The segmentation algorithm and all half-open interval rules are manifest-bound.
 Each `HarmonicSegment` records start/end tick, ordered source event IDs,

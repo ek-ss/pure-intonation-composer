@@ -3,11 +3,18 @@
 from __future__ import annotations
 
 import copy
+import json
+import os
+import subprocess
+import sys
+from pathlib import Path
 
 import pytest
 
 from app.songprogram import perceptual
 from test_perceptual_interpretation_phase1 import _manifest, _note, _project
+
+BACKEND = Path(__file__).resolve().parents[1]
 
 
 def _policy(**updates: object) -> dict:
@@ -110,6 +117,51 @@ def test_phase_cache_entries_cannot_alias(tmp_path) -> None:
     assert phase1["completed_phase"] == "pitch_projection" and phase1["segments"] == []
     assert phase2["completed_phase"] == "harmonic_segmentation" and phase2["segments"]
     assert len(list(tmp_path.iterdir())) == 2
+
+
+def test_phase2_cache_cold_hit_and_corrupt_are_byte_identical(tmp_path) -> None:
+    policy = _policy()
+    manifest = _bound_manifest(policy)
+    project = _phase2_project()
+    cold = perceptual.run_perceptual_interpretation(
+        project, manifest, cache_dir=tmp_path, segmentation_policy=policy
+    )
+    cold_bytes = perceptual.canonical_report_bytes(cold)
+    hit = perceptual.run_perceptual_interpretation(
+        project, manifest, cache_dir=tmp_path, segmentation_policy=policy
+    )
+    assert perceptual.canonical_report_bytes(hit) == cold_bytes
+    (entry,) = list(tmp_path.iterdir())
+    entry.write_bytes(b"not-json")
+    repaired = perceptual.run_perceptual_interpretation(
+        project, manifest, cache_dir=tmp_path, segmentation_policy=policy
+    )
+    assert perceptual.canonical_report_bytes(repaired) == cold_bytes
+
+
+def test_phase2_cross_process_hashseed_parity() -> None:
+    policy = _policy()
+    manifest = _bound_manifest(policy)
+    project = _phase2_project()
+    script = (
+        "import json,sys\n"
+        f"sys.path.insert(0, {str(BACKEND)!r})\n"
+        "from app.songprogram import perceptual\n"
+        f"project=json.loads({json.dumps(json.dumps(project))})\n"
+        f"manifest=json.loads({json.dumps(json.dumps(manifest))})\n"
+        f"policy=json.loads({json.dumps(json.dumps(policy))})\n"
+        "report=perceptual.run_perceptual_interpretation("
+        "project,manifest,segmentation_policy=policy)\n"
+        "sys.stdout.buffer.write(perceptual.canonical_report_bytes(report))\n"
+    )
+    outputs = []
+    for seed in ("0", "1", "424242"):
+        result = subprocess.run(
+            [sys.executable, "-c", script], check=True, capture_output=True,
+            cwd=BACKEND, env=dict(os.environ, PYTHONHASHSEED=seed),
+        )
+        outputs.append(result.stdout)
+    assert outputs[0] == outputs[1] == outputs[2]
 
 
 def test_zero_role_gain_produces_segment_empty_without_touching_project() -> None:

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 from pathlib import Path
 
 
@@ -44,7 +45,11 @@ def test_pil_initial_kernel_is_integer_soft_mapping_not_hard_quantization() -> N
 
 
 def test_segmentation_policy_closes_weights_merge_and_failure_order() -> None:
-    policy = json.loads((SCHEMAS / "perceptual_segmentation_policy.schema.json").read_text())
+    raw = (SCHEMAS / "perceptual_segmentation_policy.schema.json").read_bytes()
+    policy = json.loads(raw)
+    assert "sha256:" + hashlib.sha256(raw).hexdigest() == (
+        "sha256:77559f2ad4f563c761be20505eec8af4c4a04e63b51b9201df680e280bfa370d"
+    )
     assert policy["additionalProperties"] is False
     assert set(policy["properties"]["role_gain_q"]["required"]) == {
         "drums", "bass", "harmony", "melody", "texture"
