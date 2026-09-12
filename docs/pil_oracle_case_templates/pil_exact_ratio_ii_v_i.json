@@ -4,7 +4,9 @@
  "case_id": "pil_exact_ratio_ii_v_i",
  "description": "Exact-ratio JI analogue; owner declares the trajectory similarity floor.",
  "coverage": [
-  "success"
+  "success",
+  "voice_matching",
+  "trajectory_similarity"
  ],
  "manifest": {
   "schema": "cps.perceptual-interpretation-manifest",

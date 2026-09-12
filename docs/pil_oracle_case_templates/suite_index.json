@@ -8,6 +8,15 @@
   "kernel_edge",
   "kernel_tie",
   "kernel_empty_support",
+  "chord_similarity",
+  "ambiguous_winner",
+  "missing_bass",
+  "voice_matching",
+  "matching_tie",
+  "unequal_voice_count",
+  "identity_constraint",
+  "trajectory_similarity",
+  "trajectory_missing_bass",
   "equave_2_1",
   "equave_3_1",
   "phase_independence",
@@ -28,7 +37,21 @@
    "case_hash": null,
    "case_schema_hash": null,
    "coverage": [
-    "success"
+    "success",
+    "voice_matching",
+    "trajectory_similarity"
+   ]
+  },
+  {
+   "case_id": "pil_ambiguous_chord_margin",
+   "path": "pil_ambiguous_chord_margin.json",
+   "raw_file_sha256": null,
+   "case_hash": null,
+   "case_schema_hash": null,
+   "coverage": [
+    "success",
+    "chord_similarity",
+    "ambiguous_winner"
    ]
   },
   {
@@ -66,7 +89,9 @@
    "case_hash": null,
    "case_schema_hash": null,
    "coverage": [
-    "success"
+    "success",
+    "voice_matching",
+    "trajectory_similarity"
    ]
   },
   {
@@ -93,13 +118,39 @@
    ]
   },
   {
+   "case_id": "pil_matching_identity",
+   "path": "pil_matching_identity.json",
+   "raw_file_sha256": null,
+   "case_hash": null,
+   "case_schema_hash": null,
+   "coverage": [
+    "success",
+    "voice_matching",
+    "identity_constraint"
+   ]
+  },
+  {
    "case_id": "pil_matching_tie",
    "path": "pil_matching_tie.json",
    "raw_file_sha256": null,
    "case_hash": null,
    "case_schema_hash": null,
    "coverage": [
-    "success"
+    "success",
+    "voice_matching",
+    "matching_tie"
+   ]
+  },
+  {
+   "case_id": "pil_matching_unequal",
+   "path": "pil_matching_unequal.json",
+   "raw_file_sha256": null,
+   "case_hash": null,
+   "case_schema_hash": null,
+   "coverage": [
+    "success",
+    "voice_matching",
+    "unequal_voice_count"
    ]
   },
   {
@@ -109,7 +160,9 @@
    "case_hash": null,
    "case_schema_hash": null,
    "coverage": [
-    "success"
+    "success",
+    "voice_matching",
+    "trajectory_similarity"
    ]
   },
   {
@@ -150,7 +203,21 @@
    "case_hash": null,
    "case_schema_hash": null,
    "coverage": [
-    "success"
+    "success",
+    "chord_similarity",
+    "missing_bass"
+   ]
+  },
+  {
+   "case_id": "pil_trajectory_missing_bass",
+   "path": "pil_trajectory_missing_bass.json",
+   "raw_file_sha256": null,
+   "case_hash": null,
+   "case_schema_hash": null,
+   "coverage": [
+    "success",
+    "trajectory_similarity",
+    "trajectory_missing_bass"
    ]
   },
   {

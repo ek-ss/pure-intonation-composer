@@ -4,7 +4,9 @@
  "case_id": "pil_matching_tie",
  "description": "Symmetric +386314 mc motions produce an exact cost tie; the lexicographically smallest canonical_matching_key must win.",
  "coverage": [
-  "success"
+  "success",
+  "voice_matching",
+  "matching_tie"
  ],
  "manifest": {
   "schema": "cps.perceptual-interpretation-manifest",

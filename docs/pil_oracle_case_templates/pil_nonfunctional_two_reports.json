@@ -4,7 +4,9 @@
  "case_id": "pil_nonfunctional_two_reports",
  "description": "High Native JI coherence with low ii-V-I similarity, reported separately; the Native JI report hash is correlation metadata filled by the owner.",
  "coverage": [
-  "success"
+  "success",
+  "voice_matching",
+  "trajectory_similarity"
  ],
  "manifest": {
   "schema": "cps.perceptual-interpretation-manifest",

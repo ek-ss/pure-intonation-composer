@@ -1,12 +1,12 @@
 {
  "schema": "cps.pil-oracle-case",
  "schema_version": "1.0.0",
- "case_id": "pil_soft_major_1_1_5_4_3_2",
- "description": "High soft major similarity while exact ratios are retained.",
+ "case_id": "pil_ambiguous_chord_margin",
+ "description": "Maximum winner margin retains candidates while suppressing the best label.",
  "coverage": [
   "success",
   "chord_similarity",
-  "missing_bass"
+  "ambiguous_winner"
  ],
  "manifest": {
   "schema": "cps.perceptual-interpretation-manifest",
@@ -23,18 +23,18 @@
   },
   "segmentation_policy_schema_hash": "sha256:77559f2ad4f563c761be20505eec8af4c4a04e63b51b9201df680e280bfa370d",
   "segmentation_policy_hash": "sha256:e4de32cfdcb25f41e1dc1f8d09cce86df1c3777d5f31176943258dc695dfcd6e",
-  "feature_spec_hash": "sha256:2f4b53d59aa626bae2aa5822aea42596767b9c1711ff64c199d2e5777d56e08c",
-  "vocabulary_hash": "sha256:9b3647562ac836567d9ee06529d89d50b72b7b89f654d5e72daed8bf315d28b9",
+  "feature_spec_hash": "sha256:568096cefac75c7f980afbfd5198b497a0aa9faa6658be5d6f40b7abccbc098f",
+  "vocabulary_hash": "sha256:41ee9d8e0752ce482c4f4ffdb13fa5048bdb08b379d5cff1dd966997d254a655",
   "voice_matching_policy_hash": "sha256:0606060606060606060606060606060606060606060606060606060606060606",
   "trajectory_template_set_hash": "sha256:0707070707070707070707070707070707070707070707070707070707070707",
   "genre_model_hash": null,
-  "manifest_hash": "sha256:ed24f10e4f916ab826347f31f476564fc183b266322db344df551da97cea91ab"
+  "manifest_hash": "sha256:29107bdc28bc624d4936a011789f3490bff0b1aa8db1f8994e1cb0bcd8a8d09c"
  },
  "project": {
   "schema": "cps.arrangement-project",
   "schema_version": "1.2.0",
   "source_program": {
-   "hash": "sha256:0c060da30efb0a9a78b4ba0eec7d19f7e510606bcab2c47b195ae793f40ce790",
+   "hash": "sha256:4dab72d1b46671828c69c601849f0d23ebca52c0a12a3d8bdb18c7ce20344886",
    "schema": "cps.song-program",
    "schema_version": "0.1.0"
   },
@@ -47,28 +47,23 @@
    "instrument_catalog_digest": "sha256:1313131313131313131313131313131313131313131313131313131313131313"
   },
   "lattice": {
-   "domain_hash": "sha256:8785e059ce7df4a8decea9cf0782f23c53f581b27eea263259b899df22ee3a3d",
+   "domain_hash": "sha256:56ca513aab58746fcc9fc01d39b5aa58f8c758ce6bffd0edfd43681d3fa5782d",
    "base_frequency_millihz": 220000,
    "equave": "2/1",
    "generators": [
-    "3/1",
-    "5/1"
+    "3/1"
    ],
    "coordinate_bounds": [
     [
      0,
-     1
-    ],
-    [
-     0,
-     1
+     0
     ]
    ],
    "register_bounds": [
-    -2,
+    0,
     0
    ],
-   "maximum_odd_limit": 5,
+   "maximum_odd_limit": 3,
    "maximum_reduced_complexity_bits": 48
   },
   "clock": {
@@ -109,33 +104,13 @@
     "repeat_ordinal": 0,
     "at_tick": 0,
     "source_program_path": "/realizations/0"
-   },
-   {
-    "id": "mi_1",
-    "material_id": "pitch_1",
-    "realization_id": "real_1",
-    "section_id": "section",
-    "track_id": "harmony",
-    "repeat_ordinal": 0,
-    "at_tick": 0,
-    "source_program_path": "/realizations/1"
-   },
-   {
-    "id": "mi_2",
-    "material_id": "pitch_2",
-    "realization_id": "real_2",
-    "section_id": "section",
-    "track_id": "harmony",
-    "repeat_ordinal": 0,
-    "at_tick": 0,
-    "source_program_path": "/realizations/2"
    }
   ],
   "resolved_chords": [],
   "harmony_occurrences": [],
   "events": [
    {
-    "id": "ev_arxe6vtkjank3vemu6r5",
+    "id": "ev_2b6w7nt5uxkphahpwk7f",
     "kind": "note",
     "track_id": "harmony",
     "section_id": "section",
@@ -149,18 +124,15 @@
     "pitch_provenance": {
      "kind": "direct_vector",
      "material_vector": [
-      0,
       0
      ],
      "tonal_center": [
-      0,
       0
      ],
      "register_delta": 0,
      "register_shift_equaves": 0,
      "placed_equave_exponent": 0,
      "final_vector": [
-      0,
       0
      ],
      "equave_exponent": 0,
@@ -171,84 +143,6 @@
      "source_step_ordinal": 0,
      "emitted_voice_ordinal": 0,
      "semantic_address": "sa_uyiuvbrl5eybowbjakbr5hmlfx"
-    }
-   },
-   {
-    "id": "ev_4ru6w2jmdw6or5o222az",
-    "kind": "note",
-    "track_id": "harmony",
-    "section_id": "section",
-    "start_tick": 0,
-    "duration_ticks": 480,
-    "velocity": 100,
-    "articulation": "normal",
-    "drum_note": null,
-    "ratio": "3/2",
-    "chord_index": null,
-    "pitch_provenance": {
-     "kind": "direct_vector",
-     "material_vector": [
-      1,
-      0
-     ],
-     "tonal_center": [
-      0,
-      0
-     ],
-     "register_delta": -1,
-     "register_shift_equaves": 0,
-     "placed_equave_exponent": 0,
-     "final_vector": [
-      1,
-      0
-     ],
-     "equave_exponent": -1,
-     "final_ratio": "3/2"
-    },
-    "source": {
-     "material_instance_id": "mi_2",
-     "source_step_ordinal": 0,
-     "emitted_voice_ordinal": 0,
-     "semantic_address": "sa_ipry6s2oah66m26mw3gwfh2ayq"
-    }
-   },
-   {
-    "id": "ev_3m4dydp2rqytmx5rn6f4",
-    "kind": "note",
-    "track_id": "harmony",
-    "section_id": "section",
-    "start_tick": 0,
-    "duration_ticks": 480,
-    "velocity": 100,
-    "articulation": "normal",
-    "drum_note": null,
-    "ratio": "5/4",
-    "chord_index": null,
-    "pitch_provenance": {
-     "kind": "direct_vector",
-     "material_vector": [
-      0,
-      1
-     ],
-     "tonal_center": [
-      0,
-      0
-     ],
-     "register_delta": -2,
-     "register_shift_equaves": 0,
-     "placed_equave_exponent": 0,
-     "final_vector": [
-      0,
-      1
-     ],
-     "equave_exponent": -2,
-     "final_ratio": "5/4"
-    },
-    "source": {
-     "material_instance_id": "mi_1",
-     "source_step_ordinal": 0,
-     "emitted_voice_ordinal": 0,
-     "semantic_address": "sa_rqe3kb7j6kddl2yk5bkhlj3oi2"
     }
    }
   ],
@@ -263,7 +157,7 @@
    "channel_layout": "stereo"
   }
  },
- "project_hash": "sha256:cec8f0cef5acd92ddd44c65511705ff032d170d9a2732b5350000a155c765974",
+ "project_hash": "sha256:80bcbc8eb908afc4f4f200cbad0d8cf4da43a1fd7af864d7f1042e9aeb9f2975",
  "segmentation_policy": {
   "schema": "cps.perceptual-segmentation-policy",
   "schema_version": "1.0.0",
@@ -327,10 +221,10 @@
    "interval_weight": 3000,
    "bass_relative_weight": 2000,
    "confidence_floor_q": 0,
-   "winner_margin_floor_q": 0,
+   "winner_margin_floor_q": 10000,
    "maximum_candidates": 8
   },
-  "spec_hash": "sha256:2f4b53d59aa626bae2aa5822aea42596767b9c1711ff64c199d2e5777d56e08c"
+  "spec_hash": "sha256:568096cefac75c7f980afbfd5198b497a0aa9faa6658be5d6f40b7abccbc098f"
  },
  "vocabulary": {
   "schema": "cps.perceptual-chord-vocabulary",
@@ -338,7 +232,7 @@
   "algorithm": "pil-chord-vocabulary-q31/v1",
   "vocabulary_schema_hash": "sha256:dde975cb786368d66df8a79ea0457dd0f722fd40958c52efca448f5515edd3df",
   "interpretation_period": "2/1",
-  "feature_spec_hash": "sha256:2f4b53d59aa626bae2aa5822aea42596767b9c1711ff64c199d2e5777d56e08c",
+  "feature_spec_hash": "sha256:568096cefac75c7f980afbfd5198b497a0aa9faa6658be5d6f40b7abccbc098f",
   "entries": [
    {
     "id": "major",
@@ -467,7 +361,7 @@
     ]
    }
   ],
-  "vocabulary_hash": "sha256:9b3647562ac836567d9ee06529d89d50b72b7b89f654d5e72daed8bf315d28b9"
+  "vocabulary_hash": "sha256:41ee9d8e0752ce482c4f4ffdb13fa5048bdb08b379d5cff1dd966997d254a655"
  },
  "voice_matching_policy": null,
  "trajectory_template_set": null,

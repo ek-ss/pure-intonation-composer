@@ -26,6 +26,7 @@ sys.path.insert(0, str(BACKEND))
 
 from app.songprogram import perceptual  # noqa: E402
 from app.songprogram.compiler import CompilerIdentity, compile_sp0  # noqa: E402
+from app.songprogram.pil_fixture_suite import PIL_REQUIRED_COVERAGE  # noqa: E402
 
 OUT = BACKEND.parent / "docs" / "pil_oracle_case_templates"
 
@@ -591,7 +592,7 @@ def build_cases() -> list[dict]:
     cases.append(
         _case(
             "pil_soft_major_1_1_5_4_3_2",
-            ["success"],
+            ["success", "chord_similarity", "missing_bass"],
             _project([_note("ev_a", "1/1", 0), _note("ev_b", "5/4", 0), _note("ev_c", "3/2", 0)]),
             manifest,
             {
@@ -635,6 +636,30 @@ def build_cases() -> list[dict]:
             "Short passing-tone perturbation; owner declares the similarity delta bound.",
         )
     )
+    policy = _segmentation_policy()
+    spec = _feature_spec(policy)
+    spec["similarity"]["winner_margin_floor_q"] = 10_000
+    spec["spec_hash"] = perceptual.chord_feature_spec_hash(spec)
+    vocabulary = _vocabulary(spec)
+    manifest = _bind(
+        _manifest(), segmentation_policy=policy, feature_spec=spec, chord_vocabulary=vocabulary
+    )
+    cases.append(
+        _case(
+            "pil_ambiguous_chord_margin",
+            ["success", "chord_similarity", "ambiguous_winner"],
+            _project([_note("ev_a", "1/1", 0)]),
+            manifest,
+            {
+                "segmentation_policy": policy,
+                "feature_spec": spec,
+                "chord_vocabulary": vocabulary,
+                "voice_matching_policy": None,
+                "trajectory_template_set": None,
+            },
+            "Maximum winner margin retains candidates while suppressing the best label.",
+        )
+    )
 
     # --- Phase 4 (contract section 9 items 4, 5, 6, 8) ---
     ii_v_i_templates = [
@@ -658,7 +683,7 @@ def build_cases() -> list[dict]:
         )
         return _case(
             case_id,
-            ["success"],
+            ["success", "voice_matching", "trajectory_similarity"],
             _project(events, total_ticks=1_440),
             manifest,
             {
@@ -751,7 +776,7 @@ def build_cases() -> list[dict]:
     cases.append(
         _case(
             "pil_matching_tie",
-            ["success"],
+            ["success", "voice_matching", "matching_tie"],
             _project(
                 [
                     _note("ev_a", "1/1", 0),
@@ -773,6 +798,80 @@ def build_cases() -> list[dict]:
             "lexicographically smallest canonical_matching_key must win.",
         )
     )
+
+    def _phase4_pair(case_id: str, coverage: list[str], events: list[dict], note: str) -> dict:
+        policy, spec, vocabulary, vm_policy, template_set = _phase4_assets(
+            [
+                {
+                    "id": "pair_probe",
+                    "ordinal": 0,
+                    "steps": [_step("major"), _step("major")],
+                    "transitions": [_transition(0)],
+                }
+            ]
+        )
+        manifest = _bind(
+            _manifest(),
+            segmentation_policy=policy,
+            feature_spec=spec,
+            chord_vocabulary=vocabulary,
+            voice_matching_policy=vm_policy,
+            trajectory_template_set=template_set,
+        )
+        return _case(
+            case_id,
+            coverage,
+            _project(events, total_ticks=960),
+            manifest,
+            {
+                "segmentation_policy": policy,
+                "feature_spec": spec,
+                "chord_vocabulary": vocabulary,
+                "voice_matching_policy": vm_policy,
+                "trajectory_template_set": template_set,
+            },
+            note,
+        )
+
+    cases.append(
+        _phase4_pair(
+            "pil_matching_unequal",
+            ["success", "voice_matching", "unequal_voice_count"],
+            [
+                _note("a", "1/1", 0),
+                _note("b", "5/4", 0),
+                _note("c", "3/2", 0),
+                _note("d", "1/1", 480),
+                _note("e", "3/2", 480),
+            ],
+            "Three-to-two voice transition fixes reverse injection and unmatched encoding.",
+        )
+    )
+    cases.append(
+        _phase4_pair(
+            "pil_matching_identity",
+            ["success", "voice_matching", "identity_constraint"],
+            [
+                _note("sustain", "1/1", 0, duration=960),
+                _note("a", "5/4", 0),
+                _note("b", "3/2", 480),
+            ],
+            "A note sustained across the boundary must match its own event identity.",
+        )
+    )
+    cases.append(
+        _phase4_pair(
+            "pil_trajectory_missing_bass",
+            ["success", "trajectory_similarity", "trajectory_missing_bass"],
+            [
+                _note("a", "1/1", 0),
+                _note("b", "5/4", 0),
+                _note("c", "1/1", 480),
+                _note("d", "3/2", 480),
+            ],
+            "No bass-role event: bass component is omitted and weights renormalize.",
+        )
+    )
     return cases
 
 
@@ -786,24 +885,7 @@ def main() -> None:
         "schema": "cps.pil-oracle-suite-index",
         "schema_version": "1.0.0",
         "suite_version": None,
-        "required_coverage": [
-            "success",
-            "failure",
-            "kernel_edge",
-            "kernel_tie",
-            "kernel_empty_support",
-            "equave_2_1",
-            "equave_3_1",
-            "phase_independence",
-            "cache_cold",
-            "cache_hit",
-            "cache_corrupt",
-            "cross_process",
-            "parallel_1",
-            "parallel_2",
-            "parallel_4",
-            "parallel_8",
-        ],
+        "required_coverage": PIL_REQUIRED_COVERAGE,
         "cases": [
             {
                 "case_id": case["case_id"],

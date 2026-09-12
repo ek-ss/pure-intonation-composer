@@ -4,7 +4,9 @@
  "case_id": "pil_12et_ii_v_i",
  "description": "Conventional 12-TET-target ii-V-I; owner declares the trajectory similarity floor.",
  "coverage": [
-  "success"
+  "success",
+  "voice_matching",
+  "trajectory_similarity"
  ],
  "manifest": {
   "schema": "cps.perceptual-interpretation-manifest",
