@@ -35,6 +35,12 @@ required_coverage:  # closed label set; every label must appear >= 1 time
   - chord_similarity
   - ambiguous_winner
   - missing_bass
+  - voice_matching
+  - matching_tie
+  - unequal_voice_count
+  - identity_constraint
+  - trajectory_similarity
+  - trajectory_missing_bass
   - equave_2_1
   - equave_3_1
   - phase_independence
@@ -68,6 +74,8 @@ project: <ArrangementProject 1.2, complete and standalone-valid>
 segmentation_policy: <null | complete SegmentationPolicy 1.0>
 feature_spec: <null | complete ChordFeatureSpec 1.0>
 vocabulary: <null | complete ChordVocabulary 1.0>
+voice_matching_policy: <null | complete VoiceMatchingPolicy 1.0>
+trajectory_template_set: <null | complete TrajectoryTemplateSet 1.0>
 native_ji_report_hash: <null | sha256>   # correlation metadata only
 expected:
   status: success | failure
@@ -95,8 +103,9 @@ Rules:
   `cps-artifact-hash/v1` preimage rule adopted by the Phase 1 implementation;
   if the owner later standardizes a different PIL hash preimage, the Phase 1
   implementation and this suite change together in one commit.
-- Payload presence is phase-exact: Phase 1 has all three nullable assets null;
-  Phase 2 requires only `segmentation_policy`; Phase 3 requires all three.
+- Payload presence is phase-exact: Phase 1 has all five nullable assets null;
+  Phase 2 requires only `segmentation_policy`; Phase 3 requires its first three;
+  Phase 4 requires all five.
   Every non-null asset self-hash and embedded raw-schema hash is recomputed,
   then compared with its manifest/upstream binding before execution.
 
@@ -118,12 +127,16 @@ Rules:
 | `pil_kernel_boundaries` | 8 | 1 | edge, tie, empty-support in one multi-event project or split cases |
 | `pil_segment_boundary` | 8 | 2 | half-open interval rules |
 | `pil_matching_tie` | 8 | 4+ | voice-matching tie |
+| `pil_matching_unequal` | Phase 4 | 4 | both injection orientations and unmatched encoding |
+| `pil_matching_identity` | Phase 4 | 4 | sustained event ID is forced to itself |
+| `pil_trajectory_missing_bass` | Phase 4 | 4 | null bass component is omitted and weights renormalize |
+| `pil_trajectory_overlap_windows` | Phase 4 | 4 | every consecutive window retained in canonical order |
 | `pil_cache_parity` | 8 | 1 | cold/hit/corrupt byte identity |
 | `pil_cross_process_workers` | 8 | 1 | PYTHONHASHSEED and 1/2/4/8-worker parity |
 
 Phase 1/2 cases and the four Phase 3 chord cases are implementable once the
-checked-in FeatureSpec and Vocabulary assets exist. Phase 4+ rows are reserved
-and MUST NOT be filled before their manifest-bound assets exist.
+checked-in FeatureSpec and Vocabulary assets exist. Phase 4 cases additionally
+require owner-approved matching policy and trajectory-template payloads.
 
 ## 5. Validation flow (read-only)
 
@@ -147,3 +160,6 @@ and MUST NOT be filled before their manifest-bound assets exist.
 - The owner-assigned FeatureSpec and Vocabulary payload values and hashes.
   Implementers may provide an independent generator, but may not approve or
   rewrite its checked-in expected report bytes.
+- The owner-assigned VoiceMatchingPolicy weights/caps/kernel radius and
+  TrajectoryTemplateSet templates/weights. Their expected bytes must be
+  generated and approved independently from the production implementation.

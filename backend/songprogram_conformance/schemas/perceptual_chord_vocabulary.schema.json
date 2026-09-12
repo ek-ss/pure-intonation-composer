@@ -21,10 +21,11 @@
     "distribution": {"type": "array", "minItems": 1, "maxItems": 12, "items": {"$ref": "#/$defs/weight"}},
     "entry": {
       "type": "object", "additionalProperties": false,
-      "required": ["id", "ordinal", "pitch_distribution_q31", "interval_distribution_q31", "bass_relative_distribution_q31"],
+      "required": ["id", "ordinal", "functional_tension_q", "pitch_distribution_q31", "interval_distribution_q31", "bass_relative_distribution_q31"],
       "properties": {
         "id": {"type": "string", "pattern": "^[a-z][a-z0-9_.-]{0,127}$"},
         "ordinal": {"type": "integer", "minimum": 0, "maximum": 255},
+        "functional_tension_q": {"type": "integer", "minimum": 0, "maximum": 10000},
         "pitch_distribution_q31": {"$ref": "#/$defs/distribution"},
         "interval_distribution_q31": {"$ref": "#/$defs/distribution"},
         "bass_relative_distribution_q31": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/distribution"}]}

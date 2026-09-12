@@ -63,13 +63,27 @@ profile binds the exact raw bytes whose SHA-256 values are:
 - ChordFeatureRecord 1.0 schema:
   `sha256:0e039841d18d1496161ba2283fdbd1dca743fd719288ca465823f03be0add1a6`;
 - ChordVocabulary 1.0 schema:
-  `sha256:cd6741bcd4e94a03e7ce9bcbb6422d761108e9900191c6500c2775cdfefec11b`;
-- PerceptualInterpretationReport 1.0 Phase 3 schema:
-  `sha256:8c2c89de9f1076ef91260a2dbfb9abc157fe05482063f46c0bf6d9ca38315135`.
+  `sha256:dde975cb786368d66df8a79ea0457dd0f722fd40958c52efca448f5515edd3df`;
+- PerceptualInterpretationReport 1.0 Phase 4 schema:
+  `sha256:7b3e813f5fff25791738ba4f1b9e7d262f20bce912a24ad57ca231fd870f024c`;
+- VoiceMatchingPolicy 1.0 schema:
+  `sha256:288ae738994562e8ca67465c28cf102ce163ebfe35884c901860ee6f32e15690`;
+- VoiceMatchingRecord 1.0 schema:
+  `sha256:ae74975c01dedf1bf1cceea9d90e4a3a25fbb9c8e904aeae9e4313a49a28de29`;
+- TransitionFeatureRecord 1.0 schema:
+  `sha256:ff3e0c7e125f57347be40d31f77671572d7bde4450f52e65a0292f70e3cecff5`;
+- TrajectoryTemplateSet 1.0 schema:
+  `sha256:119fe9a73b47a11859c3d840d2541181d302c27c0a55fa5ff35215dfe42b1b45`;
+- TrajectoryInterpretation 1.0 schema:
+  `sha256:86ad76be91b2c2e2c33fac2630c7b3daa4fcaca4016740b0d930d3f0ab5d7dd1`.
 
 The Phase 3 reference implementation build identity is
 `pil.phase3.1.0.0`; manifests naming an earlier Phase 1/2 build are not
-silently upgraded.
+silently upgraded. The Phase 4 reference implementation build identity is
+`pil.phase4.1.0.0`; it covers Phases 1-4 and binds the Phase 4 schema
+profile above. Manifests naming `pil.phase3.1.0.0` remain valid for
+`chord_similarity` and earlier phases but are not silently upgraded to
+`functional_trajectory`.
 
 An implementation embeds or content-addressedly resolves these identities; it
 MUST NOT accept an arbitrary same-shaped hash. A later byte change creates a
@@ -296,6 +310,8 @@ Vocabulary entry ordinals MUST be unique and contiguous `0..N-1`; IDs are
 unique and entries are stored in ordinal order. Every template distribution
 obeys the same sparse-Q31 invariant as feature records. A null template
 bass-relative distribution means that component is unavailable, not zero.
+Every entry also binds `functional_tension_q` in Q0.10000. It is vocabulary
+metadata for Phase 4 perceptual interpretation, never a Native JI tension value.
 
 For two Q31 distributions `A,B` define:
 
@@ -335,20 +351,129 @@ alter or suppress Native JI evidence.
 
 ## 6. Function, trajectory and voice leading
 
-Functional interpretation consumes segment features plus bass trajectory,
-perceptual voice assignment, common tones, directed tension change, metrical
-position and surrounding segments. It MUST NOT perform string matching on a
-hard chord-label sequence.
+Phase 4 uses complete, content-addressed `VoiceMatchingPolicy 1.0` and
+`TrajectoryTemplateSet 1.0` payloads. A hash without its canonical payload is
+not executable. Each asset embeds its frozen raw-schema hashes and binds the
+Phase 3 FeatureSpec/Vocabulary hashes. Self hashes use the generic artifact
+rule. Native GEN0-B matching is neither an input nor fallback and remains the
+sole owner of native voice-leading metrics.
 
-Perceptual voice assignment is a separately versioned exact matching operator.
-Its output retains source event IDs, signed absolute/circular millicent motion,
-common-tone likelihood, contrary motion and resolution features. Native GEN0-B
-matching remains unchanged and continues to own native voice-leading metrics.
+### 6.1 Selected perceptual voices
 
-Trajectory templates such as `ii-V-I`, `V-I`, `IV-V-I` and `I-vi-IV-V` are
-content-addressed assets. Results are likelihood-like Q0.10000 similarities,
-not assertions that the native progression “is” that template. Bass intervals
-remain exact acoustic intervals with separate fifth/fourth/step likeness.
+For each segment recompute the exact Phase 2 event weights. Sort positive-weight
+source events by `(-event_weight, absolute_millicents, event_id UTF-8)`, retain
+the first `maximum_voices_per_segment`, then canonicalize the retained set by
+`(absolute_millicents,event_id UTF-8)`. These zero-based positions are the
+`from` and `to` voice ordinals. No onset clustering, track preference or ambient
+foreground detector is allowed.
+
+For adjacent segments A/B, enumerate every injection from the smaller retained
+set into the larger. Equal sizes orient A→B. If B is smaller, enumeration is
+B→A but output pairs always contain A's event as `from_event_id` and B's as
+`to_event_id`. An event ID present in both sets MUST pair with itself; candidates
+violating this identity constraint are infeasible.
+
+For a candidate pair define signed absolute motion `d = B.absolute_mc -
+A.absolute_mc` and circular motion `c = ((d + 600000) mod 1200000)-600000`.
+Thus the exact half-period tie is `-600000`. Expand both soft pitch mappings and
+define `pitch_l1_cost_q = RHE(10000*L1/(2*2147483647))`. Other component costs:
+
+```text
+absolute_cost_q = min(10000,RHE(10000*abs(d)/absolute_motion_cap_mc))
+circular_cost_q = RHE(10000*abs(c)/600000)
+role_mismatch_cost_q = 0 if Project track roles match, else 10000
+pair_cost_q = RHE(sum(component_cost_q * bound_weight) / sum(bound_weight))
+```
+
+The four weights are Q0.10000 and at least one MUST be positive. Sum pair costs
+and choose the minimum. Exact ties choose lexicographically smallest
+`canonical_matching_key`:
+
+```text
+[from_count,to_count,pair_count,
+ from_ordinal_0,to_ordinal_0,...,
+ unmatched_from_count,unmatched_from_ordinals...,
+ unmatched_to_count,unmatched_to_ordinals...]
+```
+
+Pairs and unmatched ordinals are ascending. `total_cost_q` is RHE(mean pair
+cost). Pair common-tone Q is `10000-pitch_l1_cost_q`. Pair step-up/down likeness
+is `max(0,10000-RHE(10000*abs(c-center)/radius))` using the policy-bound centers
+and radius. Record common-tone Q is the pair mean. Contrary-motion Q is 10000
+iff nonzero absolute motions contain both signs, otherwise 0. All arithmetic is
+checked u64/i64. Matching traversal is candidate key order after cost.
+
+`transition_id` is `trn_` plus the first 32 lowercase hex digits of SHA-256 over
+`UTF8("cps.pil-transition-id/v1\0") || canonical_json({from_segment_id,
+to_segment_id,policy_hash})`. VoiceMatchingRecord uses the generic self hash.
+
+### 6.2 TransitionFeatureRecord
+
+For every adjacent segment pair emit one transition record. It binds the
+VoiceMatchingRecord hash. If either bass is null, all bass fields are null.
+Otherwise bass absolute/circular motion uses the same formulas above. A kernel
+likeness is `max(0,10000-RHE(10000*wrapped_distance/radius))`; fifth and fourth
+use their bound centers, while `bass_step_likeness_q` is the maximum of the
+bound up/down kernels. Step-up/down resolution values are the corresponding
+means across matched pairs. Common-tone and contrary-motion copy the matching
+record values.
+
+Destination metrical strength is 10000 at a bar boundary, 7500 at another beat
+boundary, 5000 at a half-beat boundary and 0 otherwise. Earlier cases win.
+`ticks_per_beat` and `beats_per_bar` come only from the Project. The record uses
+the generic artifact self hash.
+
+Observed segment tension is
+`RHE(sum(candidate_similarity_q * entry.functional_tension_q) /
+sum(candidate_similarity_q))` across retained candidates; a zero denominator is
+`PIL_TRAJECTORY_FAILED`. Directed tension change is destination minus source
+and is therefore -10000..10000.
+
+### 6.3 Trajectory templates and alignment
+
+Template IDs and ordinals are unique; ordinals are contiguous `0..N-1` and
+stored in that order. Each template has 2..16 steps and exactly `steps-1`
+transitions. Each step's unique vocabulary IDs are stored in vocabulary ordinal
+order and positive weights sum exactly Q31. Unknown IDs reject the template set.
+Template transition values are closed integers: signed bass center/radius,
+common-tone target, contrary-motion target, resolution kind/target and metrical
+target, plus signed directed-tension-change target.
+
+Alignment is only every consecutive segment window of exactly template length;
+no skips, padding, time warping or hard-label string matching occurs. At each
+step, absent vocabulary candidates have similarity zero and
+`step_chord_q = RHE(sum(candidate_similarity_q * target_weight_q31) /
+2147483647)`. Chord component is the mean step score.
+
+For each transition, bass score uses the template triangular circular-motion
+kernel; a missing observed bass omits that transition's bass component.
+Common-tone, contrary, resolution and metrical scores are each
+`10000-abs(observed_q-target_q)`. Resolution selects the observed up/down value
+named by the template. Tension score is
+`10000-RHE(abs(observed_change-target_change)/2)`. Each component is the mean of its available step or
+transition values. If all bass observations are missing, bass component is null.
+
+The set binds seven Q0.10000 weights: chord, bass, common-tone, contrary-motion,
+resolution, tension and metrical. Chord weight MUST be positive and total weight MUST be
+positive. Final similarity is the RHE weighted mean over available components;
+null bass removes its weight rather than contributing zero.
+
+Every template/window result is retained, sorted by
+`(-similarity_q,template_ordinal,start_segment_ordinal)`, then truncated to
+`maximum_results`. `canonical_alignment_key` is
+`[template_ordinal,start_segment_ordinal]`. Match/result IDs use the same
+domain-separated first-32-hex construction over template-set hash, template ID
+and ordered segment IDs. The result embeds component scores, segment IDs and
+transition record hashes, so no hard chord-label sequence is authoritative.
+
+### 6.4 Phase, cache and failures
+
+Successful Phase 4 reports use `completed_phase: functional_trajectory` and
+embed ordered `voice_matching_records`, `transition_feature_records` and full
+trajectory results. The cache key includes this phase. After successful Phase 3
+validation, invalid matching policy/result is `PIL_VOICE_MATCHING_FAILED`;
+invalid template/alignment/result is `PIL_TRAJECTORY_FAILED`. Voice matching
+precedes trajectory validation. Neither failure changes Native JI evidence.
 
 ## 7. Genre/style interpretation
 

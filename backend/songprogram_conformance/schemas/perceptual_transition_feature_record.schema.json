@@ -1,0 +1,9 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema","$id":"https://cps.local/schemas/perceptual_transition_feature_record.schema.json","title":"PIL TransitionFeatureRecord v1","type":"object","additionalProperties":false,
+  "required":["schema","schema_version","transition_id","from_segment_id","to_segment_id","matching_record_hash","bass_absolute_motion_millicents","bass_circular_motion_millicents","bass_fifth_likeness_q","bass_fourth_likeness_q","bass_step_likeness_q","common_tone_q","contrary_motion_q","step_up_resolution_q","step_down_resolution_q","directed_tension_change_q","destination_metrical_strength_q","record_hash"],
+  "properties":{
+    "schema":{"const":"cps.perceptual-transition-feature-record"},"schema_version":{"const":"1.0.0"},"transition_id":{"type":"string","pattern":"^trn_[0-9a-f]{32}$"},"from_segment_id":{"$ref":"#/$defs/segment"},"to_segment_id":{"$ref":"#/$defs/segment"},"matching_record_hash":{"$ref":"#/$defs/sha"},
+    "bass_absolute_motion_millicents":{"oneOf":[{"type":"null"},{"type":"integer"}]},"bass_circular_motion_millicents":{"oneOf":[{"type":"null"},{"type":"integer","minimum":-600000,"maximum":599999}]},"bass_fifth_likeness_q":{"oneOf":[{"type":"null"},{"$ref":"#/$defs/q"}]},"bass_fourth_likeness_q":{"oneOf":[{"type":"null"},{"$ref":"#/$defs/q"}]},"bass_step_likeness_q":{"oneOf":[{"type":"null"},{"$ref":"#/$defs/q"}]},
+    "common_tone_q":{"$ref":"#/$defs/q"},"contrary_motion_q":{"$ref":"#/$defs/q"},"step_up_resolution_q":{"$ref":"#/$defs/q"},"step_down_resolution_q":{"$ref":"#/$defs/q"},"directed_tension_change_q":{"type":"integer","minimum":-10000,"maximum":10000},"destination_metrical_strength_q":{"$ref":"#/$defs/q"},"record_hash":{"$ref":"#/$defs/sha"}
+  },"$defs":{"sha":{"type":"string","pattern":"^sha256:[0-9a-f]{64}$"},"segment":{"type":"string","pattern":"^seg_[0-9a-f]{32}$"},"q":{"type":"integer","minimum":0,"maximum":10000}}
+}

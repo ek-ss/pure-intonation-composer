@@ -65,6 +65,7 @@ def _assets(policy: dict, *, margin: int = 0) -> tuple[dict, dict, dict]:
             {
                 "id": entry_id,
                 "ordinal": ordinal,
+                "functional_tension_q": 2_000 + ordinal * 1_000,
                 "pitch_distribution_q31": pitch,
                 "interval_distribution_q31": _interval(pitch),
                 "bass_relative_distribution_q31": pitch,

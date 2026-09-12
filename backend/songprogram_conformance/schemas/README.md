@@ -13,6 +13,13 @@ for the SP0 conformance pack.
   `perceptual_chord_vocabulary.schema.json`: closed Phase 3 continuous chord
   features and conventional soft-similarity authority. Native JI metrics remain
   external evidence referenced by hash.
+- `perceptual_voice_matching_policy.schema.json`,
+  `perceptual_voice_matching_record.schema.json`,
+  `perceptual_transition_feature_record.schema.json`,
+  `perceptual_trajectory_template_set.schema.json`, and
+  `perceptual_trajectory_result.schema.json`: closed Phase 4 perceptual voice
+  assignment, transition evidence, consecutive alignment and trajectory score
+  authority. These artifacts do not reuse Native GEN0-B matching.
 
 - `arrangement_project_1_2.schema.json`: immutable playable Project, including
   pitch-provenance unions and inline exact resolved chords.

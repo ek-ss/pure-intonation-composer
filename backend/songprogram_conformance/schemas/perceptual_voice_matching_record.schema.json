@@ -1,0 +1,12 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema","$id":"https://cps.local/schemas/perceptual_voice_matching_record.schema.json","title":"PIL VoiceMatchingRecord v1","type":"object","additionalProperties":false,
+  "required":["schema","schema_version","transition_id","from_segment_id","to_segment_id","policy_hash","selected_from_event_ids","selected_to_event_ids","pairs","unmatched_from_event_ids","unmatched_to_event_ids","canonical_matching_key","total_cost_q","common_tone_q","contrary_motion_q","record_hash"],
+  "properties":{
+    "schema":{"const":"cps.perceptual-voice-matching-record"},"schema_version":{"const":"1.0.0"},"transition_id":{"type":"string","pattern":"^trn_[0-9a-f]{32}$"},"from_segment_id":{"$ref":"#/$defs/segment"},"to_segment_id":{"$ref":"#/$defs/segment"},"policy_hash":{"$ref":"#/$defs/sha"},
+    "selected_from_event_ids":{"$ref":"#/$defs/ids"},"selected_to_event_ids":{"$ref":"#/$defs/ids"},"pairs":{"type":"array","maxItems":12,"items":{"$ref":"#/$defs/pair"}},"unmatched_from_event_ids":{"$ref":"#/$defs/ids"},"unmatched_to_event_ids":{"$ref":"#/$defs/ids"},"canonical_matching_key":{"type":"array","minItems":3,"maxItems":63,"items":{"type":"integer","minimum":0,"maximum":255}},"total_cost_q":{"$ref":"#/$defs/q"},"common_tone_q":{"$ref":"#/$defs/q"},"contrary_motion_q":{"$ref":"#/$defs/q"},"record_hash":{"$ref":"#/$defs/sha"}
+  },
+  "$defs":{
+    "sha":{"type":"string","pattern":"^sha256:[0-9a-f]{64}$"},"segment":{"type":"string","pattern":"^seg_[0-9a-f]{32}$"},"q":{"type":"integer","minimum":0,"maximum":10000},"ids":{"type":"array","maxItems":12,"uniqueItems":true,"items":{"type":"string"}},
+    "pair":{"type":"object","additionalProperties":false,"required":["from_event_id","to_event_id","absolute_motion_millicents","circular_motion_millicents","pair_cost_q","common_tone_q","step_up_likeness_q","step_down_likeness_q"],"properties":{"from_event_id":{"type":"string"},"to_event_id":{"type":"string"},"absolute_motion_millicents":{"type":"integer"},"circular_motion_millicents":{"type":"integer","minimum":-600000,"maximum":599999},"pair_cost_q":{"$ref":"#/$defs/q"},"common_tone_q":{"$ref":"#/$defs/q"},"step_up_likeness_q":{"$ref":"#/$defs/q"},"step_down_likeness_q":{"$ref":"#/$defs/q"}}}
+  }
+}

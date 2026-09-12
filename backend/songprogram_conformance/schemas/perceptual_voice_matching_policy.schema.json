@@ -1,0 +1,11 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema","$id":"https://cps.local/schemas/perceptual_voice_matching_policy.schema.json","title":"PIL VoiceMatchingPolicy v1","type":"object","additionalProperties":false,
+  "required":["schema","schema_version","algorithm","policy_schema_hash","matching_record_schema_hash","feature_spec_hash","maximum_voices_per_segment","selection_algorithm","identity_constraint","interpretation_period_millicents","half_period_tie","absolute_motion_cap_millicents","cost_weights","bass_likeness_kernels","policy_hash"],
+  "properties":{
+    "schema":{"const":"cps.perceptual-voice-matching-policy"},"schema_version":{"const":"1.0.0"},"algorithm":{"const":"pil-injective-voice-matching-dp/v1"},"policy_schema_hash":{"$ref":"#/$defs/sha"},"matching_record_schema_hash":{"$ref":"#/$defs/sha"},"feature_spec_hash":{"$ref":"#/$defs/sha"},
+    "maximum_voices_per_segment":{"type":"integer","minimum":1,"maximum":12},"selection_algorithm":{"const":"event-weight-desc-absolute-mc-id/v1"},"identity_constraint":{"const":"same-event-id-must-match/v1"},"interpretation_period_millicents":{"const":1200000},"half_period_tie":{"const":"negative"},"absolute_motion_cap_millicents":{"type":"integer","minimum":1,"maximum":9600000},
+    "cost_weights":{"type":"object","additionalProperties":false,"required":["absolute_motion","circular_motion","pitch_mapping_l1","role_mismatch"],"properties":{"absolute_motion":{"$ref":"#/$defs/q"},"circular_motion":{"$ref":"#/$defs/q"},"pitch_mapping_l1":{"$ref":"#/$defs/q"},"role_mismatch":{"$ref":"#/$defs/q"}}},
+    "bass_likeness_kernels":{"type":"object","additionalProperties":false,"required":["fifth_center_millicents","fourth_center_millicents","step_up_center_millicents","step_down_center_millicents","radius_millicents"],"properties":{"fifth_center_millicents":{"const":700000},"fourth_center_millicents":{"const":500000},"step_up_center_millicents":{"const":100000},"step_down_center_millicents":{"const":-100000},"radius_millicents":{"type":"integer","minimum":1,"maximum":600000}}},
+    "policy_hash":{"$ref":"#/$defs/sha"}
+  },"$defs":{"sha":{"type":"string","pattern":"^sha256:[0-9a-f]{64}$"},"q":{"type":"integer","minimum":0,"maximum":10000}}
+}
