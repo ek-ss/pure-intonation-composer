@@ -46,6 +46,9 @@ def test_pil_initial_kernel_is_integer_soft_mapping_not_hard_quantization() -> N
 def test_segmentation_policy_closes_weights_merge_and_failure_order() -> None:
     policy = json.loads((SCHEMAS / "perceptual_segmentation_policy.schema.json").read_text())
     assert policy["additionalProperties"] is False
+    assert set(policy["properties"]["role_gain_q"]["required"]) == {
+        "drums", "bass", "harmony", "melody", "texture"
+    }
     assert policy["properties"]["algorithm"]["const"] == "pil-harmonic-segmentation-grid-events/v1"
     assert policy["properties"]["boundary_priority"]["prefixItems"] == [
         {"const": "endpoint"}, {"const": "bass_change"},

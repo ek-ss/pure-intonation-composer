@@ -57,7 +57,7 @@ profile binds the exact raw bytes whose SHA-256 values are:
 - Numeric Contract `cps-numeric/decimal-log2-rhe-v1`:
   `sha256:a24ed6cc9cd96f49792f553c52b6237afcad0c9a3172e6931bb65c3e30ed3abb`.
 - SegmentationPolicy 1.0 schema:
-  `sha256:53369a70cabb2eeceffffb93384c63afd18a3e19a70b799b7487a7454b761b2d`.
+  `sha256:77559f2ad4f563c761be20505eec8af4c4a04e63b51b9201df680e280bfa370d`.
 
 An implementation embeds or content-addressedly resolves these identities; it
 MUST NOT accept an arbitrary same-shaped hash. A later byte change creates a
@@ -117,7 +117,7 @@ The initial algorithm is `pil-harmonic-segmentation-grid-events/v1`. Its
 closed policy binds: Project and policy schema hashes; `grid_divisions_per_beat`
 in `{1,2,4,8}`; `minimum_segment_ticks`; sustained-note threshold; normalized
 pitch-distribution L1 threshold; metrical, persistence and bass coefficients;
-ordered bass roles; boundary priority; and its self hash. The Project's
+all-five-role gain table; ordered bass roles; boundary priority; and its self hash. The Project's
 `ticks_per_beat` MUST divide evenly by the grid divisor. There are no ambient
 defaults.
 
@@ -142,7 +142,7 @@ one ordered reason set.
 5. `metrical`: multiples of `ticks_per_beat/grid_divisions_per_beat` strictly
    inside the Project.
 
-For the change test, each active event contributes `velocity * track_gain_q`
+For the change test, each active event contributes `velocity * role_gain_q`
 to the bin containing its `interpretation_phase_millicents` by half-open
 100,000-millicent bins. Normalize each nonempty vector to Q0.10000 by floor and
 largest remainder, bin ordinal tie-break; an empty vector is twelve zeros.
@@ -156,6 +156,20 @@ every already accepted tick is at least `minimum_segment_ticks`; otherwise
 discard it entirely. Finally sort accepted ticks ascending. This global rule,
 including endpoint priority, prevents a late candidate from creating a short
 terminal segment. Every adjacent accepted pair creates exactly one segment.
+
+The requested/completed execution phase is either `pitch_projection` or
+`harmonic_segmentation`. It is a required report member and a cache-key member;
+an implementation MUST NOT satisfy one phase from an entry produced for the
+other. `harmonic_segmentation` requires the complete policy payload whose
+`policy_hash` equals the manifest binding. A segment ID is
+`seg_ || lowercase_hex(SHA-256(preimage))[0:32]`, where `preimage` is
+`UTF8("cps.pil-segment-id/v1\\0") || canonical_json({"end_tick":b,
+"policy_hash":policy_hash,"project_hash":project_hash,"start_tick":a})`.
+Thus the ID is independent of traversal order and contains no ambient state.
+The segment `bass_event_id` is the bass of its earliest nonempty elementary
+span; it is null only when every elementary span in the segment is empty.
+This rule still applies when minimum-length merging discards an internal
+`bass_change` candidate.
 
 ### 4.2 Integer event weight
 
@@ -172,8 +186,14 @@ factor_q = duration_coefficient_q
          + RHE(metrical_coefficient_q * metrical_q / 10000)
          + RHE(persistence_coefficient_q * persistence_q / 10000)
          + RHE(bass_coefficient_q * bass_q / 10000)
-event_weight = RHE(overlap_ticks * velocity * track_gain_q * factor_q / 10000)
+event_weight = RHE(overlap_ticks * velocity * role_gain_q * factor_q / 10000)
 ```
+
+`role_gain_q` is the policy's required Q0.10000 value indexed by the source
+event track's Project `role`. ArrangementProject 1.2 has no per-track gain;
+the Project-wide render `mix.gain_q` is deliberately not reused as a salience
+prior. An absent/duplicate track ID or unknown role is
+`PIL_SEGMENTATION_POLICY_INVALID`.
 
 All products/additions use checked u64 before division. Non-note events and
 zero weights are excluded. Segment pitch distribution sums `event_weight` by
@@ -259,7 +279,8 @@ tokenizer, prompt, response and calibration authorities.
 
 Canonical JSON follows the existing NFC/sorted-key/integer/no-float rule.
 Cache keys bind Project hash, PIL manifest hash, every referenced asset hash,
-Numeric Contract hash and implementation build ID. Cold, hit, corrupt,
+Numeric Contract hash, implementation build ID and requested execution phase.
+Cold, hit, corrupt,
 cross-process and 1/2/4/8-worker executions MUST produce identical report bytes.
 
 Failures use the ordered namespace: binding; schema; numeric overflow; pitch

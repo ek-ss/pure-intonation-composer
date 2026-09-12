@@ -54,11 +54,11 @@ MANIFEST_SCHEMA_VERSION = "1.0.0"
 PIL_ALGORITHM = "pil-parallel-interpretation/v1"
 KERNEL_ALGORITHM = "triangular-millicent-q31/v1"
 NUMERIC_CONTRACT_ID = "cps-numeric/decimal-log2-rhe-v1"
-PIL_IMPLEMENTATION_BUILD_ID = "pil.phase1.1.0.0"
+PIL_IMPLEMENTATION_BUILD_ID = "pil.phase2.1.0.0"
 PROJECT_SCHEMA_HASH = "sha256:960891e2390acb2a3c14e35074de9a56bb0604c9098baff0aada3fbeeeeb167d"
 NUMERIC_CONTRACT_HASH = "sha256:a24ed6cc9cd96f49792f553c52b6237afcad0c9a3172e6931bb65c3e30ed3abb"
 SEGMENTATION_POLICY_SCHEMA_HASH = (
-    "sha256:53369a70cabb2eeceffffb93384c63afd18a3e19a70b799b7487a7454b761b2d"
+    "sha256:77559f2ad4f563c761be20505eec8af4c4a04e63b51b9201df680e280bfa370d"
 )
 
 Q31_TOTAL = 2**31 - 1
@@ -66,6 +66,16 @@ PITCH_CLASS_COUNT = 12
 PITCH_CLASS_WIDTH_MC = 100_000
 INTERPRETATION_PERIOD_MC = 1_200_000  # explicit 2/1 interpretation period
 MAX_PITCH_RECORDS = 8192
+MAX_SEGMENTS = 4096
+U64_MAX = 2**64 - 1
+BOUNDARY_PRIORITY = (
+    "endpoint",
+    "bass_change",
+    "sustained_change",
+    "pitch_distribution_change",
+    "metrical",
+)
+TRACK_ROLES = ("drums", "bass", "harmony", "melody", "texture")
 
 _SHA_PREFIX = "sha256:"
 _SHA_HEX = 64
@@ -110,6 +120,10 @@ def manifest_hash(manifest: Mapping[str, Any]) -> str:
 
 def report_hash(report: Mapping[str, Any]) -> str:
     return _artifact_hash(report, "report_hash")
+
+
+def segmentation_policy_hash(policy: Mapping[str, Any]) -> str:
+    return _artifact_hash(policy, "policy_hash")
 
 
 def canonical_report_bytes(report: Mapping[str, Any]) -> bytes:
@@ -315,7 +329,232 @@ def compute_pitch_record(
     }
 
 
-def cache_key(project_digest: str, manifest: Mapping[str, Any]) -> str:
+def _is_int(value: Any, minimum: int, maximum: int) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool) and minimum <= value <= maximum
+
+
+def validate_segmentation_policy(policy: Mapping[str, Any], manifest: Mapping[str, Any]) -> None:
+    """Validate the closed SegmentationPolicy 1.0 payload and its bindings."""
+    required = {
+        "schema", "schema_version", "algorithm", "project_schema_hash", "policy_schema_hash",
+        "grid_divisions_per_beat", "minimum_segment_ticks", "sustained_minimum_ticks",
+        "pitch_distribution_change_q", "duration_coefficient_q", "metrical_coefficient_q",
+        "persistence_coefficient_q", "bass_coefficient_q", "role_gain_q", "bass_role_order",
+        "boundary_priority", "boundary_confidence_q", "policy_hash",
+    }
+    if not isinstance(policy, Mapping) or set(policy) != required:
+        _fail("PIL_SEGMENTATION_POLICY_INVALID")
+    if (
+        policy.get("schema") != "cps.perceptual-segmentation-policy"
+        or policy.get("schema_version") != "1.0.0"
+        or policy.get("algorithm") != "pil-harmonic-segmentation-grid-events/v1"
+        or policy.get("project_schema_hash") != PROJECT_SCHEMA_HASH
+        or policy.get("policy_schema_hash") != SEGMENTATION_POLICY_SCHEMA_HASH
+        or policy.get("policy_hash") != manifest.get("segmentation_policy_hash")
+        or policy.get("policy_hash") != segmentation_policy_hash(policy)
+    ):
+        _fail("PIL_SEGMENTATION_POLICY_INVALID")
+    if policy.get("grid_divisions_per_beat") not in {1, 2, 4, 8}:
+        _fail("PIL_SEGMENTATION_POLICY_INVALID")
+    for key in ("minimum_segment_ticks", "sustained_minimum_ticks"):
+        if not _is_int(policy.get(key), 1, 61_440):
+            _fail("PIL_SEGMENTATION_POLICY_INVALID")
+    for key in (
+        "pitch_distribution_change_q", "duration_coefficient_q", "metrical_coefficient_q",
+        "persistence_coefficient_q", "bass_coefficient_q",
+    ):
+        if not _is_int(policy.get(key), 0, 10_000):
+            _fail("PIL_SEGMENTATION_POLICY_INVALID")
+    gains = policy.get("role_gain_q")
+    confidence = policy.get("boundary_confidence_q")
+    if not isinstance(gains, Mapping) or set(gains) != set(TRACK_ROLES):
+        _fail("PIL_SEGMENTATION_POLICY_INVALID")
+    if any(not _is_int(value, 0, 10_000) for value in gains.values()):
+        _fail("PIL_SEGMENTATION_POLICY_INVALID")
+    roles = policy.get("bass_role_order")
+    if not isinstance(roles, list) or not 1 <= len(roles) <= 5 or len(set(roles)) != len(roles):
+        _fail("PIL_SEGMENTATION_POLICY_INVALID")
+    if any(role not in TRACK_ROLES for role in roles):
+        _fail("PIL_SEGMENTATION_POLICY_INVALID")
+    if policy.get("boundary_priority") != list(BOUNDARY_PRIORITY):
+        _fail("PIL_SEGMENTATION_POLICY_INVALID")
+    if not isinstance(confidence, Mapping) or set(confidence) != set(BOUNDARY_PRIORITY):
+        _fail("PIL_SEGMENTATION_POLICY_INVALID")
+    if confidence.get("endpoint") != 10_000 or any(
+        not _is_int(value, 0, 10_000) for value in confidence.values()
+    ):
+        _fail("PIL_SEGMENTATION_POLICY_INVALID")
+
+
+def _normalize(values: Sequence[int], total_units: int) -> list[int]:
+    total = sum(values)
+    if total <= 0:
+        return [0] * len(values)
+    rows = [(value * total_units // total, value * total_units % total) for value in values]
+    remainder = total_units - sum(units for units, _ in rows)
+    order = sorted(range(len(rows)), key=lambda index: (-rows[index][1], index))
+    result = [units for units, _ in rows]
+    for index in order[:remainder]:
+        result[index] += 1
+    return result
+
+
+def _checked_product(*values: int) -> int:
+    result = 1
+    for value in values:
+        result *= value
+        if result > U64_MAX:
+            _fail("PIL_NUMERIC_OVERFLOW")
+    return result
+
+
+def _segment_id(project_digest: str, policy_digest: str, start: int, end: int) -> str:
+    body = {"end_tick": end, "policy_hash": policy_digest, "project_hash": project_digest,
+            "start_tick": start}
+    digest = hashlib.sha256(b"cps.pil-segment-id/v1\0" + _canonical(body)).hexdigest()
+    return "seg_" + digest[:32]
+
+
+def segment_harmony(
+    project: Mapping[str, Any],
+    pitch_records: Sequence[Mapping[str, Any]],
+    policy: Mapping[str, Any],
+    project_digest: str,
+) -> list[dict[str, Any]]:
+    """Apply the exact grid/event SegmentationPolicy 1.0 operator."""
+    clock = project.get("clock")
+    tracks = project.get("tracks")
+    if not isinstance(clock, Mapping) or not isinstance(tracks, list):
+        _fail("PIL_SEGMENTATION_POLICY_INVALID")
+    ticks_per_beat = clock.get("ticks_per_beat")
+    total_ticks = clock.get("total_ticks")
+    divisor = policy["grid_divisions_per_beat"]
+    if (
+        not _is_int(ticks_per_beat, 1, 737_280)
+        or not _is_int(total_ticks, 1, 737_280)
+        or ticks_per_beat % divisor
+        or ticks_per_beat % 2
+    ):
+        _fail("PIL_SEGMENT_BOUNDARY_INVALID")
+    track_roles: dict[str, str] = {}
+    for track in tracks:
+        if not isinstance(track, Mapping):
+            _fail("PIL_SEGMENTATION_POLICY_INVALID")
+        track_id, role = track.get("id"), track.get("role")
+        if not isinstance(track_id, str) or track_id in track_roles or role not in TRACK_ROLES:
+            _fail("PIL_SEGMENTATION_POLICY_INVALID")
+        track_roles[track_id] = role
+    record_by_id = {row["source_event_id"]: row for row in pitch_records}
+    notes: list[dict[str, Any]] = []
+    for event in sorted(project["events"], key=lambda row: (row.get("start_tick", -1), str(row.get("id", "")).encode())):
+        if event.get("kind") != "note" or event.get("ratio") is None:
+            continue
+        event_id, track_id = event.get("id"), event.get("track_id")
+        start, duration, velocity = event.get("start_tick"), event.get("duration_ticks"), event.get("velocity")
+        if (
+            not isinstance(event_id, str) or event_id not in record_by_id
+            or track_id not in track_roles or not _is_int(start, 0, total_ticks - 1)
+            or not _is_int(duration, 1, 737_280) or not _is_int(velocity, 1, 127)
+            or start + duration > total_ticks
+        ):
+            _fail("PIL_SEGMENTATION_POLICY_INVALID")
+        notes.append({**event, "end_tick": start + duration,
+                      "phase": record_by_id[event_id]["interpretation_phase_millicents"],
+                      "absolute_mc": record_by_id[event_id]["absolute_millicents"],
+                      "role": track_roles[track_id]})
+    elementary_ticks = sorted({0, total_ticks, *(n["start_tick"] for n in notes), *(n["end_tick"] for n in notes)})
+    role_rank = {role: index for index, role in enumerate(policy["bass_role_order"])}
+
+    def active_at(left: int, right: int) -> list[dict[str, Any]]:
+        return [n for n in notes if n["start_tick"] < right and n["end_tick"] > left]
+
+    def bass_of(active: Sequence[dict[str, Any]]) -> str | None:
+        eligible = [n for n in active if n["role"] in role_rank]
+        if not eligible:
+            return None
+        return min(eligible, key=lambda n: (role_rank[n["role"]], n["absolute_mc"], n["id"].encode()))["id"]
+
+    def distribution(active: Sequence[dict[str, Any]], units: int) -> list[int]:
+        bins = [0] * PITCH_CLASS_COUNT
+        for note in active:
+            bins[note["phase"] // PITCH_CLASS_WIDTH_MC] += note["velocity"] * policy["role_gain_q"][note["role"]]
+        return _normalize(bins, units)
+
+    spans = []
+    for left, right in zip(elementary_ticks, elementary_ticks[1:]):
+        active = active_at(left, right)
+        spans.append((left, right, active, bass_of(active), distribution(active, 10_000)))
+    reasons: dict[int, set[str]] = {0: {"endpoint"}, total_ticks: {"endpoint"}}
+    for index in range(1, len(elementary_ticks) - 1):
+        tick = elementary_ticks[index]
+        left, right = spans[index - 1], spans[index]
+        if left[3] != right[3]:
+            reasons.setdefault(tick, set()).add("bass_change")
+        changed = {n["id"] for n in left[2]} ^ {n["id"] for n in right[2]}
+        if any(n["id"] in changed and n["duration_ticks"] >= policy["sustained_minimum_ticks"] for n in notes):
+            reasons.setdefault(tick, set()).add("sustained_change")
+        distance = _rhe(Fraction(sum(abs(a - b) for a, b in zip(left[4], right[4])), 2))
+        if distance >= policy["pitch_distribution_change_q"]:
+            reasons.setdefault(tick, set()).add("pitch_distribution_change")
+    grid = ticks_per_beat // divisor
+    for tick in range(grid, total_ticks, grid):
+        reasons.setdefault(tick, set()).add("metrical")
+    rank = {reason: index for index, reason in enumerate(BOUNDARY_PRIORITY)}
+    accepted = {0, total_ticks}
+    candidates = sorted(
+        (tick for tick in reasons if tick not in accepted),
+        key=lambda tick: (min(rank[r] for r in reasons[tick]), tick),
+    )
+    for tick in candidates:
+        if all(abs(tick - other) >= policy["minimum_segment_ticks"] for other in accepted):
+            accepted.add(tick)
+    boundaries = sorted(accepted)
+    segments = []
+    for start, end in zip(boundaries, boundaries[1:]):
+        overlapping = [n for n in notes if n["start_tick"] < end and n["end_tick"] > start]
+        first_nonempty = next((span for span in spans if span[0] < end and span[1] > start and span[2]), None)
+        bass_id = None if first_nonempty is None else first_nonempty[3]
+        bins = [0] * PITCH_CLASS_COUNT
+        source_ids = []
+        for note in overlapping:
+            overlap = max(0, min(note["end_tick"], end) - max(note["start_tick"], start))
+            metrical_q = 10_000 if note["start_tick"] % ticks_per_beat == 0 else (
+                5_000 if note["start_tick"] % (ticks_per_beat // 2) == 0 else 0
+            )
+            persistence_q = _rhe(Fraction(10_000 * overlap, note["duration_ticks"]))
+            bass_q = 10_000 if note["id"] == bass_id else 0
+            factor = policy["duration_coefficient_q"]
+            factor += _rhe(Fraction(policy["metrical_coefficient_q"] * metrical_q, 10_000))
+            factor += _rhe(Fraction(policy["persistence_coefficient_q"] * persistence_q, 10_000))
+            factor += _rhe(Fraction(policy["bass_coefficient_q"] * bass_q, 10_000))
+            numerator = _checked_product(overlap, note["velocity"], policy["role_gain_q"][note["role"]], factor)
+            weight = _rhe(Fraction(numerator, 10_000))
+            if weight:
+                bins[note["phase"] // PITCH_CLASS_WIDTH_MC] += weight
+                source_ids.append(note["id"])
+        normalized = _normalize(bins, Q31_TOTAL)
+        if not source_ids or not any(normalized):
+            _fail("PIL_SEGMENT_EMPTY")
+        ordered_reasons = [reason for reason in BOUNDARY_PRIORITY if reason in reasons[start]]
+        segments.append({
+            "segment_id": _segment_id(project_digest, policy["policy_hash"], start, end),
+            "start_tick": start, "end_tick": end, "boundary_reasons": ordered_reasons,
+            "source_event_ids": sorted(set(source_ids), key=lambda value: value.encode()),
+            "weighted_pitch_distribution_q31": [
+                {"pitch_class_ordinal": index, "weight_q31": value}
+                for index, value in enumerate(normalized) if value
+            ],
+            "bass_event_id": bass_id,
+            "confidence_q": max(policy["boundary_confidence_q"][reason] for reason in ordered_reasons),
+        })
+    if len(segments) > MAX_SEGMENTS:
+        _fail("PIL_RESULT_VALIDATION")
+    return segments
+
+
+def cache_key(
+    project_digest: str, manifest: Mapping[str, Any], completed_phase: str = "pitch_projection"
+) -> str:
     """Bind Project hash, manifest hash, every bound asset hash, the Numeric
     Contract hash, and the implementation build ID (contract section 8)."""
     binding = {
@@ -331,6 +570,7 @@ def cache_key(project_digest: str, manifest: Mapping[str, Any]) -> str:
         ],
         "numeric_contract_hash": manifest["numeric_contract_hash"],
         "implementation_build_id": manifest["implementation_build_id"],
+        "completed_phase": completed_phase,
     }
     return _SHA_PREFIX + hashlib.sha256(b"cps.pil-cache-key/v1\0" + _canonical(binding)).hexdigest()
 
@@ -346,6 +586,7 @@ def _cache_read(
     project_digest: str,
     manifest_digest: str,
     native_ji_report_hash: str | None,
+    completed_phase: str,
 ) -> bytes | None:
     """Return cached canonical report bytes, or None for cold/corrupt entries.
 
@@ -367,6 +608,7 @@ def _cache_read(
         or cached.get("project_hash") != project_digest
         or cached.get("manifest_hash") != manifest_digest
         or cached.get("native_ji_report_hash") != native_ji_report_hash
+        or cached.get("completed_phase") != completed_phase
         or report_hash(cached) != cached.get("report_hash")
     ):
         return None
@@ -396,6 +638,7 @@ def _failure_report(
     manifest_digest: str,
     native_ji_report_hash: str | None,
     code: str,
+    completed_phase: str,
 ) -> dict[str, Any]:
     report = {
         "schema": REPORT_SCHEMA,
@@ -403,6 +646,7 @@ def _failure_report(
         "project_hash": project_digest,
         "manifest_hash": manifest_digest,
         "native_ji_report_hash": native_ji_report_hash,
+        "completed_phase": completed_phase,
         "status": "failure",
         "pitch_records": [],
         "segments": [],
@@ -423,6 +667,7 @@ def run_perceptual_interpretation(
     native_ji_report_hash: str | None = None,
     expected_project_hash: str | None = None,
     cache_dir: str | Path | None = None,
+    segmentation_policy: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Run PIL Phase 1 and return a PerceptualInterpretationReport 1.0.
 
@@ -438,7 +683,8 @@ def run_perceptual_interpretation(
         native_ji_report_hash=native_ji_report_hash,
     )
     manifest_digest = manifest["manifest_hash"]
-    key = cache_key(project_digest, manifest)
+    completed_phase = "harmonic_segmentation" if segmentation_policy is not None else "pitch_projection"
+    key = cache_key(project_digest, manifest, completed_phase)
     cache_path = Path(cache_dir) if cache_dir is not None else None
     if cache_path is not None:
         cached = _cache_read(
@@ -447,6 +693,7 @@ def run_perceptual_interpretation(
             project_digest=project_digest,
             manifest_digest=manifest_digest,
             native_ji_report_hash=native_ji_report_hash,
+            completed_phase=completed_phase,
         )
         if cached is not None:
             return json.loads(cached)
@@ -471,15 +718,20 @@ def run_perceptual_interpretation(
                 )
             )
         records.sort(key=lambda record: record["source_event_id"].encode("utf-8"))
+        segments: list[dict[str, Any]] = []
+        if segmentation_policy is not None:
+            validate_segmentation_policy(segmentation_policy, manifest)
+            segments = segment_harmony(project, records, segmentation_policy, project_digest)
         report = {
             "schema": REPORT_SCHEMA,
             "schema_version": REPORT_SCHEMA_VERSION,
             "project_hash": project_digest,
             "manifest_hash": manifest_digest,
             "native_ji_report_hash": native_ji_report_hash,
+            "completed_phase": completed_phase,
             "status": "success",
             "pitch_records": records,
-            "segments": [],
+            "segments": segments,
             "segment_interpretations": [],
             "trajectory_interpretations": [],
             "genre_interpretations": [],
@@ -489,7 +741,9 @@ def run_perceptual_interpretation(
     except PilError as error:
         if error.code in ("PIL_BINDING_MISMATCH", "PIL_SCHEMA_INVALID"):
             raise
-        report = _failure_report(project_digest, manifest_digest, native_ji_report_hash, error.code)
+        report = _failure_report(
+            project_digest, manifest_digest, native_ji_report_hash, error.code, completed_phase
+        )
     report["report_hash"] = report_hash(report)
     _validate_report_bounds(report)
     if cache_path is not None and report["status"] == "success":
@@ -502,6 +756,8 @@ def _validate_report_bounds(report: Mapping[str, Any]) -> None:
     status = report.get("status")
     error = report.get("error")
     if status not in {"success", "failure"}:
+        _fail("PIL_RESULT_VALIDATION")
+    if report.get("completed_phase") not in {"pitch_projection", "harmonic_segmentation"}:
         _fail("PIL_RESULT_VALIDATION")
     if (status == "success" and error is not None) or (
         status == "failure" and (not isinstance(error, str) or not error.startswith("PIL_"))
@@ -527,6 +783,24 @@ def _validate_report_bounds(report: Mapping[str, Any]) -> None:
         ordinals = [row["pitch_class_ordinal"] for row in weights]
         if ordinals != sorted(ordinals) or len(set(ordinals)) != len(ordinals):
             _fail("PIL_RESULT_VALIDATION")
+    segments = report["segments"]
+    if len(segments) > MAX_SEGMENTS:
+        _fail("PIL_RESULT_VALIDATION")
+    if report["completed_phase"] == "pitch_projection" and segments:
+        _fail("PIL_RESULT_VALIDATION")
+    previous_end = None
+    for segment in segments:
+        if segment["start_tick"] >= segment["end_tick"] or (
+            previous_end is not None and segment["start_tick"] != previous_end
+        ):
+            _fail("PIL_RESULT_VALIDATION")
+        previous_end = segment["end_tick"]
+        weights = segment["weighted_pitch_distribution_q31"]
+        if sum(row["weight_q31"] for row in weights) != Q31_TOTAL:
+            _fail("PIL_RESULT_VALIDATION")
+        ordinals = [row["pitch_class_ordinal"] for row in weights]
+        if ordinals != sorted(ordinals) or len(set(ordinals)) != len(ordinals):
+            _fail("PIL_RESULT_VALIDATION")
 
 
 __all__: Sequence[str] = (
@@ -543,6 +817,8 @@ __all__: Sequence[str] = (
     "Q31_TOTAL",
     "REPORT_SCHEMA",
     "REPORT_SCHEMA_VERSION",
+    "BOUNDARY_PRIORITY",
+    "TRACK_ROLES",
     "SEGMENTATION_POLICY_SCHEMA_HASH",
     "cache_key",
     "canonical_report_bytes",
@@ -550,8 +826,11 @@ __all__: Sequence[str] = (
     "manifest_hash",
     "project_hash",
     "report_hash",
+    "segmentation_policy_hash",
+    "segment_harmony",
     "run_perceptual_interpretation",
     "triangular_mapping_q31",
     "validate_manifest",
+    "validate_segmentation_policy",
     "verify_binding",
 )

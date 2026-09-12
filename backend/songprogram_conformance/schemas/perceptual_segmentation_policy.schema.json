@@ -4,7 +4,7 @@
   "title": "Perceptual SegmentationPolicy v1",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema", "schema_version", "algorithm", "project_schema_hash", "policy_schema_hash", "grid_divisions_per_beat", "minimum_segment_ticks", "sustained_minimum_ticks", "pitch_distribution_change_q", "duration_coefficient_q", "metrical_coefficient_q", "persistence_coefficient_q", "bass_coefficient_q", "bass_role_order", "boundary_priority", "boundary_confidence_q", "policy_hash"],
+  "required": ["schema", "schema_version", "algorithm", "project_schema_hash", "policy_schema_hash", "grid_divisions_per_beat", "minimum_segment_ticks", "sustained_minimum_ticks", "pitch_distribution_change_q", "duration_coefficient_q", "metrical_coefficient_q", "persistence_coefficient_q", "bass_coefficient_q", "role_gain_q", "bass_role_order", "boundary_priority", "boundary_confidence_q", "policy_hash"],
   "properties": {
     "schema": {"const": "cps.perceptual-segmentation-policy"},
     "schema_version": {"const": "1.0.0"},
@@ -19,6 +19,7 @@
     "metrical_coefficient_q": {"$ref": "#/$defs/q"},
     "persistence_coefficient_q": {"$ref": "#/$defs/q"},
     "bass_coefficient_q": {"$ref": "#/$defs/q"},
+    "role_gain_q": {"type": "object", "additionalProperties": false, "required": ["drums", "bass", "harmony", "melody", "texture"], "properties": {"drums": {"$ref": "#/$defs/q"}, "bass": {"$ref": "#/$defs/q"}, "harmony": {"$ref": "#/$defs/q"}, "melody": {"$ref": "#/$defs/q"}, "texture": {"$ref": "#/$defs/q"}}},
     "bass_role_order": {"type": "array", "minItems": 1, "maxItems": 5, "uniqueItems": true, "items": {"enum": ["bass", "harmony", "melody", "texture", "drums"]}},
     "boundary_priority": {"type": "array", "prefixItems": [{"const": "endpoint"}, {"const": "bass_change"}, {"const": "sustained_change"}, {"const": "pitch_distribution_change"}, {"const": "metrical"}], "items": false, "minItems": 5, "maxItems": 5},
     "boundary_confidence_q": {"type": "object", "additionalProperties": false, "required": ["endpoint", "bass_change", "sustained_change", "pitch_distribution_change", "metrical"], "properties": {"endpoint": {"const": 10000}, "bass_change": {"$ref": "#/$defs/q"}, "sustained_change": {"$ref": "#/$defs/q"}, "pitch_distribution_change": {"$ref": "#/$defs/q"}, "metrical": {"$ref": "#/$defs/q"}}},
