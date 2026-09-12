@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cps.local/draft-schemas/pil_genre_interpretation.draft.schema.json",
+  "title": "CPS PIL GenreInterpretation 1.0 (DRAFT, non-normative)",
+  "description": "Design draft mirroring the existing perceptual_interpretation_report.schema.json $defs/genre shape, which section 3.3 of docs/song_program_pil_genre_interpretation_draft.md proposes to reuse unchanged. This file is NOT a contract schema. The score formulas behind the four Q0.10000 values are open decision G3; this draft fixes only the row shape and the ordering rule (sort by -typicality_q, then genre ordinal).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "genre_id",
+    "typicality_q",
+    "idiomaticity_q",
+    "cliche_dependence_q",
+    "novelty_q"
+  ],
+  "properties": {
+    "genre_id": {"type": "string"},
+    "typicality_q": {"$ref": "#/$defs/q"},
+    "idiomaticity_q": {"$ref": "#/$defs/q"},
+    "cliche_dependence_q": {"$ref": "#/$defs/q"},
+    "novelty_q": {"$ref": "#/$defs/q"}
+  },
+  "$defs": {
+    "q": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 10000
+    }
+  }
+}
