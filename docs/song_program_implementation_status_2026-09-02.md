@@ -247,3 +247,27 @@ The suite validator is now implemented and can authenticate independently
 provided case/schema bytes without generating expected outputs. Once the
 authoritative suite is present, implementation order is RunContext factory,
 event scheduler/replay, connected cache, then the 1/2/4/8 worker parity matrix.
+
+## 2026-09-13 PIL continuation
+
+The parallel Perceptual Interpretation Layer is implemented through Phase 4
+(pitch projection, segmentation, chord similarity, voice matching and
+trajectory similarity) without replacing Native JI evaluation. The following
+oracle-facing implementation is now also present:
+
+- closed PIL OracleSuiteIndex, OracleCase and MatrixReceipt schemas;
+- raw case/schema byte closure, case/suite hashes and exact coverage checks;
+- phase-exact asset and manifest binding validation;
+- seventeen non-authoritative input templates compiled through the production
+  SongProgram compiler into standalone-valid ArrangementProject 1.2 payloads;
+- exact coverage of all twenty-five required Phase 1--4/cache/process labels;
+- read-only expected report comparison and cold/hit/corrupt cache parity;
+- fresh-interpreter `PYTHONHASHSEED` and 1/2/4/8 suite-concurrency matrix with
+  canonical case-order restoration and a content-addressed receipt.
+
+The backend plus conformance suite passes 537 tests. The remaining authority
+boundary is intentional: an independent oracle owner must promote expected
+report/case/suite hashes. Production code cannot synthesize those values.
+Draft 2020-12 case-schema validation remains an explicit caller callback because
+the runtime dependency set does not contain a pinned JSON Schema engine; no
+ambient or partial schema implementation is silently selected.
