@@ -1,6 +1,6 @@
-# PIL Oracle Suite Fixture Specification (Draft)
+# PIL Oracle Suite Fixture Specification
 
-**Status:** draft structure specification. This document defines only the
+**Status:** closed structure specification. This document defines only the
 *shape* of the authoritative Perceptual Interpretation Layer oracle suite
 required by `song_program_perceptual_interpretation_layer_contract.md`
 section 9. It contains **no golden values**: every expected output field is a
@@ -25,7 +25,7 @@ Implementers MUST NOT generate, update, or check in the golden values.
 ```yaml
 schema: cps.pil-oracle-suite-index
 schema_version: 1.0.0
-suite_version: <unsigned integer, owner-assigned>
+suite_version: <SemVer string, owner-assigned; initially 1.0.0>
 required_coverage:  # closed label set; every label must appear >= 1 time
   - success
   - failure
@@ -83,7 +83,7 @@ expected:
   report_hash: <null | sha256>   # null only when status == failure is raised
                                  # before a bound report can exist (binding /
                                  # schema stage); otherwise the full hash
-  canonical_report_sha256: <sha256 of exact canonical report bytes>
+  canonical_report_sha256: <null | sha256 of exact canonical report bytes>
 execution:
   worker_counts: [1, 2, 4, 8]        # parity matrix for this case
   pythonhashseeds: [<seed strings>]  # cross-process parity seeds
@@ -95,8 +95,10 @@ Rules:
 - `expected` values are the owner-only golden surface. Placeholders above are
   normative types, not values.
 - A `failure` case whose failure occurs at binding/schema stage records the
-  stable raised code in `error` and `report_hash: null`; a computation-stage
-  failure records the failed report's hash and bytes like a success case.
+  stable raised code in `error`, `report_hash: null`, and
+  `canonical_report_sha256: null`; a computation-stage failure records both
+  hashes like a success case. The two hash members are either both SHA-256
+  values or both null.
 - `project` must recompute to its own artifact hash under spec section 17;
   PIL tests recompute it rather than trusting a stored copy.
 - `manifest` must recompute to `manifest_hash` under the generic
@@ -152,14 +154,20 @@ require owner-approved matching policy and trajectory-template payloads.
 5. Confirm the PIL run leaves the case `project` bytes and any cited Native
    JI report hash untouched.
 
-## 6. Open decisions for the fixture owner
+## 6. Closed ownership decisions
 
-- Final `case_id` assignments and suite_version numbering.
-- Whether binding-stage failure cases belong in this suite or in a separate
-  negative-pack registry (analogous to `error_registry.json`).
-- The owner-assigned FeatureSpec and Vocabulary payload values and hashes.
-  Implementers may provide an independent generator, but may not approve or
-  rewrite its checked-in expected report bytes.
-- The owner-assigned VoiceMatchingPolicy weights/caps/kernel radius and
-  TrajectoryTemplateSet templates/weights. Their expected bytes must be
-  generated and approved independently from the production implementation.
+- `suite_version` is SemVer and the first promotion is `1.0.0`; changing any
+  expected byte or referenced asset requires a version bump selected by the
+  fixture owner.
+- Binding/schema-stage failure cases are members of this suite. They use the
+  status-dependent nullability rule in section 3 and are not duplicated in an
+  ambient negative-pack registry.
+- The fixture owner assigns final case IDs and the exact FeatureSpec,
+  Vocabulary, VoiceMatchingPolicy and TrajectoryTemplateSet payloads. An
+  implementer may provide non-authoritative input templates, but cannot approve
+  or rewrite checked-in expected report bytes.
+- Index coverage and case coverage MUST be byte-for-byte equal for each row;
+  unknown labels fail before case execution.
+- Read-only suite closure failures use `PIL_FIXTURE_SUITE_INVALID`. This code is
+  outside runtime PIL report failure precedence because suite authentication
+  occurs before a Project/manifest execution request exists.

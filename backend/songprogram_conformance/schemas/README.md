@@ -133,6 +133,9 @@ for the SP0 conformance pack.
   closed planner token-counting and tool-declaration authorities.
 - `search_loop_13_fixture_suite_index.schema.json`: ordered authoritative suite
   root with mandatory success/failure/cache/cancel/parallel coverage.
+- `pil_oracle_suite_index.schema.json` and `pil_oracle_case.schema.json`:
+  read-only PIL suite closure with exact Phase 1–4, cache, process and worker
+  coverage; expected report hashes remain owner-supplied authority.
 
 All object schemas use `additionalProperties: false`; nullable values must be
 present where listed as required. Cross-record invariants that JSON Schema
