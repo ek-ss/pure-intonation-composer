@@ -39,6 +39,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
+import tempfile
 from fractions import Fraction
 from pathlib import Path
 from typing import Any, Mapping, Sequence
@@ -331,7 +333,14 @@ def _cache_path(cache_dir: Path, key: str) -> Path:
     return cache_dir / f"{key[len(_SHA_PREFIX) :]}.json"
 
 
-def _cache_read(cache_dir: Path, key: str) -> bytes | None:
+def _cache_read(
+    cache_dir: Path,
+    key: str,
+    *,
+    project_digest: str,
+    manifest_digest: str,
+    native_ji_report_hash: str | None,
+) -> bytes | None:
     """Return cached canonical report bytes, or None for cold/corrupt entries.
 
     A corrupt entry (unreadable, non-canonical, or self-hash mismatch) is
@@ -347,14 +356,33 @@ def _cache_read(cache_dir: Path, key: str) -> bytes | None:
         return None
     if not isinstance(cached, dict) or _canonical(cached) != raw:
         return None
-    if cached.get("status") != "success" or report_hash(cached) != cached.get("report_hash"):
+    if (
+        cached.get("status") != "success"
+        or cached.get("project_hash") != project_digest
+        or cached.get("manifest_hash") != manifest_digest
+        or cached.get("native_ji_report_hash") != native_ji_report_hash
+        or report_hash(cached) != cached.get("report_hash")
+    ):
         return None
     return raw
 
 
 def _cache_write(cache_dir: Path, key: str, payload: bytes) -> None:
     cache_dir.mkdir(parents=True, exist_ok=True)
-    _cache_path(cache_dir, key).write_bytes(payload)
+    target = _cache_path(cache_dir, key)
+    descriptor, temporary = tempfile.mkstemp(prefix=f".{target.name}.", dir=cache_dir)
+    try:
+        with os.fdopen(descriptor, "wb") as stream:
+            stream.write(payload)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temporary, target)
+    except BaseException:
+        try:
+            os.unlink(temporary)
+        except FileNotFoundError:
+            pass
+        raise
 
 
 def _failure_report(
@@ -407,7 +435,13 @@ def run_perceptual_interpretation(
     key = cache_key(project_digest, manifest)
     cache_path = Path(cache_dir) if cache_dir is not None else None
     if cache_path is not None:
-        cached = _cache_read(cache_path, key)
+        cached = _cache_read(
+            cache_path,
+            key,
+            project_digest=project_digest,
+            manifest_digest=manifest_digest,
+            native_ji_report_hash=native_ji_report_hash,
+        )
         if cached is not None:
             return json.loads(cached)
 

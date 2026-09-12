@@ -321,6 +321,16 @@ def test_cache_cold_hit_corrupt_parity(tmp_path: Path) -> None:
     corrupt = perceptual.run_perceptual_interpretation(project, manifest, cache_dir=cache_dir)
     assert perceptual.canonical_report_bytes(corrupt) == cold_bytes
 
+    # A valid self-hashed report for a different correlation binding must not
+    # be accepted merely because it was placed under this cache-key filename.
+    poisoned = copy.deepcopy(cold)
+    poisoned["native_ji_report_hash"] = _sha(0xEE)
+    poisoned["report_hash"] = perceptual.report_hash(poisoned)
+    for path in cache_dir.iterdir():
+        path.write_bytes(perceptual.canonical_report_bytes(poisoned))
+    rebound = perceptual.run_perceptual_interpretation(project, manifest, cache_dir=cache_dir)
+    assert perceptual.canonical_report_bytes(rebound) == cold_bytes
+
     key = perceptual.cache_key(perceptual.project_hash(project), manifest)
     canonical = json.loads(cold_bytes)
     stored = json.loads((cache_dir / f"{key.removeprefix('sha256:')}.json").read_bytes())
