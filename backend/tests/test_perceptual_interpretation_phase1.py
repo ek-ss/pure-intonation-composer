@@ -20,6 +20,7 @@ from app.songprogram.perceptual import (
     PIL_IMPLEMENTATION_BUILD_ID,
     NUMERIC_CONTRACT_HASH,
     PROJECT_SCHEMA_HASH,
+    SEGMENTATION_POLICY_SCHEMA_HASH,
     Q31_TOTAL,
     PilError,
 )
@@ -46,6 +47,7 @@ def _manifest(radius: int = 100_000) -> dict:
             "normalization_total": Q31_TOTAL,
         },
         "segmentation_policy_hash": _sha(0x03),
+        "segmentation_policy_schema_hash": SEGMENTATION_POLICY_SCHEMA_HASH,
         "feature_spec_hash": _sha(0x04),
         "vocabulary_hash": _sha(0x05),
         "voice_matching_policy_hash": _sha(0x06),
@@ -222,6 +224,7 @@ def test_cross_process_and_hashseed_parity(tmp_path: Path) -> None:
         " 'implementation_build_id': {!r}, 'interpretation_period': '2/1',\n"
         " 'pitch_kernel': {{'algorithm': 'triangular-millicent-q31/v1',\n"
         "   'radius_millicents': 100000, 'normalization_total': 2147483647}},\n"
+        " 'segmentation_policy_schema_hash': {!r},\n"
         " 'segmentation_policy_hash': {!r}, 'feature_spec_hash': {!r},\n"
         " 'vocabulary_hash': {!r}, 'voice_matching_policy_hash': {!r},\n"
         " 'trajectory_template_set_hash': {!r}, 'genre_model_hash': None}}\n"
@@ -239,6 +242,7 @@ def test_cross_process_and_hashseed_parity(tmp_path: Path) -> None:
         PROJECT_SCHEMA_HASH,
         NUMERIC_CONTRACT_HASH,
         PIL_IMPLEMENTATION_BUILD_ID,
+        SEGMENTATION_POLICY_SCHEMA_HASH,
         _sha(0x03),
         _sha(0x04),
         _sha(0x05),

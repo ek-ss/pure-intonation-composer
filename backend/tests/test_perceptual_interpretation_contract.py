@@ -41,3 +41,22 @@ def test_pil_initial_kernel_is_integer_soft_mapping_not_hard_quantization() -> N
     text = DOC.read_text(encoding="utf-8")
     assert "Hard nearest-note quantization is forbidden" in text
     assert "Gaussian is reserved" in text
+
+
+def test_segmentation_policy_closes_weights_merge_and_failure_order() -> None:
+    policy = json.loads((SCHEMAS / "perceptual_segmentation_policy.schema.json").read_text())
+    assert policy["additionalProperties"] is False
+    assert policy["properties"]["algorithm"]["const"] == "pil-harmonic-segmentation-grid-events/v1"
+    assert policy["properties"]["boundary_priority"]["prefixItems"] == [
+        {"const": "endpoint"}, {"const": "bass_change"},
+        {"const": "sustained_change"},
+        {"const": "pitch_distribution_change"}, {"const": "metrical"},
+    ]
+    text = DOC.read_text(encoding="utf-8")
+    for phrase in (
+        "event_weight = RHE",
+        "Accept both endpoints first",
+        "PIL_SEGMENTATION_POLICY_INVALID",
+        "First failure wins in this order",
+    ):
+        assert phrase in text

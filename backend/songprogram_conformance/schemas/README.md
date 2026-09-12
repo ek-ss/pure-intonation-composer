@@ -6,6 +6,8 @@ for the SP0 conformance pack.
 - `perceptual_interpretation_manifest.schema.json` and
   `perceptual_interpretation_report.schema.json`: optional parallel PIL
   authority. These artifacts never replace or reinterpret Native JI evidence.
+- `perceptual_segmentation_policy.schema.json`: closed integer-only Phase 2
+  harmonic-boundary, event-weight and merge authority.
 
 - `arrangement_project_1_2.schema.json`: immutable playable Project, including
   pitch-provenance unions and inline exact resolved chords.

@@ -57,6 +57,9 @@ NUMERIC_CONTRACT_ID = "cps-numeric/decimal-log2-rhe-v1"
 PIL_IMPLEMENTATION_BUILD_ID = "pil.phase1.1.0.0"
 PROJECT_SCHEMA_HASH = "sha256:960891e2390acb2a3c14e35074de9a56bb0604c9098baff0aada3fbeeeeb167d"
 NUMERIC_CONTRACT_HASH = "sha256:a24ed6cc9cd96f49792f553c52b6237afcad0c9a3172e6931bb65c3e30ed3abb"
+SEGMENTATION_POLICY_SCHEMA_HASH = (
+    "sha256:53369a70cabb2eeceffffb93384c63afd18a3e19a70b799b7487a7454b761b2d"
+)
 
 Q31_TOTAL = 2**31 - 1
 PITCH_CLASS_COUNT = 12
@@ -154,6 +157,7 @@ def validate_manifest(manifest: Mapping[str, Any]) -> None:
     hash_fields = (
         "project_schema_hash",
         "numeric_contract_hash",
+        "segmentation_policy_schema_hash",
         "segmentation_policy_hash",
         "feature_spec_hash",
         "vocabulary_hash",
@@ -222,6 +226,8 @@ def verify_binding(
     if manifest["project_schema_hash"] != PROJECT_SCHEMA_HASH:
         _fail("PIL_BINDING_MISMATCH")
     if manifest["numeric_contract_hash"] != NUMERIC_CONTRACT_HASH:
+        _fail("PIL_BINDING_MISMATCH")
+    if manifest["segmentation_policy_schema_hash"] != SEGMENTATION_POLICY_SCHEMA_HASH:
         _fail("PIL_BINDING_MISMATCH")
     digest = project_hash(project)
     if expected_project_hash is not None:
@@ -498,8 +504,7 @@ def _validate_report_bounds(report: Mapping[str, Any]) -> None:
     if status not in {"success", "failure"}:
         _fail("PIL_RESULT_VALIDATION")
     if (status == "success" and error is not None) or (
-        status == "failure"
-        and (not isinstance(error, str) or not error.startswith("PIL_"))
+        status == "failure" and (not isinstance(error, str) or not error.startswith("PIL_"))
     ):
         _fail("PIL_RESULT_VALIDATION")
     records = report["pitch_records"]
@@ -538,6 +543,7 @@ __all__: Sequence[str] = (
     "Q31_TOTAL",
     "REPORT_SCHEMA",
     "REPORT_SCHEMA_VERSION",
+    "SEGMENTATION_POLICY_SCHEMA_HASH",
     "cache_key",
     "canonical_report_bytes",
     "compute_pitch_record",

@@ -56,6 +56,8 @@ profile binds the exact raw bytes whose SHA-256 values are:
 - ArrangementProject 1.2 schema: `sha256:960891e2390acb2a3c14e35074de9a56bb0604c9098baff0aada3fbeeeeb167d`;
 - Numeric Contract `cps-numeric/decimal-log2-rhe-v1`:
   `sha256:a24ed6cc9cd96f49792f553c52b6237afcad0c9a3172e6931bb65c3e30ed3abb`.
+- SegmentationPolicy 1.0 schema:
+  `sha256:53369a70cabb2eeceffffb93384c63afd18a3e19a70b799b7487a7454b761b2d`.
 
 An implementation embeds or content-addressedly resolves these identities; it
 MUST NOT accept an arbitrary same-shaped hash. A later byte change creates a
@@ -108,6 +110,102 @@ Each `HarmonicSegment` records start/end tick, ordered source event IDs,
 weighted pitch distribution, bass event ID or null, and confidence Q0.10000.
 Passing-tone robustness is evaluated as a separate regression metric; an
 implementation may not silently delete a passing tone from provenance.
+
+### 4.1 SegmentationPolicy 1.0
+
+The initial algorithm is `pil-harmonic-segmentation-grid-events/v1`. Its
+closed policy binds: Project and policy schema hashes; `grid_divisions_per_beat`
+in `{1,2,4,8}`; `minimum_segment_ticks`; sustained-note threshold; normalized
+pitch-distribution L1 threshold; metrical, persistence and bass coefficients;
+ordered bass roles; boundary priority; and its self hash. The Project's
+`ticks_per_beat` MUST divide evenly by the grid divisor. There are no ambient
+defaults.
+
+First form elementary half-open spans from the sorted unique set containing
+`0`, Project `total_ticks`, and every pitched note onset/end clipped to that
+range. For each nonempty elementary span, its active set contains exactly notes
+with `start_tick < span_end` and `start_tick + duration_ticks > span_start`.
+The span bass is the active event whose `track.role` occurs earliest in the
+policy's `bass_role_order`, then has lowest `absolute_millicents`, then lowest
+UTF-8 event ID. If no eligible event is active, bass is null.
+
+Boundary candidates are the union below. Reasons at one tick are retained as
+one ordered reason set.
+
+1. `endpoint`: ticks `0` and `total_ticks`;
+2. `bass_change`: an elementary boundary whose left/right bass IDs differ;
+3. `sustained_change`: an onset/end of an event whose duration is at least
+   `sustained_minimum_ticks` and whose left/right membership differs;
+4. `pitch_distribution_change`: an elementary boundary where half the L1
+   distance of the left/right normalized 12-bin distributions is at least
+   `pitch_distribution_change_q`;
+5. `metrical`: multiples of `ticks_per_beat/grid_divisions_per_beat` strictly
+   inside the Project.
+
+For the change test, each active event contributes `velocity * track_gain_q`
+to the bin containing its `interpretation_phase_millicents` by half-open
+100,000-millicent bins. Normalize each nonempty vector to Q0.10000 by floor and
+largest remainder, bin ordinal tie-break; an empty vector is twelve zeros.
+The distance is `RHE(sum(abs(left_i-right_i))/2)` and is therefore 0..10000.
+
+Boundary merge is exact. Coalesce equal ticks and union reasons in frozen
+priority `endpoint,bass_change,sustained_change,pitch_distribution_change,
+metrical`. Accept both endpoints first. Visit remaining candidates by
+`(best_reason_priority,tick)` and accept a tick only when its distance from
+every already accepted tick is at least `minimum_segment_ticks`; otherwise
+discard it entirely. Finally sort accepted ticks ascending. This global rule,
+including endpoint priority, prevents a late candidate from creating a short
+terminal segment. Every adjacent accepted pair creates exactly one segment.
+
+### 4.2 Integer event weight
+
+Within segment `[a,b)`, event overlap is
+`max(0,min(event_end,b)-max(event_start,a))`. Define:
+
+```text
+metrical_q = 10000 if event.start_tick mod ticks_per_beat == 0
+              5000 if event.start_tick mod (ticks_per_beat/2) == 0
+                 0 otherwise
+persistence_q = RHE(10000 * overlap_ticks / event.duration_ticks)
+bass_q = 10000 iff event.id == segment bass_event_id, else 0
+factor_q = duration_coefficient_q
+         + RHE(metrical_coefficient_q * metrical_q / 10000)
+         + RHE(persistence_coefficient_q * persistence_q / 10000)
+         + RHE(bass_coefficient_q * bass_q / 10000)
+event_weight = RHE(overlap_ticks * velocity * track_gain_q * factor_q / 10000)
+```
+
+All products/additions use checked u64 before division. Non-note events and
+zero weights are excluded. Segment pitch distribution sums `event_weight` by
+the same 12 bins and normalizes to Q31 total `2147483647` using floor/largest
+remainder with bin ordinal tie-break. `source_event_ids` sort by UTF-8 ID and
+include every positive-weight event. The policy binds one Q0.10000 confidence
+for each boundary reason. Segment confidence is the maximum bound confidence
+among the retained starting boundary's reasons; the initial endpoint
+confidence MUST be 10000.
+
+### 4.3 Failure precedence
+
+First failure wins in this order, with event traversal by
+`(start_tick,event_id UTF-8)` and boundary traversal by tick:
+
+1. `PIL_BINDING_MISMATCH`
+2. `PIL_SCHEMA_INVALID`
+3. `PIL_NUMERIC_OVERFLOW`
+4. `PIL_PITCH_SUPPORT_EMPTY`
+5. `PIL_SEGMENTATION_POLICY_INVALID`
+6. `PIL_SEGMENT_BOUNDARY_INVALID`
+7. `PIL_SEGMENT_EMPTY`
+8. `PIL_FEATURE_EXTRACTION_FAILED`
+9. `PIL_VOCABULARY_FAILED`
+10. `PIL_VOICE_MATCHING_FAILED`
+11. `PIL_TRAJECTORY_FAILED`
+12. `PIL_GENRE_FAILED`
+13. `PIL_RESULT_VALIDATION`
+
+Binding/schema failures create no report. Once Project and manifest bindings
+are valid, later failures create a normal failed PIL report. None of these
+codes changes or suppresses the parallel Native JI report.
 
 ## 5. Continuous features and conventional interpretations
 
