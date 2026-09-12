@@ -32,3 +32,18 @@ Program, CompilerIdentity, catalog, asset directory, RenderManifest, seed and
 output paths; it has no ambient defaults. The asset directory is resolved only
 by the lowercase SHA-256 basename carried by `asset://sha256/<hex>` catalog
 URIs.
+
+For installation smoke tests and first listening only, the CLI exposes an
+explicit `--demo` mode. It binds the checked-in minimal direct SongProgram and
+GEN0-C render fixtures and derives a non-authoritative CompilerIdentity from
+the fixture catalog. Demo mode cannot be combined with explicit input paths and
+its output MUST NOT be treated as an authoritative conformance result. From the
+`backend` directory it is invoked as:
+
+```sh
+.venv/bin/python tools/generate_unscored.py \
+  --demo --seed 7 --output /tmp/cps-unscored-7
+```
+
+Normal mode remains closed and explicit. Missing or invalid input paths are CLI
+usage errors and MUST be reported without a Python traceback.

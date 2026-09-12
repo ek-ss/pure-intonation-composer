@@ -136,3 +136,53 @@ def test_cli_writes_the_same_evaluation_free_bundle(tmp_path) -> None:
     assert receipt["seed"] == 9
     assert receipt["evaluation_performed"] is False
     assert (output / "preview.wav").read_bytes().startswith(b"RIFF")
+
+
+def test_demo_cli_requires_no_external_configuration(tmp_path) -> None:
+    output = tmp_path / "demo"
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "tools/generate_unscored.py",
+            "--demo",
+            "--seed",
+            "7",
+            "--output",
+            str(output),
+        ],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+    )
+    receipt = json.loads(completed.stdout)
+    assert receipt["seed"] == 7
+    assert receipt["evaluation_performed"] is False
+    assert (output / "preview.wav").read_bytes().startswith(b"RIFF")
+
+
+def test_cli_reports_missing_input_without_traceback(tmp_path) -> None:
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "tools/generate_unscored.py",
+            "--program",
+            str(PACK / "minimal_direct_song_program.json"),
+            "--compiler-identity",
+            "/path/to/compiler_identity.json",
+            "--catalog",
+            str(RENDER / "catalog.json"),
+            "--asset-directory",
+            str(RENDER / "assets"),
+            "--render-manifest",
+            str(RENDER / "render_manifest.json"),
+            "--seed",
+            "1",
+            "--output",
+            str(tmp_path / "result"),
+        ],
+        cwd=ROOT,
+        capture_output=True,
+    )
+    assert completed.returncode == 2
+    assert b"--compiler-identity does not exist" in completed.stderr
+    assert b"Traceback" not in completed.stderr
