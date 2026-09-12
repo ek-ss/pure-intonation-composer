@@ -86,9 +86,10 @@ Implementation: `backend/app/songprogram/search.py`.
 
 Implementation: `backend/app/songprogram/compiler.py`.
 
-The compiler still returns `UNSUPPORTED_COMPILER_SLICE` for melody-intent and
-multi-occurrence progression lowering rather than introducing fallback
-semantics.
+Historical note: at this checkpoint the compiler returned
+`UNSUPPORTED_COMPILER_SLICE` for melody-intent and multi-occurrence progression
+lowering. That limitation was removed by the later GEN0-B work recorded in the
+2026-09-12 continuation below.
 
 ## Not yet connected
 
@@ -231,6 +232,7 @@ Production additions landed in:
 - `4654f3c` — typed Mutation and GEN0-B compiler connection;
 - `ebe1886` — Structural Sampler 1.1 and production handoff;
 - `be2f5ba` — calibration/parallel/cancellation cross-field validators.
+- `cb74d95` — read-only FixtureSuiteIndex path/raw/schema/case/coverage validator.
 
 The current test baseline is 464 passing tests for `backend/tests` plus
 `backend/songprogram_conformance` (the read-only guard is run separately), and
@@ -241,5 +243,7 @@ is closed, but implementation acceptance is intentionally blocked until an
 independent-oracle owner checks in the first authoritative
 `SearchLoop13 FixtureSuiteIndex 1.0` and referenced case/schema/CAS bytes. The
 production implementer MUST NOT synthesize or update those expected roots.
-Once present, implementation order is suite validator, RunContext factory,
+The suite validator is now implemented and can authenticate independently
+provided case/schema bytes without generating expected outputs. Once the
+authoritative suite is present, implementation order is RunContext factory,
 event scheduler/replay, connected cache, then the 1/2/4/8 worker parity matrix.
