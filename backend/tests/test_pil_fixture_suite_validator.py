@@ -11,6 +11,7 @@ from app.songprogram.pil_fixture_suite import (
     PIL_REQUIRED_COVERAGE,
     execute_pil_oracle_case,
     execute_pil_oracle_matrix,
+    validate_pil_matrix_receipt,
     validate_pil_oracle_case_bindings,
     validate_pil_fixture_suite,
 )
@@ -170,6 +171,11 @@ def test_matrix_uses_fresh_processes_and_is_worker_count_invariant() -> None:
         }
     ]
     assert receipt["matrix_hash"] == decision_artifact_hash(receipt, "matrix_hash")
+    damaged = json.loads(json.dumps(receipt))
+    damaged["executions"][0]["worker_count"] = 2
+    damaged["matrix_hash"] = decision_artifact_hash(damaged, "matrix_hash")
+    with pytest.raises(PilError, match="PIL_FIXTURE_SUITE_INVALID"):
+        validate_pil_matrix_receipt(damaged, "sha256:" + "ab" * 32, [case])
 
 
 @pytest.mark.parametrize("seed", ["01", "-1", "4294967296"])

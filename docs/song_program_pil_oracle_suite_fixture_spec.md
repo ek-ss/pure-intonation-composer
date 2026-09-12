@@ -195,3 +195,6 @@ receipt contains the suite hash, the single baseline `case_results`, and rows
 ordered first by `pythonhashseeds` array ordinal and then by `worker_counts`
 array ordinal. Each row records the seed, worker count and results hash. The
 receipt uses the generic artifact hash with only `matrix_hash` removed.
+Receipt validation recomputes the baseline rows from each case's authoritative
+`expected` hashes and rejects missing, duplicated, reordered or altered matrix
+coordinates even when an attacker has recomputed `matrix_hash`.

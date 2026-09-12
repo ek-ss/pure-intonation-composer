@@ -314,13 +314,72 @@ def execute_pil_oracle_matrix(suite_hash: str, cases: list[Mapping[str, Any]]) -
         "matrix_hash": "",
     }
     receipt["matrix_hash"] = decision_artifact_hash(receipt, "matrix_hash")
+    validate_pil_matrix_receipt(receipt, suite_hash, cases)
     return receipt
+
+
+def validate_pil_matrix_receipt(
+    receipt: Mapping[str, Any], suite_hash: str, cases: list[Mapping[str, Any]]
+) -> None:
+    """Recompute matrix coordinates, ordered results and every receipt hash."""
+    required = {
+        "schema",
+        "schema_version",
+        "suite_hash",
+        "case_results",
+        "executions",
+        "matrix_hash",
+    }
+    if not isinstance(receipt, Mapping) or set(receipt) != required:
+        _fail()
+    if (
+        receipt.get("schema") != "cps.pil-oracle-matrix-receipt"
+        or receipt.get("schema_version") != "1.0.0"
+        or receipt.get("suite_hash") != suite_hash
+        or receipt.get("matrix_hash") != decision_artifact_hash(receipt, "matrix_hash")
+    ):
+        _fail()
+    if not cases or any(not isinstance(case.get("case_id"), str) for case in cases):
+        _fail()
+    if any(not isinstance(case.get("expected"), Mapping) for case in cases):
+        _fail()
+    expected_results = [
+        {
+            "case_id": case["case_id"],
+            "report_hash": case.get("expected", {}).get("report_hash"),
+            "canonical_report_sha256": case.get("expected", {}).get("canonical_report_sha256"),
+        }
+        for case in cases
+    ]
+    if receipt.get("case_results") != expected_results or any(
+        not _is_sha(row["report_hash"]) or not _is_sha(row["canonical_report_sha256"])
+        for row in expected_results
+    ):
+        _fail()
+    execution = cases[0].get("execution")
+    if not isinstance(execution, Mapping) or any(
+        case.get("execution") != execution for case in cases
+    ):
+        _fail()
+    expected_hash = _case_results_hash(expected_results)
+    expected_rows = [
+        {
+            "pythonhashseed": seed,
+            "worker_count": worker_count,
+            "case_results_hash": expected_hash,
+        }
+        for seed in execution.get("pythonhashseeds", ())
+        for worker_count in execution.get("worker_counts", ())
+    ]
+    if receipt.get("executions") != expected_rows:
+        _fail()
 
 
 __all__ = (
     "PIL_REQUIRED_COVERAGE",
     "execute_pil_oracle_case",
     "execute_pil_oracle_matrix",
+    "validate_pil_matrix_receipt",
     "validate_pil_fixture_suite",
     "validate_pil_oracle_case_bindings",
 )
