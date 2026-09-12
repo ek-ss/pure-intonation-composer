@@ -36,6 +36,7 @@ from .fallback import (
     structural_lowering_manifest_hash,
     structural_program_hash,
 )
+from .fixture_suite import REQUIRED_COVERAGE, validate_fixture_suite
 from .resolver import resolve_joint_bnb, resolve_progression
 from .renderer import RenderError, RenderResult, render_reference
 from .structural_sampler import (
@@ -100,6 +101,7 @@ __all__ = [
     "ProductionSearchLoop",
     "RenderError",
     "RenderResult",
+    "REQUIRED_COVERAGE",
     "StructuralSamplerError",
     "SearchLoopError",
     "SearchLoopResult",
@@ -164,6 +166,7 @@ __all__ = [
     "validate_calibration_rank_policy",
     "validate_cache_entry",
     "validate_cancellation_scenario",
+    "validate_fixture_suite",
     "validate_parallel_scenario",
     "validate_project",
 ]
