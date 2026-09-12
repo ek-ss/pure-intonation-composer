@@ -21,6 +21,16 @@
     "error": {"oneOf": [{"type": "null"}, {"type": "string", "pattern": "^PIL_[A-Z0-9_]+$"}]},
     "report_hash": {"$ref": "#/$defs/sha"}
   },
+  "allOf": [
+    {
+      "if": {"properties": {"status": {"const": "success"}}, "required": ["status"], "additionalProperties": {}},
+      "then": {"properties": {"error": {"type": "null"}}, "additionalProperties": {}}
+    },
+    {
+      "if": {"properties": {"status": {"const": "failure"}}, "required": ["status"], "additionalProperties": {}},
+      "then": {"properties": {"error": {"type": "string", "pattern": "^PIL_[A-Z0-9_]+$"}}, "additionalProperties": {}}
+    }
+  ],
   "$defs": {
     "sha": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
     "q": {"type": "integer", "minimum": 0, "maximum": 10000},

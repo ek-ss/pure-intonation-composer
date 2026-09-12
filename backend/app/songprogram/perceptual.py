@@ -493,6 +493,15 @@ def run_perceptual_interpretation(
 
 def _validate_report_bounds(report: Mapping[str, Any]) -> None:
     """Result-validation stage: re-check the report's integer bounds."""
+    status = report.get("status")
+    error = report.get("error")
+    if status not in {"success", "failure"}:
+        _fail("PIL_RESULT_VALIDATION")
+    if (status == "success" and error is not None) or (
+        status == "failure"
+        and (not isinstance(error, str) or not error.startswith("PIL_"))
+    ):
+        _fail("PIL_RESULT_VALIDATION")
     records = report["pitch_records"]
     if len(records) > MAX_PITCH_RECORDS:
         _fail("PIL_RESULT_VALIDATION")

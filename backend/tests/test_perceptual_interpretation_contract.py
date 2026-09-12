@@ -30,6 +30,7 @@ def test_pil_artifacts_are_closed_and_separately_identified() -> None:
     assert manifest["properties"]["interpretation_period"]["const"] == "2/1"
     assert "native_ji_report_hash" in report["required"]
     assert "native_ji" not in report["properties"]
+    assert len(report["allOf"]) == 2
 
 
 def test_pil_initial_kernel_is_integer_soft_mapping_not_hard_quantization() -> None:
