@@ -148,6 +148,12 @@ Phase 1/2 cases and the four Phase 3 chord cases are implementable once the
 checked-in FeatureSpec and Vocabulary assets exist. Phase 4 cases additionally
 require owner-approved matching policy and trajectory-template payloads.
 
+The case artifact carries no dedicated field for the `pil_passing_tone_delta`
+similarity-delta bound: the maintainer declares the bound in the case
+`description` during promotion review, and the exact `expected` report bytes
+then enforce it byte-for-byte. An implementation must not introduce its own
+delta threshold.
+
 ## 5. Validation flow (read-only)
 
 1. Resolve and authenticate the index and every case by raw bytes (existing
