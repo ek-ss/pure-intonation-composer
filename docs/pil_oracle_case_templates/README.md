@@ -30,6 +30,19 @@ The script writes concrete Project/manifest/asset payloads (with real
 binding hashes — those are case *inputs*, not goldens) and leaves every
 expected output null.
 
+Pre-flight check (read-only; also enforced by
+`tests/test_pil_contract_and_genre_draft_tools.py`):
+
+```bash
+cd backend
+python tools/check_pil_oracle_case_templates.py
+```
+
+It revalidates every case binding with the same validator the maintainer
+uses, and fails if any golden field became non-null, if coverage labels drift
+from `PIL_REQUIRED_COVERAGE`, or if the suite index no longer mirrors the
+case files.
+
 ## Promotion workflow (oracle maintainer only)
 
 ### 1. Fill golden values

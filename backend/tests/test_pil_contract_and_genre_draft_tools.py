@@ -36,3 +36,9 @@ def test_pil_genre_draft_consistency() -> None:
     assert "OK" in result.stdout
     # G6 must stay visible until the owner closes it.
     assert "G6 OPEN" in result.stdout
+
+
+def test_pil_oracle_case_templates_preflight() -> None:
+    result = _run_tool("tools/check_pil_oracle_case_templates.py")
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "OK" in result.stdout
