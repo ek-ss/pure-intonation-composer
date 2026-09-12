@@ -32,6 +32,9 @@ required_coverage:  # closed label set; every label must appear >= 1 time
   - kernel_edge
   - kernel_tie
   - kernel_empty_support
+  - chord_similarity
+  - ambiguous_winner
+  - missing_bass
   - equave_2_1
   - equave_3_1
   - phase_independence
@@ -62,6 +65,9 @@ case_id: <^[a-z][a-z0-9_-]{0,39}$, unique across the suite>
 coverage: [<non-empty unique subset of required_coverage>]
 manifest: <PerceptualInterpretationManifest 1.0, complete incl. manifest_hash>
 project: <ArrangementProject 1.2, complete and standalone-valid>
+segmentation_policy: <null | complete SegmentationPolicy 1.0>
+feature_spec: <null | complete ChordFeatureSpec 1.0>
+vocabulary: <null | complete ChordVocabulary 1.0>
 native_ji_report_hash: <null | sha256>   # correlation metadata only
 expected:
   status: success | failure
@@ -89,6 +95,10 @@ Rules:
   `cps-artifact-hash/v1` preimage rule adopted by the Phase 1 implementation;
   if the owner later standardizes a different PIL hash preimage, the Phase 1
   implementation and this suite change together in one commit.
+- Payload presence is phase-exact: Phase 1 has all three nullable assets null;
+  Phase 2 requires only `segmentation_policy`; Phase 3 requires all three.
+  Every non-null asset self-hash and embedded raw-schema hash is recomputed,
+  then compared with its manifest/upstream binding before execution.
 
 ## 4. Required cases (contract section 9 mapping)
 
@@ -97,19 +107,23 @@ Rules:
 | `pil_soft_major_1_1_5_4_3_2` | 1 | 1 | high soft major similarity; exact ratios retained in `source_ratio` |
 | `pil_seven_limit_multi_candidate` | 2 | 1 | every pitch row keeps multiple nonzero candidates |
 | `pil_passing_tone_delta` | 3 | 2+ | similarity delta bound declared in the case, not by implementation |
-| `pil_12et_ii_v_i` | 4 | 3+ | high trajectory similarity |
-| `pil_exact_ratio_ii_v_i` | 5 | 3+ | JI analogue, high trajectory similarity |
-| `pil_nonfunctional_two_reports` | 6 | 3+ | high Native JI coherence + low ii-V-I similarity as two separate reports |
+| `pil_12tet_major_chord` | Phase 3 | 3 | exact 12-TET major template is the top candidate |
+| `pil_ji_major_chord` | Phase 3 | 3 | `1/1,5/4,3/2` has the major template as top candidate |
+| `pil_ambiguous_chord_margin` | Phase 3 | 3 | candidate list retained while `best_label` is null |
+| `pil_missing_bass_component` | Phase 3 | 3 | bass weight is removed, never scored as zero |
+| `pil_12et_ii_v_i` | 4 | 4+ | high trajectory similarity |
+| `pil_exact_ratio_ii_v_i` | 5 | 4+ | JI analogue, high trajectory similarity |
+| `pil_nonfunctional_two_reports` | 6 | 4+ | high Native JI coherence + low ii-V-I similarity as two separate reports |
 | `pil_tritave_phase_split` | 7 | 1 | 3/1 equave: native phase != 2/1 interpretation phase |
 | `pil_kernel_boundaries` | 8 | 1 | edge, tie, empty-support in one multi-event project or split cases |
 | `pil_segment_boundary` | 8 | 2 | half-open interval rules |
-| `pil_matching_tie` | 8 | 3+ | voice-matching tie |
+| `pil_matching_tie` | 8 | 4+ | voice-matching tie |
 | `pil_cache_parity` | 8 | 1 | cold/hit/corrupt byte identity |
 | `pil_cross_process_workers` | 8 | 1 | PYTHONHASHSEED and 1/2/4/8-worker parity |
 
-Phase 1 cases are implementable against the current
-`app/songprogram/perceptual.py`; later-phase rows are reserved and MUST NOT be
-filled before the corresponding manifest-bound assets exist.
+Phase 1/2 cases and the four Phase 3 chord cases are implementable once the
+checked-in FeatureSpec and Vocabulary assets exist. Phase 4+ rows are reserved
+and MUST NOT be filled before their manifest-bound assets exist.
 
 ## 5. Validation flow (read-only)
 
@@ -130,5 +144,6 @@ filled before the corresponding manifest-bound assets exist.
 - Final `case_id` assignments and suite_version numbering.
 - Whether binding-stage failure cases belong in this suite or in a separate
   negative-pack registry (analogous to `error_registry.json`).
-- The manifest asset hashes (segmentation/vocabulary/…) for Phase 2+ cases,
-  which require the corresponding content-addressed assets to exist first.
+- The owner-assigned FeatureSpec and Vocabulary payload values and hashes.
+  Implementers may provide an independent generator, but may not approve or
+  rewrite its checked-in expected report bytes.

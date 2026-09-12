@@ -8,6 +8,11 @@ for the SP0 conformance pack.
   authority. These artifacts never replace or reinterpret Native JI evidence.
 - `perceptual_segmentation_policy.schema.json`: closed integer-only Phase 2
   harmonic-boundary, event-weight and merge authority.
+- `perceptual_chord_feature_spec.schema.json`,
+  `perceptual_chord_feature_record.schema.json`, and
+  `perceptual_chord_vocabulary.schema.json`: closed Phase 3 continuous chord
+  features and conventional soft-similarity authority. Native JI metrics remain
+  external evidence referenced by hash.
 
 - `arrangement_project_1_2.schema.json`: immutable playable Project, including
   pitch-provenance unions and inline exact resolved chords.

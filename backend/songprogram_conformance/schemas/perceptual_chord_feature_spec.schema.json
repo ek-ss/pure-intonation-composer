@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cps.local/schemas/perceptual_chord_feature_spec.schema.json",
+  "title": "PIL ChordFeatureSpec v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "schema_version", "algorithm", "feature_spec_schema_hash", "feature_record_schema_hash", "project_schema_hash", "segmentation_policy_hash", "pitch_distribution_algorithm", "interval_distribution_algorithm", "bass_relative_algorithm", "register_profile_algorithm", "common_tone_algorithm", "similarity", "spec_hash"],
+  "properties": {
+    "schema": {"const": "cps.perceptual-chord-feature-spec"},
+    "schema_version": {"const": "1.0.0"},
+    "algorithm": {"const": "pil-chord-features-12pc/v1"},
+    "feature_spec_schema_hash": {"$ref": "#/$defs/sha"},
+    "feature_record_schema_hash": {"$ref": "#/$defs/sha"},
+    "project_schema_hash": {"$ref": "#/$defs/sha"},
+    "segmentation_policy_hash": {"$ref": "#/$defs/sha"},
+    "pitch_distribution_algorithm": {"const": "copy-segment-q31/v1"},
+    "interval_distribution_algorithm": {"const": "circular-ordered-autocorrelation-q31/v1"},
+    "bass_relative_algorithm": {"const": "soft-bass-circular-correlation-q31/v1"},
+    "register_profile_algorithm": {"const": "segment-event-weighted-absolute-millicents/v1"},
+    "common_tone_algorithm": {"const": "histogram-intersection-q10000/v1"},
+    "similarity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["algorithm", "pitch_weight", "interval_weight", "bass_relative_weight", "confidence_floor_q", "winner_margin_floor_q", "maximum_candidates"],
+      "properties": {
+        "algorithm": {"const": "weighted-normalized-l1-q10000/v1"},
+        "pitch_weight": {"type": "integer", "minimum": 0, "maximum": 10000},
+        "interval_weight": {"type": "integer", "minimum": 0, "maximum": 10000},
+        "bass_relative_weight": {"type": "integer", "minimum": 0, "maximum": 10000},
+        "confidence_floor_q": {"$ref": "#/$defs/q"},
+        "winner_margin_floor_q": {"$ref": "#/$defs/q"},
+        "maximum_candidates": {"type": "integer", "minimum": 1, "maximum": 256}
+      }
+    },
+    "spec_hash": {"$ref": "#/$defs/sha"}
+  },
+  "$defs": {
+    "sha": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "q": {"type": "integer", "minimum": 0, "maximum": 10000}
+  }
+}

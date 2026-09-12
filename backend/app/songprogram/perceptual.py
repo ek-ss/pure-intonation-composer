@@ -652,6 +652,7 @@ def _failure_report(
         "status": "failure",
         "pitch_records": [],
         "segments": [],
+        "feature_records": [],
         "segment_interpretations": [],
         "trajectory_interpretations": [],
         "genre_interpretations": [],
@@ -734,6 +735,7 @@ def run_perceptual_interpretation(
             "status": "success",
             "pitch_records": records,
             "segments": segments,
+            "feature_records": [],
             "segment_interpretations": [],
             "trajectory_interpretations": [],
             "genre_interpretations": [],
@@ -759,7 +761,9 @@ def _validate_report_bounds(report: Mapping[str, Any]) -> None:
     error = report.get("error")
     if status not in {"success", "failure"}:
         _fail("PIL_RESULT_VALIDATION")
-    if report.get("completed_phase") not in {"pitch_projection", "harmonic_segmentation"}:
+    if report.get("completed_phase") not in {
+        "pitch_projection", "harmonic_segmentation", "chord_similarity"
+    }:
         _fail("PIL_RESULT_VALIDATION")
     if (status == "success" and error is not None) or (
         status == "failure" and (not isinstance(error, str) or not error.startswith("PIL_"))

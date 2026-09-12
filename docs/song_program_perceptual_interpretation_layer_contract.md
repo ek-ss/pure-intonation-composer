@@ -58,6 +58,14 @@ profile binds the exact raw bytes whose SHA-256 values are:
   `sha256:a24ed6cc9cd96f49792f553c52b6237afcad0c9a3172e6931bb65c3e30ed3abb`.
 - SegmentationPolicy 1.0 schema:
   `sha256:77559f2ad4f563c761be20505eec8af4c4a04e63b51b9201df680e280bfa370d`.
+- ChordFeatureSpec 1.0 schema:
+  `sha256:ab6ffd1bfe5d5dbe12a81a80a9175eb32c36e510306b22f4122b2ed3727695e1`;
+- ChordFeatureRecord 1.0 schema:
+  `sha256:0e039841d18d1496161ba2283fdbd1dca743fd719288ca465823f03be0add1a6`;
+- ChordVocabulary 1.0 schema:
+  `sha256:cd6741bcd4e94a03e7ce9bcbb6422d761108e9900191c6500c2775cdfefec11b`;
+- PerceptualInterpretationReport 1.0 Phase 3 schema:
+  `sha256:8c2c89de9f1076ef91260a2dbfb9abc157fe05482063f46c0bf6d9ca38315135`.
 
 An implementation embeds or content-addressedly resolves these identities; it
 MUST NOT accept an arbitrary same-shaped hash. A later byte change creates a
@@ -230,18 +238,91 @@ codes changes or suppresses the parallel Native JI report.
 
 ## 5. Continuous features and conventional interpretations
 
-Before labels, every segment produces a continuous integer feature record:
-pitch and interval distributions, bass relation, harmonicity, roughness,
-register profile, common-tone profile and native lattice compactness. Native
-components are copied by hash/reference from Native JI evidence, never
-recomputed with a perceptual approximation.
+Phase 3 uses `ChordFeatureSpec 1.0`, algorithm
+`pil-chord-features-12pc/v1`, and `ChordVocabulary 1.0`, algorithm
+`pil-chord-vocabulary-q31/v1`. Both are closed canonical artifacts using the
+generic artifact self-hash rule. The complete payloads are required; hashes
+alone are not executable inputs. Their self hashes MUST equal respectively the
+manifest `feature_spec_hash` and `vocabulary_hash`; the vocabulary also binds
+the feature-spec hash and `2/1` interpretation period. There are no defaults.
+FeatureSpec embeds the exact FeatureSpec and FeatureRecord raw schema hashes;
+Vocabulary embeds its exact raw schema hash. Schema hash mismatch is the owning
+stage failure, not a permissive version negotiation.
 
-Vocabulary comparison returns an ordered list of candidates with similarity
-Q0.10000. It does not require a winner. `best_label` is nullable and, when
-present, is only the first candidate after sorting
-`(-similarity_q, vocabulary_ordinal)` and meeting the bound confidence floor.
-It MUST be exposed under `perceptual_interpretation`, never written into
-ResolvedChord or Project events.
+### 5.1 ChordFeatureRecord
+
+Every segment emits one `ChordFeatureRecord 1.0`, ordered by segment start,
+with its complete canonical payload embedded in report `feature_records`.
+`feature_record_hash` in the corresponding interpretation MUST equal its
+generic artifact hash. Distributions are sparse, strictly increasing by pitch
+class ordinal, contain positive weights only, and sum to `2147483647`.
+
+- `pitch_distribution_q31` is copied byte-for-byte from the segment.
+- Expand pitch distribution to twelve bins `P`. For interval class `k`, raw
+  value `I[k] = sum(P[i] * P[(i+k) mod 12])` for `i=0..11`. Normalize the
+  twelve raw values to Q31 by floor/largest remainder, ordinal tie-break.
+- If bass is non-null, expand that pitch record's soft mapping to twelve bins
+  `B`. Bass-relative raw bin `R[k] = sum(B[i] * P[(i+k) mod 12])`, then use the
+  same Q31 normalization. If bass is null, the field is null.
+- The register set is the segment's positive-weight source events. Minimum and
+  maximum are their `absolute_millicents`; mean is
+  `RHE(sum(event_weight * absolute_millicents) / sum(event_weight))`.
+- The first segment has null common-tone value. Later segments use
+  `RHE(10000 * sum(min(previous_P[i], P[i])) / 2147483647)`.
+
+Distribution multiplication/accumulation uses checked u128; signed register
+accumulation uses checked i128. Overflow is `PIL_NUMERIC_OVERFLOW`. Phase 3
+reuses the exact Phase 2 event-weight operator; it may not reconstruct weights
+from the already-normalized pitch histogram.
+
+Harmonicity, roughness and native lattice compactness remain Native JI-owned.
+The feature record carries the nullable `native_ji_report_hash` for correlation
+but never copies or recomputes those values. A later joint decision may join
+the two immutable reports by hash. This explicitly preserves the parallel,
+non-replacing evaluation architecture.
+
+### 5.2 Vocabulary and similarity
+
+Vocabulary entry ordinals MUST be unique and contiguous `0..N-1`; IDs are
+unique and entries are stored in ordinal order. Every template distribution
+obeys the same sparse-Q31 invariant as feature records. A null template
+bass-relative distribution means that component is unavailable, not zero.
+
+For two Q31 distributions `A,B` define:
+
+```text
+l1 = sum(abs(A[i] - B[i]))
+component_similarity_q = 10000 - RHE(10000 * l1 / (2 * 2147483647))
+```
+
+Compute pitch and interval components always. Compute bass-relative only when
+both record and template values are non-null. The FeatureSpec binds three
+unsigned weights. Pitch and interval weights MUST be positive and the sum of
+all three MUST be positive. Missing bass removes its weight from numerator and
+denominator; it is never replaced by zero. Final similarity is
+`RHE(sum(component_similarity_q * available_weight) / sum(available_weight))`.
+All operations are checked u64.
+
+Compare every vocabulary entry, sort by
+`(-similarity_q, vocabulary_ordinal, id UTF-8)`, then retain the first
+`maximum_candidates`. `confidence_q` is the first similarity, or zero only for
+an empty vocabulary (which schema validation already forbids). Let runner-up
+similarity be zero when only one candidate exists. `best_label` is the first
+ID iff confidence is at least `confidence_floor_q` and
+`confidence_q-runner_up_q` is at least `winner_margin_floor_q`; otherwise it
+is null. A soft candidate list is always retained and never changes native
+identity, ratios, events or ResolvedChords.
+
+### 5.3 Phase and failure behavior
+
+Successful Phase 3 reports use `completed_phase: chord_similarity`. Their
+cache key includes this phase and therefore cannot alias Phase 1 or Phase 2.
+Feature extraction traverses segments by start tick, vocabulary entries by
+ordinal and bins by ordinal. Feature failure precedes vocabulary failure as
+already fixed in section 4.3. Invalid FeatureSpec or feature result is
+`PIL_FEATURE_EXTRACTION_FAILED`; invalid vocabulary or similarity result is
+`PIL_VOCABULARY_FAILED`. Both are computation-stage failed reports and cannot
+alter or suppress Native JI evidence.
 
 ## 6. Function, trajectory and voice leading
 
