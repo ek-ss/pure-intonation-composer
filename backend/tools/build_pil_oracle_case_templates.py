@@ -566,7 +566,7 @@ def build_cases() -> list[dict]:
     cases.append(
         _case(
             "pil_segment_boundary",
-            ["success"],
+            ["success", "segment_boundary"],
             _project(
                 [
                     _note("ev_a", "1/1", 0),
@@ -616,7 +616,7 @@ def build_cases() -> list[dict]:
     cases.append(
         _case(
             "pil_passing_tone_delta",
-            ["success"],
+            ["success", "passing_tone_regression"],
             _project(
                 [
                     _note("ev_a", "1/1", 0),
@@ -675,7 +675,7 @@ def build_cases() -> list[dict]:
         }
     ]
 
-    def _progression(events, case_id, note):
+    def _progression(events, case_id, note, extra_coverage=()):
         policy, spec, vocabulary, vm_policy, template_set = _phase4_assets(ii_v_i_templates)
         manifest = _bind(
             _manifest(),
@@ -687,7 +687,7 @@ def build_cases() -> list[dict]:
         )
         return _case(
             case_id,
-            ["success", "voice_matching", "trajectory_similarity"],
+            ["success", "voice_matching", "trajectory_similarity", *extra_coverage],
             _project(events, total_ticks=1_440),
             manifest,
             {
@@ -744,6 +744,7 @@ def build_cases() -> list[dict]:
             "pil_nonfunctional_two_reports",
             "High Native JI coherence with low ii-V-I similarity, reported separately; "
             "the Native JI report hash is correlation metadata filled by the owner.",
+            extra_coverage=["native_ji_separation"],
         )
     )
 

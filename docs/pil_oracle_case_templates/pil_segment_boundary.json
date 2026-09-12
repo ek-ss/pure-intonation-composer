@@ -4,7 +4,8 @@
  "case_id": "pil_segment_boundary",
  "description": "Grid/bass/sustained/pitch-distribution boundary rules and half-open intervals.",
  "coverage": [
-  "success"
+  "success",
+  "segment_boundary"
  ],
  "manifest": {
   "schema": "cps.perceptual-interpretation-manifest",

@@ -32,9 +32,11 @@ required_coverage:  # closed label set; every label must appear >= 1 time
   - kernel_edge
   - kernel_tie
   - kernel_empty_support
+  - segment_boundary
   - chord_similarity
   - ambiguous_winner
   - missing_bass
+  - passing_tone_regression
   - voice_matching
   - matching_tie
   - unequal_voice_count
@@ -44,6 +46,7 @@ required_coverage:  # closed label set; every label must appear >= 1 time
   - equave_2_1
   - equave_3_1
   - phase_independence
+  - native_ji_separation
   - cache_cold
   - cache_hit
   - cache_corrupt
@@ -55,6 +58,12 @@ required_coverage:  # closed label set; every label must appear >= 1 time
 cases: [CaseIndexRow]   # sorted by case_id UTF-8 bytes, unique
 suite_hash: <artifact hash, self member excluded>
 ```
+
+Three labels anchor specific contract section 9 items so the suite cannot
+silently drop them: `segment_boundary` (item 8, boundary rules),
+`passing_tone_regression` (item 3, the separate passing-tone regression
+metric of section 4) and `native_ji_separation` (item 6, high Native JI
+coherence with low ii-V-I similarity reported in two separate reports).
 
 `CaseIndexRow` mirrors the SearchLoop13 fixture-suite row shape
 (`case_id`, `path`, `raw_file_sha256`, `case_hash`, `case_schema_hash`,

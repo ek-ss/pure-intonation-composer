@@ -4,7 +4,8 @@
  "case_id": "pil_passing_tone_delta",
  "description": "Short passing-tone perturbation; owner declares the similarity delta bound.",
  "coverage": [
-  "success"
+  "success",
+  "passing_tone_regression"
  ],
  "manifest": {
   "schema": "cps.perceptual-interpretation-manifest",

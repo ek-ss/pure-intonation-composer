@@ -8,9 +8,11 @@
   "kernel_edge",
   "kernel_tie",
   "kernel_empty_support",
+  "segment_boundary",
   "chord_similarity",
   "ambiguous_winner",
   "missing_bass",
+  "passing_tone_regression",
   "voice_matching",
   "matching_tie",
   "unequal_voice_count",
@@ -20,6 +22,7 @@
   "equave_2_1",
   "equave_3_1",
   "phase_independence",
+  "native_ji_separation",
   "cache_cold",
   "cache_hit",
   "cache_corrupt",
@@ -162,7 +165,8 @@
    "coverage": [
     "success",
     "voice_matching",
-    "trajectory_similarity"
+    "trajectory_similarity",
+    "native_ji_separation"
    ]
   },
   {
@@ -172,7 +176,8 @@
    "case_hash": null,
    "case_schema_hash": null,
    "coverage": [
-    "success"
+    "success",
+    "passing_tone_regression"
    ]
   },
   {
@@ -182,7 +187,8 @@
    "case_hash": null,
    "case_schema_hash": null,
    "coverage": [
-    "success"
+    "success",
+    "segment_boundary"
    ]
   },
   {

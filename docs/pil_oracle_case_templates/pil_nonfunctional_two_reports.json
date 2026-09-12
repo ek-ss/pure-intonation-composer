@@ -6,7 +6,8 @@
  "coverage": [
   "success",
   "voice_matching",
-  "trajectory_similarity"
+  "trajectory_similarity",
+  "native_ji_separation"
  ],
  "manifest": {
   "schema": "cps.perceptual-interpretation-manifest",
