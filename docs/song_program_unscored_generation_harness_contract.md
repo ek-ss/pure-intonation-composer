@@ -22,6 +22,11 @@ harness errors are `UNSCORED_REQUEST_INVALID`, `UNSCORED_CATALOG_MISMATCH`, and
 `UNSCORED_OUTPUT_EXISTS`; compiler, Project validator and renderer errors retain
 their existing typed namespaces.
 
+`render_report_hash` uses domain `cps.reference-render-report/v1.1` over the
+complete canonical LF-framed ReferenceRenderReport; that report has no embedded
+self-hash member to remove. `wav_hash` is copied from the validated renderer
+report and therefore hashes the exact bytes written as `preview.wav`.
+
 The reference CLI is `backend/tools/generate_unscored.py`. It requires explicit
 Program, CompilerIdentity, catalog, asset directory, RenderManifest, seed and
 output paths; it has no ambient defaults. The asset directory is resolved only
