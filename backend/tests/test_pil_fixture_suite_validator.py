@@ -9,10 +9,12 @@ import pytest
 from app.songprogram.perceptual import PilError
 from app.songprogram.pil_fixture_suite import (
     PIL_REQUIRED_COVERAGE,
+    execute_pil_oracle_case,
     validate_pil_oracle_case_bindings,
     validate_pil_fixture_suite,
 )
 from app.songprogram import perceptual
+from tools.build_pil_oracle_case_templates import build_cases
 from app.songprogram.search_decisions import decision_artifact_hash
 
 
@@ -123,3 +125,21 @@ def test_case_binding_accepts_full_project_and_phase_exact_null_assets() -> None
     case["project_hash"] = "sha256:" + "00" * 32
     with pytest.raises(PilError, match="PIL_FIXTURE_SUITE_INVALID"):
         validate_pil_oracle_case_bindings(case)
+
+
+def test_case_executor_compares_report_bytes_and_cache_parity() -> None:
+    case = next(case for case in build_cases() if case["case_id"] == "pil_cache_parity")
+    report = perceptual.run_perceptual_interpretation(
+        case["project"], case["manifest"], expected_project_hash=case["project_hash"]
+    )
+    case["expected"] = {
+        "status": report["status"],
+        "error": report["error"],
+        "report_hash": report["report_hash"],
+        "canonical_report_sha256": "sha256:"
+        + hashlib.sha256(perceptual.canonical_report_bytes(report)).hexdigest(),
+    }
+    assert execute_pil_oracle_case(case) == report
+    case["expected"]["report_hash"] = "sha256:" + "00" * 32
+    with pytest.raises(PilError, match="PIL_FIXTURE_SUITE_INVALID"):
+        execute_pil_oracle_case(case)

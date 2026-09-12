@@ -46,8 +46,8 @@ For each `pil_*.json` case:
    implementation's self-report without audit.
 3. Fill `expected.status`, `expected.error`, `expected.report_hash`, and
    `expected.canonical_report_sha256` (exact canonical report bytes hash).
-   Binding/schema-stage failures keep `report_hash: null` per the draft
-   specification.
+   All promoted cases are binding-valid and therefore have report bytes;
+   malformed/binding negatives are maintained in a separate negative pack.
 4. Fill `native_ji_report_hash` only where the case documents correlation
    metadata (e.g. `pil_nonfunctional_two_reports`); it is never a
    computation input.

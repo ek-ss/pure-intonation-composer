@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import hashlib
+import tempfile
+from copy import deepcopy
 from pathlib import Path
 from typing import Any, Callable, Mapping
 
@@ -121,8 +124,76 @@ def validate_pil_oracle_case_bindings(case: Mapping[str, Any]) -> None:
         _fail()
 
 
+def _run_case(case: Mapping[str, Any], cache_dir: str | Path | None = None) -> dict[str, Any]:
+    keyword_assets = {
+        key: case[key]
+        for key in (
+            "segmentation_policy",
+            "feature_spec",
+            "voice_matching_policy",
+            "trajectory_template_set",
+        )
+        if case[key] is not None
+    }
+    if case["vocabulary"] is not None:
+        keyword_assets["chord_vocabulary"] = case["vocabulary"]
+    return perceptual.run_perceptual_interpretation(
+        case["project"],
+        case["manifest"],
+        expected_project_hash=case["project_hash"],
+        native_ji_report_hash=case["native_ji_report_hash"],
+        cache_dir=cache_dir,
+        **keyword_assets,
+    )
+
+
+def execute_pil_oracle_case(case: Mapping[str, Any]) -> dict[str, Any]:
+    """Execute and compare one authenticated case without updating its authority."""
+    validate_pil_oracle_case_bindings(case)
+    project_before = deepcopy(case["project"])
+    expected = case.get("expected")
+    if not isinstance(expected, Mapping):
+        _fail()
+    try:
+        report = _run_case(case)
+        canonical = perceptual.canonical_report_bytes(report)
+        observed = {
+            "status": report["status"],
+            "error": report["error"],
+            "report_hash": report["report_hash"],
+            "canonical_report_sha256": "sha256:" + hashlib.sha256(canonical).hexdigest(),
+        }
+    except (KeyError, TypeError, PilError):
+        _fail()
+    if dict(expected) != observed or case["project"] != project_before:
+        _fail()
+
+    coverage = set(case.get("coverage", ()))
+    cache_labels = {"cache_cold", "cache_hit", "cache_corrupt"}
+    if coverage & cache_labels:
+        if not cache_labels <= coverage:
+            _fail()
+        with tempfile.TemporaryDirectory(prefix="cps-pil-oracle-cache-") as directory:
+            cold = _run_case(case, directory)
+            hit = _run_case(case, directory)
+            entries = list(Path(directory).iterdir())
+            if len(entries) != 1:
+                _fail()
+            entries[0].write_bytes(b"corrupt")
+            corrupt = _run_case(case, directory)
+        if not (
+            perceptual.canonical_report_bytes(cold)
+            == perceptual.canonical_report_bytes(hit)
+            == perceptual.canonical_report_bytes(corrupt)
+            == canonical
+        ):
+            _fail()
+    return report
+
+
 __all__ = (
     "PIL_REQUIRED_COVERAGE",
+    "execute_pil_oracle_case",
     "validate_pil_fixture_suite",
     "validate_pil_oracle_case_bindings",
 )

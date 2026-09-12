@@ -82,10 +82,8 @@ native_ji_report_hash: <null | sha256>   # correlation metadata only
 expected:
   status: success | failure
   error: <null | PIL_[A-Z0-9_]+>
-  report_hash: <null | sha256>   # null only when status == failure is raised
-                                 # before a bound report can exist (binding /
-                                 # schema stage); otherwise the full hash
-  canonical_report_sha256: <null | sha256 of exact canonical report bytes>
+  report_hash: <sha256>
+  canonical_report_sha256: <sha256 of exact canonical report bytes>
 execution:
   worker_counts: [1, 2, 4, 8]        # parity matrix for this case
   pythonhashseeds: [<seed strings>]  # cross-process parity seeds
@@ -96,11 +94,10 @@ Rules:
 
 - `expected` values are the owner-only golden surface. Placeholders above are
   normative types, not values.
-- A `failure` case whose failure occurs at binding/schema stage records the
-  stable raised code in `error`, `report_hash: null`, and
-  `canonical_report_sha256: null`; a computation-stage failure records both
-  hashes like a success case. The two hash members are either both SHA-256
-  values or both null.
+- Every case is schema-valid and binding-valid before execution. A `failure`
+  case therefore represents a computation-stage failed report and records both
+  hashes like a success case. Malformed/schema/binding negatives belong to a
+  separately versioned negative pack and are not suite cases.
 - `project` must recompute to `project_hash` under spec section 17; PIL tests
   recompute it rather than trusting the stored binding.
 - `manifest` must recompute to `manifest_hash` under the generic
@@ -161,9 +158,9 @@ require owner-approved matching policy and trajectory-template payloads.
 - `suite_version` is SemVer and the first promotion is `1.0.0`; changing any
   expected byte or referenced asset requires a version bump selected by the
   fixture owner.
-- Binding/schema-stage failure cases are members of this suite. They use the
-  status-dependent nullability rule in section 3 and are not duplicated in an
-  ambient negative-pack registry.
+- Binding/schema-stage malformed cases are excluded from this suite because
+  suite authentication necessarily validates those same bindings before
+  execution. They belong to a separately versioned negative-pack registry.
 - The fixture owner assigns final case IDs and the exact FeatureSpec,
   Vocabulary, VoiceMatchingPolicy and TrajectoryTemplateSet payloads. An
   implementer may provide non-authoritative input templates, but cannot approve
