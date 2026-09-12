@@ -13,7 +13,7 @@
     "feature_record_schema_hash": {"$ref": "#/$defs/sha"},
     "project_schema_hash": {"$ref": "#/$defs/sha"},
     "segmentation_policy_hash": {"$ref": "#/$defs/sha"},
-    "pitch_distribution_algorithm": {"const": "copy-segment-q31/v1"},
+    "pitch_distribution_algorithm": {"const": "soft-event-mapping-weighted-q31/v1"},
     "interval_distribution_algorithm": {"const": "circular-ordered-autocorrelation-q31/v1"},
     "bass_relative_algorithm": {"const": "soft-bass-circular-correlation-q31/v1"},
     "register_profile_algorithm": {"const": "segment-event-weighted-absolute-millicents/v1"},

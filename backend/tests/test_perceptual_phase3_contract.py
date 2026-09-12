@@ -10,12 +10,9 @@ SCHEMAS = ROOT / "songprogram_conformance" / "schemas"
 DOC = ROOT.parent / "docs" / "song_program_perceptual_interpretation_layer_contract.md"
 
 EXPECTED_RAW_HASHES = {
-    "perceptual_chord_feature_spec.schema.json":
-        "ab6ffd1bfe5d5dbe12a81a80a9175eb32c36e510306b22f4122b2ed3727695e1",
-    "perceptual_chord_feature_record.schema.json":
-        "0e039841d18d1496161ba2283fdbd1dca743fd719288ca465823f03be0add1a6",
-    "perceptual_chord_vocabulary.schema.json":
-        "cd6741bcd4e94a03e7ce9bcbb6422d761108e9900191c6500c2775cdfefec11b",
+    "perceptual_chord_feature_spec.schema.json": "6744d7e50ce53046d497552d72d7bc2c747dd08650ebb75b00fba52978fec293",
+    "perceptual_chord_feature_record.schema.json": "0e039841d18d1496161ba2283fdbd1dca743fd719288ca465823f03be0add1a6",
+    "perceptual_chord_vocabulary.schema.json": "cd6741bcd4e94a03e7ce9bcbb6422d761108e9900191c6500c2775cdfefec11b",
 }
 
 
@@ -34,9 +31,7 @@ def test_feature_spec_closes_algorithms_weights_and_thresholds() -> None:
     )
     similarity = properties["similarity"]["properties"]
     assert similarity["algorithm"]["const"] == "weighted-normalized-l1-q10000/v1"
-    assert {"confidence_floor_q", "winner_margin_floor_q", "maximum_candidates"} <= set(
-        similarity
-    )
+    assert {"confidence_floor_q", "winner_margin_floor_q", "maximum_candidates"} <= set(similarity)
 
 
 def test_report_embeds_features_and_phase3_is_parallel() -> None:

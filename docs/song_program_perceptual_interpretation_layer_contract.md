@@ -59,13 +59,17 @@ profile binds the exact raw bytes whose SHA-256 values are:
 - SegmentationPolicy 1.0 schema:
   `sha256:77559f2ad4f563c761be20505eec8af4c4a04e63b51b9201df680e280bfa370d`.
 - ChordFeatureSpec 1.0 schema:
-  `sha256:ab6ffd1bfe5d5dbe12a81a80a9175eb32c36e510306b22f4122b2ed3727695e1`;
+  `sha256:6744d7e50ce53046d497552d72d7bc2c747dd08650ebb75b00fba52978fec293`;
 - ChordFeatureRecord 1.0 schema:
   `sha256:0e039841d18d1496161ba2283fdbd1dca743fd719288ca465823f03be0add1a6`;
 - ChordVocabulary 1.0 schema:
   `sha256:cd6741bcd4e94a03e7ce9bcbb6422d761108e9900191c6500c2775cdfefec11b`;
 - PerceptualInterpretationReport 1.0 Phase 3 schema:
   `sha256:8c2c89de9f1076ef91260a2dbfb9abc157fe05482063f46c0bf6d9ca38315135`.
+
+The Phase 3 reference implementation build identity is
+`pil.phase3.1.0.0`; manifests naming an earlier Phase 1/2 build are not
+silently upgraded.
 
 An implementation embeds or content-addressedly resolves these identities; it
 MUST NOT accept an arbitrary same-shaped hash. A later byte change creates a
@@ -257,7 +261,12 @@ with its complete canonical payload embedded in report `feature_records`.
 generic artifact hash. Distributions are sparse, strictly increasing by pitch
 class ordinal, contain positive weights only, and sum to `2147483647`.
 
-- `pitch_distribution_q31` is copied byte-for-byte from the segment.
+- For every positive-weight source event, multiply each pitch-kernel
+  `mapping_q31` bin by that exact Phase 2 event weight, sum by ordinal using
+  checked u128, then normalize to Q31. This is `pitch_distribution_q31`.
+  Phase 3 MUST NOT copy the Phase 2 coarse half-open-bin distribution: doing so
+  would classify 5/4 (386314 millicents) as pitch class 3 instead of retaining
+  its soft class-3/class-4 evidence.
 - Expand pitch distribution to twelve bins `P`. For interval class `k`, raw
   value `I[k] = sum(P[i] * P[(i+k) mod 12])` for `i=0..11`. Normalize the
   twelve raw values to Q31 by floor/largest remainder, ordinal tie-break.
