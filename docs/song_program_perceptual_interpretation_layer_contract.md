@@ -47,6 +47,20 @@ the Project hash, manifest hash, all derived records and its own hash. No
 ambient corpus, locale, note spelling, A4 setting, model endpoint or default is
 allowed.
 
+Manifest and report self-hashes use the Search Decision artifact preimage with
+only `manifest_hash` or `report_hash` removed:
+`UTF8("cps-artifact-hash/v1\0" || schema || "\0" || schema_version || "\0")`
+followed by canonical JSON with no trailing LF. The initial Phase 1 launch
+profile binds the exact raw bytes whose SHA-256 values are:
+
+- ArrangementProject 1.2 schema: `sha256:960891e2390acb2a3c14e35074de9a56bb0604c9098baff0aada3fbeeeeb167d`;
+- Numeric Contract `cps-numeric/decimal-log2-rhe-v1`:
+  `sha256:a24ed6cc9cd96f49792f553c52b6237afcad0c9a3172e6931bb65c3e30ed3abb`.
+
+An implementation embeds or content-addressedly resolves these identities; it
+MUST NOT accept an arbitrary same-shaped hash. A later byte change creates a
+new manifest/build profile rather than silently updating these bindings.
+
 PIL 1.0 is audit-only by default. It may affect QD axes, rejection, archive
 quality, challenger acceptance or stopping only when a versioned
 CalibrationDecision explicitly promotes the exact PIL manifest hash, metric

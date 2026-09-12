@@ -37,6 +37,7 @@ from .fallback import (
     structural_program_hash,
 )
 from .fixture_suite import REQUIRED_COVERAGE, validate_fixture_suite
+from .perceptual import PilError, run_perceptual_interpretation
 from .resolver import resolve_joint_bnb, resolve_progression
 from .renderer import RenderError, RenderResult, render_reference
 from .structural_sampler import (
@@ -107,6 +108,7 @@ __all__ = [
     "SearchLoopResult",
     "SearchLoopSeams",
     "ProjectValidationError",
+    "PilError",
     "action_id",
     "apply_broad_prior_production",
     "apply_structural_broad_prior_production",
@@ -159,6 +161,7 @@ __all__ = [
     "reserve_render",
     "round_decision",
     "run_connected_batch",
+    "run_perceptual_interpretation",
     "sampler_choice",
     "seal_record",
     "select_render_candidates",
