@@ -19,7 +19,14 @@ Implemented scope (perceptual_interpretation_layer_contract.md sections 3-4):
   remainder normalization to 2**31 - 1; hard nearest-note quantization is
   forbidden.
 - manifest-bound deterministic harmonic segmentation with integer salience,
-  globally merged boundaries, stable segment IDs, and Q31 distributions.
+  globally merged boundaries, stable segment IDs, and Q31 distributions;
+- Phase 3 continuous chord features and soft vocabulary similarity;
+- Phase 4 (contract section 6): exact injective perceptual voice matching
+  (bitmask DP with canonical-key tie-break), transition feature records, and
+  consecutive-window trajectory alignment, wired into
+  :func:`run_perceptual_interpretation` under the Phase 4 build identity
+  ``pil.phase4.1.0.0``.  Phase 3 build manifests remain valid for
+  ``chord_similarity`` and earlier phases only.
 
 Adopted house rules where the PIL contract defers to existing conventions:
 
@@ -56,7 +63,8 @@ MANIFEST_SCHEMA_VERSION = "1.0.0"
 PIL_ALGORITHM = "pil-parallel-interpretation/v1"
 KERNEL_ALGORITHM = "triangular-millicent-q31/v1"
 NUMERIC_CONTRACT_ID = "cps-numeric/decimal-log2-rhe-v1"
-PIL_IMPLEMENTATION_BUILD_ID = "pil.phase3.1.0.0"
+PIL_IMPLEMENTATION_BUILD_ID = "pil.phase4.1.0.0"
+PIL_PHASE3_BUILD_ID = "pil.phase3.1.0.0"
 PROJECT_SCHEMA_HASH = "sha256:960891e2390acb2a3c14e35074de9a56bb0604c9098baff0aada3fbeeeeb167d"
 NUMERIC_CONTRACT_HASH = "sha256:a24ed6cc9cd96f49792f553c52b6237afcad0c9a3172e6931bb65c3e30ed3abb"
 SEGMENTATION_POLICY_SCHEMA_HASH = (
@@ -69,7 +77,22 @@ CHORD_FEATURE_RECORD_SCHEMA_HASH = (
     "sha256:0e039841d18d1496161ba2283fdbd1dca743fd719288ca465823f03be0add1a6"
 )
 CHORD_VOCABULARY_SCHEMA_HASH = (
-    "sha256:cd6741bcd4e94a03e7ce9bcbb6422d761108e9900191c6500c2775cdfefec11b"
+    "sha256:dde975cb786368d66df8a79ea0457dd0f722fd40958c52efca448f5515edd3df"
+)
+VOICE_MATCHING_POLICY_SCHEMA_HASH = (
+    "sha256:288ae738994562e8ca67465c28cf102ce163ebfe35884c901860ee6f32e15690"
+)
+VOICE_MATCHING_RECORD_SCHEMA_HASH = (
+    "sha256:ae74975c01dedf1bf1cceea9d90e4a3a25fbb9c8e904aeae9e4313a49a28de29"
+)
+TRANSITION_FEATURE_RECORD_SCHEMA_HASH = (
+    "sha256:ff3e0c7e125f57347be40d31f77671572d7bde4450f52e65a0292f70e3cecff5"
+)
+TRAJECTORY_TEMPLATE_SET_SCHEMA_HASH = (
+    "sha256:119fe9a73b47a11859c3d840d2541181d302c27c0a55fa5ff35215dfe42b1b45"
+)
+TRAJECTORY_RESULT_SCHEMA_HASH = (
+    "sha256:86ad76be91b2c2e2c33fac2630c7b3daa4fcaca4016740b0d930d3f0ab5d7dd1"
 )
 
 Q31_TOTAL = 2**31 - 1
@@ -147,6 +170,26 @@ def chord_feature_record_hash(record: Mapping[str, Any]) -> str:
 
 def chord_vocabulary_hash(vocabulary: Mapping[str, Any]) -> str:
     return _artifact_hash(vocabulary, "vocabulary_hash")
+
+
+def voice_matching_policy_hash(policy: Mapping[str, Any]) -> str:
+    return _artifact_hash(policy, "policy_hash")
+
+
+def voice_matching_record_hash(record: Mapping[str, Any]) -> str:
+    return _artifact_hash(record, "record_hash")
+
+
+def transition_feature_record_hash(record: Mapping[str, Any]) -> str:
+    return _artifact_hash(record, "record_hash")
+
+
+def trajectory_template_set_hash(template_set: Mapping[str, Any]) -> str:
+    return _artifact_hash(template_set, "template_set_hash")
+
+
+def trajectory_result_hash(result: Mapping[str, Any]) -> str:
+    return _artifact_hash(result, "result_hash")
 
 
 def canonical_report_bytes(report: Mapping[str, Any]) -> bytes:
@@ -245,11 +288,15 @@ def verify_binding(
     *,
     expected_project_hash: str | None = None,
     native_ji_report_hash: str | None = None,
+    allowed_build_ids: Sequence[str] | None = None,
 ) -> str:
     """Verify manifest/Project/NumericContract/build-ID binding before any draw.
 
     Returns the recomputed Project artifact hash.  ``native_ji_report_hash``
     is correlation metadata only and is never a computation input.
+    ``allowed_build_ids`` defaults to the current Phase 4 build; a Phase 3
+    build manifest is accepted only for ``chord_similarity`` and earlier
+    phases and is never silently upgraded to ``functional_trajectory``.
     """
     validate_manifest(manifest)
     _validate_project_binding(project)
@@ -258,7 +305,10 @@ def verify_binding(
     compiler = project["compiler"]
     if compiler.get("numeric_contract") != NUMERIC_CONTRACT_ID:
         _fail("PIL_BINDING_MISMATCH")
-    if manifest["implementation_build_id"] != PIL_IMPLEMENTATION_BUILD_ID:
+    accepted = (
+        (PIL_IMPLEMENTATION_BUILD_ID,) if allowed_build_ids is None else tuple(allowed_build_ids)
+    )
+    if manifest["implementation_build_id"] not in accepted:
         _fail("PIL_BINDING_MISMATCH")
     if manifest["project_schema_hash"] != PROJECT_SCHEMA_HASH:
         _fail("PIL_BINDING_MISMATCH")
@@ -504,12 +554,17 @@ def validate_chord_vocabulary(
         if not isinstance(entry, Mapping) or set(entry) != {
             "id",
             "ordinal",
+            "functional_tension_q",
             "pitch_distribution_q31",
             "interval_distribution_q31",
             "bass_relative_distribution_q31",
         }:
             _fail("PIL_VOCABULARY_FAILED")
-        if not isinstance(entry["id"], str) or entry["ordinal"] != ordinal:
+        if (
+            not isinstance(entry["id"], str)
+            or entry["ordinal"] != ordinal
+            or not _is_int(entry["functional_tension_q"], 0, 10_000)
+        ):
             _fail("PIL_VOCABULARY_FAILED")
         ids.append(entry["id"])
         _validate_distribution(entry["pitch_distribution_q31"], "PIL_VOCABULARY_FAILED")
@@ -976,6 +1031,721 @@ def interpret_chord_features(
     return results
 
 
+def validate_voice_matching_policy(
+    policy: Mapping[str, Any], manifest: Mapping[str, Any], feature_spec: Mapping[str, Any]
+) -> None:
+    """Validate the closed VoiceMatchingPolicy 1.0 payload and its bindings."""
+    required = {
+        "schema",
+        "schema_version",
+        "algorithm",
+        "policy_schema_hash",
+        "matching_record_schema_hash",
+        "feature_spec_hash",
+        "maximum_voices_per_segment",
+        "selection_algorithm",
+        "identity_constraint",
+        "interpretation_period_millicents",
+        "half_period_tie",
+        "absolute_motion_cap_millicents",
+        "cost_weights",
+        "bass_likeness_kernels",
+        "policy_hash",
+    }
+    if not isinstance(policy, Mapping) or set(policy) != required:
+        _fail("PIL_VOICE_MATCHING_FAILED")
+    if (
+        policy.get("schema") != "cps.perceptual-voice-matching-policy"
+        or policy.get("schema_version") != "1.0.0"
+        or policy.get("algorithm") != "pil-injective-voice-matching-dp/v1"
+        or policy.get("policy_schema_hash") != VOICE_MATCHING_POLICY_SCHEMA_HASH
+        or policy.get("matching_record_schema_hash") != VOICE_MATCHING_RECORD_SCHEMA_HASH
+        or policy.get("feature_spec_hash") != feature_spec.get("spec_hash")
+        or policy.get("selection_algorithm") != "event-weight-desc-absolute-mc-id/v1"
+        or policy.get("identity_constraint") != "same-event-id-must-match/v1"
+        or policy.get("interpretation_period_millicents") != INTERPRETATION_PERIOD_MC
+        or policy.get("half_period_tie") != "negative"
+        or policy.get("policy_hash") != manifest.get("voice_matching_policy_hash")
+        or policy.get("policy_hash") != voice_matching_policy_hash(policy)
+    ):
+        _fail("PIL_VOICE_MATCHING_FAILED")
+    if not _is_int(policy.get("maximum_voices_per_segment"), 1, 12):
+        _fail("PIL_VOICE_MATCHING_FAILED")
+    if not _is_int(policy.get("absolute_motion_cap_millicents"), 1, 9_600_000):
+        _fail("PIL_VOICE_MATCHING_FAILED")
+    weights = policy.get("cost_weights")
+    weight_keys = ("absolute_motion", "circular_motion", "pitch_mapping_l1", "role_mismatch")
+    if not isinstance(weights, Mapping) or set(weights) != set(weight_keys):
+        _fail("PIL_VOICE_MATCHING_FAILED")
+    if any(not _is_int(weights.get(key), 0, 10_000) for key in weight_keys):
+        _fail("PIL_VOICE_MATCHING_FAILED")
+    if sum(weights[key] for key in weight_keys) < 1:
+        _fail("PIL_VOICE_MATCHING_FAILED")
+    kernels = policy.get("bass_likeness_kernels")
+    kernel_consts = {
+        "fifth_center_millicents": 700_000,
+        "fourth_center_millicents": 500_000,
+        "step_up_center_millicents": 100_000,
+        "step_down_center_millicents": -100_000,
+    }
+    if not isinstance(kernels, Mapping) or set(kernels) != set(kernel_consts) | {
+        "radius_millicents"
+    }:
+        _fail("PIL_VOICE_MATCHING_FAILED")
+    if any(kernels.get(key) != value for key, value in kernel_consts.items()):
+        _fail("PIL_VOICE_MATCHING_FAILED")
+    if not _is_int(kernels.get("radius_millicents"), 1, 600_000):
+        _fail("PIL_VOICE_MATCHING_FAILED")
+
+
+def _circular_motion(distance_mc: int) -> int:
+    return (distance_mc + 600_000) % INTERPRETATION_PERIOD_MC - 600_000
+
+
+def _wrapped_distance(left_mc: int, right_mc: int) -> int:
+    difference = abs(left_mc - right_mc) % INTERPRETATION_PERIOD_MC
+    return min(difference, INTERPRETATION_PERIOD_MC - difference)
+
+
+def _kernel_likeness(distance_mc: int, radius_mc: int) -> int:
+    return max(0, 10_000 - _rhe(Fraction(10_000 * distance_mc, radius_mc)))
+
+
+def _select_segment_voices(
+    project: Mapping[str, Any],
+    pitch_records: Sequence[Mapping[str, Any]],
+    segments: Sequence[Mapping[str, Any]],
+    segmentation_policy: Mapping[str, Any],
+    policy: Mapping[str, Any],
+) -> list[list[dict[str, Any]]]:
+    """Select canonical perceptual voices per segment (contract section 6.1)."""
+    pitch_by_id = {row["source_event_id"]: row for row in pitch_records}
+    events_by_id = {row["id"]: row for row in project["events"] if row.get("kind") == "note"}
+    roles = {row["id"]: row["role"] for row in project["tracks"]}
+    ticks_per_beat = project["clock"]["ticks_per_beat"]
+    maximum = policy["maximum_voices_per_segment"]
+    selected = []
+    for segment in segments:
+        weighted = []
+        for event_id in segment["source_event_ids"]:
+            event = events_by_id.get(event_id)
+            pitch = pitch_by_id.get(event_id)
+            if event is None or pitch is None or event.get("track_id") not in roles:
+                _fail("PIL_VOICE_MATCHING_FAILED")
+            weight = _event_weight_for_segment(
+                event, roles[event["track_id"]], segment, segmentation_policy, ticks_per_beat
+            )
+            if weight > 0:
+                weighted.append((event_id, weight, pitch["absolute_millicents"]))
+        weighted.sort(key=lambda row: (-row[1], row[2], row[0].encode()))
+        retained = sorted(weighted[:maximum], key=lambda row: (row[2], row[0].encode()))
+        selected.append(
+            [
+                {
+                    "event_id": event_id,
+                    "absolute_mc": absolute_mc,
+                    "role": roles[events_by_id[event_id]["track_id"]],
+                    "mapping": pitch_by_id[event_id]["mapping_q31"],
+                }
+                for event_id, _, absolute_mc in retained
+            ]
+        )
+    return selected
+
+
+def _pair_metrics(
+    from_voice: Mapping[str, Any], to_voice: Mapping[str, Any], policy: Mapping[str, Any]
+) -> dict[str, int]:
+    distance = to_voice["absolute_mc"] - from_voice["absolute_mc"]
+    circular = _circular_motion(distance)
+    left = _expand_distribution(from_voice["mapping"])
+    right = _expand_distribution(to_voice["mapping"])
+    l1 = sum(abs(a - b) for a, b in zip(left, right))
+    pitch_l1_cost_q = _rhe(Fraction(10_000 * l1, 2 * Q31_TOTAL))
+    absolute_cost_q = min(
+        10_000,
+        _rhe(Fraction(10_000 * abs(distance), policy["absolute_motion_cap_millicents"])),
+    )
+    circular_cost_q = _rhe(Fraction(10_000 * abs(circular), 600_000))
+    role_mismatch_cost_q = 0 if from_voice["role"] == to_voice["role"] else 10_000
+    weights = policy["cost_weights"]
+    total_weight = (
+        weights["absolute_motion"]
+        + weights["circular_motion"]
+        + weights["pitch_mapping_l1"]
+        + weights["role_mismatch"]
+    )
+    pair_cost_q = _rhe(
+        Fraction(
+            absolute_cost_q * weights["absolute_motion"]
+            + circular_cost_q * weights["circular_motion"]
+            + pitch_l1_cost_q * weights["pitch_mapping_l1"]
+            + role_mismatch_cost_q * weights["role_mismatch"],
+            total_weight,
+        )
+    )
+    kernels = policy["bass_likeness_kernels"]
+    radius = kernels["radius_millicents"]
+    return {
+        "absolute_motion_millicents": distance,
+        "circular_motion_millicents": circular,
+        "pair_cost_q": pair_cost_q,
+        "common_tone_q": 10_000 - pitch_l1_cost_q,
+        "step_up_likeness_q": _kernel_likeness(
+            abs(circular - kernels["step_up_center_millicents"]), radius
+        ),
+        "step_down_likeness_q": _kernel_likeness(
+            abs(circular - kernels["step_down_center_millicents"]), radius
+        ),
+    }
+
+
+def _best_injection(
+    from_voices: Sequence[Mapping[str, Any]],
+    to_voices: Sequence[Mapping[str, Any]],
+    policy: Mapping[str, Any],
+) -> list[tuple[int, int]]:
+    """Exact minimum-cost injective matching with canonical-key tie-break.
+
+    Dynamic programming over ``(from_ordinal, used_to_mask)``; the comparison
+    key is ``(total_cost, ascending pair tuple)``, which is exactly the
+    contract's ``canonical_matching_key`` order because the pair section
+    determines every later unmatched section.
+    """
+    from_count, to_count = len(from_voices), len(to_voices)
+    to_id_index = {voice["event_id"]: index for index, voice in enumerate(to_voices)}
+    from_id_index = {voice["event_id"]: index for index, voice in enumerate(from_voices)}
+    costs = [
+        [_pair_metrics(from_voices[a], to_voices[b], policy)["pair_cost_q"] for b in range(to_count)]
+        for a in range(from_count)
+    ]
+
+    def allowed(a: int, b: int) -> bool:
+        from_id, to_id = from_voices[a]["event_id"], to_voices[b]["event_id"]
+        if from_id in to_id_index and to_id_index[from_id] != b:
+            return False
+        return not (to_id in from_id_index and from_id_index[to_id] != a)
+
+    memo: dict[tuple[int, int], tuple[int, tuple[tuple[int, int], ...]]] = {}
+
+    def solve(a: int, used_mask: int) -> tuple[int, tuple[tuple[int, int], ...]]:
+        if a == from_count:
+            return (0, ())
+        state = (a, used_mask)
+        if state in memo:
+            return memo[state]
+        best: tuple[int, tuple[tuple[int, int], ...]] | None = None
+        for b in range(to_count):
+            if used_mask >> b & 1 or not allowed(a, b):
+                continue
+            sub_cost, sub_pairs = solve(a + 1, used_mask | (1 << b))
+            candidate = (costs[a][b] + sub_cost, ((a, b),) + sub_pairs)
+            if best is None or candidate < best:
+                best = candidate
+        if best is None:
+            _fail("PIL_VOICE_MATCHING_FAILED")
+        memo[state] = best
+        return best
+
+    _, pairs = solve(0, 0)
+    return list(pairs)
+
+
+def _transition_id(from_segment_id: str, to_segment_id: str, policy_digest: str) -> str:
+    body = {
+        "from_segment_id": from_segment_id,
+        "to_segment_id": to_segment_id,
+        "policy_hash": policy_digest,
+    }
+    digest = hashlib.sha256(b"cps.pil-transition-id/v1\0" + _canonical(body)).hexdigest()
+    return "trn_" + digest[:32]
+
+
+def match_voices(
+    project: Mapping[str, Any],
+    pitch_records: Sequence[Mapping[str, Any]],
+    segments: Sequence[Mapping[str, Any]],
+    segmentation_policy: Mapping[str, Any],
+    policy: Mapping[str, Any],
+) -> list[dict[str, Any]]:
+    """Emit one VoiceMatchingRecord 1.0 per adjacent segment pair (section 6.1)."""
+    voices = _select_segment_voices(project, pitch_records, segments, segmentation_policy, policy)
+    records = []
+    for index, (from_voices, to_voices) in enumerate(zip(voices, voices[1:])):
+        if not from_voices or not to_voices:
+            _fail("PIL_VOICE_MATCHING_FAILED")
+        from_count, to_count = len(from_voices), len(to_voices)
+        pairs = _best_injection(from_voices, to_voices, policy)
+        pair_rows = []
+        motions = []
+        for from_ordinal, to_ordinal in pairs:
+            metrics = _pair_metrics(from_voices[from_ordinal], to_voices[to_ordinal], policy)
+            motions.append(metrics["absolute_motion_millicents"])
+            pair_rows.append(
+                {
+                    "from_event_id": from_voices[from_ordinal]["event_id"],
+                    "to_event_id": to_voices[to_ordinal]["event_id"],
+                    **metrics,
+                }
+            )
+        matched_from = {from_ordinal for from_ordinal, _ in pairs}
+        matched_to = {to_ordinal for _, to_ordinal in pairs}
+        unmatched_from = [ordinal for ordinal in range(from_count) if ordinal not in matched_from]
+        unmatched_to = [ordinal for ordinal in range(to_count) if ordinal not in matched_to]
+        canonical_key = (
+            [from_count, to_count, len(pairs)]
+            + [ordinal for pair in pairs for ordinal in pair]
+            + [len(unmatched_from)]
+            + unmatched_from
+            + [len(unmatched_to)]
+            + unmatched_to
+        )
+        nonzero = [motion for motion in motions if motion]
+        record = {
+            "schema": "cps.perceptual-voice-matching-record",
+            "schema_version": "1.0.0",
+            "transition_id": _transition_id(
+                segments[index]["segment_id"], segments[index + 1]["segment_id"], policy["policy_hash"]
+            ),
+            "from_segment_id": segments[index]["segment_id"],
+            "to_segment_id": segments[index + 1]["segment_id"],
+            "policy_hash": policy["policy_hash"],
+            "selected_from_event_ids": [voice["event_id"] for voice in from_voices],
+            "selected_to_event_ids": [voice["event_id"] for voice in to_voices],
+            "pairs": pair_rows,
+            "unmatched_from_event_ids": [from_voices[o]["event_id"] for o in unmatched_from],
+            "unmatched_to_event_ids": [to_voices[o]["event_id"] for o in unmatched_to],
+            "canonical_matching_key": canonical_key,
+            "total_cost_q": _rhe(Fraction(sum(row["pair_cost_q"] for row in pair_rows), len(pair_rows))),
+            "common_tone_q": _rhe(
+                Fraction(sum(row["common_tone_q"] for row in pair_rows), len(pair_rows))
+            ),
+            "contrary_motion_q": 10_000
+            if any(motion > 0 for motion in nonzero) and any(motion < 0 for motion in nonzero)
+            else 0,
+        }
+        record["record_hash"] = voice_matching_record_hash(record)
+        records.append(record)
+    return records
+
+
+def build_transition_feature_records(
+    project: Mapping[str, Any],
+    pitch_records: Sequence[Mapping[str, Any]],
+    segments: Sequence[Mapping[str, Any]],
+    interpretations: Sequence[Mapping[str, Any]],
+    matching_records: Sequence[Mapping[str, Any]],
+    vocabulary: Mapping[str, Any],
+    policy: Mapping[str, Any],
+) -> list[dict[str, Any]]:
+    """Emit one TransitionFeatureRecord 1.0 per adjacent segment pair (6.2)."""
+    pitch_by_id = {row["source_event_id"]: row for row in pitch_records}
+    tension_by_id = {entry["id"]: entry["functional_tension_q"] for entry in vocabulary["entries"]}
+    tensions = []
+    for interpretation in interpretations:
+        numerator = 0
+        denominator = 0
+        for candidate in interpretation["candidates"]:
+            numerator += candidate["similarity_q"] * tension_by_id[candidate["id"]]
+            denominator += candidate["similarity_q"]
+        if denominator == 0:
+            _fail("PIL_TRAJECTORY_FAILED")
+        tensions.append(_rhe(Fraction(numerator, denominator)))
+    clock = project["clock"]
+    ticks_per_beat = clock.get("ticks_per_beat")
+    beats_per_bar = clock.get("beats_per_bar")
+    if not _is_int(ticks_per_beat, 2, 737_280) or not _is_int(beats_per_bar, 1, 64):
+        _fail("PIL_TRAJECTORY_FAILED")
+    kernels = policy["bass_likeness_kernels"]
+    radius = kernels["radius_millicents"]
+    records = []
+    for index, matching in enumerate(matching_records):
+        from_segment, to_segment = segments[index], segments[index + 1]
+        bass_ids = (from_segment["bass_event_id"], to_segment["bass_event_id"])
+        bass_fields: dict[str, Any]
+        if bass_ids[0] is None or bass_ids[1] is None:
+            bass_fields = {
+                "bass_absolute_motion_millicents": None,
+                "bass_circular_motion_millicents": None,
+                "bass_fifth_likeness_q": None,
+                "bass_fourth_likeness_q": None,
+                "bass_step_likeness_q": None,
+            }
+        else:
+            distance = (
+                pitch_by_id[bass_ids[1]]["absolute_millicents"]
+                - pitch_by_id[bass_ids[0]]["absolute_millicents"]
+            )
+            circular = _circular_motion(distance)
+            bass_fields = {
+                "bass_absolute_motion_millicents": distance,
+                "bass_circular_motion_millicents": circular,
+                "bass_fifth_likeness_q": _kernel_likeness(
+                    _wrapped_distance(circular, kernels["fifth_center_millicents"]), radius
+                ),
+                "bass_fourth_likeness_q": _kernel_likeness(
+                    _wrapped_distance(circular, kernels["fourth_center_millicents"]), radius
+                ),
+                "bass_step_likeness_q": max(
+                    _kernel_likeness(
+                        _wrapped_distance(circular, kernels["step_up_center_millicents"]), radius
+                    ),
+                    _kernel_likeness(
+                        _wrapped_distance(circular, kernels["step_down_center_millicents"]), radius
+                    ),
+                ),
+            }
+        start = to_segment["start_tick"]
+        if start % (ticks_per_beat * beats_per_bar) == 0:
+            metrical_q = 10_000
+        elif start % ticks_per_beat == 0:
+            metrical_q = 7_500
+        elif start % (ticks_per_beat // 2) == 0:
+            metrical_q = 5_000
+        else:
+            metrical_q = 0
+        record = {
+            "schema": "cps.perceptual-transition-feature-record",
+            "schema_version": "1.0.0",
+            "transition_id": matching["transition_id"],
+            "from_segment_id": from_segment["segment_id"],
+            "to_segment_id": to_segment["segment_id"],
+            "matching_record_hash": matching["record_hash"],
+            **bass_fields,
+            "common_tone_q": matching["common_tone_q"],
+            "contrary_motion_q": matching["contrary_motion_q"],
+            "step_up_resolution_q": _rhe(
+                Fraction(
+                    sum(row["step_up_likeness_q"] for row in matching["pairs"]),
+                    len(matching["pairs"]),
+                )
+            ),
+            "step_down_resolution_q": _rhe(
+                Fraction(
+                    sum(row["step_down_likeness_q"] for row in matching["pairs"]),
+                    len(matching["pairs"]),
+                )
+            ),
+            "directed_tension_change_q": tensions[index + 1] - tensions[index],
+            "destination_metrical_strength_q": metrical_q,
+        }
+        record["record_hash"] = transition_feature_record_hash(record)
+        records.append(record)
+    return records
+
+
+def validate_trajectory_template_set(
+    template_set: Mapping[str, Any],
+    manifest: Mapping[str, Any],
+    feature_spec: Mapping[str, Any],
+    vocabulary: Mapping[str, Any],
+    policy: Mapping[str, Any],
+) -> None:
+    """Validate the closed TrajectoryTemplateSet 1.0 payload and its bindings."""
+    required = {
+        "schema",
+        "schema_version",
+        "algorithm",
+        "template_set_schema_hash",
+        "transition_record_schema_hash",
+        "trajectory_result_schema_hash",
+        "feature_spec_hash",
+        "vocabulary_hash",
+        "voice_matching_policy_hash",
+        "alignment",
+        "score_weights",
+        "templates",
+        "template_set_hash",
+    }
+    if not isinstance(template_set, Mapping) or set(template_set) != required:
+        _fail("PIL_TRAJECTORY_FAILED")
+    if (
+        template_set.get("schema") != "cps.perceptual-trajectory-template-set"
+        or template_set.get("schema_version") != "1.0.0"
+        or template_set.get("algorithm") != "pil-consecutive-trajectory-l1/v1"
+        or template_set.get("template_set_schema_hash") != TRAJECTORY_TEMPLATE_SET_SCHEMA_HASH
+        or template_set.get("transition_record_schema_hash") != TRANSITION_FEATURE_RECORD_SCHEMA_HASH
+        or template_set.get("trajectory_result_schema_hash") != TRAJECTORY_RESULT_SCHEMA_HASH
+        or template_set.get("feature_spec_hash") != feature_spec.get("spec_hash")
+        or template_set.get("vocabulary_hash") != vocabulary.get("vocabulary_hash")
+        or template_set.get("voice_matching_policy_hash") != policy.get("policy_hash")
+        or template_set.get("template_set_hash") != manifest.get("trajectory_template_set_hash")
+        or template_set.get("template_set_hash") != trajectory_template_set_hash(template_set)
+    ):
+        _fail("PIL_TRAJECTORY_FAILED")
+    alignment = template_set.get("alignment")
+    if not isinstance(alignment, Mapping) or set(alignment) != {
+        "algorithm",
+        "missing_component_policy",
+        "maximum_results",
+    }:
+        _fail("PIL_TRAJECTORY_FAILED")
+    if (
+        alignment.get("algorithm") != "all-consecutive-windows/v1"
+        or alignment.get("missing_component_policy") != "omit-and-renormalize/v1"
+        or not _is_int(alignment.get("maximum_results"), 1, 4096)
+    ):
+        _fail("PIL_TRAJECTORY_FAILED")
+    component_keys = (
+        "chord",
+        "bass",
+        "common_tone",
+        "contrary_motion",
+        "resolution",
+        "tension",
+        "metrical",
+    )
+    weights = template_set.get("score_weights")
+    if not isinstance(weights, Mapping) or set(weights) != set(component_keys):
+        _fail("PIL_TRAJECTORY_FAILED")
+    if any(not _is_int(weights.get(key), 0, 10_000) for key in component_keys):
+        _fail("PIL_TRAJECTORY_FAILED")
+    if weights["chord"] == 0 or sum(weights[key] for key in component_keys) == 0:
+        _fail("PIL_TRAJECTORY_FAILED")
+    templates = template_set.get("templates")
+    if not isinstance(templates, list) or not 1 <= len(templates) <= 256:
+        _fail("PIL_TRAJECTORY_FAILED")
+    vocabulary_ordinals = {entry["id"]: entry["ordinal"] for entry in vocabulary["entries"]}
+    ids = []
+    for ordinal, template in enumerate(templates):
+        if not isinstance(template, Mapping) or set(template) != {
+            "id",
+            "ordinal",
+            "steps",
+            "transitions",
+        }:
+            _fail("PIL_TRAJECTORY_FAILED")
+        if not isinstance(template["id"], str) or template["ordinal"] != ordinal:
+            _fail("PIL_TRAJECTORY_FAILED")
+        ids.append(template["id"])
+        steps = template["steps"]
+        transitions = template["transitions"]
+        if not isinstance(steps, list) or not 2 <= len(steps) <= 16:
+            _fail("PIL_TRAJECTORY_FAILED")
+        if not isinstance(transitions, list) or len(transitions) != len(steps) - 1:
+            _fail("PIL_TRAJECTORY_FAILED")
+        for step in steps:
+            if not isinstance(step, Mapping) or set(step) != {"chord_targets"}:
+                _fail("PIL_TRAJECTORY_FAILED")
+            targets = step["chord_targets"]
+            if not isinstance(targets, list) or not 1 <= len(targets) <= 256:
+                _fail("PIL_TRAJECTORY_FAILED")
+            target_ordinals = []
+            total_weight = 0
+            for target in targets:
+                if not isinstance(target, Mapping) or set(target) != {
+                    "vocabulary_id",
+                    "weight_q31",
+                }:
+                    _fail("PIL_TRAJECTORY_FAILED")
+                vocabulary_id = target["vocabulary_id"]
+                if vocabulary_id not in vocabulary_ordinals:
+                    _fail("PIL_TRAJECTORY_FAILED")
+                if not _is_int(target["weight_q31"], 1, Q31_TOTAL):
+                    _fail("PIL_TRAJECTORY_FAILED")
+                target_ordinals.append(vocabulary_ordinals[vocabulary_id])
+                total_weight += target["weight_q31"]
+            if (
+                target_ordinals != sorted(target_ordinals)
+                or len(set(target_ordinals)) != len(target_ordinals)
+                or total_weight != Q31_TOTAL
+            ):
+                _fail("PIL_TRAJECTORY_FAILED")
+        for transition in transitions:
+            if not isinstance(transition, Mapping) or set(transition) != {
+                "bass_motion_center_millicents",
+                "bass_motion_radius_millicents",
+                "common_tone_target_q",
+                "contrary_motion_target_q",
+                "resolution_kind",
+                "resolution_target_q",
+                "directed_tension_change_target_q",
+                "metrical_target_q",
+            }:
+                _fail("PIL_TRAJECTORY_FAILED")
+            if not _is_int(transition["bass_motion_center_millicents"], -600_000, 599_999):
+                _fail("PIL_TRAJECTORY_FAILED")
+            if not _is_int(transition["bass_motion_radius_millicents"], 1, 600_000):
+                _fail("PIL_TRAJECTORY_FAILED")
+            if transition["resolution_kind"] not in ("step_up", "step_down"):
+                _fail("PIL_TRAJECTORY_FAILED")
+            if not _is_int(transition["directed_tension_change_target_q"], -10_000, 10_000):
+                _fail("PIL_TRAJECTORY_FAILED")
+            for key in (
+                "common_tone_target_q",
+                "contrary_motion_target_q",
+                "resolution_target_q",
+                "metrical_target_q",
+            ):
+                if not _is_int(transition[key], 0, 10_000):
+                    _fail("PIL_TRAJECTORY_FAILED")
+    if len(set(ids)) != len(ids):
+        _fail("PIL_TRAJECTORY_FAILED")
+
+
+def _trajectory_match_id(
+    template_set_digest: str, template_id: str, segment_ids: Sequence[str]
+) -> str:
+    """Adopted reading of section 6.3: the same domain-separated first-32-hex
+    construction as ``transition_id``, over the template-set hash, template ID
+    and ordered segment IDs."""
+    body = {
+        "segment_ids": list(segment_ids),
+        "template_id": template_id,
+        "template_set_hash": template_set_digest,
+    }
+    digest = hashlib.sha256(b"cps.pil-transition-id/v1\0" + _canonical(body)).hexdigest()
+    return "tjm_" + digest[:32]
+
+
+def align_trajectories(
+    segments: Sequence[Mapping[str, Any]],
+    interpretations: Sequence[Mapping[str, Any]],
+    transition_records: Sequence[Mapping[str, Any]],
+    template_set: Mapping[str, Any],
+) -> list[dict[str, Any]]:
+    """Score every consecutive segment window against every template (6.3)."""
+    weights = template_set["score_weights"]
+    results = []
+    for template in template_set["templates"]:
+        step_count = len(template["steps"])
+        for start in range(0, len(segments) - step_count + 1):
+            window_segments = segments[start : start + step_count]
+            window_transitions = transition_records[start : start + step_count - 1]
+            step_scores = []
+            for offset, step in enumerate(template["steps"]):
+                similarities = {
+                    row["id"]: row["similarity_q"]
+                    for row in interpretations[start + offset]["candidates"]
+                }
+                numerator = sum(
+                    similarities.get(target["vocabulary_id"], 0) * target["weight_q31"]
+                    for target in step["chord_targets"]
+                )
+                step_scores.append(_rhe(Fraction(numerator, Q31_TOTAL)))
+            chord_q = _rhe(Fraction(sum(step_scores), len(step_scores)))
+            bass_scores: list[int] = []
+            component_values: dict[str, list[int]] = {
+                "common_tone": [],
+                "contrary_motion": [],
+                "resolution": [],
+                "tension": [],
+                "metrical": [],
+            }
+            for observed, target in zip(window_transitions, template["transitions"]):
+                if observed["bass_circular_motion_millicents"] is not None:
+                    distance = _wrapped_distance(
+                        observed["bass_circular_motion_millicents"],
+                        target["bass_motion_center_millicents"],
+                    )
+                    bass_scores.append(
+                        _kernel_likeness(distance, target["bass_motion_radius_millicents"])
+                    )
+                component_values["common_tone"].append(
+                    10_000 - abs(observed["common_tone_q"] - target["common_tone_target_q"])
+                )
+                component_values["contrary_motion"].append(
+                    10_000 - abs(observed["contrary_motion_q"] - target["contrary_motion_target_q"])
+                )
+                observed_resolution = (
+                    observed["step_up_resolution_q"]
+                    if target["resolution_kind"] == "step_up"
+                    else observed["step_down_resolution_q"]
+                )
+                component_values["resolution"].append(
+                    10_000 - abs(observed_resolution - target["resolution_target_q"])
+                )
+                component_values["tension"].append(
+                    10_000
+                    - _rhe(
+                        Fraction(
+                            abs(
+                                observed["directed_tension_change_q"]
+                                - target["directed_tension_change_target_q"]
+                            ),
+                            2,
+                        )
+                    )
+                )
+                component_values["metrical"].append(
+                    10_000
+                    - abs(observed["destination_metrical_strength_q"] - target["metrical_target_q"])
+                )
+            bass_q = (
+                None
+                if not bass_scores
+                else _rhe(Fraction(sum(bass_scores), len(bass_scores)))
+            )
+            component_scores = {
+                "chord": chord_q,
+                "bass": bass_q,
+                "common_tone": _rhe(
+                    Fraction(
+                        sum(component_values["common_tone"]), len(component_values["common_tone"])
+                    )
+                ),
+                "contrary_motion": _rhe(
+                    Fraction(
+                        sum(component_values["contrary_motion"]),
+                        len(component_values["contrary_motion"]),
+                    )
+                ),
+                "resolution": _rhe(
+                    Fraction(
+                        sum(component_values["resolution"]), len(component_values["resolution"])
+                    )
+                ),
+                "tension": _rhe(
+                    Fraction(sum(component_values["tension"]), len(component_values["tension"]))
+                ),
+                "metrical": _rhe(
+                    Fraction(sum(component_values["metrical"]), len(component_values["metrical"]))
+                ),
+            }
+            available = [
+                (score, weights[name])
+                for name, score in component_scores.items()
+                if score is not None
+            ]
+            similarity_q = _rhe(
+                Fraction(
+                    sum(score * weight for score, weight in available),
+                    sum(weight for _, weight in available),
+                )
+            )
+            segment_ids = [segment["segment_id"] for segment in window_segments]
+            result = {
+                "schema": "cps.perceptual-trajectory-interpretation",
+                "schema_version": "1.0.0",
+                "match_id": _trajectory_match_id(
+                    template_set["template_set_hash"], template["id"], segment_ids
+                ),
+                "template_set_hash": template_set["template_set_hash"],
+                "template_id": template["id"],
+                "template_ordinal": template["ordinal"],
+                "start_segment_ordinal": start,
+                "segment_ids": segment_ids,
+                "transition_record_hashes": [row["record_hash"] for row in window_transitions],
+                "component_scores_q": {
+                    "chord": component_scores["chord"],
+                    "bass": component_scores["bass"],
+                    "common_tone": component_scores["common_tone"],
+                    "contrary_motion": component_scores["contrary_motion"],
+                    "resolution": component_scores["resolution"],
+                    "tension": component_scores["tension"],
+                    "metrical": component_scores["metrical"],
+                },
+                "similarity_q": similarity_q,
+                "canonical_alignment_key": [template["ordinal"], start],
+            }
+            result["result_hash"] = trajectory_result_hash(result)
+            results.append(result)
+    results.sort(
+        key=lambda row: (-row["similarity_q"], row["template_ordinal"], row["start_segment_ordinal"])
+    )
+    return results[: template_set["alignment"]["maximum_results"]]
+
+
 def cache_key(
     project_digest: str, manifest: Mapping[str, Any], completed_phase: str = "pitch_projection"
 ) -> str:
@@ -1076,6 +1846,8 @@ def _failure_report(
         "segments": [],
         "feature_records": [],
         "segment_interpretations": [],
+        "voice_matching_records": [],
+        "transition_feature_records": [],
         "trajectory_interpretations": [],
         "genre_interpretations": [],
         "missing_groups": [],
@@ -1095,29 +1867,42 @@ def run_perceptual_interpretation(
     segmentation_policy: Mapping[str, Any] | None = None,
     feature_spec: Mapping[str, Any] | None = None,
     chord_vocabulary: Mapping[str, Any] | None = None,
+    voice_matching_policy: Mapping[str, Any] | None = None,
+    trajectory_template_set: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Run PIL pitch projection and optional harmonic segmentation.
+    """Run PIL pitch projection through the requested phase.
 
     The Project and any Native JI evidence are never mutated; a PIL failure
     report stays independent of the Native JI branch and cannot trigger a
     Native JI fallback.  Cache cold, hit, and corrupt executions return
-    byte-identical reports.
+    byte-identical reports.  Phase 4 requires the Phase 4 build identity;
+    a Phase 3 build manifest is accepted only for ``chord_similarity`` and
+    earlier phases.
     """
-    project_digest = verify_binding(
-        project,
-        manifest,
-        expected_project_hash=expected_project_hash,
-        native_ji_report_hash=native_ji_report_hash,
-    )
-    manifest_digest = manifest["manifest_hash"]
     phase3_requested = feature_spec is not None or chord_vocabulary is not None
+    phase4_requested = voice_matching_policy is not None or trajectory_template_set is not None
     completed_phase = (
-        "chord_similarity"
+        "functional_trajectory"
+        if phase4_requested
+        else "chord_similarity"
         if phase3_requested
         else "harmonic_segmentation"
         if segmentation_policy is not None
         else "pitch_projection"
     )
+    allowed_build_ids = (
+        (PIL_IMPLEMENTATION_BUILD_ID,)
+        if phase4_requested
+        else (PIL_PHASE3_BUILD_ID, PIL_IMPLEMENTATION_BUILD_ID)
+    )
+    project_digest = verify_binding(
+        project,
+        manifest,
+        expected_project_hash=expected_project_hash,
+        native_ji_report_hash=native_ji_report_hash,
+        allowed_build_ids=allowed_build_ids,
+    )
+    manifest_digest = manifest["manifest_hash"]
     key = cache_key(project_digest, manifest, completed_phase)
     cache_path = Path(cache_dir) if cache_dir is not None else None
     if cache_path is not None:
@@ -1155,7 +1940,12 @@ def run_perceptual_interpretation(
         segments: list[dict[str, Any]] = []
         feature_records: list[dict[str, Any]] = []
         interpretations: list[dict[str, Any]] = []
+        matching_records: list[dict[str, Any]] = []
+        transition_records: list[dict[str, Any]] = []
+        trajectory_results: list[dict[str, Any]] = []
         if phase3_requested and segmentation_policy is None:
+            _fail("PIL_FEATURE_EXTRACTION_FAILED")
+        if phase4_requested and (feature_spec is None or chord_vocabulary is None):
             _fail("PIL_FEATURE_EXTRACTION_FAILED")
         if segmentation_policy is not None:
             validate_segmentation_policy(segmentation_policy, manifest)
@@ -1178,6 +1968,35 @@ def run_perceptual_interpretation(
             interpretations = interpret_chord_features(
                 feature_records, feature_spec, chord_vocabulary
             )
+        if phase4_requested:
+            # Voice matching precedes trajectory validation (contract 6.4).
+            if voice_matching_policy is None:
+                _fail("PIL_VOICE_MATCHING_FAILED")
+            validate_voice_matching_policy(voice_matching_policy, manifest, feature_spec)
+            matching_records = match_voices(
+                project, records, segments, segmentation_policy, voice_matching_policy
+            )
+            transition_records = build_transition_feature_records(
+                project,
+                records,
+                segments,
+                interpretations,
+                matching_records,
+                chord_vocabulary,
+                voice_matching_policy,
+            )
+            if trajectory_template_set is None:
+                _fail("PIL_TRAJECTORY_FAILED")
+            validate_trajectory_template_set(
+                trajectory_template_set,
+                manifest,
+                feature_spec,
+                chord_vocabulary,
+                voice_matching_policy,
+            )
+            trajectory_results = align_trajectories(
+                segments, interpretations, transition_records, trajectory_template_set
+            )
         report = {
             "schema": REPORT_SCHEMA,
             "schema_version": REPORT_SCHEMA_VERSION,
@@ -1190,7 +2009,9 @@ def run_perceptual_interpretation(
             "segments": segments,
             "feature_records": feature_records,
             "segment_interpretations": interpretations,
-            "trajectory_interpretations": [],
+            "voice_matching_records": matching_records,
+            "transition_feature_records": transition_records,
+            "trajectory_interpretations": trajectory_results,
             "genre_interpretations": [],
             "missing_groups": [],
             "error": None,
@@ -1218,6 +2039,7 @@ def _validate_report_bounds(report: Mapping[str, Any]) -> None:
         "pitch_projection",
         "harmonic_segmentation",
         "chord_similarity",
+        "functional_trajectory",
     }:
         _fail("PIL_RESULT_VALIDATION")
     if (status == "success" and error is not None) or (
@@ -1249,8 +2071,14 @@ def _validate_report_bounds(report: Mapping[str, Any]) -> None:
         _fail("PIL_RESULT_VALIDATION")
     if report["completed_phase"] == "pitch_projection" and segments:
         _fail("PIL_RESULT_VALIDATION")
-    if report["completed_phase"] != "chord_similarity" and (
+    if report["completed_phase"] not in {"chord_similarity", "functional_trajectory"} and (
         report["feature_records"] or report["segment_interpretations"]
+    ):
+        _fail("PIL_RESULT_VALIDATION")
+    if report["completed_phase"] != "functional_trajectory" and (
+        report["voice_matching_records"]
+        or report["transition_feature_records"]
+        or report["trajectory_interpretations"]
     ):
         _fail("PIL_RESULT_VALIDATION")
     previous_end = None
@@ -1266,7 +2094,9 @@ def _validate_report_bounds(report: Mapping[str, Any]) -> None:
         ordinals = [row["pitch_class_ordinal"] for row in weights]
         if ordinals != sorted(ordinals) or len(set(ordinals)) != len(ordinals):
             _fail("PIL_RESULT_VALIDATION")
-    if report["completed_phase"] == "chord_similarity" and report["status"] == "success":
+    if report["completed_phase"] in {"chord_similarity", "functional_trajectory"} and report[
+        "status"
+    ] == "success":
         if not (
             len(report["segments"])
             == len(report["feature_records"])
@@ -1302,6 +2132,64 @@ def _validate_report_bounds(report: Mapping[str, Any]) -> None:
                 or interpretation.get("confidence_q") != scores[0]
             ):
                 _fail("PIL_RESULT_VALIDATION")
+    if report["completed_phase"] == "functional_trajectory" and report["status"] == "success":
+        matching = report["voice_matching_records"]
+        transitions = report["transition_feature_records"]
+        trajectory = report["trajectory_interpretations"]
+        if not (len(matching) == len(transitions) == max(0, len(report["segments"]) - 1)):
+            _fail("PIL_RESULT_VALIDATION")
+        for index, record in enumerate(matching):
+            if record.get("record_hash") != voice_matching_record_hash(record):
+                _fail("PIL_RESULT_VALIDATION")
+            if record.get("from_segment_id") != report["segments"][index]["segment_id"] or (
+                record.get("to_segment_id") != report["segments"][index + 1]["segment_id"]
+            ):
+                _fail("PIL_RESULT_VALIDATION")
+            pairs = record.get("pairs")
+            if not isinstance(pairs, list) or not 1 <= len(pairs) <= 12:
+                _fail("PIL_RESULT_VALIDATION")
+            for pair in pairs:
+                if not _is_int(pair.get("circular_motion_millicents"), -600_000, 599_999):
+                    _fail("PIL_RESULT_VALIDATION")
+                for key in (
+                    "pair_cost_q",
+                    "common_tone_q",
+                    "step_up_likeness_q",
+                    "step_down_likeness_q",
+                ):
+                    if not _is_int(pair.get(key), 0, 10_000):
+                        _fail("PIL_RESULT_VALIDATION")
+        for index, record in enumerate(transitions):
+            if record.get("record_hash") != transition_feature_record_hash(record):
+                _fail("PIL_RESULT_VALIDATION")
+            if record.get("matching_record_hash") != matching[index]["record_hash"]:
+                _fail("PIL_RESULT_VALIDATION")
+            if record.get("transition_id") != matching[index]["transition_id"]:
+                _fail("PIL_RESULT_VALIDATION")
+            if not _is_int(record.get("directed_tension_change_q"), -10_000, 10_000):
+                _fail("PIL_RESULT_VALIDATION")
+        ordering = [
+            (-row["similarity_q"], row["template_ordinal"], row["start_segment_ordinal"])
+            for row in trajectory
+        ]
+        if ordering != sorted(ordering):
+            _fail("PIL_RESULT_VALIDATION")
+        for row in trajectory:
+            if row.get("result_hash") != trajectory_result_hash(row):
+                _fail("PIL_RESULT_VALIDATION")
+            if row.get("canonical_alignment_key") != [
+                row["template_ordinal"],
+                row["start_segment_ordinal"],
+            ]:
+                _fail("PIL_RESULT_VALIDATION")
+            scores_q = row.get("component_scores_q")
+            if not isinstance(scores_q, Mapping):
+                _fail("PIL_RESULT_VALIDATION")
+            for name, score in scores_q.items():
+                if score is None and name != "bass":
+                    _fail("PIL_RESULT_VALIDATION")
+                if score is not None and not _is_int(score, 0, 10_000):
+                    _fail("PIL_RESULT_VALIDATION")
 
 
 __all__: Sequence[str] = (
@@ -1316,6 +2204,7 @@ __all__: Sequence[str] = (
     "NUMERIC_CONTRACT_HASH",
     "PIL_ALGORITHM",
     "PIL_IMPLEMENTATION_BUILD_ID",
+    "PIL_PHASE3_BUILD_ID",
     "PROJECT_SCHEMA_HASH",
     "PilError",
     "Q31_TOTAL",
@@ -1324,6 +2213,13 @@ __all__: Sequence[str] = (
     "BOUNDARY_PRIORITY",
     "TRACK_ROLES",
     "SEGMENTATION_POLICY_SCHEMA_HASH",
+    "TRANSITION_FEATURE_RECORD_SCHEMA_HASH",
+    "TRAJECTORY_RESULT_SCHEMA_HASH",
+    "TRAJECTORY_TEMPLATE_SET_SCHEMA_HASH",
+    "VOICE_MATCHING_POLICY_SCHEMA_HASH",
+    "VOICE_MATCHING_RECORD_SCHEMA_HASH",
+    "align_trajectories",
+    "build_transition_feature_records",
     "cache_key",
     "canonical_report_bytes",
     "chord_feature_record_hash",
@@ -1333,15 +2229,23 @@ __all__: Sequence[str] = (
     "extract_chord_features",
     "manifest_hash",
     "interpret_chord_features",
+    "match_voices",
     "project_hash",
     "report_hash",
     "segmentation_policy_hash",
     "segment_harmony",
     "run_perceptual_interpretation",
+    "transition_feature_record_hash",
+    "trajectory_result_hash",
+    "trajectory_template_set_hash",
     "triangular_mapping_q31",
     "validate_manifest",
     "validate_chord_feature_spec",
     "validate_chord_vocabulary",
     "validate_segmentation_policy",
+    "validate_trajectory_template_set",
+    "validate_voice_matching_policy",
     "verify_binding",
+    "voice_matching_policy_hash",
+    "voice_matching_record_hash",
 )

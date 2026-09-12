@@ -16,7 +16,8 @@ def test_pil_is_explicitly_parallel_and_non_replacing() -> None:
         "new, parallel interpretation",
         "Neither branch consumes the other branch's report",
         "never removes or aliases a Native JI criterion",
-        "matching remains unchanged and continues to own native voice-leading metrics",
+        "Native GEN0-B matching is neither an input nor fallback and remains the\n"
+        "sole owner of native voice-leading metrics",
         "cannot trigger a Native JI fallback",
     ):
         assert phrase in text
