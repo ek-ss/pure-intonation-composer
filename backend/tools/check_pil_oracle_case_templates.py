@@ -109,6 +109,21 @@ def main() -> int:
             if row.get(key) is not None:
                 _fail(f"{path.name}: suite_index row {key} must stay null")
 
+    # Informational only: which templates are not (yet) in the promoted
+    # authoritative suite.  Promotion is the oracle maintainer's decision, so
+    # a difference never fails this check.
+    promoted_dir = (
+        BACKEND / "songprogram_conformance" / "fixtures" / "pil_oracle"
+    )
+    if promoted_dir.is_dir():
+        promoted = {path.stem for path in promoted_dir.glob("pil_*.json")}
+        pending = sorted(set(case_ids) - promoted)
+        if pending:
+            print(f"note: templates not yet promoted: {', '.join(pending)}")
+        extra = sorted(promoted - set(case_ids))
+        if extra:
+            print(f"note: promoted cases without a template: {', '.join(extra)}")
+
     if FAILURES:
         for failure in FAILURES:
             print(f"FAIL: {failure}")
