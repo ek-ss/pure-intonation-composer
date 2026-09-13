@@ -667,6 +667,17 @@ def segment_harmony(
     tracks = project.get("tracks")
     if not isinstance(clock, Mapping) or not isinstance(tracks, list):
         _fail("PIL_SEGMENTATION_POLICY_INVALID")
+    # Failure precedence (contract section 4.3): every
+    # PIL_SEGMENTATION_POLICY_INVALID condition is checked before the first
+    # PIL_SEGMENT_BOUNDARY_INVALID condition.
+    track_roles: dict[str, str] = {}
+    for track in tracks:
+        if not isinstance(track, Mapping):
+            _fail("PIL_SEGMENTATION_POLICY_INVALID")
+        track_id, role = track.get("id"), track.get("role")
+        if not isinstance(track_id, str) or track_id in track_roles or role not in TRACK_ROLES:
+            _fail("PIL_SEGMENTATION_POLICY_INVALID")
+        track_roles[track_id] = role
     ticks_per_beat = clock.get("ticks_per_beat")
     total_ticks = clock.get("total_ticks")
     divisor = policy["grid_divisions_per_beat"]
@@ -677,14 +688,6 @@ def segment_harmony(
         or ticks_per_beat % 2
     ):
         _fail("PIL_SEGMENT_BOUNDARY_INVALID")
-    track_roles: dict[str, str] = {}
-    for track in tracks:
-        if not isinstance(track, Mapping):
-            _fail("PIL_SEGMENTATION_POLICY_INVALID")
-        track_id, role = track.get("id"), track.get("role")
-        if not isinstance(track_id, str) or track_id in track_roles or role not in TRACK_ROLES:
-            _fail("PIL_SEGMENTATION_POLICY_INVALID")
-        track_roles[track_id] = role
     record_by_id = {row["source_event_id"]: row for row in pitch_records}
     notes: list[dict[str, Any]] = []
     for event in sorted(
