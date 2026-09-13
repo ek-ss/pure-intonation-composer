@@ -18,7 +18,7 @@ TEMPLATES = Path(__file__).resolve().parents[2] / "docs/pil_oracle_case_template
 
 def test_generated_templates_are_standalone_and_match_checked_in_inputs() -> None:
     cases = build_cases()
-    assert len(cases) == 18
+    assert len(cases) == 19
     assert {label for case in cases for label in case["coverage"]} == set(PIL_REQUIRED_COVERAGE)
     for case in cases:
         checked_in = json.loads((TEMPLATES / f"{case['case_id']}.json").read_text(encoding="utf-8"))
@@ -108,6 +108,10 @@ def test_owner_review_semantic_contrasts_are_present_before_promotion() -> None:
     baseline_similarity = passing[1]["candidates"][0]
     assert passing_similarity["id"] == baseline_similarity["id"] == "major"
     assert baseline_similarity["similarity_q"] - passing_similarity["similarity_q"] >= 700
+
+    tet_major = _run_template(cases["pil_12tet_major_chord"])["segment_interpretations"][0]
+    assert tet_major["best_label"] == "major"
+    assert tet_major["candidates"][0]["id"] == "major"
 
 
 def _run_template(case: dict) -> dict:
