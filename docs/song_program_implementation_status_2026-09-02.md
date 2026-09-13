@@ -271,3 +271,31 @@ report/case/suite hashes. Production code cannot synthesize those values.
 Draft 2020-12 case-schema validation remains an explicit caller callback because
 the runtime dependency set does not contain a pinned JSON Schema engine; no
 ambient or partial schema implementation is silently selected.
+
+## 2026-09-13 PIL oracle promotion and open-decision drafts
+
+The authoritative PIL oracle suite is now promoted
+(`backend/songprogram_conformance/fixtures/pil_oracle/`, commit `0a39ba9`).
+Since then the implementation side added only non-authoritative support
+material:
+
+- an eighteenth input template `pil_trajectory_overlap_windows` (two
+  consecutive template-length windows) and three new required coverage
+  labels (`segment_boundary`, `passing_tone_regression`,
+  `native_ji_separation`) anchoring contract section 9 items 8, 3 and 6 —
+  twenty-eight labels, all covered by the eighteen templates;
+- read-only guard tools enforced by pytest:
+  `tools/check_pil_contract_schema_hashes.py` (contract section 2 hash
+  bindings vs schema pack vs implementation constants),
+  `tools/check_pil_oracle_case_templates.py` (template pre-flight:
+  binding validation, null goldens, coverage, index mirroring) and
+  `tools/check_pil_genre_draft_consistency.py` (genre draft alignment);
+- non-normative open-decision drafts for the remaining SPEC-BLOCKERs:
+  `song_program_pil_genre_interpretation_draft.md` (G1–G7, with draft
+  schemas and examples under `docs/pil_genre_draft/`),
+  `song_program_pil_calibration_promotion_draft.md` (C1–C6) and
+  `song_program_pil_metric_id_registry_draft.md` (candidate metric IDs).
+
+All PIL metrics remain audit-only: genre interpretation (G1–G7) and
+CalibrationDecision promotion (C1–C6) are owner decisions, and no PIL metric
+is connected to QD/archive/challenger/stopping.
