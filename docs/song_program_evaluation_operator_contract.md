@@ -127,6 +127,12 @@ Every quotient below uses that operation, never binary floating point.
 
 Within-rater units are non-null `repeat_pair_id` groups containing exactly two
 rows for one participant and one stratum; any other cardinality is invalid.
+The two rows MAY use distinct `item_id` values: `repeat_pair_id`, rather than
+`item_id`, is the sole repeat-unit identity. Within one `(stratum,item_id)`
+there MUST be at most one row for each participant. This keeps every
+inter-rater item group a total function from participant to ordinal judgment;
+duplicate participant rows are `CALIBRATION_INPUT_INVALID` rather than an
+implementation-selected collapse.
 Order each pair by presentation ordinal. For `n` pairs, let `O` be the sum of
 `W[first][second]`, `A[i]` and `B[j]` the first/second marginal counts, and
 `E=sum(A[i]*B[j]*W[i][j])`. The reported value is

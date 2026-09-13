@@ -16,6 +16,20 @@ class ExtensionError(ValueError):
 
 
 Q31_MIN, Q31_MAX = -(2**31), 2**31 - 1
+ORDINAL_INDEX = {"smaller": 0, "similar": 1, "larger": 2}
+ORDINAL_WEIGHT_Q = (
+    (10_000, 7_500, 0),
+    (7_500, 10_000, 7_500),
+    (0, 7_500, 10_000),
+)
+
+
+def _nonnegative_rhe(numerator: int, denominator: int) -> int:
+    """Contract-named RHE: ties round upward for non-negative quotients."""
+    if numerator < 0 or denominator <= 0:
+        raise ExtensionError("CALIBRATION_STATISTIC_INPUT_INVALID")
+    quotient, remainder = divmod(numerator, denominator)
+    return quotient + (2 * remainder >= denominator)
 
 
 def _q31(value: Any) -> int:
@@ -80,7 +94,8 @@ def validate_response_rows(
 ) -> None:
     allowed_people, allowed_strata = set(participant_hashes), set(strata)
     seen: set[tuple[str, str, int]] = set()
-    previous: tuple[bytes, bytes, int] | None = None
+    inter_rater_members: set[tuple[str, str, str]] = set()
+    previous: tuple[bytes, bytes, bytes, int] | None = None
     for row in rows:
         key = (row.get("participant_hash"), row.get("item_id"), row.get("presentation_ordinal"))
         if (
@@ -91,10 +106,19 @@ def validate_response_rows(
             raise ExtensionError("CALIBRATION_ROW_INVALID")
         if key[0] not in allowed_people or row.get("stratum") not in allowed_strata or key in seen:
             raise ExtensionError("CALIBRATION_ROW_INVALID")
-        order = (key[0].encode("ascii"), key[1].encode("utf-8"), key[2])
+        inter_rater_member = (row["stratum"], key[1], key[0])
+        if inter_rater_member in inter_rater_members:
+            raise ExtensionError("CALIBRATION_ROW_INVALID")
+        order = (
+            row["stratum"].encode("utf-8"),
+            key[1].encode("utf-8"),
+            key[0].encode("ascii"),
+            key[2],
+        )
         if previous is not None and order <= previous:
             raise ExtensionError("CALIBRATION_ROW_ORDER_INVALID")
         seen.add(key)
+        inter_rater_members.add(inter_rater_member)
         previous = order
 
 
@@ -157,7 +181,111 @@ def criterion_ratio(numerator: int, denominator: int) -> int | None:
         raise ExtensionError("CALIBRATION_RATIO_INVALID")
     if denominator == 0:
         return None
-    return _round_half_even(Fraction(10_000 * numerator, denominator))
+    return _nonnegative_rhe(10_000 * numerator, denominator)
+
+
+def calibration_statistics(rows: Sequence[Mapping[str, Any]]) -> dict[str, int | None]:
+    """Recompute the four calibration point statistics and their counts."""
+    if not rows:
+        raise ExtensionError("CALIBRATION_STATISTIC_INPUT_INVALID")
+    try:
+        indexed = [(row, ORDINAL_INDEX[row["ordinal_judgment"]]) for row in rows]
+    except (KeyError, TypeError) as error:
+        raise ExtensionError("CALIBRATION_STATISTIC_INPUT_INVALID") from error
+
+    repeat_groups: dict[tuple[Any, Any, Any], list[tuple[Mapping[str, Any], int]]] = {}
+    item_groups: dict[tuple[Any, Any], list[tuple[Mapping[str, Any], int]]] = {}
+    for row, ordinal in indexed:
+        participant = row.get("participant_hash")
+        stratum = row.get("stratum")
+        item = row.get("item_id")
+        presentation = row.get("presentation_ordinal")
+        if (
+            not isinstance(participant, str)
+            or not isinstance(stratum, str)
+            or not isinstance(item, str)
+        ):
+            raise ExtensionError("CALIBRATION_STATISTIC_INPUT_INVALID")
+        if isinstance(presentation, bool) or not isinstance(presentation, int) or presentation < 0:
+            raise ExtensionError("CALIBRATION_STATISTIC_INPUT_INVALID")
+        item_groups.setdefault((stratum, item), []).append((row, ordinal))
+        repeat_id = row.get("repeat_pair_id")
+        if repeat_id is not None:
+            if not isinstance(repeat_id, str):
+                raise ExtensionError("CALIBRATION_STATISTIC_INPUT_INVALID")
+            repeat_groups.setdefault((participant, stratum, repeat_id), []).append((row, ordinal))
+
+    first_marginal = [0, 0, 0]
+    second_marginal = [0, 0, 0]
+    observed = 0
+    for pair in repeat_groups.values():
+        if len(pair) != 2:
+            raise ExtensionError("CALIBRATION_REPEAT_PAIR_INVALID")
+        pair.sort(key=lambda item: item[0]["presentation_ordinal"])
+        if pair[0][0]["presentation_ordinal"] == pair[1][0]["presentation_ordinal"]:
+            raise ExtensionError("CALIBRATION_REPEAT_PAIR_INVALID")
+        first, second = pair[0][1], pair[1][1]
+        first_marginal[first] += 1
+        second_marginal[second] += 1
+        observed += ORDINAL_WEIGHT_Q[first][second]
+    pair_count = len(repeat_groups)
+    within: int | None = None
+    if pair_count:
+        expected = sum(
+            first_marginal[i] * second_marginal[j] * ORDINAL_WEIGHT_Q[i][j]
+            for i in range(3)
+            for j in range(3)
+        )
+        denominator = 10_000 * pair_count * pair_count - expected
+        if denominator:
+            within = _nonnegative_rhe(
+                10_000 * max(0, pair_count * observed - expected),
+                denominator,
+            )
+
+    inter_total = 0
+    inter_count = 0
+    for group in item_groups.values():
+        by_participant: dict[str, int] = {}
+        for row, ordinal in group:
+            participant = row["participant_hash"]
+            if participant in by_participant:
+                raise ExtensionError("CALIBRATION_INTER_RATER_UNIT_INVALID")
+            by_participant[participant] = ordinal
+        participants = sorted(by_participant)
+        for left_index, left in enumerate(participants):
+            for right in participants[left_index + 1 :]:
+                inter_total += ORDINAL_WEIGHT_Q[by_participant[left]][by_participant[right]]
+                inter_count += 1
+    inter = _nonnegative_rhe(inter_total, inter_count) if inter_count else None
+
+    auto_small = sum(bool(row.get("auto_small")) for row, _ in indexed)
+    true_positive = sum(
+        bool(row.get("auto_small"))
+        and row.get("ordinal_judgment") == "similar"
+        and row.get("broken") is False
+        for row, _ in indexed
+    )
+    large_or_broken = sum(
+        row.get("ordinal_judgment") == "larger" or row.get("broken") is True for row, _ in indexed
+    )
+    false_accept = sum(
+        bool(row.get("auto_small"))
+        and (row.get("ordinal_judgment") == "larger" or row.get("broken") is True)
+        for row, _ in indexed
+    )
+    return {
+        "repeat_pair_count": pair_count,
+        "inter_rater_pair_count": inter_count,
+        "auto_small_count": auto_small,
+        "auto_small_true_positive_count": true_positive,
+        "large_or_broken_count": large_or_broken,
+        "large_or_broken_false_accept_count": false_accept,
+        "within_rater_q": within,
+        "inter_rater_q": inter,
+        "precision_q": criterion_ratio(true_positive, auto_small),
+        "false_accept_q": criterion_ratio(false_accept, large_or_broken),
+    }
 
 
 def calibrated_criterion(

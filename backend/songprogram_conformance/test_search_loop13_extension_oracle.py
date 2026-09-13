@@ -3,6 +3,7 @@ import pytest
 from .search_loop13_extension_oracle import (
     ExtensionError,
     bootstrap_indices,
+    calibration_statistics,
     calibrated_criterion,
     challenger_ni_imp,
     criterion_ratio,
@@ -59,6 +60,20 @@ def test_reference_response_and_round_semantics_are_closed() -> None:
         ["sha256:" + "a" * 64],
         ["s"],
     )
+    with pytest.raises(ExtensionError, match="ROW_INVALID"):
+        validate_response_rows(
+            [
+                {
+                    "participant_hash": "sha256:" + "a" * 64,
+                    "item_id": "a",
+                    "presentation_ordinal": ordinal,
+                    "stratum": "s",
+                }
+                for ordinal in (0, 1)
+            ],
+            ["sha256:" + "a" * 64],
+            ["s"],
+        )
     assert material_improvement(
         [
             {
@@ -70,6 +85,41 @@ def test_reference_response_and_round_semantics_are_closed() -> None:
         ],
         2,
     )
+
+
+def test_calibration_statistics_are_recomputed_from_rows() -> None:
+    people = ["sha256:" + char * 64 for char in ("a", "b")]
+    rows = [
+        {
+            "participant_hash": people[0],
+            "item_id": ("one", "one_repeat")[ordinal],
+            "stratum": "s",
+            "presentation_ordinal": ordinal,
+            "repeat_pair_id": "repeat_one",
+            "ordinal_judgment": "similar",
+            "broken": False,
+            "auto_small": True,
+        }
+        for ordinal in (0, 1)
+    ]
+    rows.append(
+        {
+            "participant_hash": people[1],
+            "item_id": "one",
+            "stratum": "s",
+            "presentation_ordinal": 0,
+            "repeat_pair_id": None,
+            "ordinal_judgment": "similar",
+            "broken": False,
+            "auto_small": True,
+        }
+    )
+    statistics = calibration_statistics(rows)
+    assert statistics["repeat_pair_count"] == 1
+    assert statistics["inter_rater_pair_count"] == 1
+    assert statistics["inter_rater_q"] == 10_000
+    assert statistics["precision_q"] == 10_000
+    assert statistics["false_accept_q"] is None
 
 
 def test_challenger_noninferiority_improvement_and_tie() -> None:
