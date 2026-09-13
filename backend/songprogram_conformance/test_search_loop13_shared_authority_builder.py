@@ -44,3 +44,11 @@ def test_owner_artifact_nullability_partition_is_exact() -> None:
     assert len(NULL_ARTIFACTS) == 5
     assert set(NON_NULL_ARTIFACTS).isdisjoint(NULL_ARTIFACTS)
     assert set(NON_NULL_ARTIFACTS) | set(NULL_ARTIFACTS) == required
+
+
+def test_search_loop13_binds_noncyclic_calibration_decision_schema() -> None:
+    assert SCHEMA_FILES["calibration_decision"] == "calibration_decision_1_1.schema.json"
+    schema = json.loads((SCHEMAS / SCHEMA_FILES["calibration_decision"]).read_bytes())
+    assert schema["properties"]["schema_version"]["const"] == "1.1.0"
+    assert "genre_intent_hash" not in schema["properties"]
+    assert "evaluation_manifest_hash" not in schema["properties"]

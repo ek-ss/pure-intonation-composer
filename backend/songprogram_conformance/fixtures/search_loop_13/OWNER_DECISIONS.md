@@ -39,6 +39,11 @@ are not production defaults.
   content-addressed CAS authority reachable from CalibrationDecision and
   CalibrationDataset evidence, registered in the fixture edge registry, and
   verified against the exact checked-in listener-cohort schema bytes.
+- SearchLoop13 uses the non-cyclic `CalibrationDecision 1.1` schema. Legacy
+  version 1.0 is not reinterpreted: its downstream GenreIntent and
+  EvaluationManifest bindings make it unsuitable for new content-addressed
+  runs. Fixture dependency order is calibration evidence, decision,
+  GenreIntent, then EvaluationManifest.
 - `fallback_sampler` and `broad_prior_production` bind the same exact raw bytes
   and SHA-256 of `docs/song_program_fallback_sampler_contract.md`, because that
   one versioned contract owns both named sections. Contract-binding field names

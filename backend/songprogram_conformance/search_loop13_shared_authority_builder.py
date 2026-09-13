@@ -76,7 +76,7 @@ SCHEMA_FILES = {
     "feature_extractor_manifest": "feature_extractor_manifest.schema.json",
     "genre_feature_record": "genre_feature_record.schema.json",
     "genre_similarity_spec": "genre_similarity_spec.schema.json",
-    "calibration_decision": "calibration_decision.schema.json",
+    "calibration_decision": "calibration_decision_1_1.schema.json",
     "calibration_dataset_manifest": "calibration_dataset_manifest.schema.json",
     "calibration_response_set": "calibration_response_set.schema.json",
     "calibration_statistic_operator": "calibration_statistic_operator.schema.json",

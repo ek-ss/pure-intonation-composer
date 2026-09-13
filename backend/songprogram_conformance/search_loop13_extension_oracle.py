@@ -288,6 +288,142 @@ def calibration_statistics(rows: Sequence[Mapping[str, Any]]) -> dict[str, int |
     }
 
 
+def calibration_bootstrap_values(
+    rows: Sequence[Mapping[str, Any]],
+    *,
+    root_seed: int,
+    replicate_count: int,
+    strata: Sequence[str],
+) -> dict[str, list[int]]:
+    """Compute the four path-addressed, stratified bootstrap arrays."""
+    if replicate_count < 1 or len(strata) != len(set(strata)) or not strata:
+        raise ExtensionError("CALIBRATION_BOOTSTRAP_INPUT_INVALID")
+    ordered_strata = sorted(strata, key=lambda item: item.encode("utf-8"))
+    if list(strata) != ordered_strata:
+        raise ExtensionError("CALIBRATION_BOOTSTRAP_INPUT_INVALID")
+
+    by_stratum = {
+        stratum: [row for row in rows if row.get("stratum") == stratum] for stratum in strata
+    }
+    if any(not values for values in by_stratum.values()) or sum(
+        map(len, by_stratum.values())
+    ) != len(rows):
+        raise ExtensionError("CALIBRATION_BOOTSTRAP_INPUT_INVALID")
+
+    repeat_units: dict[str, list[list[Mapping[str, Any]]]] = {}
+    item_units: dict[str, list[list[Mapping[str, Any]]]] = {}
+    for stratum, stratum_rows in by_stratum.items():
+        repeat_groups: dict[tuple[str, str], list[Mapping[str, Any]]] = {}
+        item_groups: dict[str, list[Mapping[str, Any]]] = {}
+        for row in stratum_rows:
+            item_groups.setdefault(str(row["item_id"]), []).append(row)
+            repeat_id = row.get("repeat_pair_id")
+            if repeat_id is not None:
+                repeat_groups.setdefault((str(row["participant_hash"]), str(repeat_id)), []).append(
+                    row
+                )
+        repeat_units[stratum] = [repeat_groups[key] for key in sorted(repeat_groups)]
+        item_units[stratum] = [item_groups[key] for key in sorted(item_groups)]
+        if not repeat_units[stratum] or not item_units[stratum]:
+            raise ExtensionError("CALIBRATION_BOOTSTRAP_INPUT_INVALID")
+
+    output = {name: [] for name in ("within_rater", "inter_rater", "precision", "false_accept")}
+    for replicate in range(replicate_count):
+        sampled_pairs: list[list[Mapping[str, Any]]] = []
+        sampled_items: list[list[Mapping[str, Any]]] = []
+        sampled_precision: list[Mapping[str, Any]] = []
+        sampled_false_accept: list[Mapping[str, Any]] = []
+        for stratum in strata:
+            pairs = repeat_units[stratum]
+            sampled_pairs.extend(
+                pairs[index]
+                for index in bootstrap_indices(
+                    root_seed, "within_rater", replicate, stratum, len(pairs)
+                )
+            )
+            items = item_units[stratum]
+            sampled_items.extend(
+                items[index]
+                for index in bootstrap_indices(
+                    root_seed, "inter_rater", replicate, stratum, len(items)
+                )
+            )
+            source_rows = by_stratum[stratum]
+            sampled_precision.extend(
+                source_rows[index]
+                for index in bootstrap_indices(
+                    root_seed, "precision", replicate, stratum, len(source_rows)
+                )
+            )
+            sampled_false_accept.extend(
+                source_rows[index]
+                for index in bootstrap_indices(
+                    root_seed, "false_accept", replicate, stratum, len(source_rows)
+                )
+            )
+
+        first_marginal = [0, 0, 0]
+        second_marginal = [0, 0, 0]
+        observed = 0
+        for pair in sampled_pairs:
+            if len(pair) != 2:
+                raise ExtensionError("CALIBRATION_REPEAT_PAIR_INVALID")
+            ordered_pair = sorted(pair, key=lambda row: row["presentation_ordinal"])
+            first = ORDINAL_INDEX[ordered_pair[0]["ordinal_judgment"]]
+            second = ORDINAL_INDEX[ordered_pair[1]["ordinal_judgment"]]
+            first_marginal[first] += 1
+            second_marginal[second] += 1
+            observed += ORDINAL_WEIGHT_Q[first][second]
+        pair_count = len(sampled_pairs)
+        expected = sum(
+            first_marginal[i] * second_marginal[j] * ORDINAL_WEIGHT_Q[i][j]
+            for i in range(3)
+            for j in range(3)
+        )
+        denominator = 10_000 * pair_count * pair_count - expected
+        within = (
+            _nonnegative_rhe(10_000 * max(0, pair_count * observed - expected), denominator)
+            if denominator
+            else 0
+        )
+
+        inter_weights: list[int] = []
+        for group in sampled_items:
+            participants = sorted(
+                (
+                    (str(row["participant_hash"]), ORDINAL_INDEX[row["ordinal_judgment"]])
+                    for row in group
+                )
+            )
+            for left_index, (_, left) in enumerate(participants):
+                inter_weights.extend(
+                    ORDINAL_WEIGHT_Q[left][right] for _, right in participants[left_index + 1 :]
+                )
+        inter = _nonnegative_rhe(sum(inter_weights), len(inter_weights)) if inter_weights else 0
+
+        precision_numerator = sum(
+            bool(row.get("auto_small"))
+            and row.get("ordinal_judgment") == "similar"
+            and row.get("broken") is False
+            for row in sampled_precision
+        )
+        precision_denominator = sum(bool(row.get("auto_small")) for row in sampled_precision)
+        false_numerator = sum(
+            bool(row.get("auto_small"))
+            and (row.get("ordinal_judgment") == "larger" or row.get("broken") is True)
+            for row in sampled_false_accept
+        )
+        false_denominator = sum(
+            row.get("ordinal_judgment") == "larger" or row.get("broken") is True
+            for row in sampled_false_accept
+        )
+        output["within_rater"].append(within)
+        output["inter_rater"].append(inter)
+        output["precision"].append(criterion_ratio(precision_numerator, precision_denominator) or 0)
+        output["false_accept"].append(criterion_ratio(false_numerator, false_denominator) or 0)
+    return output
+
+
 def calibrated_criterion(
     value: int | None, *, minimum: int | None = None, maximum: int | None = None
 ) -> bool:

@@ -3,6 +3,7 @@ import pytest
 from .search_loop13_extension_oracle import (
     ExtensionError,
     bootstrap_indices,
+    calibration_bootstrap_values,
     calibration_statistics,
     calibrated_criterion,
     challenger_ni_imp,
@@ -120,6 +121,35 @@ def test_calibration_statistics_are_recomputed_from_rows() -> None:
     assert statistics["inter_rater_q"] == 10_000
     assert statistics["precision_q"] == 10_000
     assert statistics["false_accept_q"] is None
+
+
+def test_calibration_bootstrap_is_statistic_and_unit_scoped() -> None:
+    people = ["sha256:" + char * 64 for char in ("a", "b")]
+    rows = []
+    for participant in people:
+        for category, judgment, auto_small in (
+            ("small", "similar", True),
+            ("low", "smaller", False),
+            ("high", "larger", False),
+        ):
+            repeat_id = f"{participant[-1]}_{category}"
+            for presentation in (0, 1):
+                rows.append(
+                    {
+                        "participant_hash": participant,
+                        "item_id": f"{category}_{presentation}",
+                        "stratum": "fixture",
+                        "presentation_ordinal": presentation,
+                        "repeat_pair_id": repeat_id,
+                        "ordinal_judgment": judgment,
+                        "broken": False,
+                        "auto_small": auto_small,
+                    }
+                )
+    trace = calibration_bootstrap_values(rows, root_seed=7, replicate_count=2, strata=["fixture"])
+    assert set(trace) == {"within_rater", "inter_rater", "precision", "false_accept"}
+    assert all(len(values) == 2 for values in trace.values())
+    assert all(0 <= value <= 10_000 for values in trace.values() for value in values)
 
 
 def test_challenger_noninferiority_improvement_and_tie() -> None:

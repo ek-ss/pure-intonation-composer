@@ -59,6 +59,17 @@ validation. The corresponding fixed report failure codes are
 
 ## Genre feature and similarity authority
 
+SearchRunManifest 1.3 binds `CalibrationDecision 1.1`. Version 1.0 remains a
+legacy schema and MUST NOT be used for a new SearchLoop13 run: its
+`genre_intent_hash` and `evaluation_manifest_hash` fields form a
+content-addressed cycle with the GenreIntent that binds the decision. Version
+1.1 removes those two downstream bindings. Its dependency order is calibration
+inputs and evidence, CalibrationDecision, GenreIntent, then EvaluationManifest.
+The decision still binds the reference set, extractor, renderer, listener
+cohort, fixture set, acceptance policy, evidence summary, and exact promoted
+metric rows, so removing the downstream identities does not weaken calibration
+evidence.
+
 A genre label such as `kawaii_future_bass` is metadata only and never
 determines a score. A `genre_similarity_q` metric is legal only when the
 GenreIntent binds a promoted CalibrationDecision, ReferenceSetManifest,
