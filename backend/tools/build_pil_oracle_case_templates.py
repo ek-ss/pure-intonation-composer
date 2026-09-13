@@ -675,7 +675,7 @@ def build_cases() -> list[dict]:
         }
     ]
 
-    def _progression(events, case_id, note, extra_coverage=()):
+    def _progression(events, case_id, note, extra_coverage=(), total_ticks=1_440):
         policy, spec, vocabulary, vm_policy, template_set = _phase4_assets(ii_v_i_templates)
         manifest = _bind(
             _manifest(),
@@ -688,7 +688,7 @@ def build_cases() -> list[dict]:
         return _case(
             case_id,
             ["success", "voice_matching", "trajectory_similarity", *extra_coverage],
-            _project(events, total_ticks=1_440),
+            _project(events, total_ticks=total_ticks),
             manifest,
             {
                 "segmentation_policy": policy,
@@ -745,6 +745,22 @@ def build_cases() -> list[dict]:
             "High Native JI coherence with low ii-V-I similarity, reported separately; "
             "the Native JI report hash is correlation metadata filled by the owner.",
             extra_coverage=["native_ji_separation"],
+        )
+    )
+    cases.append(
+        _progression(
+            [
+                # ii-V-I-V: four segments against the three-step template, so
+                # exactly two consecutive windows exist and both must be
+                # retained in canonical alignment-key order.
+                *_chord("s1", 0, "9/8", "27/20", "27/16", "9/8"),
+                *_chord("s2", 480, "3/2", "15/8", "9/4", "3/2"),
+                *_chord("s3", 960, "1/1", "5/4", "3/2", "1/1"),
+                *_chord("s4", 1440, "3/2", "15/8", "9/4", "3/2"),
+            ],
+            "pil_trajectory_overlap_windows",
+            "Every consecutive template-length window is retained in canonical order.",
+            total_ticks=1_920,
         )
     )
 

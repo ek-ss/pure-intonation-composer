@@ -227,6 +227,18 @@
    ]
   },
   {
+   "case_id": "pil_trajectory_overlap_windows",
+   "path": "pil_trajectory_overlap_windows.json",
+   "raw_file_sha256": null,
+   "case_hash": null,
+   "case_schema_hash": null,
+   "coverage": [
+    "success",
+    "voice_matching",
+    "trajectory_similarity"
+   ]
+  },
+  {
    "case_id": "pil_tritave_phase_split",
    "path": "pil_tritave_phase_split.json",
    "raw_file_sha256": null,
