@@ -65,12 +65,16 @@ def test_cancel_fixture_cas_and_transcript_are_closed():
     assert hashlib.sha256(framed).digest()
 
     assert case["expected"]["cas_index_hash"] == index["index_hash"]
-    assert case["cache_scenario"] == {
+    not_reached = {
         "mode": "not_reached",
         "initial_entries": [],
         "expected_lookup": "not_performed",
         "expected_corruption_receipt_hash": None,
         "expected_publication_entry_hash": None,
+    }
+    assert case["cache_scenario"] == {
+        "compile": not_reached,
+        "render": not_reached,
     }
     assert case["parallel_scenario"]["scheduled_action_ids"] == []
     assert case["parallel_scenario"]["completion_permutation"] == []

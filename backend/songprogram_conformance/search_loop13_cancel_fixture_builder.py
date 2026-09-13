@@ -377,11 +377,14 @@ def build() -> dict[str, bytes]:
             "operational_deadline_seconds": None,
         },
         "cache_scenario": {
-            "mode": "not_reached",
-            "initial_entries": [],
-            "expected_lookup": "not_performed",
-            "expected_corruption_receipt_hash": None,
-            "expected_publication_entry_hash": None,
+            kind: {
+                "mode": "not_reached",
+                "initial_entries": [],
+                "expected_lookup": "not_performed",
+                "expected_corruption_receipt_hash": None,
+                "expected_publication_entry_hash": None,
+            }
+            for kind in ("compile", "render")
         },
         "parallel_scenario": {
             "worker_count": 1,

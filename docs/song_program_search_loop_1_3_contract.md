@@ -28,6 +28,12 @@ property name matches its binding kind, verifies every raw hash and manifest
 binding, verifies `run_hash` from the inline manifest, and then
 content-addresses the context. Later filesystem lookup, unbound defaults, and
 substitution of similarly named artifacts are forbidden.
+The four named contract bindings are semantic-role bindings, not a
+distinct-bytes constraint.  In version 1.0, `fallback_sampler` and
+`broad_prior_production` both bind the exact raw bytes and raw SHA-256 of
+`song_program_fallback_sampler_contract.md`, whose separate sections own both
+operations.  A later split contract changes the corresponding bound hash; no
+filename inference or sliced-section hashing is allowed.
 The RunManifest also binds the raw schema hashes for RunContext, EventPayload,
 candidate source, sampler request/result, planner request/response, and
 evaluation manifest/request/report. Context must exactly match those bindings;

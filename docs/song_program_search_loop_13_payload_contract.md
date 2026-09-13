@@ -690,14 +690,29 @@ list exactly: success, failure, cache cold/hit/corrupt, cancel, and parallel
 1/2/4/8. Extra labels, missing labels, unindexed case files, and indexed hash
 mismatches invalidate the suite. Its self hash uses the standard artifact rule.
 
-CacheScenario fixes not-reached/cold/hit/corrupt mode, exact initial raw entry
-bytes and hashes, lookup outcome, corruption receipt and publication result.
-`not_reached` is required when the selected stop branch terminates before any
-compile or render cache lookup; it has no initial entries,
+CacheScenario is the closed object `{compile: CacheLeg, render: CacheLeg}`;
+there is no case-wide cache mode. Each leg independently fixes its
+not-reached/cold/hit/corrupt mode, exact initial raw entry bytes and hashes,
+lookup outcome, corruption receipt and publication result. Every entry in the
+`compile` leg has `kind=compile`; every entry in the `render` leg has
+`kind=render`. Moving or duplicating an entry across legs is invalid even when
+all hashes recompute.
+
+For either leg, `not_reached` has no initial entries,
 `expected_lookup=not_performed`, and both expected hashes null. Cold has no
-matching initial entry, miss, null corruption receipt and non-null publication;
-hit has one valid matching entry, hit and both result hashes null; corrupt has
-one matching corrupt raw entry, corrupt-recompute and both hashes non-null.
+initial entries, `expected_lookup=miss`, null corruption receipt and non-null
+publication. Hit has exactly one valid matching entry,
+`expected_lookup=hit`, and both expected hashes null. Corrupt has exactly one
+matching corrupt raw entry, `expected_lookup=corrupt_recompute`, and non-null,
+distinctly owned corruption-receipt and publication-entry hashes. The compile
+and render hashes are separate fields by containment in their respective legs;
+neither may stand for the other.
+
+Cancellation or another terminal branch before the first cache lookup uses
+`not_reached` for both legs. The authoritative `cache_cold` case uses cold for
+both legs, `cache_hit` uses hit for both legs, and `cache_corrupt` uses corrupt
+for both legs. Thus a complete execution represents both Phase 3 compile and
+Phase 7 render behavior without an implicit second mode.
 ParallelScenario fixes worker count in `{1,2,4,8}`, `scheduled_action_ids` in
 canonical action-coordinate order, a `completion_permutation` containing
 exactly that same action-ID set once, and a parity-group hash. An action is

@@ -147,3 +147,53 @@ def validate_parallel_matrix(cases: Sequence[Mapping[str, Any]]) -> None:
             raise ValueError("parallel semantic projections differ")
         if scenario["parity_group_hash"] != expected_hash:
             raise ValueError("parallel parity_group_hash mismatch")
+
+
+def validate_cache_scenario(scenario: Mapping[str, Any]) -> None:
+    """Validate the closed compile/render CacheLeg state machine."""
+    if set(scenario) != {"compile", "render"}:
+        raise ValueError("cache scenario must contain exactly compile and render legs")
+    owned_hashes: list[str] = []
+    expectations = {
+        "not_reached": (0, "not_performed", False, False),
+        "cold": (0, "miss", False, True),
+        "hit": (1, "hit", False, False),
+        "corrupt": (1, "corrupt_recompute", True, True),
+    }
+    for kind in ("compile", "render"):
+        leg = scenario[kind]
+        if set(leg) != {
+            "mode",
+            "initial_entries",
+            "expected_lookup",
+            "expected_corruption_receipt_hash",
+            "expected_publication_entry_hash",
+        }:
+            raise ValueError(f"{kind} cache leg is not closed")
+        try:
+            entry_count, lookup, has_corruption, has_publication = expectations[leg["mode"]]
+        except KeyError as error:
+            raise ValueError(f"invalid {kind} cache mode") from error
+        entries = leg["initial_entries"]
+        if len(entries) != entry_count or leg["expected_lookup"] != lookup:
+            raise ValueError(f"invalid {kind} cache mode projection")
+        corruption = leg["expected_corruption_receipt_hash"]
+        publication = leg["expected_publication_entry_hash"]
+        if (corruption is not None) != has_corruption or (publication is not None) != has_publication:
+            raise ValueError(f"invalid {kind} cache hash nullability")
+        for value in (corruption, publication):
+            if value is not None:
+                owned_hashes.append(value)
+        for entry in entries:
+            if entry["kind"] != kind:
+                raise ValueError(f"entry kind does not match {kind} cache leg")
+            try:
+                raw = base64.b64decode(entry["raw_entry_bytes_base64"], validate=True)
+            except (ValueError, TypeError) as error:
+                raise ValueError("invalid raw cache entry base64") from error
+            if len(raw) != entry["byte_length"] or (
+                "sha256:" + hashlib.sha256(raw).hexdigest() != entry["raw_entry_bytes_hash"]
+            ):
+                raise ValueError("raw cache entry byte binding mismatch")
+    if len(owned_hashes) != len(set(owned_hashes)):
+        raise ValueError("compile/render cache receipt and publication hashes must be distinct")
