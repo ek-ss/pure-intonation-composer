@@ -305,3 +305,30 @@ material:
 All PIL metrics remain audit-only: genre interpretation (G1–G7) and
 CalibrationDecision promotion (C1–C6) are owner decisions, and no PIL metric
 is connected to QD/archive/challenger/stopping.
+
+## 2026-09-13 PIL Phase 5 authority closure and implementation
+
+The owner closed every remaining PIL spec blocker: G1–G7 by the normative
+`song_program_pil_genre_phase5_contract.md` (harmony-only launch profile,
+build `pil.phase5.1.0.0`, closed integer scoring, authoritative oracle under
+`fixtures/pil_genre_phase5/`), C1–C6 by
+`song_program_pil_calibration_promotion_contract.md` (dotted `pil.*` registry
+artifact, aggregations, `unavailable` missing policy, evidence closure), and
+N1–N5 by the promoted `fixtures/pil_negative/pack.json`.
+
+The production Phase 5 implementation is
+`backend/app/songprogram/perceptual_genre.py`: model/feature-record binding
+validation, harmony feature extraction from a successful Phase 4 report, the
+five harmonic-detail scores plus typicality/idiomaticity/cliche/novelty,
+canonical result hashing and ordering, and the Phase 5 cache with
+cold/hit/corrupt byte parity. It is byte-exact against the independent
+conformance oracle on the authoritative success and failure fixtures, and
+cross-process `PYTHONHASHSEED` parity is tested
+(`tests/test_perceptual_genre_phase5.py`). The earlier design drafts remain
+as superseded history; the consistency checker now tracks the closure.
+
+Every PIL metric — including the Phase 5 scores — remains audit-only: the
+promotion-readiness artifact still reports `missing_external_authority` for
+the calibration evidence chain, `pil.genre.*` promotion needs a future
+decision version, and no PIL metric is connected to
+QD/archive/challenger/stopping.
