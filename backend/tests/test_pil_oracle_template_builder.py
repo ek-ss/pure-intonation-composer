@@ -18,7 +18,7 @@ TEMPLATES = Path(__file__).resolve().parents[2] / "docs/pil_oracle_case_template
 
 def test_generated_templates_are_standalone_and_match_checked_in_inputs() -> None:
     cases = build_cases()
-    assert len(cases) == 17
+    assert len(cases) == 18
     assert {label for case in cases for label in case["coverage"]} == set(PIL_REQUIRED_COVERAGE)
     for case in cases:
         checked_in = json.loads((TEMPLATES / f"{case['case_id']}.json").read_text(encoding="utf-8"))
