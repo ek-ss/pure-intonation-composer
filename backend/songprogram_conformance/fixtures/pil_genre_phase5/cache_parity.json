@@ -1,0 +1,1 @@
+{"schema":"cps.pil-genre-phase5-cache-parity","schema_version":"1.0.0","base_case":"phase5_harmony_success.json","modes":["cold","hit","corrupt"],"expected_canonical_results_sha256":"sha256:7e7a712e5b33e7f8a388264c21fd94c193e904ef444e565d4d7a953334a5db45","corrupt_payload_base64":"Y29ycnVwdA==","case_hash":"sha256:512efcef9bfa8398e1705db7f2f106a357ef58d24b0cf2ea66389ee5fb49cbe3"}

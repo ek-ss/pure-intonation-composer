@@ -1,10 +1,12 @@
-# PIL Genre/Style Interpretation — Draft Schemas (non-normative)
+# PIL Genre/Style Interpretation — Superseded Draft Schemas (non-normative)
 
-This directory holds **design drafts** accompanying
+This directory holds superseded **design drafts** accompanying
 `docs/song_program_pil_genre_interpretation_draft.md`. Nothing here is a
 contract. Genre evaluation remains a SPEC-BLOCKER (G1–G7) until the owner
 closes the open decisions in
 `docs/song_program_perceptual_interpretation_layer_contract.md` section 7.
+G1–G7 are now closed by `docs/song_program_pil_genre_phase5_contract.md` and
+the authoritative schemas under `backend/songprogram_conformance/schemas/`.
 
 | File | Drafts | Blocker |
 | --- | --- | --- |

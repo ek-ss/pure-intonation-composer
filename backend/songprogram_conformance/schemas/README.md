@@ -167,3 +167,11 @@ Genre authority is closed by `genre_license_policy.schema.json`,
 `calibration_acceptance_policy.schema.json`, and
 `calibration_evidence_summary.schema.json`. Thresholds remain required policy
 values; none are silently supplied by these schemas.
+
+PIL Phase 5 genre interpretation is closed by
+`perceptual_genre_model.schema.json`,
+`perceptual_genre_feature_record.schema.json`,
+`perceptual_genre_result.schema.json`, and the
+`pil_genre_phase5_oracle_{case,suite_index}.schema.json` authority pair. These
+artifacts are a parallel PIL interpretation only; they do not replace Native
+JI evidence and acquire no search authority without CalibrationDecision.

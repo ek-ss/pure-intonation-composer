@@ -1,6 +1,7 @@
 # PIL Genre/Style Interpretation (Phase 5) — Draft Prerequisite Specification
 
-**Status:** non-normative design draft prepared by the implementation side.
+**Status:** superseded by the normative
+`song_program_pil_genre_phase5_contract.md`; retained as design history only.
 This document is **not** a contract. It enumerates what contract section 7
 leaves undefined, proposes artifact shapes and algorithms for owner review,
 and lists the decisions required before any Phase 5 implementation may
