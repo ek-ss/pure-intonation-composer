@@ -49,6 +49,11 @@ are not production defaults.
   reproduces every byte. Its synthetic listeners and minimal thresholds exist
   only to exercise the SearchLoop13 binding path and MUST NOT be selected as a
   production or real-world genre calibration default.
+- The fixture GenreIntent carries `native_ji_quality` as an independent
+  `symbolic_integer` acceptance metric and `genre_similarity` as a parallel
+  perceptual metric. The latter does not replace, reinterpret, normalize, or
+  gate computation of Native JI evidence; both appear as distinct ordered
+  EvaluationManifest rows and distinct ChallengerAcceptancePolicy rows.
 - `fallback_sampler` and `broad_prior_production` bind the same exact raw bytes
   and SHA-256 of `docs/song_program_fallback_sampler_contract.md`, because that
   one versioned contract owns both named sections. Contract-binding field names
