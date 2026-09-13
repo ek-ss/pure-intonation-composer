@@ -16,6 +16,7 @@ Run from the backend directory:
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import sys
@@ -174,12 +175,46 @@ def main() -> int:
         for error in errors:
             _fail(f"example {name}: {error}")
 
-    # 4. Blocker status (informational; never fails the check).
-    completed = report_schema["properties"]["completed_phase"]["enum"]
-    if "genre_interpretation" in completed:
-        _note("G6 appears CLOSED: completed_phase already includes 'genre_interpretation'")
+    # 4. Phase 5 authority status.  G1-G7 are closed by the normative Phase 5
+    # contract; the drafts in this directory are superseded design history.
+    phase5_contract = REPO / "docs" / "song_program_pil_genre_phase5_contract.md"
+    if not phase5_contract.exists():
+        _fail(f"normative Phase 5 contract missing: {phase5_contract}")
     else:
-        _note("G6 OPEN: completed_phase has no 'genre_interpretation' yet")
+        _note("G1-G7 CLOSED by song_program_pil_genre_phase5_contract.md (drafts superseded)")
+    suite_index_path = (
+        BACKEND
+        / "songprogram_conformance"
+        / "fixtures"
+        / "pil_genre_phase5"
+        / "suite_index.json"
+    )
+    if not suite_index_path.exists():
+        _fail(f"Phase 5 suite index missing: {suite_index_path}")
+    else:
+        schema_hashes = _load(suite_index_path).get("schema_hashes", {})
+        for name, filename in (
+            ("feature_record", "perceptual_genre_feature_record.schema.json"),
+            ("genre_model", "perceptual_genre_model.schema.json"),
+            ("genre_result", "perceptual_genre_result.schema.json"),
+        ):
+            declared = schema_hashes.get(name)
+            actual = "sha256:" + hashlib.sha256(
+                (SCHEMA_DIR / filename).read_bytes()
+            ).hexdigest()
+            if declared != actual:
+                _fail(f"Phase 5 schema {name}: suite index {declared} != raw bytes {actual}")
+        try:
+            sys.path.insert(0, str(BACKEND))
+            from app.songprogram import perceptual_genre
+
+            if (
+                perceptual_genre.GENRE_FEATURE_RECORD_SCHEMA_HASH
+                != schema_hashes.get("feature_record")
+            ):
+                _fail("perceptual_genre.GENRE_FEATURE_RECORD_SCHEMA_HASH != suite index")
+        except ImportError:
+            _note("perceptual_genre not importable; production constant check skipped")
     gmh = manifest_schema["properties"].get("genre_model_hash")
     if gmh and any(branch.get("type") == "null" for branch in gmh.get("oneOf", [])):
         _note("G1 binding point present: manifest genre_model_hash is nullable sha256")

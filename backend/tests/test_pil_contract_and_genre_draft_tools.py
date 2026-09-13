@@ -34,8 +34,9 @@ def test_pil_genre_draft_consistency() -> None:
     result = _run_tool("tools/check_pil_genre_draft_consistency.py")
     assert result.returncode == 0, result.stdout + result.stderr
     assert "OK" in result.stdout
-    # G6 must stay visible until the owner closes it.
-    assert "G6 OPEN" in result.stdout
+    # G1-G7 are closed by the normative Phase 5 contract; the drafts are
+    # superseded design history and the checker must say so.
+    assert "G1-G7 CLOSED" in result.stdout
 
 
 def test_pil_oracle_case_templates_preflight() -> None:
