@@ -126,7 +126,7 @@ Rules:
 | `pil_soft_major_1_1_5_4_3_2` | 1 | 1 | high soft major similarity; exact ratios retained in `source_ratio` |
 | `pil_seven_limit_multi_candidate` | 2 | 1 | every pitch row keeps multiple nonzero candidates |
 | `pil_passing_tone_delta` | 3 | 2+ | similarity delta bound declared in the case, not by implementation |
-| `pil_12et_ii_v_i` (Phase 3 records) | Phase 3 | 3 | 12-TET-target major is the top candidate inside the Phase 4 path; no separate single-chord case exists |
+| `pil_12tet_major_chord` | Phase 3 | 3 | near-12-TET major third (63/50, 400108 mc) resolves to the major template as top candidate |
 | `pil_soft_major_1_1_5_4_3_2` | Phase 3 | 3 | `1/1,5/4,3/2` has the major template as top candidate |
 | `pil_ambiguous_chord_margin` | Phase 3 | 3 | candidate list retained while `best_label` is null |
 | `pil_soft_major_1_1_5_4_3_2`, `pil_trajectory_missing_bass` | Phase 3 | 3 | bass weight is removed, never scored as zero |

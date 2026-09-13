@@ -46,6 +46,17 @@
    ]
   },
   {
+   "case_id": "pil_12tet_major_chord",
+   "path": "pil_12tet_major_chord.json",
+   "raw_file_sha256": null,
+   "case_hash": null,
+   "case_schema_hash": null,
+   "coverage": [
+    "success",
+    "chord_similarity"
+   ]
+  },
+  {
    "case_id": "pil_ambiguous_chord_margin",
    "path": "pil_ambiguous_chord_margin.json",
    "raw_file_sha256": null,

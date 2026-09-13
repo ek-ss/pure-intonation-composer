@@ -617,6 +617,25 @@ def build_cases() -> list[dict]:
             "High soft major similarity while exact ratios are retained.",
         )
     )
+    cases.append(
+        _case(
+            "pil_12tet_major_chord",
+            ["success", "chord_similarity"],
+            # 63/50 is 400108 millicents: a rational ratio sitting 108 mc from
+            # the exact 12-TET major third, so the major template must still
+            # win through the soft kernel without any nearest-note rounding.
+            _project([_note("ev_a", "1/1", 0), _note("ev_b", "63/50", 0), _note("ev_c", "3/2", 0)]),
+            manifest,
+            {
+                "segmentation_policy": policy,
+                "feature_spec": spec,
+                "chord_vocabulary": vocabulary,
+                "voice_matching_policy": None,
+                "trajectory_template_set": None,
+            },
+            "Near-12-TET major voicing resolves to the major template as top candidate.",
+        )
+    )
     policy, spec, vocabulary = _phase3_assets()
     manifest = _bind(
         _manifest(), segmentation_policy=policy, feature_spec=spec, chord_vocabulary=vocabulary

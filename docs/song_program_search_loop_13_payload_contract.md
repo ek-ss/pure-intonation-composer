@@ -561,6 +561,29 @@ hashes are each unique. `index_hash` is the standard artifact hash with only
 reachable from the transcript, final checkpoint, cache-publication index, and
 declared audio assets.
 
+For fixture portability, every RunRecord in the chain ending at
+`transcript_root_hash` is mirrored in the fixture CAS index as
+`content_kind=json_artifact`, with `artifact_hash` equal to its
+`record_hash`, its RunRecord 1.1 raw schema hash, and its exact canonical JSON
+byte length.  This mirror does not change runtime persistence: production still
+appends `u64be(length) || canonical_record_bytes` to `records.log` and need not
+publish RunRecords into its operational CAS.  The fixture oracle resolves the
+last mirrored record by `transcript_root_hash`, follows
+`previous_record_hash` to null, requires gapless sequences in reverse, then
+reconstructs the normative framed `records.log` bytes.  A missing, extra,
+duplicated, or noncanonical mirrored record invalidates the fixture.
+
+Locator resolution is closed.  A `path` locator resolves relative to the
+directory containing the FixtureSuiteIndex, using the same NFC/no-dot-segment/
+no-symlink-escape rules as case paths; its exact file bytes are the indexed
+bytes.  An `artifact_role` locator resolves to the unique FixtureCase `inputs`
+row whose `role` is exactly `artifact_role`, then reads that row's `path` under
+the same root and verifies its `raw_file_sha256`, `artifact_hash`,
+`schema_hash`, and byte length.  Zero or multiple matching input rows are
+invalid.  No ambient CAS directory, repository search, basename inference, or
+network lookup is permitted.  RunRecord mirrors MUST use `path` locators;
+`artifact_role` is reserved for already-declared fixture inputs.
+
 The fixture schema intentionally does not enumerate a universal set of input
 roles. It instead embeds the exact canonical bytes and schema bytes for one
 schema-valid `FixtureEdgeRegistry`, verifies both raw schema and registry self
@@ -632,6 +655,26 @@ validation order. Fixture validation order is: fixture schema/self hash;
 parallel scenario; then suite order/uniqueness/coverage. Stop at the first
 failure.
 
+`ConformanceViolationEvidence.subject_hash` never trusts a claimed artifact
+self hash.  When subject bytes were presented, it is lowercase `sha256:` plus
+SHA-256 of those exact bytes before JSON parsing, canonicalization, schema
+validation, or self-hash recomputation, for every stage from `schedule`
+through `operator_invariant`.  It is null only for a `schedule` failure in
+which the required subject artifact or EventPayload bytes are absent.  In that
+sole null case `subject_schema_hash` is still the expected raw schema hash.
+Malformed UTF-8 and noncanonical JSON therefore remain independently
+identifiable without inventing an artifact identity.
+
+A `conformance_violation` FixtureCase is an end-to-end coordinator fixture,
+not a pure-seam unit fixture.  It contains the complete valid transcript and
+reachable closure from phase 0 through the event immediately preceding the
+failing coordinate.  It then supplies the exact failing subject bytes when
+present and no later RunRecord.  Skipping predecessor phases, injecting an
+unbound archive/program state, or treating a pure seam as a standalone entry
+point invalidates the case.  Pure-seam unit vectors may exist in a separate
+non-authoritative test pack but cannot satisfy FixtureSuite `failure`
+coverage.
+
 `SearchLoop13 FixtureSuiteIndex 1.0` is the sole root of an authoritative
 suite. Every case entry contains `path`, `raw_file_sha256`, `case_hash`, and
 `case_schema_hash`. `path` is repository-relative, NFC, contains no `.` or
@@ -647,8 +690,11 @@ list exactly: success, failure, cache cold/hit/corrupt, cancel, and parallel
 1/2/4/8. Extra labels, missing labels, unindexed case files, and indexed hash
 mismatches invalidate the suite. Its self hash uses the standard artifact rule.
 
-CacheScenario fixes cold/hit/corrupt mode, exact initial raw entry bytes and
-hashes, lookup outcome, corruption receipt and publication result. Cold has no
+CacheScenario fixes not-reached/cold/hit/corrupt mode, exact initial raw entry
+bytes and hashes, lookup outcome, corruption receipt and publication result.
+`not_reached` is required when the selected stop branch terminates before any
+compile or render cache lookup; it has no initial entries,
+`expected_lookup=not_performed`, and both expected hashes null. Cold has no
 matching initial entry, miss, null corruption receipt and non-null publication;
 hit has one valid matching entry, hit and both result hashes null; corrupt has
 one matching corrupt raw entry, corrupt-recompute and both hashes non-null.
@@ -657,6 +703,9 @@ canonical action-coordinate order, a `completion_permutation` containing
 exactly that same action-ID set once, and a parity-group hash. An action is
 parallel-eligible iff its ID occurs in `scheduled_action_ids`; neither worker
 count nor observed completion may add an action. All cases
+that terminate before any parallel-eligible action use empty scheduled and
+completion arrays.  Empty arrays are forbidden for a suite row carrying any
+`parallel_1`, `parallel_2`, `parallel_4`, or `parallel_8` coverage label.
 in one parity group MUST have identical semantic parity projections and
 identical expected roots.  The projection is the complete FixtureCase after
 removing top-level `case_id` and `case_hash`, then removing `worker_count`,
