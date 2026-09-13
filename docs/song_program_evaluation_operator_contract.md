@@ -180,6 +180,13 @@ precision lower-bound minimum, false-accept upper-bound maximum, and zero
 leakage all pass. Promoted metric rows are unique and metric-ID sorted, bind
 their evidence, and satisfy `0 <= NI < IMP <= 10000`.
 
+For SearchLoop13, `CalibrationFixtureSet 1.0` is the closed fixture authority.
+It binds the reference set, listener cohort, blinded assignment, response set,
+dataset, statistic operator, acceptance policy, bootstrap trace, and evidence
+summary. Its `fixture_set_hash` uses `cps-artifact-hash/v1` with only that
+self-hash removed. `CalibrationDecision 1.1.calibration_fixture_set_hash` MUST
+equal this value; an untyped digest assembled by an implementation is invalid.
+
 ChallengerAcceptancePolicy is the operational margin owner. It and its Decision
 bind the promoted CalibrationDecision and exactly repeat NI and IMP per metric.
 For maximize values `c,p`, non-inferiority is `c >= p-NI` and improvement is

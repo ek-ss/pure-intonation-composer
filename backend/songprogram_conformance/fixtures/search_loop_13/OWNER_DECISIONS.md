@@ -44,6 +44,11 @@ are not production defaults.
   EvaluationManifest bindings make it unsuitable for new content-addressed
   runs. Fixture dependency order is calibration evidence, decision,
   GenreIntent, then EvaluationManifest.
+- The checked-in `calibration_authority/index.json` and all files it indexes
+  are the fixture-only CalibrationDecision authority. The independent builder
+  reproduces every byte. Its synthetic listeners and minimal thresholds exist
+  only to exercise the SearchLoop13 binding path and MUST NOT be selected as a
+  production or real-world genre calibration default.
 - `fallback_sampler` and `broad_prior_production` bind the same exact raw bytes
   and SHA-256 of `docs/song_program_fallback_sampler_contract.md`, because that
   one versioned contract owns both named sections. Contract-binding field names
