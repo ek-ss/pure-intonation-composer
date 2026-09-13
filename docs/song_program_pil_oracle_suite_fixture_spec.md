@@ -121,15 +121,15 @@ Rules:
 
 ## 4. Required cases (contract section 9 mapping)
 
-| case_id (proposed) | contract item | phase | notes |
+| case_id | contract item | phase | notes |
 | --- | --- | --- | --- |
 | `pil_soft_major_1_1_5_4_3_2` | 1 | 1 | high soft major similarity; exact ratios retained in `source_ratio` |
 | `pil_seven_limit_multi_candidate` | 2 | 1 | every pitch row keeps multiple nonzero candidates |
 | `pil_passing_tone_delta` | 3 | 2+ | similarity delta bound declared in the case, not by implementation |
-| `pil_12tet_major_chord` | Phase 3 | 3 | exact 12-TET major template is the top candidate |
-| `pil_ji_major_chord` | Phase 3 | 3 | `1/1,5/4,3/2` has the major template as top candidate |
+| `pil_12et_ii_v_i` (Phase 3 records) | Phase 3 | 3 | 12-TET-target major is the top candidate inside the Phase 4 path; no separate single-chord case exists |
+| `pil_soft_major_1_1_5_4_3_2` | Phase 3 | 3 | `1/1,5/4,3/2` has the major template as top candidate |
 | `pil_ambiguous_chord_margin` | Phase 3 | 3 | candidate list retained while `best_label` is null |
-| `pil_missing_bass_component` | Phase 3 | 3 | bass weight is removed, never scored as zero |
+| `pil_soft_major_1_1_5_4_3_2`, `pil_trajectory_missing_bass` | Phase 3 | 3 | bass weight is removed, never scored as zero |
 | `pil_12et_ii_v_i` | 4 | 4+ | high trajectory similarity |
 | `pil_exact_ratio_ii_v_i` | 5 | 4+ | JI analogue, high trajectory similarity |
 | `pil_nonfunctional_two_reports` | 6 | 4+ | high Native JI coherence + low ii-V-I similarity as two separate reports |
@@ -144,9 +144,12 @@ Rules:
 | `pil_cache_parity` | 8 | 1 | cold/hit/corrupt byte identity |
 | `pil_cross_process_workers` | 8 | 1 | PYTHONHASHSEED and 1/2/4/8-worker parity |
 
-Phase 1/2 cases and the four Phase 3 chord cases are implementable once the
+Phase 1/2 cases and the Phase 3 chord cases are implementable once the
 checked-in FeatureSpec and Vocabulary assets exist. Phase 4 cases additionally
-require owner-approved matching policy and trajectory-template payloads.
+require owner-approved matching policy and trajectory-template payloads. The
+suite was promoted to `backend/songprogram_conformance/fixtures/pil_oracle/`
+with the case IDs above; the templates in `docs/pil_oracle_case_templates/`
+remain the regeneration sources.
 
 The case artifact carries no dedicated field for the `pil_passing_tone_delta`
 similarity-delta bound: the maintainer declares the bound in the case
