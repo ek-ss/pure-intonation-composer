@@ -657,8 +657,28 @@ canonical action-coordinate order, a `completion_permutation` containing
 exactly that same action-ID set once, and a parity-group hash. An action is
 parallel-eligible iff its ID occurs in `scheduled_action_ids`; neither worker
 count nor observed completion may add an action. All cases
-in one parity group MUST differ only in worker count/permutation and MUST have
-identical semantic expected roots.
+in one parity group MUST have identical semantic parity projections and
+identical expected roots.  The projection is the complete FixtureCase after
+removing top-level `case_id` and `case_hash`, then removing `worker_count`,
+`completion_permutation`, and `parity_group_hash` from `parallel_scenario`.
+No other field is excluded: in particular `root_seed`, `inputs`, `policies`,
+`budgets`, `cache_scenario`, `cancellation_scenario`, `stop_branch`,
+`scheduled_action_ids`, and `expected` remain byte-identical after canonical
+JSON encoding.  Thus case-envelope identity and physical completion order may
+differ without weakening semantic parity.
+
+`parity_group_hash` is identical in every member and is exactly lowercase
+`sha256:` plus SHA-256 of:
+
+```text
+"cps-search-loop-13-parity-group/v1\0" ||
+canonical_json(semantic_parity_projection) || LF
+```
+
+The removed `parity_group_hash` prevents a self-reference.  A singleton parity
+group is invalid; an authoritative parallel matrix contains exactly one member
+for each worker count `1, 2, 4, 8`.  Their `completion_permutation` values may
+differ but each remains a permutation of the common `scheduled_action_ids`.
 
 CancellationScenario contains zero or more `(inbox_record_hash,
 arrival_barrier_coordinate)` rows in the bound inbox acceptance-sequence order;
