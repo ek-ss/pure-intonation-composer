@@ -279,11 +279,13 @@ The authoritative PIL oracle suite is now promoted
 Since then the implementation side added only non-authoritative support
 material:
 
-- an eighteenth input template `pil_trajectory_overlap_windows` (two
-  consecutive template-length windows) and three new required coverage
+- two more input templates after promotion: `pil_trajectory_overlap_windows`
+  (two consecutive template-length windows, promoted with the suite) and
+  `pil_12tet_major_chord` (near-12-TET major third resolving to the major
+  template; awaiting maintainer promotion), plus three new required coverage
   labels (`segment_boundary`, `passing_tone_regression`,
   `native_ji_separation`) anchoring contract section 9 items 8, 3 and 6 —
-  twenty-eight labels, all covered by the eighteen templates;
+  twenty-eight labels, all covered by the nineteen templates;
 - read-only guard tools enforced by pytest:
   `tools/check_pil_contract_schema_hashes.py` (contract section 2 hash
   bindings vs schema pack vs implementation constants),
@@ -293,8 +295,12 @@ material:
 - non-normative open-decision drafts for the remaining SPEC-BLOCKERs:
   `song_program_pil_genre_interpretation_draft.md` (G1–G7, with draft
   schemas and examples under `docs/pil_genre_draft/`),
-  `song_program_pil_calibration_promotion_draft.md` (C1–C6) and
-  `song_program_pil_metric_id_registry_draft.md` (candidate metric IDs).
+  `song_program_pil_calibration_promotion_draft.md` (C1–C6),
+  `song_program_pil_metric_id_registry_draft.md` (candidate metric IDs) and
+  `song_program_pil_negative_pack_draft.md` (N1–N5);
+- unit coverage for every 1.0 failure code
+  (`tests/test_perceptual_failure_codes.py`), including section 4.3
+  precedence checks; `PIL_GENRE_FAILED` remains blocked with Phase 5.
 
 All PIL metrics remain audit-only: genre interpretation (G1–G7) and
 CalibrationDecision promotion (C1–C6) are owner decisions, and no PIL metric
