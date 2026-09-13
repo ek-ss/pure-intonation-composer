@@ -1,4 +1,5 @@
-"""Perceptual Interpretation Layer (PIL) 1.0 — pitch projection and segmentation.
+"""Perceptual Interpretation Layer (PIL) 1.0 — Phases 1-4 (pitch projection
+through functional trajectory).
 
 PIL is a parallel interpretation of an immutable ArrangementProject 1.2.  It
 never replaces, rewrites, or rounds the Project's ratios, vectors, equave
@@ -6,7 +7,7 @@ exponents, ResolvedChords, or Native JI evaluation evidence, and it never
 consumes a Native JI report as a computation input.  ``native_ji_report_hash``
 is nullable correlation metadata only.
 
-Implemented scope (perceptual_interpretation_layer_contract.md sections 3-4):
+Implemented scope (perceptual_interpretation_layer_contract.md sections 3-6):
 
 - derive integer ``frequency_millihz`` from the exact event ratio and the
   Project base frequency (RHE, the only rounding primitive defined by the
