@@ -332,3 +332,17 @@ promotion-readiness artifact still reports `missing_external_authority` for
 the calibration evidence chain, `pil.genre.*` promotion needs a future
 decision version, and no PIL metric is connected to
 QD/archive/challenger/stopping.
+
+## 2026-09-14 PIL Phase 5 cross-process worker matrix
+
+The production Phase 5 side now also executes the contract section 5
+seed/concurrency matrix: `execute_genre_matrix` runs every case in a fresh
+interpreter per `PYTHONHASHSEED` x worker-count coordinate (the worker
+exercises cache cold, hit and corrupt runs internally) and requires
+byte-identical ordered canonical results across all coordinates, emitting a
+content-addressed `cps.pil-genre-matrix-receipt` 1.0.0 that
+`validate_genre_matrix_receipt` independently recomputes
+(`backend/app/songprogram/perceptual_genre.py`,
+`backend/app/songprogram/pil_genre_phase5_worker.py`, commit `c6a3595`).
+This mirrors the Phase 1--4 `execute_pil_oracle_matrix` evidence shape; the
+authoritative oracle-side matrix remains the conformance suite's own.
