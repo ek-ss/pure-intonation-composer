@@ -28,7 +28,10 @@ import hashlib
 import json
 import os
 import re
+import subprocess
+import sys
 import tempfile
+from concurrent.futures import ThreadPoolExecutor
 from fractions import Fraction
 from pathlib import Path
 from typing import Any, Mapping, Sequence
@@ -43,6 +46,7 @@ from .perceptual import (
     report_hash,
     run_perceptual_interpretation,
 )
+from .search_decisions import decision_artifact_hash
 
 GENRE_MODEL_SCHEMA = "cps.perceptual-genre-model"
 GENRE_FEATURE_RECORD_SCHEMA = "cps.perceptual-genre-feature-record"
@@ -756,9 +760,230 @@ def run_phase5_interpretation(
     )
 
 
+# ---------------------------------------------------------------------------
+# Cross-process / worker matrix (contract section 5)
+# ---------------------------------------------------------------------------
+
+GENRE_MATRIX_RECEIPT_SCHEMA = "cps.pil-genre-matrix-receipt"
+
+
+def _is_sha256(value: Any) -> bool:
+    return (
+        isinstance(value, str)
+        and value.startswith(_SHA_PREFIX)
+        and len(value) == 71
+        and all(character in "0123456789abcdef" for character in value[7:])
+    )
+
+
+def _validate_matrix_seeds(seeds: Sequence[str]) -> list[str]:
+    if isinstance(seeds, (str, bytes)) or not isinstance(seeds, Sequence) or not seeds:
+        _fail()
+    for seed in seeds:
+        if not isinstance(seed, str) or not (
+            seed == "random"
+            or (
+                seed.isdecimal()
+                and len(seed) <= 10
+                and str(int(seed)) == seed
+                and int(seed) <= 4_294_967_295
+            )
+        ):
+            _fail()
+    if len(set(seeds)) != len(seeds):
+        _fail()
+    return list(seeds)
+
+
+def _validate_matrix_worker_counts(worker_counts: Sequence[int]) -> list[int]:
+    if (
+        isinstance(worker_counts, (str, bytes))
+        or not isinstance(worker_counts, Sequence)
+        or not worker_counts
+    ):
+        _fail()
+    for count in worker_counts:
+        if not _is_int(count, 1, 64):
+            _fail()
+    if len(set(worker_counts)) != len(worker_counts) or sorted(worker_counts) != list(
+        worker_counts
+    ):
+        _fail()
+    return list(worker_counts)
+
+
+def _genre_case_results_hash(results: Sequence[Mapping[str, str]]) -> str:
+    digest = hashlib.sha256(
+        b"cps.pil-genre-case-results/v1\0" + _canonical(list(results))
+    ).hexdigest()
+    return _SHA_PREFIX + digest
+
+
+def _validate_matrix_cases(cases: Sequence[Mapping[str, Any]]) -> list[Mapping[str, Any]]:
+    if isinstance(cases, (str, bytes)) or not isinstance(cases, Sequence) or not cases:
+        _fail()
+    case_ids = [case.get("case_id") for case in cases]
+    if any(not isinstance(case_id, str) for case_id in case_ids):
+        _fail()
+    if len(set(case_ids)) != len(cases):
+        _fail()
+    ordered = sorted(cases, key=lambda case: case["case_id"].encode("utf-8"))
+    if ordered != list(cases):
+        _fail()
+    for case in cases:
+        if not isinstance(case.get("model"), Mapping) or not isinstance(
+            case.get("feature_record"), Mapping
+        ):
+            _fail()
+    return ordered
+
+
+def _subprocess_genre_case(case: Mapping[str, Any], seed: str) -> dict[str, str]:
+    """Execute one case in a fresh interpreter under the given hash seed.
+
+    The worker also exercises the cache cold / hit / corrupt coordinates and
+    only emits canonical result bytes when all of them agree byte-for-byte.
+    """
+    backend = Path(__file__).resolve().parents[2]
+    environment = dict(os.environ)
+    environment["PYTHONHASHSEED"] = seed
+    python_path = environment.get("PYTHONPATH")
+    environment["PYTHONPATH"] = str(backend) + (os.pathsep + python_path if python_path else "")
+    completed = subprocess.run(
+        [sys.executable, "-m", "app.songprogram.pil_genre_phase5_worker"],
+        input=_canonical(case),
+        capture_output=True,
+        cwd=backend,
+        env=environment,
+        check=False,
+    )
+    if completed.returncode != 0:
+        _fail()
+    canonical = completed.stdout
+    try:
+        results = json.loads(canonical)
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        _fail()
+    if not isinstance(results, list) or _canonical(results) != canonical:
+        _fail()
+    _validate_results(results)
+    return {
+        "case_id": case["case_id"],
+        "canonical_results_sha256": _SHA_PREFIX + hashlib.sha256(canonical).hexdigest(),
+    }
+
+
+def execute_genre_matrix(
+    cases: Sequence[Mapping[str, Any]],
+    *,
+    pythonhashseeds: Sequence[str],
+    worker_counts: Sequence[int] = (1, 2, 4, 8),
+) -> dict[str, Any]:
+    """Run the seed/concurrency matrix over Phase 5 cases and return a receipt.
+
+    Each case is ``{"case_id", "model", "feature_record"}`` sorted by
+    ``case_id``.  Every seed x worker-count coordinate executes every case in
+    a fresh interpreter (exercising cache cold, hit and corrupt runs) and all
+    coordinates must produce byte-identical ordered canonical results
+    (contract section 5); any divergence is ``PIL_GENRE_FAILED``.
+    """
+    ordered = _validate_matrix_cases(cases)
+    seeds = _validate_matrix_seeds(pythonhashseeds)
+    workers = _validate_matrix_worker_counts(worker_counts)
+
+    baseline: list[dict[str, str]] | None = None
+    rows = []
+    for seed in seeds:
+        for worker_count in workers:
+            with ThreadPoolExecutor(max_workers=worker_count) as pool:
+                results = list(pool.map(lambda case: _subprocess_genre_case(case, seed), ordered))
+            if baseline is None:
+                baseline = results
+            elif results != baseline:
+                _fail()
+            rows.append(
+                {
+                    "pythonhashseed": seed,
+                    "worker_count": worker_count,
+                    "case_results_hash": _genre_case_results_hash(results),
+                }
+            )
+    receipt = {
+        "schema": GENRE_MATRIX_RECEIPT_SCHEMA,
+        "schema_version": GENRE_SCHEMA_VERSION,
+        "implementation_build_id": PHASE5_BUILD_ID,
+        "case_results": baseline,
+        "executions": rows,
+        "matrix_hash": "",
+    }
+    receipt["matrix_hash"] = decision_artifact_hash(receipt, "matrix_hash")
+    validate_genre_matrix_receipt(
+        receipt, cases, pythonhashseeds=seeds, worker_counts=workers
+    )
+    return receipt
+
+
+def validate_genre_matrix_receipt(
+    receipt: Mapping[str, Any],
+    cases: Sequence[Mapping[str, Any]],
+    *,
+    pythonhashseeds: Sequence[str],
+    worker_counts: Sequence[int] = (1, 2, 4, 8),
+) -> None:
+    """Recompute matrix coordinates, expected results and every receipt hash."""
+    required = {
+        "schema",
+        "schema_version",
+        "implementation_build_id",
+        "case_results",
+        "executions",
+        "matrix_hash",
+    }
+    if not isinstance(receipt, Mapping) or set(receipt) != required:
+        _fail()
+    if (
+        receipt.get("schema") != GENRE_MATRIX_RECEIPT_SCHEMA
+        or receipt.get("schema_version") != GENRE_SCHEMA_VERSION
+        or receipt.get("implementation_build_id") != PHASE5_BUILD_ID
+        or receipt.get("matrix_hash") != decision_artifact_hash(receipt, "matrix_hash")
+    ):
+        _fail()
+    ordered = _validate_matrix_cases(cases)
+    seeds = _validate_matrix_seeds(pythonhashseeds)
+    workers = _validate_matrix_worker_counts(worker_counts)
+
+    expected_results = []
+    for case in ordered:
+        results = run_genre_interpretation(case["model"], case["feature_record"])
+        canonical = canonical_results_bytes(results)
+        expected_results.append(
+            {
+                "case_id": case["case_id"],
+                "canonical_results_sha256": _SHA_PREFIX + hashlib.sha256(canonical).hexdigest(),
+            }
+        )
+    if receipt.get("case_results") != expected_results or any(
+        not _is_sha256(row["canonical_results_sha256"]) for row in expected_results
+    ):
+        _fail()
+    expected_hash = _genre_case_results_hash(expected_results)
+    expected_rows = [
+        {
+            "pythonhashseed": seed,
+            "worker_count": worker_count,
+            "case_results_hash": expected_hash,
+        }
+        for seed in seeds
+        for worker_count in workers
+    ]
+    if receipt.get("executions") != expected_rows:
+        _fail()
+
+
 __all__ = (
     "GENRE_EXTRACT_ALGORITHM",
     "GENRE_FEATURE_RECORD_SCHEMA",
+    "GENRE_MATRIX_RECEIPT_SCHEMA",
     "GENRE_FEATURE_RECORD_SCHEMA_HASH",
     "GENRE_MODEL_ALGORITHM",
     "GENRE_MODEL_SCHEMA",
@@ -769,6 +994,7 @@ __all__ = (
     "PHASE5_COMPLETED_PHASE",
     "canonical_results_bytes",
     "evaluate_genre",
+    "execute_genre_matrix",
     "extract_genre_feature_record",
     "genre_feature_record_hash",
     "genre_model_hash",
@@ -777,5 +1003,6 @@ __all__ = (
     "run_genre_interpretation",
     "run_phase5_interpretation",
     "validate_genre_feature_record",
+    "validate_genre_matrix_receipt",
     "validate_genre_model",
 )

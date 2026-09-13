@@ -390,3 +390,83 @@ def test_run_phase5_does_not_run_after_phase4_failure() -> None:
             phase4_report=failed,
         )
     assert caught.value.code == "PIL_GENRE_FAILED"
+
+
+# ---------------------------------------------------------------------------
+# Cross-process / worker matrix (contract section 5)
+# ---------------------------------------------------------------------------
+
+
+def _matrix_cases() -> list[dict]:
+    case = _success_case()
+    base = {"model": case["model"], "feature_record": case["feature_record"]}
+    return [
+        {"case_id": "phase5_harmony_success", **base},
+        {"case_id": "phase5_harmony_success_copy", **base},
+    ]
+
+
+def test_genre_matrix_cross_process_parity() -> None:
+    cases = _matrix_cases()
+    receipt = pg.execute_genre_matrix(cases, pythonhashseeds=("0", "1"), worker_counts=(1, 2))
+    assert receipt["schema"] == pg.GENRE_MATRIX_RECEIPT_SCHEMA
+    assert receipt["schema_version"] == pg.GENRE_SCHEMA_VERSION
+    assert receipt["implementation_build_id"] == pg.PHASE5_BUILD_ID
+    results = pg.evaluate_genre(cases[0]["model"], cases[0]["feature_record"])
+    expected = "sha256:" + hashlib.sha256(pg.canonical_results_bytes(results)).hexdigest()
+    assert receipt["case_results"] == [
+        {"case_id": "phase5_harmony_success", "canonical_results_sha256": expected},
+        {"case_id": "phase5_harmony_success_copy", "canonical_results_sha256": expected},
+    ]
+    coordinates = [(row["pythonhashseed"], row["worker_count"]) for row in receipt["executions"]]
+    assert coordinates == [("0", 1), ("0", 2), ("1", 1), ("1", 2)]
+    assert len({row["case_results_hash"] for row in receipt["executions"]}) == 1
+    pg.validate_genre_matrix_receipt(
+        receipt, cases, pythonhashseeds=("0", "1"), worker_counts=(1, 2)
+    )
+
+
+def test_genre_matrix_receipt_tamper_detection() -> None:
+    cases = _matrix_cases()
+    receipt = pg.execute_genre_matrix(cases, pythonhashseeds=("0",), worker_counts=(1,))
+
+    tampered = deepcopy(receipt)
+    tampered["executions"][0]["case_results_hash"] = "sha256:" + "00" * 32
+    with pytest.raises(PilError):
+        pg.validate_genre_matrix_receipt(
+            tampered, cases, pythonhashseeds=("0",), worker_counts=(1,)
+        )
+
+    tampered = deepcopy(receipt)
+    tampered["case_results"][0]["canonical_results_sha256"] = "sha256:" + "11" * 32
+    tampered["matrix_hash"] = ""
+    from app.songprogram.search_decisions import decision_artifact_hash
+
+    tampered["matrix_hash"] = decision_artifact_hash(tampered, "matrix_hash")
+    with pytest.raises(PilError):
+        pg.validate_genre_matrix_receipt(
+            tampered, cases, pythonhashseeds=("0",), worker_counts=(1,)
+        )
+
+
+def test_genre_matrix_input_validation() -> None:
+    cases = _matrix_cases()
+    with pytest.raises(PilError):
+        pg.execute_genre_matrix([], pythonhashseeds=("0",))
+    with pytest.raises(PilError):
+        pg.execute_genre_matrix(cases, pythonhashseeds=("0", "0"))
+    with pytest.raises(PilError):
+        pg.execute_genre_matrix(cases, pythonhashseeds=("01",))
+    with pytest.raises(PilError):
+        pg.execute_genre_matrix(cases, pythonhashseeds=("4294967296",))
+    with pytest.raises(PilError):
+        pg.execute_genre_matrix(cases, pythonhashseeds=("0",), worker_counts=(2, 1))
+    with pytest.raises(PilError):
+        pg.execute_genre_matrix(cases, pythonhashseeds=("0",), worker_counts=(0,))
+    payload = {"model": cases[0]["model"], "feature_record": cases[0]["feature_record"]}
+    reversed_cases = [
+        {"case_id": "b_case", **payload},
+        {"case_id": "a_case", **payload},
+    ]
+    with pytest.raises(PilError):
+        pg.execute_genre_matrix(reversed_cases, pythonhashseeds=("0",), worker_counts=(1,))
