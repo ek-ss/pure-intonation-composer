@@ -1,0 +1,18 @@
+{
+  "schema": "cps.perceptual-genre-feature-record",
+  "schema_version": "1.0.0",
+  "group": "harmony",
+  "source_report_hash": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+  "vocabulary_hash": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+  "trajectory_template_set_hash": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+  "chord_vocabulary_histogram_q31": [
+    {"vocabulary_ordinal": 0, "weight_q31": 2147483647}
+  ],
+  "trajectory_histogram_q31": [
+    {"template_ordinal": 0, "weight_q31": 2147483647}
+  ],
+  "function_profile_q": [10000, 0],
+  "voice_leading_profile_q": [5000],
+  "harmonic_rhythm_profile_q": [0, 10000],
+  "record_hash": "sha256:6666666666666666666666666666666666666666666666666666666666666666"
+}

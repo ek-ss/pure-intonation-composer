@@ -122,66 +122,6 @@ def _check_schema_well_formed(name: str, schema: dict) -> None:
         _fail(f"{name}: draft $id must not claim contract status")
 
 
-def _sample_model() -> dict:
-    return {
-        "schema": "cps.perceptual-genre-model",
-        "schema_version": "1.0.0",
-        "algorithm": "pil-genre-prototype-l1/v1",
-        "model_schema_hash": "sha256:" + "00" * 32,
-        "feature_spec_hash": "sha256:" + "11" * 32,
-        "vocabulary_hash": "sha256:" + "22" * 32,
-        "trajectory_template_set_hash": "sha256:" + "33" * 32,
-        "required_groups": ["harmony"],
-        "entries": [
-            {
-                "genre_id": "draft.example",
-                "ordinal": 0,
-                "chord_vocabulary_targets": [
-                    {"vocabulary_ordinal": 0, "weight_q31": 2147483647}
-                ],
-                "progression_targets": [
-                    {"template_ordinal": 0, "weight_q31": 2147483647}
-                ],
-                "function_profile_q": [10000, 0],
-                "voice_leading_profile_q": [5000],
-                "harmonic_rhythm_profile_q": [0, 10000],
-            }
-        ],
-        "model_hash": "sha256:" + "44" * 32,
-    }
-
-
-def _sample_feature_record() -> dict:
-    return {
-        "schema": "cps.perceptual-genre-feature-record",
-        "schema_version": "1.0.0",
-        "group": "harmony",
-        "source_report_hash": "sha256:" + "55" * 32,
-        "vocabulary_hash": "sha256:" + "22" * 32,
-        "trajectory_template_set_hash": "sha256:" + "33" * 32,
-        "chord_vocabulary_histogram_q31": [
-            {"vocabulary_ordinal": 0, "weight_q31": 2147483647}
-        ],
-        "trajectory_histogram_q31": [
-            {"template_ordinal": 0, "weight_q31": 2147483647}
-        ],
-        "function_profile_q": [10000, 0],
-        "voice_leading_profile_q": [5000],
-        "harmonic_rhythm_profile_q": [0, 10000],
-        "record_hash": "sha256:" + "66" * 32,
-    }
-
-
-def _sample_interpretation() -> dict:
-    return {
-        "genre_id": "draft.example",
-        "typicality_q": 8000,
-        "idiomaticity_q": 7000,
-        "cliche_dependence_q": 1000,
-        "novelty_q": 500,
-    }
-
-
 def main() -> int:
     report_schema = _load(SCHEMA_DIR / "perceptual_interpretation_report.schema.json")
     manifest_schema = _load(SCHEMA_DIR / "perceptual_interpretation_manifest.schema.json")
@@ -219,16 +159,20 @@ def main() -> int:
     if sorted(report_groups) != sorted(draft_groups):
         _fail(f"group enum {draft_groups} != report missing_groups enum {report_groups}")
 
-    # 3. Sample instances must validate against the drafts.
-    for name, draft, sample in (
-        ("genre_model", model_draft, _sample_model()),
-        ("genre_feature_record", record_draft, _sample_feature_record()),
-        ("genre_interpretation", interp_draft, _sample_interpretation()),
+    # 3. The checked-in example instances must validate against the drafts.
+    for name, draft, example_name in (
+        ("genre_model", model_draft, "genre_model.example.json"),
+        ("genre_feature_record", record_draft, "genre_feature_record.example.json"),
+        ("genre_interpretation", interp_draft, "genre_interpretation.example.json"),
     ):
+        example_path = DRAFT_DIR / example_name
+        if not example_path.exists():
+            _fail(f"example missing: {example_name}")
+            continue
         errors: list[str] = []
-        _validate(draft, draft, sample, name, errors)
+        _validate(draft, draft, _load(example_path), name, errors)
         for error in errors:
-            _fail(f"sample {name}: {error}")
+            _fail(f"example {name}: {error}")
 
     # 4. Blocker status (informational; never fails the check).
     completed = report_schema["properties"]["completed_phase"]["enum"]

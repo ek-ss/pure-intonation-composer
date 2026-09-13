@@ -1,0 +1,26 @@
+{
+  "schema": "cps.perceptual-genre-model",
+  "schema_version": "1.0.0",
+  "algorithm": "pil-genre-prototype-l1/v1",
+  "model_schema_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+  "feature_spec_hash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+  "vocabulary_hash": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+  "trajectory_template_set_hash": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+  "required_groups": ["harmony"],
+  "entries": [
+    {
+      "genre_id": "draft.example",
+      "ordinal": 0,
+      "chord_vocabulary_targets": [
+        {"vocabulary_ordinal": 0, "weight_q31": 2147483647}
+      ],
+      "progression_targets": [
+        {"template_ordinal": 0, "weight_q31": 2147483647}
+      ],
+      "function_profile_q": [10000, 0],
+      "voice_leading_profile_q": [5000],
+      "harmonic_rhythm_profile_q": [0, 10000]
+    }
+  ],
+  "model_hash": "sha256:4444444444444444444444444444444444444444444444444444444444444444"
+}

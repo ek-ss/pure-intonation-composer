@@ -11,6 +11,7 @@ closes the open decisions in
 | `genre_model.draft.schema.json` | GenreModel 1.0 content-addressed asset (draft doc §3.1) | G1 |
 | `genre_feature_record.draft.schema.json` | Harmony-group GenreFeatureRecord 1.0 (§3.2) | G2, G4 |
 | `genre_interpretation.draft.schema.json` | Report row shape, mirroring the authoritative `perceptual_interpretation_report.schema.json` `$defs/genre` unchanged (§3.3) | G3 (formulas stay open) |
+| `*.example.json` | One minimal example instance per draft schema, for owner review; hashes are illustrative placeholders, not real bindings | — |
 
 ## Rules
 
@@ -30,9 +31,10 @@ closes the open decisions in
 
 `backend/tools/check_pil_genre_draft_consistency.py` verifies that the drafts
 stay aligned with the authoritative report/manifest schemas (row shape, group
-enum, Q range, nullable `genre_model_hash` binding point) and validates a
-sample instance against each draft with a minimal built-in checker. It is
-read-only and prints blocker status (e.g. whether G6 is still open).
+enum, Q range, nullable `genre_model_hash` binding point) and validates each
+checked-in `*.example.json` instance against its draft with a minimal built-in
+checker. It is read-only and prints blocker status (e.g. whether G6 is still
+open).
 
 Run from the backend directory:
 

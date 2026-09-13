@@ -1,0 +1,7 @@
+{
+  "genre_id": "draft.example",
+  "typicality_q": 8000,
+  "idiomaticity_q": 7000,
+  "cliche_dependence_q": 1000,
+  "novelty_q": 500
+}
