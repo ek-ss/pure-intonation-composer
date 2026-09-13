@@ -346,3 +346,16 @@ content-addressed `cps.pil-genre-matrix-receipt` 1.0.0 that
 `backend/app/songprogram/pil_genre_phase5_worker.py`, commit `c6a3595`).
 This mirrors the Phase 1--4 `execute_pil_oracle_matrix` evidence shape; the
 authoritative oracle-side matrix remains the conformance suite's own.
+
+## 2026-09-14 Known cross-stream issue: schema pack closure failure
+
+`tests/test_songprogram_schema_pack.py::test_every_schema_is_closed_and_has_identity`
+currently fails on `main`, independently of the PIL work above. The schema
+`backend/songprogram_conformance/schemas/calibration_decision_1_1.schema.json`
+(added by commit `1731ac0`, SearchLoop13 stream) contains an object under
+`allOf/0/if` without `additionalProperties: false`, which the pack closure
+test rejects. The file belongs to the protected conformance schema pack and
+to the SearchLoop13 stream, so the PIL stream deliberately does not modify
+it; the fix is owned by the SearchLoop13 stream (close the conditional
+object or adjust the pack test). Observed with the full suite otherwise at
+532 passed plus the intentionally deselected read-only guard test.
