@@ -1,7 +1,7 @@
 {
  "schema": "cps.pil-oracle-suite-index",
  "schema_version": "1.0.0",
- "suite_version": "1.0.0",
+ "suite_version": "1.1.0",
  "required_coverage": [
   "success",
   "failure",
@@ -43,6 +43,17 @@
     "success",
     "voice_matching",
     "trajectory_similarity"
+   ]
+  },
+  {
+   "case_id": "pil_12tet_major_chord",
+   "path": "pil_12tet_major_chord.json",
+   "raw_file_sha256": "sha256:379318cadfc85b012244213292b990120698906b57c1dd48971b58f4cf5a81fa",
+   "case_hash": "sha256:540d4f3c23dea0cef90f4b060df1070d89b9ee559bf93dc11be0dcbcf87d210c",
+   "case_schema_hash": "sha256:ddc6832c38fb5a1d4ec3d8f01e47b9282cf0144b29b3aadace87e20799fe5990",
+   "coverage": [
+    "success",
+    "chord_similarity"
    ]
   },
   {
@@ -251,5 +262,5 @@
    ]
   }
  ],
- "suite_hash": "sha256:43dd5d133ef64c144c277463ee8379469465aae57a2df68090ab694a7bfd6505"
+ "suite_hash": "sha256:06c7c7c7e44fd467ab2eea2ee57a1a79a23084bf8d0836a13851efe6f51ffd90"
 }

@@ -83,7 +83,8 @@ def test_authoritative_pil_suite_closes_and_all_expected_reports_match() -> None
         {schema_hash: raw_schema},
         lambda case, schema: validate_pil_oracle_case_bindings(case),
     )
-    assert len(cases) == 18
+    assert suite["suite_version"] == "1.1.0"
+    assert len(cases) == 19
     for case in cases:
         execute_pil_oracle_case(case)
 
@@ -95,6 +96,18 @@ def test_authoritative_pil_suite_closes_and_all_expected_reports_match() -> None
         "sha256:87f4b48b1369484d693798ddb865a94f9ed0a2272e04b040b6dc5ab8c654f3d4"
     )
     assert report["trajectory_interpretations"][0]["similarity_q"] <= 5000
+
+    tet_major = next(case for case in cases if case["case_id"] == "pil_12tet_major_chord")
+    tet_major_report = execute_pil_oracle_case(tet_major)
+    interpretation = tet_major_report["segment_interpretations"][0]
+    assert interpretation["best_label"] == "major"
+    assert interpretation["candidates"][0] == {"id": "major", "similarity_q": 9907}
+
+    expected_matrix = json.loads(
+        (AUTHORITATIVE / "matrix_receipt.json").read_text(encoding="utf-8")
+    )
+    validate_pil_matrix_receipt(expected_matrix, suite["suite_hash"], cases)
+    assert execute_pil_oracle_matrix(suite["suite_hash"], cases) == expected_matrix
 
 
 @pytest.mark.parametrize(
