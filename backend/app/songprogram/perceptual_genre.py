@@ -41,6 +41,7 @@ from .perceptual import (
     _artifact_hash,
     _is_int,
     report_hash,
+    run_perceptual_interpretation,
 )
 
 GENRE_MODEL_SCHEMA = "cps.perceptual-genre-model"
@@ -685,6 +686,76 @@ def run_genre_interpretation(
     return results
 
 
+def run_phase5_interpretation(
+    project: Mapping[str, Any],
+    manifest: Mapping[str, Any],
+    genre_model: Mapping[str, Any],
+    *,
+    segmentation_policy: Mapping[str, Any],
+    feature_spec: Mapping[str, Any],
+    chord_vocabulary: Mapping[str, Any],
+    voice_matching_policy: Mapping[str, Any],
+    trajectory_template_set: Mapping[str, Any],
+    genre_feature_record: Mapping[str, Any] | None = None,
+    phase4_report: Mapping[str, Any] | None = None,
+    native_ji_report_hash: str | None = None,
+    cache_dir: str | Path | None = None,
+) -> list[dict[str, Any]]:
+    """End-to-end Phase 5 orchestration: Phase 4 report -> feature extraction
+    -> scoring (contract sections 1-2, 5).
+
+    The PIL 1.0 report is intentionally untouched: its ``completed_phase``
+    enum ends at ``functional_trajectory`` and Phase 5 results are separate
+    ``PerceptualGenreResult`` artifacts, never report members.  ``manifest``
+    must bind ``genre_model_hash`` to the given model.  When a bound
+    ``genre_feature_record`` is supplied, the recomputed record must equal it
+    byte-for-byte; a mismatch is ``PIL_GENRE_FAILED`` (inconsistent binding,
+    contract section 2).  A caller-supplied ``phase4_report`` is authenticated
+    by its self hash and reused instead of re-running Phases 1-4.
+    """
+    # Model schema and binding stages run before any Phase 1-4 work: the
+    # manifest must name this exact model for a Phase 5 request.
+    validate_genre_model(genre_model, manifest)
+
+    if phase4_report is None:
+        phase4_report = run_perceptual_interpretation(
+            project,
+            manifest,
+            native_ji_report_hash=native_ji_report_hash,
+            segmentation_policy=segmentation_policy,
+            feature_spec=feature_spec,
+            chord_vocabulary=chord_vocabulary,
+            voice_matching_policy=voice_matching_policy,
+            trajectory_template_set=trajectory_template_set,
+        )
+    if phase4_report.get("status") != "success":
+        # Earlier Phase 1-4 failures retain their existing precedence and
+        # Phase 5 does not run (contract section 5).
+        _fail()
+    if phase4_report.get("manifest_hash") != manifest.get("manifest_hash"):
+        _fail()
+    recomputed = extract_genre_feature_record(
+        project, phase4_report, chord_vocabulary, trajectory_template_set
+    )
+    if genre_feature_record is not None:
+        validate_genre_feature_record(
+            genre_feature_record, model=genre_model, phase4_report=phase4_report
+        )
+        if _canonical(genre_feature_record) != _canonical(recomputed):
+            _fail()
+        record = genre_feature_record
+    else:
+        record = recomputed
+    return run_genre_interpretation(
+        genre_model,
+        record,
+        manifest=manifest,
+        phase4_report=phase4_report,
+        project_hash=phase4_report.get("project_hash"),
+        cache_dir=cache_dir,
+    )
+
+
 __all__ = (
     "GENRE_EXTRACT_ALGORITHM",
     "GENRE_FEATURE_RECORD_SCHEMA",
@@ -704,6 +775,7 @@ __all__ = (
     "genre_result_hash",
     "phase5_cache_key",
     "run_genre_interpretation",
+    "run_phase5_interpretation",
     "validate_genre_feature_record",
     "validate_genre_model",
 )

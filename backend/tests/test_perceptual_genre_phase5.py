@@ -17,7 +17,12 @@ from pathlib import Path
 import pytest
 
 from app.songprogram import perceptual_genre as pg
-from app.songprogram.perceptual import PilError, report_hash, run_perceptual_interpretation
+from app.songprogram.perceptual import (
+    PilError,
+    manifest_hash,
+    report_hash,
+    run_perceptual_interpretation,
+)
 
 BACKEND = Path(__file__).resolve().parents[1]
 FIXTURES = BACKEND / "songprogram_conformance" / "fixtures" / "pil_genre_phase5"
@@ -196,6 +201,15 @@ def test_extraction_rejects_unknown_candidate_id() -> None:
 def test_extracted_record_scores_against_synthetic_model() -> None:
     project, report, vocabulary, template_set = _phase4_report_from_template()
     record = pg.extract_genre_feature_record(project, report, vocabulary, template_set)
+    model = _mirror_model(record, vocabulary, template_set)
+    (result,) = pg.evaluate_genre(model, record)
+    assert result["typicality_q"] == 10_000
+    assert result["novelty_q"] == 0
+    assert result["cliche_dependence_q"] == 10_000
+    assert result["missing_groups"] == list(pg.MISSING_GROUPS)
+
+
+def _mirror_model(record: dict, vocabulary: dict, template_set: dict) -> dict:
     model = {
         "schema": pg.GENRE_MODEL_SCHEMA,
         "schema_version": pg.GENRE_SCHEMA_VERSION,
@@ -220,8 +234,159 @@ def test_extracted_record_scores_against_synthetic_model() -> None:
         ],
     }
     model["model_hash"] = pg.genre_model_hash(model)
-    (result,) = pg.evaluate_genre(model, record)
+    return model
+
+
+def _phase5_case() -> dict:
+    case = json.loads((TEMPLATES / "pil_12et_ii_v_i.json").read_bytes())
+    report = run_perceptual_interpretation(
+        case["project"],
+        case["manifest"],
+        segmentation_policy=case["segmentation_policy"],
+        feature_spec=case["feature_spec"],
+        chord_vocabulary=case["vocabulary"],
+        voice_matching_policy=case["voice_matching_policy"],
+        trajectory_template_set=case["trajectory_template_set"],
+    )
+    record = pg.extract_genre_feature_record(
+        case["project"], report, case["vocabulary"], case["trajectory_template_set"]
+    )
+    model = _mirror_model(record, case["vocabulary"], case["trajectory_template_set"])
+    manifest = deepcopy(case["manifest"])
+    manifest["genre_model_hash"] = model["model_hash"]
+    manifest["manifest_hash"] = manifest_hash(manifest)
+    return {
+        "case": case,
+        "report": report,
+        "record": record,
+        "model": model,
+        "manifest": manifest,
+    }
+
+
+def test_run_phase5_end_to_end(tmp_path) -> None:
+    built = _phase5_case()
+    case = built["case"]
+    results = pg.run_phase5_interpretation(
+        case["project"],
+        built["manifest"],
+        built["model"],
+        segmentation_policy=case["segmentation_policy"],
+        feature_spec=case["feature_spec"],
+        chord_vocabulary=case["vocabulary"],
+        voice_matching_policy=case["voice_matching_policy"],
+        trajectory_template_set=case["trajectory_template_set"],
+        cache_dir=tmp_path,
+    )
+    (result,) = results
     assert result["typicality_q"] == 10_000
-    assert result["novelty_q"] == 0
-    assert result["cliche_dependence_q"] == 10_000
-    assert result["missing_groups"] == list(pg.MISSING_GROUPS)
+    assert result["model_hash"] == built["model"]["model_hash"]
+    # Bound-record path: the record bound to the Phase 5 manifest's report
+    # must reproduce identical bytes.
+    report5 = run_perceptual_interpretation(
+        case["project"],
+        built["manifest"],
+        segmentation_policy=case["segmentation_policy"],
+        feature_spec=case["feature_spec"],
+        chord_vocabulary=case["vocabulary"],
+        voice_matching_policy=case["voice_matching_policy"],
+        trajectory_template_set=case["trajectory_template_set"],
+    )
+    record5 = pg.extract_genre_feature_record(
+        case["project"], report5, case["vocabulary"], case["trajectory_template_set"]
+    )
+    again = pg.run_phase5_interpretation(
+        case["project"],
+        built["manifest"],
+        built["model"],
+        segmentation_policy=case["segmentation_policy"],
+        feature_spec=case["feature_spec"],
+        chord_vocabulary=case["vocabulary"],
+        voice_matching_policy=case["voice_matching_policy"],
+        trajectory_template_set=case["trajectory_template_set"],
+        genre_feature_record=record5,
+        phase4_report=report5,
+        cache_dir=tmp_path,
+    )
+    assert pg.canonical_results_bytes(again) == pg.canonical_results_bytes(results)
+
+
+def test_run_phase5_rejects_inconsistent_bound_record() -> None:
+    built = _phase5_case()
+    case = built["case"]
+    bad_record = deepcopy(built["record"])
+    bad_record["harmonic_rhythm_profile_q"] = [10_000, 0, 0, 0]
+    bad_record["record_hash"] = pg.genre_feature_record_hash(bad_record)
+    with pytest.raises(PilError) as caught:
+        pg.run_phase5_interpretation(
+            case["project"],
+            built["manifest"],
+            built["model"],
+            segmentation_policy=case["segmentation_policy"],
+            feature_spec=case["feature_spec"],
+            chord_vocabulary=case["vocabulary"],
+            voice_matching_policy=case["voice_matching_policy"],
+            trajectory_template_set=case["trajectory_template_set"],
+            genre_feature_record=bad_record,
+            phase4_report=built["report"],
+        )
+    assert caught.value.code == "PIL_GENRE_FAILED"
+
+
+def test_run_phase5_requires_manifest_model_binding() -> None:
+    built = _phase5_case()
+    case = built["case"]
+    with pytest.raises(PilError) as caught:
+        pg.run_phase5_interpretation(
+            case["project"],
+            case["manifest"],  # genre_model_hash is None in the Phase 1-4 manifest
+            built["model"],
+            segmentation_policy=case["segmentation_policy"],
+            feature_spec=case["feature_spec"],
+            chord_vocabulary=case["vocabulary"],
+            voice_matching_policy=case["voice_matching_policy"],
+            trajectory_template_set=case["trajectory_template_set"],
+        )
+    assert caught.value.code == "PIL_GENRE_FAILED"
+
+
+def test_run_phase5_rejects_report_manifest_mismatch() -> None:
+    built = _phase5_case()
+    case = built["case"]
+    # built["report"] was produced with the Phase 1-4 manifest, not the
+    # Phase 5 manifest that binds the genre model.
+    with pytest.raises(PilError) as caught:
+        pg.run_phase5_interpretation(
+            case["project"],
+            built["manifest"],
+            built["model"],
+            segmentation_policy=case["segmentation_policy"],
+            feature_spec=case["feature_spec"],
+            chord_vocabulary=case["vocabulary"],
+            voice_matching_policy=case["voice_matching_policy"],
+            trajectory_template_set=case["trajectory_template_set"],
+            phase4_report=built["report"],
+        )
+    assert caught.value.code == "PIL_GENRE_FAILED"
+
+
+def test_run_phase5_does_not_run_after_phase4_failure() -> None:
+    built = _phase5_case()
+    case = built["case"]
+    failed = deepcopy(built["report"])
+    failed["status"] = "failure"
+    failed["error"] = "PIL_TRAJECTORY_FAILED"
+    failed["manifest_hash"] = built["manifest"]["manifest_hash"]
+    with pytest.raises(PilError) as caught:
+        pg.run_phase5_interpretation(
+            case["project"],
+            built["manifest"],
+            built["model"],
+            segmentation_policy=case["segmentation_policy"],
+            feature_spec=case["feature_spec"],
+            chord_vocabulary=case["vocabulary"],
+            voice_matching_policy=case["voice_matching_policy"],
+            trajectory_template_set=case["trajectory_template_set"],
+            phase4_report=failed,
+        )
+    assert caught.value.code == "PIL_GENRE_FAILED"
