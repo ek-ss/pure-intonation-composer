@@ -1,0 +1,18 @@
+{
+ "schema": "cps.native-ji-evaluation-manifest",
+ "schema_version": "1.0.0",
+ "algorithm": "native-ji-lattice-coherence/v1",
+ "implementation_build_id": "native-ji.oracle.1.0.0",
+ "project_schema_hash": "sha256:960891e2390acb2a3c14e35074de9a56bb0604c9098baff0aada3fbeeeeb167d",
+ "report_schema_hash": "sha256:c61c08c40ea146174e1b02fbca7bbf959447b4edac847d56b1cde4514cacf1be",
+ "metric_id": "native_ji.coherence",
+ "coordinate_order": [
+  "equave_exponent",
+  "final_vector"
+ ],
+ "distance": "lattice-l1/v1",
+ "distance_cap": 8,
+ "within_group_weight_q": 5000,
+ "between_group_weight_q": 5000,
+ "manifest_hash": "sha256:8d1a9ad7563fe5b45343cf66d3a2a0383ca81be5ebb121bd1b0ae78fdb55cf3b"
+}

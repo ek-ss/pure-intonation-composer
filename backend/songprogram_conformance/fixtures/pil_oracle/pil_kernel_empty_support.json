@@ -1,12 +1,11 @@
 {
  "schema": "cps.pil-oracle-case",
  "schema_version": "1.0.0",
- "case_id": "pil_kernel_boundaries",
- "description": "The 50,000-millicent row splits by largest remainder with ordinal 0 first; the 100,000-millicent row omits the zero-weight class-0 edge and assigns all Q31 weight to class 1.",
+ "case_id": "pil_kernel_empty_support",
+ "description": "Radius 10000 leaves 16/15 without support: PIL_PITCH_SUPPORT_EMPTY.",
  "coverage": [
-  "success",
-  "kernel_edge",
-  "kernel_tie"
+  "failure",
+  "kernel_empty_support"
  ],
  "manifest": {
   "schema": "cps.perceptual-interpretation-manifest",
@@ -18,7 +17,7 @@
   "interpretation_period": "2/1",
   "pitch_kernel": {
    "algorithm": "triangular-millicent-q31/v1",
-   "radius_millicents": 100000,
+   "radius_millicents": 10000,
    "normalization_total": 2147483647
   },
   "segmentation_policy_schema_hash": "sha256:77559f2ad4f563c761be20505eec8af4c4a04e63b51b9201df680e280bfa370d",
@@ -28,13 +27,13 @@
   "voice_matching_policy_hash": "sha256:0606060606060606060606060606060606060606060606060606060606060606",
   "trajectory_template_set_hash": "sha256:0707070707070707070707070707070707070707070707070707070707070707",
   "genre_model_hash": null,
-  "manifest_hash": "sha256:d5fc725e032a91ac3e7c44c51f20f0003a8343dbba59451128e4e8349c330bc1"
+  "manifest_hash": "sha256:6b2df64344577c103219ab63fd40e9f1976f73a5e792ae43b5a0048e82b1fe42"
  },
  "project": {
   "schema": "cps.arrangement-project",
   "schema_version": "1.2.0",
   "source_program": {
-   "hash": "sha256:48adbee4591d9cce50aba478cc66eec1b380ea393c034bd4078f4672617ceaf5",
+   "hash": "sha256:5f2b35d02ba44355149fce32ae3d2ead66c9b13b72d7fc36ba3c9698dd6f11d6",
    "schema": "cps.song-program",
    "schema_version": "0.1.0"
   },
@@ -47,28 +46,28 @@
    "instrument_catalog_digest": "sha256:1313131313131313131313131313131313131313131313131313131313131313"
   },
   "lattice": {
-   "domain_hash": "sha256:4087a861e5b4329ccadf71382a1f166cd0caf1c4dcb1fe217e52e4141786051b",
+   "domain_hash": "sha256:9b2f57c392c6da6a20fb06575d0c1bfd1383869e91f7d578c3273d51a2c8e53e",
    "base_frequency_millihz": 220000,
    "equave": "2/1",
    "generators": [
-    "2158603/1",
-    "8887423/1"
+    "3/1",
+    "5/1"
    ],
    "coordinate_bounds": [
     [
-     0,
-     1
+     -1,
+     0
     ],
     [
-     0,
-     1
+     -1,
+     0
     ]
    ],
    "register_bounds": [
-    -23,
-    0
+    4,
+    4
    ],
-   "maximum_odd_limit": 8887423,
+   "maximum_odd_limit": 5,
    "maximum_reduced_complexity_bits": 48
   },
   "clock": {
@@ -109,33 +108,13 @@
     "repeat_ordinal": 0,
     "at_tick": 0,
     "source_program_path": "/realizations/0"
-   },
-   {
-    "id": "mi_1",
-    "material_id": "pitch_1",
-    "realization_id": "real_1",
-    "section_id": "section",
-    "track_id": "harmony",
-    "repeat_ordinal": 0,
-    "at_tick": 0,
-    "source_program_path": "/realizations/1"
-   },
-   {
-    "id": "mi_2",
-    "material_id": "pitch_2",
-    "realization_id": "real_2",
-    "section_id": "section",
-    "track_id": "harmony",
-    "repeat_ordinal": 0,
-    "at_tick": 0,
-    "source_program_path": "/realizations/2"
    }
   ],
   "resolved_chords": [],
   "harmony_occurrences": [],
   "events": [
    {
-    "id": "ev_arxe6vtkjank3vemu6r5",
+    "id": "ev_pt3h3glrvsikxdxmiv3y",
     "kind": "note",
     "track_id": "harmony",
     "section_id": "section",
@@ -144,111 +123,33 @@
     "velocity": 100,
     "articulation": "normal",
     "drum_note": null,
-    "ratio": "1/1",
+    "ratio": "16/15",
     "chord_index": null,
     "pitch_provenance": {
      "kind": "direct_vector",
      "material_vector": [
-      0,
-      0
+      -1,
+      -1
      ],
      "tonal_center": [
       0,
       0
      ],
-     "register_delta": 0,
+     "register_delta": 4,
      "register_shift_equaves": 0,
      "placed_equave_exponent": 0,
      "final_vector": [
-      0,
-      0
+      -1,
+      -1
      ],
-     "equave_exponent": 0,
-     "final_ratio": "1/1"
+     "equave_exponent": 4,
+     "final_ratio": "16/15"
     },
     "source": {
      "material_instance_id": "mi_0",
      "source_step_ordinal": 0,
      "emitted_voice_ordinal": 0,
      "semantic_address": "sa_uyiuvbrl5eybowbjakbr5hmlfx"
-    }
-   },
-   {
-    "id": "ev_25dfxt5xowi3pikusc7x",
-    "kind": "note",
-    "track_id": "harmony",
-    "section_id": "section",
-    "start_tick": 0,
-    "duration_ticks": 480,
-    "velocity": 100,
-    "articulation": "normal",
-    "drum_note": null,
-    "ratio": "2158603/2097152",
-    "chord_index": null,
-    "pitch_provenance": {
-     "kind": "direct_vector",
-     "material_vector": [
-      1,
-      0
-     ],
-     "tonal_center": [
-      0,
-      0
-     ],
-     "register_delta": -21,
-     "register_shift_equaves": 0,
-     "placed_equave_exponent": 0,
-     "final_vector": [
-      1,
-      0
-     ],
-     "equave_exponent": -21,
-     "final_ratio": "2158603/2097152"
-    },
-    "source": {
-     "material_instance_id": "mi_1",
-     "source_step_ordinal": 0,
-     "emitted_voice_ordinal": 0,
-     "semantic_address": "sa_rqe3kb7j6kddl2yk5bkhlj3oi2"
-    }
-   },
-   {
-    "id": "ev_lkjmrxy4x2poht6dwjmt",
-    "kind": "note",
-    "track_id": "harmony",
-    "section_id": "section",
-    "start_tick": 0,
-    "duration_ticks": 480,
-    "velocity": 100,
-    "articulation": "normal",
-    "drum_note": null,
-    "ratio": "8887423/8388608",
-    "chord_index": null,
-    "pitch_provenance": {
-     "kind": "direct_vector",
-     "material_vector": [
-      0,
-      1
-     ],
-     "tonal_center": [
-      0,
-      0
-     ],
-     "register_delta": -23,
-     "register_shift_equaves": 0,
-     "placed_equave_exponent": 0,
-     "final_vector": [
-      0,
-      1
-     ],
-     "equave_exponent": -23,
-     "final_ratio": "8887423/8388608"
-    },
-    "source": {
-     "material_instance_id": "mi_2",
-     "source_step_ordinal": 0,
-     "emitted_voice_ordinal": 0,
-     "semantic_address": "sa_ipry6s2oah66m26mw3gwfh2ayq"
     }
    }
   ],
@@ -263,7 +164,7 @@
    "channel_layout": "stereo"
   }
  },
- "project_hash": "sha256:ba1aae2c4c024aa46dfb41abc76d9b4dae67e28cc416c2f283d78f437602e93c",
+ "project_hash": "sha256:8f0765542de5cbc71f2e92787b96b509c040bf00fab09307a14d4e8d1ea732b1",
  "segmentation_policy": null,
  "feature_spec": null,
  "vocabulary": null,
@@ -271,10 +172,10 @@
  "trajectory_template_set": null,
  "native_ji_report_hash": null,
  "expected": {
-  "status": null,
-  "error": null,
-  "report_hash": null,
-  "canonical_report_sha256": null
+  "status": "failure",
+  "error": "PIL_PITCH_SUPPORT_EMPTY",
+  "report_hash": "sha256:14dfb99bb7da2b328d424c9f25db67e90b24fe1e641e55bcb1e20c23567e5114",
+  "canonical_report_sha256": "sha256:9ee34ab22c72edb78e2005ebb2e8aa3fbf3325f635ab7bd6047a959dda032843"
  },
  "execution": {
   "worker_counts": [
@@ -289,5 +190,5 @@
    "424242"
   ]
  },
- "case_hash": null
+ "case_hash": "sha256:bf19e46293b445395b1e137b5d59bcbb6f3649332d1def0d251f7a6f02ebace9"
 }

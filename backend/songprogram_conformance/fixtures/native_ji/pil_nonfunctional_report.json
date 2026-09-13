@@ -1,0 +1,19 @@
+{
+ "schema": "cps.native-ji-evaluation-report",
+ "schema_version": "1.0.0",
+ "project_hash": "sha256:f1abee05d02ce7fe0d72efdf9b19e29b1c9809534f68b431cdec6e0a3ca77662",
+ "manifest_hash": "sha256:8d1a9ad7563fe5b45343cf66d3a2a0383ca81be5ebb121bd1b0ae78fdb55cf3b",
+ "implementation_build_id": "native-ji.oracle.1.0.0",
+ "status": "success",
+ "metrics": [
+  {
+   "metric_id": "native_ji.coherence",
+   "direction": "maximize",
+   "value_q": 5898,
+   "within_q": 6875,
+   "between_q": 4922
+  }
+ ],
+ "error": null,
+ "report_hash": "sha256:87f4b48b1369484d693798ddb865a94f9ed0a2272e04b040b6dc5ab8c654f3d4"
+}

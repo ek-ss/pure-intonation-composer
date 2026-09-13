@@ -1,0 +1,25 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"https://cps.local/schemas/native_ji_evaluation_report.schema.json",
+  "title":"NativeJIEvaluationReport 1.0",
+  "type":"object",
+  "additionalProperties":false,
+  "required":["schema","schema_version","project_hash","manifest_hash","implementation_build_id","status","metrics","error","report_hash"],
+  "properties":{
+    "schema":{"const":"cps.native-ji-evaluation-report"},
+    "schema_version":{"const":"1.0.0"},
+    "project_hash":{"$ref":"#/$defs/sha"},
+    "manifest_hash":{"$ref":"#/$defs/sha"},
+    "implementation_build_id":{"type":"string","pattern":"^[A-Za-z0-9][A-Za-z0-9._/-]{0,127}$"},
+    "status":{"const":"success"},
+    "metrics":{"type":"array","prefixItems":[{"$ref":"#/$defs/coherence"}],"items":false,"minItems":1,"maxItems":1},
+    "error":{"type":"null"},
+    "report_hash":{"$ref":"#/$defs/sha"}
+  },
+  "$defs":{
+    "sha":{"type":"string","pattern":"^sha256:[0-9a-f]{64}$"},
+    "q":{"type":"integer","minimum":0,"maximum":10000},
+    "nullableQ":{"oneOf":[{"type":"null"},{"$ref":"#/$defs/q"}]},
+    "coherence":{"type":"object","additionalProperties":false,"required":["metric_id","direction","value_q","within_q","between_q"],"properties":{"metric_id":{"const":"native_ji.coherence"},"direction":{"const":"maximize"},"value_q":{"$ref":"#/$defs/q"},"within_q":{"$ref":"#/$defs/nullableQ"},"between_q":{"$ref":"#/$defs/nullableQ"}}}
+  }
+}

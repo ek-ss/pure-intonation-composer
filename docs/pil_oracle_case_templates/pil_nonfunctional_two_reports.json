@@ -2,7 +2,7 @@
  "schema": "cps.pil-oracle-case",
  "schema_version": "1.0.0",
  "case_id": "pil_nonfunctional_two_reports",
- "description": "High Native JI coherence with low ii-V-I similarity, reported separately; the Native JI report hash is correlation metadata filled by the owner.",
+ "description": "The independently bound Native JI report has native_ji.coherence >= 5800 while this PIL report has ii-V-I trajectory similarity <= 5000; the two reports bind the same Project and remain separate.",
  "coverage": [
   "success",
   "voice_matching",

@@ -1,11 +1,12 @@
 {
  "schema": "cps.pil-oracle-case",
  "schema_version": "1.0.0",
- "case_id": "pil_seven_limit_multi_candidate",
- "description": "7-limit chord; every pitch row must retain multiple nonzero candidates.",
+ "case_id": "pil_tritave_phase_split",
+ "description": "3/1 equave: native phase wraps by 3/1 while the 2/1 interpretation phase differs.",
  "coverage": [
   "success",
-  "equave_2_1"
+  "equave_3_1",
+  "phase_independence"
  ],
  "manifest": {
   "schema": "cps.perceptual-interpretation-manifest",
@@ -33,7 +34,7 @@
   "schema": "cps.arrangement-project",
   "schema_version": "1.2.0",
   "source_program": {
-   "hash": "sha256:bfc0784a0652ef6b2982b99b34a177f516b58ecba4001a6cc38a25b260481e4a",
+   "hash": "sha256:a40172df479e10870087d5833dc14325ccbf4bc5d4db3b7304747aace157a370",
    "schema": "cps.song-program",
    "schema_version": "0.1.0"
   },
@@ -46,33 +47,23 @@
    "instrument_catalog_digest": "sha256:1313131313131313131313131313131313131313131313131313131313131313"
   },
   "lattice": {
-   "domain_hash": "sha256:8c800928cff8b6c44a98d912833b06b025481b307f24a75414332fc69db8e6e4",
+   "domain_hash": "sha256:f105f341a30c53872853009af06120891fc80a65de6288983453b8689d28a396",
    "base_frequency_millihz": 220000,
-   "equave": "2/1",
+   "equave": "3/1",
    "generators": [
-    "3/1",
-    "5/1",
-    "7/1"
+    "2/1"
    ],
    "coordinate_bounds": [
     [
      0,
-     2
-    ],
-    [
-     0,
-     1
-    ],
-    [
-     0,
-     1
+     0
     ]
    ],
    "register_bounds": [
-    -3,
-    -1
+    1,
+    1
    ],
-   "maximum_odd_limit": 7,
+   "maximum_odd_limit": 2,
    "maximum_reduced_complexity_bits": 48
   },
   "clock": {
@@ -113,43 +104,13 @@
     "repeat_ordinal": 0,
     "at_tick": 0,
     "source_program_path": "/realizations/0"
-   },
-   {
-    "id": "mi_1",
-    "material_id": "pitch_1",
-    "realization_id": "real_1",
-    "section_id": "section",
-    "track_id": "harmony",
-    "repeat_ordinal": 0,
-    "at_tick": 0,
-    "source_program_path": "/realizations/1"
-   },
-   {
-    "id": "mi_2",
-    "material_id": "pitch_2",
-    "realization_id": "real_2",
-    "section_id": "section",
-    "track_id": "harmony",
-    "repeat_ordinal": 0,
-    "at_tick": 0,
-    "source_program_path": "/realizations/2"
-   },
-   {
-    "id": "mi_3",
-    "material_id": "pitch_3",
-    "realization_id": "real_3",
-    "section_id": "section",
-    "track_id": "harmony",
-    "repeat_ordinal": 0,
-    "at_tick": 0,
-    "source_program_path": "/realizations/3"
    }
   ],
   "resolved_chords": [],
   "harmony_occurrences": [],
   "events": [
    {
-    "id": "ev_h4yynhcnm7wm7eiz5jos",
+    "id": "ev_5s3j7aubybp32vqpasim",
     "kind": "note",
     "track_id": "harmony",
     "section_id": "section",
@@ -158,156 +119,24 @@
     "velocity": 100,
     "articulation": "normal",
     "drum_note": null,
-    "ratio": "3/2",
+    "ratio": "3/1",
     "chord_index": null,
     "pitch_provenance": {
      "kind": "direct_vector",
      "material_vector": [
-      1,
-      0,
       0
      ],
      "tonal_center": [
-      0,
-      0,
       0
      ],
-     "register_delta": -1,
+     "register_delta": 1,
      "register_shift_equaves": 0,
      "placed_equave_exponent": 0,
      "final_vector": [
-      1,
-      0,
       0
      ],
-     "equave_exponent": -1,
-     "final_ratio": "3/2"
-    },
-    "source": {
-     "material_instance_id": "mi_2",
-     "source_step_ordinal": 0,
-     "emitted_voice_ordinal": 0,
-     "semantic_address": "sa_ipry6s2oah66m26mw3gwfh2ayq"
-    }
-   },
-   {
-    "id": "ev_flikczpxywyr5ab4jidk",
-    "kind": "note",
-    "track_id": "harmony",
-    "section_id": "section",
-    "start_tick": 0,
-    "duration_ticks": 480,
-    "velocity": 100,
-    "articulation": "normal",
-    "drum_note": null,
-    "ratio": "5/4",
-    "chord_index": null,
-    "pitch_provenance": {
-     "kind": "direct_vector",
-     "material_vector": [
-      0,
-      1,
-      0
-     ],
-     "tonal_center": [
-      0,
-      0,
-      0
-     ],
-     "register_delta": -2,
-     "register_shift_equaves": 0,
-     "placed_equave_exponent": 0,
-     "final_vector": [
-      0,
-      1,
-      0
-     ],
-     "equave_exponent": -2,
-     "final_ratio": "5/4"
-    },
-    "source": {
-     "material_instance_id": "mi_1",
-     "source_step_ordinal": 0,
-     "emitted_voice_ordinal": 0,
-     "semantic_address": "sa_rqe3kb7j6kddl2yk5bkhlj3oi2"
-    }
-   },
-   {
-    "id": "ev_v4pkvntdn4mrenpmnvct",
-    "kind": "note",
-    "track_id": "harmony",
-    "section_id": "section",
-    "start_tick": 0,
-    "duration_ticks": 480,
-    "velocity": 100,
-    "articulation": "normal",
-    "drum_note": null,
-    "ratio": "7/4",
-    "chord_index": null,
-    "pitch_provenance": {
-     "kind": "direct_vector",
-     "material_vector": [
-      0,
-      0,
-      1
-     ],
-     "tonal_center": [
-      0,
-      0,
-      0
-     ],
-     "register_delta": -2,
-     "register_shift_equaves": 0,
-     "placed_equave_exponent": 0,
-     "final_vector": [
-      0,
-      0,
-      1
-     ],
-     "equave_exponent": -2,
-     "final_ratio": "7/4"
-    },
-    "source": {
-     "material_instance_id": "mi_3",
-     "source_step_ordinal": 0,
-     "emitted_voice_ordinal": 0,
-     "semantic_address": "sa_2ia7tz3pxmko2jp64p67nvyt33"
-    }
-   },
-   {
-    "id": "ev_i3x7lzb4i6eadod2npzc",
-    "kind": "note",
-    "track_id": "harmony",
-    "section_id": "section",
-    "start_tick": 0,
-    "duration_ticks": 480,
-    "velocity": 100,
-    "articulation": "normal",
-    "drum_note": null,
-    "ratio": "9/8",
-    "chord_index": null,
-    "pitch_provenance": {
-     "kind": "direct_vector",
-     "material_vector": [
-      2,
-      0,
-      0
-     ],
-     "tonal_center": [
-      0,
-      0,
-      0
-     ],
-     "register_delta": -3,
-     "register_shift_equaves": 0,
-     "placed_equave_exponent": 0,
-     "final_vector": [
-      2,
-      0,
-      0
-     ],
-     "equave_exponent": -3,
-     "final_ratio": "9/8"
+     "equave_exponent": 1,
+     "final_ratio": "3/1"
     },
     "source": {
      "material_instance_id": "mi_0",
@@ -328,7 +157,7 @@
    "channel_layout": "stereo"
   }
  },
- "project_hash": "sha256:2e17013154cfa5ff793f7f3ef700d32e24ece9f780313a05a9f9b1ba913bdeb8",
+ "project_hash": "sha256:9f68743180b451fe8a9d6e3b84a56183318a9270910924fa35b13c174dac0996",
  "segmentation_policy": null,
  "feature_spec": null,
  "vocabulary": null,
@@ -336,10 +165,10 @@
  "trajectory_template_set": null,
  "native_ji_report_hash": null,
  "expected": {
-  "status": null,
+  "status": "success",
   "error": null,
-  "report_hash": null,
-  "canonical_report_sha256": null
+  "report_hash": "sha256:012ec88198629ec3a779b8da3be284a569e9a2e35e15fcfe8d6a0ffe9d0ede14",
+  "canonical_report_sha256": "sha256:510604fb485d137e7d35a0264ba596138a99bcd549bbc9997b988658a3f13c2a"
  },
  "execution": {
   "worker_counts": [
@@ -354,5 +183,5 @@
    "424242"
   ]
  },
- "case_hash": null
+ "case_hash": "sha256:c56b9d95195c287202a4d70323d158b00cbede1993dacfca49480a43e7ad8b94"
 }

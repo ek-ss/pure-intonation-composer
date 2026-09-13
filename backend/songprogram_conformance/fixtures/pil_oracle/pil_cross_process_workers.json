@@ -1,11 +1,15 @@
 {
  "schema": "cps.pil-oracle-case",
  "schema_version": "1.0.0",
- "case_id": "pil_seven_limit_multi_candidate",
- "description": "7-limit chord; every pitch row must retain multiple nonzero candidates.",
+ "case_id": "pil_cross_process_workers",
+ "description": "PYTHONHASHSEED and 1/2/4/8-worker parity matrix.",
  "coverage": [
   "success",
-  "equave_2_1"
+  "cross_process",
+  "parallel_1",
+  "parallel_2",
+  "parallel_4",
+  "parallel_8"
  ],
  "manifest": {
   "schema": "cps.perceptual-interpretation-manifest",
@@ -33,7 +37,7 @@
   "schema": "cps.arrangement-project",
   "schema_version": "1.2.0",
   "source_program": {
-   "hash": "sha256:bfc0784a0652ef6b2982b99b34a177f516b58ecba4001a6cc38a25b260481e4a",
+   "hash": "sha256:8792d9468f1e241ca8128ffbfcf50af50dcc142b88f373e57c5790e2f810989c",
    "schema": "cps.song-program",
    "schema_version": "0.1.0"
   },
@@ -46,19 +50,14 @@
    "instrument_catalog_digest": "sha256:1313131313131313131313131313131313131313131313131313131313131313"
   },
   "lattice": {
-   "domain_hash": "sha256:8c800928cff8b6c44a98d912833b06b025481b307f24a75414332fc69db8e6e4",
+   "domain_hash": "sha256:ebd83f446bc2ff27e7c724c643a70cf8064f640ee795de6997b0b0f36b2c0122",
    "base_frequency_millihz": 220000,
    "equave": "2/1",
    "generators": [
-    "3/1",
-    "5/1",
-    "7/1"
+    "7/1",
+    "11/1"
    ],
    "coordinate_bounds": [
-    [
-     0,
-     2
-    ],
     [
      0,
      1
@@ -70,9 +69,9 @@
    ],
    "register_bounds": [
     -3,
-    -1
+    0
    ],
-   "maximum_odd_limit": 7,
+   "maximum_odd_limit": 11,
    "maximum_reduced_complexity_bits": 48
   },
   "clock": {
@@ -133,23 +132,13 @@
     "repeat_ordinal": 0,
     "at_tick": 0,
     "source_program_path": "/realizations/2"
-   },
-   {
-    "id": "mi_3",
-    "material_id": "pitch_3",
-    "realization_id": "real_3",
-    "section_id": "section",
-    "track_id": "harmony",
-    "repeat_ordinal": 0,
-    "at_tick": 0,
-    "source_program_path": "/realizations/3"
    }
   ],
   "resolved_chords": [],
   "harmony_occurrences": [],
   "events": [
    {
-    "id": "ev_h4yynhcnm7wm7eiz5jos",
+    "id": "ev_arxe6vtkjank3vemu6r5",
     "kind": "note",
     "track_id": "harmony",
     "section_id": "section",
@@ -158,30 +147,66 @@
     "velocity": 100,
     "articulation": "normal",
     "drum_note": null,
-    "ratio": "3/2",
+    "ratio": "1/1",
     "chord_index": null,
     "pitch_provenance": {
      "kind": "direct_vector",
      "material_vector": [
-      1,
       0,
       0
      ],
      "tonal_center": [
       0,
-      0,
       0
      ],
-     "register_delta": -1,
+     "register_delta": 0,
      "register_shift_equaves": 0,
      "placed_equave_exponent": 0,
      "final_vector": [
-      1,
       0,
       0
      ],
-     "equave_exponent": -1,
-     "final_ratio": "3/2"
+     "equave_exponent": 0,
+     "final_ratio": "1/1"
+    },
+    "source": {
+     "material_instance_id": "mi_0",
+     "source_step_ordinal": 0,
+     "emitted_voice_ordinal": 0,
+     "semantic_address": "sa_uyiuvbrl5eybowbjakbr5hmlfx"
+    }
+   },
+   {
+    "id": "ev_vhshjr355osn6usoed52",
+    "kind": "note",
+    "track_id": "harmony",
+    "section_id": "section",
+    "start_tick": 0,
+    "duration_ticks": 480,
+    "velocity": 100,
+    "articulation": "normal",
+    "drum_note": null,
+    "ratio": "11/8",
+    "chord_index": null,
+    "pitch_provenance": {
+     "kind": "direct_vector",
+     "material_vector": [
+      0,
+      1
+     ],
+     "tonal_center": [
+      0,
+      0
+     ],
+     "register_delta": -3,
+     "register_shift_equaves": 0,
+     "placed_equave_exponent": 0,
+     "final_vector": [
+      0,
+      1
+     ],
+     "equave_exponent": -3,
+     "final_ratio": "11/8"
     },
     "source": {
      "material_instance_id": "mi_2",
@@ -191,49 +216,7 @@
     }
    },
    {
-    "id": "ev_flikczpxywyr5ab4jidk",
-    "kind": "note",
-    "track_id": "harmony",
-    "section_id": "section",
-    "start_tick": 0,
-    "duration_ticks": 480,
-    "velocity": 100,
-    "articulation": "normal",
-    "drum_note": null,
-    "ratio": "5/4",
-    "chord_index": null,
-    "pitch_provenance": {
-     "kind": "direct_vector",
-     "material_vector": [
-      0,
-      1,
-      0
-     ],
-     "tonal_center": [
-      0,
-      0,
-      0
-     ],
-     "register_delta": -2,
-     "register_shift_equaves": 0,
-     "placed_equave_exponent": 0,
-     "final_vector": [
-      0,
-      1,
-      0
-     ],
-     "equave_exponent": -2,
-     "final_ratio": "5/4"
-    },
-    "source": {
-     "material_instance_id": "mi_1",
-     "source_step_ordinal": 0,
-     "emitted_voice_ordinal": 0,
-     "semantic_address": "sa_rqe3kb7j6kddl2yk5bkhlj3oi2"
-    }
-   },
-   {
-    "id": "ev_v4pkvntdn4mrenpmnvct",
+    "id": "ev_g4bqnpvlv4fkn2e3kryg",
     "kind": "note",
     "track_id": "harmony",
     "section_id": "section",
@@ -247,12 +230,10 @@
     "pitch_provenance": {
      "kind": "direct_vector",
      "material_vector": [
-      0,
-      0,
-      1
+      1,
+      0
      ],
      "tonal_center": [
-      0,
       0,
       0
      ],
@@ -260,60 +241,17 @@
      "register_shift_equaves": 0,
      "placed_equave_exponent": 0,
      "final_vector": [
-      0,
-      0,
-      1
+      1,
+      0
      ],
      "equave_exponent": -2,
      "final_ratio": "7/4"
     },
     "source": {
-     "material_instance_id": "mi_3",
+     "material_instance_id": "mi_1",
      "source_step_ordinal": 0,
      "emitted_voice_ordinal": 0,
-     "semantic_address": "sa_2ia7tz3pxmko2jp64p67nvyt33"
-    }
-   },
-   {
-    "id": "ev_i3x7lzb4i6eadod2npzc",
-    "kind": "note",
-    "track_id": "harmony",
-    "section_id": "section",
-    "start_tick": 0,
-    "duration_ticks": 480,
-    "velocity": 100,
-    "articulation": "normal",
-    "drum_note": null,
-    "ratio": "9/8",
-    "chord_index": null,
-    "pitch_provenance": {
-     "kind": "direct_vector",
-     "material_vector": [
-      2,
-      0,
-      0
-     ],
-     "tonal_center": [
-      0,
-      0,
-      0
-     ],
-     "register_delta": -3,
-     "register_shift_equaves": 0,
-     "placed_equave_exponent": 0,
-     "final_vector": [
-      2,
-      0,
-      0
-     ],
-     "equave_exponent": -3,
-     "final_ratio": "9/8"
-    },
-    "source": {
-     "material_instance_id": "mi_0",
-     "source_step_ordinal": 0,
-     "emitted_voice_ordinal": 0,
-     "semantic_address": "sa_uyiuvbrl5eybowbjakbr5hmlfx"
+     "semantic_address": "sa_rqe3kb7j6kddl2yk5bkhlj3oi2"
     }
    }
   ],
@@ -328,7 +266,7 @@
    "channel_layout": "stereo"
   }
  },
- "project_hash": "sha256:2e17013154cfa5ff793f7f3ef700d32e24ece9f780313a05a9f9b1ba913bdeb8",
+ "project_hash": "sha256:3918df5c738fd3628ec291548ef14f4f4d0e7885841e96f1cf96e7b9f4189187",
  "segmentation_policy": null,
  "feature_spec": null,
  "vocabulary": null,
@@ -336,10 +274,10 @@
  "trajectory_template_set": null,
  "native_ji_report_hash": null,
  "expected": {
-  "status": null,
+  "status": "success",
   "error": null,
-  "report_hash": null,
-  "canonical_report_sha256": null
+  "report_hash": "sha256:fb5292a3599b838a373ecda287c3b49f2411b617e30e94e016e5efa2ccfe365e",
+  "canonical_report_sha256": "sha256:5fbcae86a0c9d417fcdba24b8fab4cad6b3dc4837ade1fbfc12b35275f401014"
  },
  "execution": {
   "worker_counts": [
@@ -354,5 +292,5 @@
    "424242"
   ]
  },
- "case_hash": null
+ "case_hash": "sha256:4a92ee81ba5b26c124bec3f2789597ced0e0c21124281eea5bf6955a5550dc82"
 }

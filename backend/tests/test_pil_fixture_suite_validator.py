@@ -20,6 +20,9 @@ from tools.build_pil_oracle_case_templates import build_cases
 from app.songprogram.search_decisions import decision_artifact_hash
 
 
+AUTHORITATIVE = Path(__file__).resolve().parents[1] / "songprogram_conformance/fixtures/pil_oracle"
+
+
 def _bytes(value: object) -> bytes:
     return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()
 
@@ -65,6 +68,33 @@ def test_pil_suite_authenticates_raw_schema_case_and_coverage(tmp_path) -> None:
     suite, schemas = _suite(tmp_path)
     cases = validate_pil_fixture_suite(suite, tmp_path, schemas, lambda case, schema: None)
     assert cases[0]["case_id"] == "pil_case"
+
+
+def test_authoritative_pil_suite_closes_and_all_expected_reports_match() -> None:
+    suite = json.loads((AUTHORITATIVE / "suite_index.json").read_text(encoding="utf-8"))
+    case_schema = Path(__file__).resolve().parents[1] / (
+        "songprogram_conformance/schemas/pil_oracle_case.schema.json"
+    )
+    raw_schema = case_schema.read_bytes()
+    schema_hash = _raw_hash(raw_schema)
+    cases = validate_pil_fixture_suite(
+        suite,
+        AUTHORITATIVE,
+        {schema_hash: raw_schema},
+        lambda case, schema: validate_pil_oracle_case_bindings(case),
+    )
+    assert len(cases) == 18
+    for case in cases:
+        execute_pil_oracle_case(case)
+
+    nonfunctional = next(
+        case for case in cases if case["case_id"] == "pil_nonfunctional_two_reports"
+    )
+    report = execute_pil_oracle_case(nonfunctional)
+    assert report["native_ji_report_hash"] == (
+        "sha256:87f4b48b1369484d693798ddb865a94f9ed0a2272e04b040b6dc5ab8c654f3d4"
+    )
+    assert report["trajectory_interpretations"][0]["similarity_q"] <= 5000
 
 
 @pytest.mark.parametrize(

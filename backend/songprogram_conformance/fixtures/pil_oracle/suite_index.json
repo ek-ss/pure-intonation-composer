@@ -1,0 +1,255 @@
+{
+ "schema": "cps.pil-oracle-suite-index",
+ "schema_version": "1.0.0",
+ "suite_version": "1.0.0",
+ "required_coverage": [
+  "success",
+  "failure",
+  "kernel_edge",
+  "kernel_tie",
+  "kernel_empty_support",
+  "segment_boundary",
+  "chord_similarity",
+  "ambiguous_winner",
+  "missing_bass",
+  "passing_tone_regression",
+  "voice_matching",
+  "matching_tie",
+  "unequal_voice_count",
+  "identity_constraint",
+  "trajectory_similarity",
+  "trajectory_missing_bass",
+  "equave_2_1",
+  "equave_3_1",
+  "phase_independence",
+  "native_ji_separation",
+  "cache_cold",
+  "cache_hit",
+  "cache_corrupt",
+  "cross_process",
+  "parallel_1",
+  "parallel_2",
+  "parallel_4",
+  "parallel_8"
+ ],
+ "cases": [
+  {
+   "case_id": "pil_12et_ii_v_i",
+   "path": "pil_12et_ii_v_i.json",
+   "raw_file_sha256": "sha256:bd7cc69d842bcaa6280782dd831e14f5d7812bb66301fc13cf96d66a2552be92",
+   "case_hash": "sha256:cb3a6b746f4b7c5e562a49133102f56a7ec5825d02ee75723826434b0a3d1e61",
+   "case_schema_hash": "sha256:ddc6832c38fb5a1d4ec3d8f01e47b9282cf0144b29b3aadace87e20799fe5990",
+   "coverage": [
+    "success",
+    "voice_matching",
+    "trajectory_similarity"
+   ]
+  },
+  {
+   "case_id": "pil_ambiguous_chord_margin",
+   "path": "pil_ambiguous_chord_margin.json",
+   "raw_file_sha256": "sha256:f6e00a05f7e1b90e26158ab50971ef1ee166bd13a3c8560c619706545447bcda",
+   "case_hash": "sha256:81a796eda690bcb9254a4dd087fff2a2c2beabd0ff540119cb85348ac4ff7519",
+   "case_schema_hash": "sha256:ddc6832c38fb5a1d4ec3d8f01e47b9282cf0144b29b3aadace87e20799fe5990",
+   "coverage": [
+    "success",
+    "chord_similarity",
+    "ambiguous_winner"
+   ]
+  },
+  {
+   "case_id": "pil_cache_parity",
+   "path": "pil_cache_parity.json",
+   "raw_file_sha256": "sha256:a5ea5bbcbef59af4f4bc0b7b031e18ddaae7d4c170f9909dc595a7f95d0da076",
+   "case_hash": "sha256:f573e933c32d7ef0b806e5ab3607a205d5e755530434fceb02d7a99387d384fe",
+   "case_schema_hash": "sha256:ddc6832c38fb5a1d4ec3d8f01e47b9282cf0144b29b3aadace87e20799fe5990",
+   "coverage": [
+    "success",
+    "cache_cold",
+    "cache_hit",
+    "cache_corrupt"
+   ]
+  },
+  {
+   "case_id": "pil_cross_process_workers",
+   "path": "pil_cross_process_workers.json",
+   "raw_file_sha256": "sha256:d5f63d07c60946aa33e4b88302aa5524c33aa9351ecf08d818546d6cf4fed59d",
+   "case_hash": "sha256:4a92ee81ba5b26c124bec3f2789597ced0e0c21124281eea5bf6955a5550dc82",
+   "case_schema_hash": "sha256:ddc6832c38fb5a1d4ec3d8f01e47b9282cf0144b29b3aadace87e20799fe5990",
+   "coverage": [
+    "success",
+    "cross_process",
+    "parallel_1",
+    "parallel_2",
+    "parallel_4",
+    "parallel_8"
+   ]
+  },
+  {
+   "case_id": "pil_exact_ratio_ii_v_i",
+   "path": "pil_exact_ratio_ii_v_i.json",
+   "raw_file_sha256": "sha256:1c829162dedd26236d81fec8c7e56c9edaad63263c59d8f5b136d3ebb4785809",
+   "case_hash": "sha256:f936a7672ceb004447d76bb254408d28bcef9973d1ffee0a238dbf10b173b62f",
+   "case_schema_hash": "sha256:ddc6832c38fb5a1d4ec3d8f01e47b9282cf0144b29b3aadace87e20799fe5990",
+   "coverage": [
+    "success",
+    "voice_matching",
+    "trajectory_similarity"
+   ]
+  },
+  {
+   "case_id": "pil_kernel_boundaries",
+   "path": "pil_kernel_boundaries.json",
+   "raw_file_sha256": "sha256:8f1aa96c733e3013b9c0b499479f4941c21e5128d5ca18f21b8c1137ec312b55",
+   "case_hash": "sha256:2a85017f791ba363c392983107c605bc59cbf2996bab2f69ef37fa630fe548f9",
+   "case_schema_hash": "sha256:ddc6832c38fb5a1d4ec3d8f01e47b9282cf0144b29b3aadace87e20799fe5990",
+   "coverage": [
+    "success",
+    "kernel_edge",
+    "kernel_tie"
+   ]
+  },
+  {
+   "case_id": "pil_kernel_empty_support",
+   "path": "pil_kernel_empty_support.json",
+   "raw_file_sha256": "sha256:8919fe936a07b920f1a4f9653e64449b547c0cabe1619ef3ca3d0ae6d4292a8f",
+   "case_hash": "sha256:bf19e46293b445395b1e137b5d59bcbb6f3649332d1def0d251f7a6f02ebace9",
+   "case_schema_hash": "sha256:ddc6832c38fb5a1d4ec3d8f01e47b9282cf0144b29b3aadace87e20799fe5990",
+   "coverage": [
+    "failure",
+    "kernel_empty_support"
+   ]
+  },
+  {
+   "case_id": "pil_matching_identity",
+   "path": "pil_matching_identity.json",
+   "raw_file_sha256": "sha256:5bda20a1c2d71d8c7545d7a24fc87de85392a3bc164cbe60685b6d6c61d98d6b",
+   "case_hash": "sha256:05528d72733713f2e0a9d6fcd9c0d0c05273db3ca8ab0dd2b93d30d2d73de11c",
+   "case_schema_hash": "sha256:ddc6832c38fb5a1d4ec3d8f01e47b9282cf0144b29b3aadace87e20799fe5990",
+   "coverage": [
+    "success",
+    "voice_matching",
+    "identity_constraint"
+   ]
+  },
+  {
+   "case_id": "pil_matching_tie",
+   "path": "pil_matching_tie.json",
+   "raw_file_sha256": "sha256:f02b63d4f72e6a72959770f5bd2dd1ab0d92122aa3ca477915b4b7c7bcf5c5c5",
+   "case_hash": "sha256:6739a7dc9d6f2bb478ed49e16d1b680e3a6647f937e5b26a251465760ed57fd8",
+   "case_schema_hash": "sha256:ddc6832c38fb5a1d4ec3d8f01e47b9282cf0144b29b3aadace87e20799fe5990",
+   "coverage": [
+    "success",
+    "voice_matching",
+    "matching_tie"
+   ]
+  },
+  {
+   "case_id": "pil_matching_unequal",
+   "path": "pil_matching_unequal.json",
+   "raw_file_sha256": "sha256:1cb3a135cf9d725a986eddc012e4e71ca41481e9fad804c106949477bf2d7198",
+   "case_hash": "sha256:4e7b91aefbb97e9aee7cfb5d04dfa44ad3bf7a01724987398d5b4eed39cf4f70",
+   "case_schema_hash": "sha256:ddc6832c38fb5a1d4ec3d8f01e47b9282cf0144b29b3aadace87e20799fe5990",
+   "coverage": [
+    "success",
+    "voice_matching",
+    "unequal_voice_count"
+   ]
+  },
+  {
+   "case_id": "pil_nonfunctional_two_reports",
+   "path": "pil_nonfunctional_two_reports.json",
+   "raw_file_sha256": "sha256:701e74961730ece035e2e22f15cc61b22f660c7f3bbbda8633049327b82f9f26",
+   "case_hash": "sha256:24d527424d843597d4677e0d73ae55e840e985f517ca9b398951de8896e06021",
+   "case_schema_hash": "sha256:ddc6832c38fb5a1d4ec3d8f01e47b9282cf0144b29b3aadace87e20799fe5990",
+   "coverage": [
+    "success",
+    "voice_matching",
+    "trajectory_similarity",
+    "native_ji_separation"
+   ]
+  },
+  {
+   "case_id": "pil_passing_tone_delta",
+   "path": "pil_passing_tone_delta.json",
+   "raw_file_sha256": "sha256:816035a152f4a1b7cb24bbb3b2e6915c28f9eb0aa3b917a282e80aa8cb5bd646",
+   "case_hash": "sha256:55026a58f5f7230c864246038a64cd8e1a15f90613038a6f508c42b728033204",
+   "case_schema_hash": "sha256:ddc6832c38fb5a1d4ec3d8f01e47b9282cf0144b29b3aadace87e20799fe5990",
+   "coverage": [
+    "success",
+    "passing_tone_regression"
+   ]
+  },
+  {
+   "case_id": "pil_segment_boundary",
+   "path": "pil_segment_boundary.json",
+   "raw_file_sha256": "sha256:e91b7de966c8c29d20a0571b6aa59c027278fcbe13f96717c5fadec9f559d606",
+   "case_hash": "sha256:ace7a9111b22b0baff57aead422f607fce618ba6abcb8dffe038c08b5c710f58",
+   "case_schema_hash": "sha256:ddc6832c38fb5a1d4ec3d8f01e47b9282cf0144b29b3aadace87e20799fe5990",
+   "coverage": [
+    "success",
+    "segment_boundary"
+   ]
+  },
+  {
+   "case_id": "pil_seven_limit_multi_candidate",
+   "path": "pil_seven_limit_multi_candidate.json",
+   "raw_file_sha256": "sha256:b3cd339e80ed4beb3350591626ccd69f3bfe64612d17adff95f47689a16967cb",
+   "case_hash": "sha256:ec5ccd49458c5e6d3ebd0613896fabce1d94c3ee22f2a79d9f7b91e15935c003",
+   "case_schema_hash": "sha256:ddc6832c38fb5a1d4ec3d8f01e47b9282cf0144b29b3aadace87e20799fe5990",
+   "coverage": [
+    "success",
+    "equave_2_1"
+   ]
+  },
+  {
+   "case_id": "pil_soft_major_1_1_5_4_3_2",
+   "path": "pil_soft_major_1_1_5_4_3_2.json",
+   "raw_file_sha256": "sha256:09d16c5f2569cf1a75524992cfc8e5df45a0d05ae657b2f6aec3eabea92036cf",
+   "case_hash": "sha256:30d8552df7d15c6b63a2b989939af4852e9b78f8f3f51ff41bac2ba2049b9b13",
+   "case_schema_hash": "sha256:ddc6832c38fb5a1d4ec3d8f01e47b9282cf0144b29b3aadace87e20799fe5990",
+   "coverage": [
+    "success",
+    "chord_similarity",
+    "missing_bass"
+   ]
+  },
+  {
+   "case_id": "pil_trajectory_missing_bass",
+   "path": "pil_trajectory_missing_bass.json",
+   "raw_file_sha256": "sha256:0db78319c9f0cf4f017f0875ff5137a201e54312a288935adaec82442d099bbe",
+   "case_hash": "sha256:449fc86d02c5f3e93a81027c8211648a812e7d8abac38c8867520f060f27b9e8",
+   "case_schema_hash": "sha256:ddc6832c38fb5a1d4ec3d8f01e47b9282cf0144b29b3aadace87e20799fe5990",
+   "coverage": [
+    "success",
+    "trajectory_similarity",
+    "trajectory_missing_bass"
+   ]
+  },
+  {
+   "case_id": "pil_trajectory_overlap_windows",
+   "path": "pil_trajectory_overlap_windows.json",
+   "raw_file_sha256": "sha256:691465d74b0385c384001c75c5aa41747930635b674c0ddc846c07d27ee9484c",
+   "case_hash": "sha256:88afe826d52194dbf5947a9b8bacdaa62fa7d3949ba9e3ee55f28fc4849b10e0",
+   "case_schema_hash": "sha256:ddc6832c38fb5a1d4ec3d8f01e47b9282cf0144b29b3aadace87e20799fe5990",
+   "coverage": [
+    "success",
+    "voice_matching",
+    "trajectory_similarity"
+   ]
+  },
+  {
+   "case_id": "pil_tritave_phase_split",
+   "path": "pil_tritave_phase_split.json",
+   "raw_file_sha256": "sha256:719e034137c86cb042750ae57b58987a206fd6585a57463c67c61d7fadec1539",
+   "case_hash": "sha256:c56b9d95195c287202a4d70323d158b00cbede1993dacfca49480a43e7ad8b94",
+   "case_schema_hash": "sha256:ddc6832c38fb5a1d4ec3d8f01e47b9282cf0144b29b3aadace87e20799fe5990",
+   "coverage": [
+    "success",
+    "equave_3_1",
+    "phase_independence"
+   ]
+  }
+ ],
+ "suite_hash": "sha256:43dd5d133ef64c144c277463ee8379469465aae57a2df68090ab694a7bfd6505"
+}

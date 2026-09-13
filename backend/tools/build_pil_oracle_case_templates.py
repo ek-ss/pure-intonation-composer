@@ -505,7 +505,9 @@ def build_cases() -> list[dict]:
             "pil_seven_limit_multi_candidate",
             ["success", "equave_2_1"],
             [
-                _note("ev_a", "1/1", 0),
+                # Avoid an exact pitch-class centre: every row in this case is
+                # required to retain at least two positive kernel candidates.
+                _note("ev_a", "9/8", 0),
                 _note("ev_b", "5/4", 0),
                 _note("ev_c", "3/2", 0),
                 _note("ev_d", "7/4", 0),
@@ -528,10 +530,16 @@ def build_cases() -> list[dict]:
             ["success", "kernel_edge", "kernel_tie"],
             [
                 _note("ev_a", "1/1", 0),
-                _note("ev_b", "45/32", 0),
-                _note("ev_c", "25/24", 0),
+                # These finite ratios independently round to exactly 50,000
+                # and 100,000 millicents under the bound Numeric Contract.
+                # The former is the pitch-class midpoint tie; the latter is
+                # exactly the radius boundary for class 0 and centre of class 1.
+                _note("ev_b", "2158603/2097152", 0),
+                _note("ev_c", "8887423/8388608", 0),
             ],
-            note="Kernel edge/tie geometry; owner declares exact boundary expectations.",
+            note="The 50,000-millicent row splits by largest remainder with ordinal 0 first; "
+            "the 100,000-millicent row omits the zero-weight class-0 edge and assigns all "
+            "Q31 weight to class 1.",
         )
     )
     cases.append(
@@ -637,7 +645,8 @@ def build_cases() -> list[dict]:
                 "voice_matching_policy": None,
                 "trajectory_template_set": None,
             },
-            "Short passing-tone perturbation; owner declares the similarity delta bound.",
+            "The passing-tone segment major similarity must be at least 700 q lower than "
+            "the otherwise identical baseline segment; exact report bytes remain golden-bound.",
         )
     )
     policy = _segmentation_policy()
@@ -711,14 +720,17 @@ def build_cases() -> list[dict]:
     cases.append(
         _progression(
             [
-                # ii (minor on 9/8) -> V (major on 3/2) -> I (major on 1/1),
-                # voiced near 12-TET target relationships.
-                *_chord("s1", 0, "9/8", "27/20", "27/16", "9/8"),
-                *_chord("s2", 480, "3/2", "15/8", "9/4", "3/2"),
-                *_chord("s3", 960, "1/1", "5/4", "3/2", "1/1"),
+                # Finite 5-limit approximants within 2.25 cents of the named
+                # 12-TET pitch classes.  These deliberately differ from the
+                # simple-ratio JI analogue below.
+                *_chord("s1", 0, "4096/3645", "10935/8192", "26244/15625", "4096/3645"),
+                *_chord("s2", 480, "16384/10935", "147456/78125", "8192/3645", "16384/10935"),
+                *_chord("s3", 960, "1/1", "98304/78125", "16384/10935", "1/1"),
             ],
             "pil_12et_ii_v_i",
-            "Conventional 12-TET-target ii-V-I; owner declares the trajectory similarity floor.",
+            "Conventional 12-TET-target ii-V-I represented by declared finite 5-limit "
+            "approximants (maximum pitch-class error 2.25 cents); its Project and report "
+            "must differ from the exact-ratio JI analogue and ii-V-I must rank first.",
         )
     )
     cases.append(
@@ -730,7 +742,8 @@ def build_cases() -> list[dict]:
                 *_chord("s3", 960, "1/1", "5/4", "3/2", "1/1"),
             ],
             "pil_exact_ratio_ii_v_i",
-            "Exact-ratio JI analogue; owner declares the trajectory similarity floor.",
+            "Exact-ratio JI analogue; its Project and report must differ from the finite "
+            "12-TET approximation and ii-V-I must rank first.",
         )
     )
     cases.append(
@@ -742,8 +755,9 @@ def build_cases() -> list[dict]:
                 *_chord("s3", 960, "9/8", "45/32", "27/16", "9/8"),
             ],
             "pil_nonfunctional_two_reports",
-            "High Native JI coherence with low ii-V-I similarity, reported separately; "
-            "the Native JI report hash is correlation metadata filled by the owner.",
+            "The independently bound Native JI report has native_ji.coherence >= 5800 while "
+            "this PIL report has ii-V-I trajectory similarity <= 5000; the two reports bind "
+            "the same Project and remain separate.",
             extra_coverage=["native_ji_separation"],
         )
     )

@@ -336,10 +336,10 @@
  "trajectory_template_set": null,
  "native_ji_report_hash": null,
  "expected": {
-  "status": null,
+  "status": "success",
   "error": null,
-  "report_hash": null,
-  "canonical_report_sha256": null
+  "report_hash": "sha256:578dd6255ffe0a2985645acdd8968b21c1b027da6a4a0e7a4ff8c69d559b7f2a",
+  "canonical_report_sha256": "sha256:8d455ce41d2a73a1fd02cfc7f65688767606a54899278f24fcba65e1736d718c"
  },
  "execution": {
   "worker_counts": [
@@ -354,5 +354,5 @@
    "424242"
   ]
  },
- "case_hash": null
+ "case_hash": "sha256:ec5ccd49458c5e6d3ebd0613896fabce1d94c3ee22f2a79d9f7b91e15935c003"
 }

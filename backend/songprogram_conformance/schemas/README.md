@@ -138,6 +138,9 @@ for the SP0 conformance pack.
   coverage; expected report hashes remain owner-supplied authority.
 - `pil_oracle_matrix_receipt.schema.json`: ordered fresh-interpreter
   PYTHONHASHSEED and 1/2/4/8 subprocess-concurrency parity evidence.
+- `native_ji_evaluation_manifest.schema.json` and
+  `native_ji_evaluation_report.schema.json`: minimal versioned, Project-bound
+  `native_ji.coherence` authority used only as hash correlation by PIL.
 - `unscored_generation_receipt.schema.json`: evaluation-free
   SongProgram-to-Project-to-WAV artifact binding and output inventory.
 

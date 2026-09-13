@@ -1035,10 +1035,10 @@
  },
  "native_ji_report_hash": null,
  "expected": {
-  "status": null,
+  "status": "success",
   "error": null,
-  "report_hash": null,
-  "canonical_report_sha256": null
+  "report_hash": "sha256:2d6eb2d53a7fbb4cc62e2c0340db8a512c013b0526e730aef42d08e0219d12f5",
+  "canonical_report_sha256": "sha256:6502f3c55db86dc65cc3bfa0cbfb0d042b1d78cecb42bb8c9060f955ab7a8ccc"
  },
  "execution": {
   "worker_counts": [
@@ -1053,5 +1053,5 @@
    "424242"
   ]
  },
- "case_hash": null
+ "case_hash": "sha256:f936a7672ceb004447d76bb254408d28bcef9973d1ffee0a238dbf10b173b62f"
 }
