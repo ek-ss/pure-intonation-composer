@@ -1,12 +1,10 @@
-# PIL Negative Case Pack — Draft Proposal
+# PIL Negative Case Pack — Promotion Record
 
-**Status:** non-normative design draft prepared by the implementation side.
-This document is **not** a contract. The oracle suite fixture specification
+**Status:** N1-N5 are resolved by the independent maintainer ruling below.
+The oracle suite fixture specification
 (`song_program_pil_oracle_suite_fixture_spec.md` section 6) excludes
 binding/schema-stage malformed cases from the PIL oracle suite and assigns
-them to "a separately versioned negative pack". No such pack exists yet for
-PIL; this draft proposes its shape and lists the owner decisions required
-before promotion.
+them to "a separately versioned negative pack". That pack is now fixed below.
 
 ## 1. Current failure-code coverage (no pack required for these)
 
@@ -29,10 +27,10 @@ Runtime failure codes are already exercised by synthetic unit tests
 | `PIL_RESULT_VALIDATION` | failure-code tests (corrupt report bounds) |
 | `PIL_GENRE_FAILED` | **blocked** (G1–G7; Phase 5 does not exist) |
 
-## 2. Proposed pack shape (draft, for owner review)
+## 2. Normative 1.0 pack shape
 
 ```yaml
-schema: cps.pil-negative-case-pack        # proposed; N1
+schema: cps.pil-negative-case-pack
 schema_version: 1.0.0
 pack_version: <SemVer, owner-assigned>    # same rule as suite_version
 cases:
@@ -53,18 +51,25 @@ pack_hash: <generic artifact self hash>
 - Once promoted, the pack lives under the protected conformance area and
   follows the same readonly-guard and version-bump rules as the oracle suite.
 
-## 3. Open owner decisions (N-blockers)
+The closed schema is
+`backend/songprogram_conformance/schemas/pil_negative_case_pack.schema.json`.
+Its authoritative pack is
+`backend/songprogram_conformance/fixtures/pil_negative/pack.json`.
 
-| # | decision |
+## 3. Maintainer rulings (N1-N5)
+
+| # | ruling |
 | --- | --- |
-| N1 | Pack schema name, versioning rule, and whether it needs its own JSON Schema or reuses an existing registry shape |
-| N2 | Whether binding-stage negatives execute the reference implementation (expecting a raise) or only the validators |
-| N3 | Required coverage: all 13 codes, or only the binding/schema codes the oracle suite excludes |
-| N4 | Relationship to the project-level negative pack (`fixtures/negative/`, `cps.negative-mutation-cases`): separate PIL registry vs extension |
-| N5 | `PIL_GENRE_FAILED` cases wait for Phase 5 (G1–G7) and are out of 1.0 scope |
+| N1 | A separate closed `cps.pil-negative-case-pack` 1.0 schema is used. `pack_version` follows SemVer and any changed case or expectation requires a version bump. |
+| N2 | Cases execute the same reference entry point as normal PIL execution and require a raised `PilError`; validators alone are insufficient. No report may be emitted. |
+| N3 | Version 1.0 covers exactly the two pre-report classes excluded from the oracle suite: `PIL_BINDING_MISMATCH` and `PIL_SCHEMA_INVALID`. Computation-stage failures remain in the oracle suite or unit conformance tests. |
+| N4 | The pack is a separate PIL registry. It must not extend or reinterpret the Project mutation negative pack. |
+| N5 | `PIL_GENRE_FAILED` is excluded. A Phase 5 negative-pack version is forbidden until G1-G7 are closed. |
 
 ## 4. Non-goals
 
-This draft does not create the pack, its schema, or any fixture. Unit tests
-already prevent regression of every 1.0 failure code; the pack is an
-authoritative hardening layer whose shape the owner must fix first.
+The initial cases are mutated descendants of the authoritative
+`pil_12et_ii_v_i` case and bind both its raw-file digest and the containing
+suite digest and its completed 1/2/4/8 matrix receipt. JSON Pointer replacement is applied to an in-memory copy. Case
+order is UTF-8 `case_id` order and IDs are unique. Pack hash uses the generic
+artifact hash over the object without `pack_hash`.

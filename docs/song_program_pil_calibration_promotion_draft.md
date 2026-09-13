@@ -1,7 +1,8 @@
-# PIL Calibration Promotion — Draft Gap Analysis
+# PIL Calibration Promotion — Maintainer Resolution
 
-**Status:** non-normative design draft prepared by the implementation side.
-This document is **not** a contract. All PIL metrics remain audit-only until
+**Status:** C1-C6 are closed by
+`song_program_pil_calibration_promotion_contract.md`. All PIL metrics remain
+audit-only until
 a versioned CalibrationDecision promotes them
 (`song_program_perceptual_interpretation_layer_contract.md` section 2). This
 draft enumerates what that promotion requires and which points are undefined,
@@ -30,16 +31,16 @@ fixture set, acceptance policy and evidence summary, plus
 `noninferiority_margin_q` 0..9999, `improvement_margin_q` 1..10000,
 `evidence_hash`) and `metric_ids[]` (max 16).
 
-## 3. Undefined points that block a PIL promotion (C-blockers)
+## 3. Resolved points
 
-| # | Undefined item | Why it blocks |
+| # | ruling | encoding |
 | --- | --- | --- |
-| C1 | `metric_id` pattern is `^[a-z][a-z0-9_]{0,63}$` — dots are not expressible, so a literal `pil.*` ID cannot be spelled in the current schema | either PIL metric IDs use underscore spellings (e.g. `pil_chord_similarity_confidence_q`) by owner ruling, or the decision schema needs a versioned extension; guessing either way creates unreviewable canonical bytes |
-| C2 | No decision field explicitly binds the PIL manifest hash; `evaluation_manifest_hash` is the evaluation-pipeline manifest | the contract demands the *exact PIL manifest hash* be promoted; the carrying field must be named by the owner |
-| C3 | No PIL metric ID registry exists | the set of promotable PIL metrics (per-phase similarities, confidence, trajectory component scores, genre Q values once Phase 5 exists), their directions and thresholds must be enumerated before `promoted_metrics[]` rows can be written |
-| C4 | Missing-value behavior has no decision field | the contract requires it to be explicit; the encoding channel (acceptance policy? evidence summary? new field?) is an owner decision |
-| C5 | Evidence-chain mapping is unnamed | which existing assets carry the oracle suite hash, the cross-process matrix receipt, and the PIL calibration fixture set into the decision's hash bindings |
-| C6 | Direction/threshold representation | `promotion` rows carry noninferiority/improvement margins but no explicit direction or threshold member; whether margins alone satisfy the contract's "directions, thresholds" requirement needs a ruling |
+| C1 | dotted namespace | new PIL-specific schema accepts only `pil.*`; Genre CalibrationDecision 1.0 is unchanged |
+| C2 | exact manifest binding | `pil_manifest_hash` |
+| C3 | closed registry | `cps.pil-metric-registry` 1.0 |
+| C4 | no zero coercion | each row repeats `missing_policy: unavailable` |
+| C5 | explicit evidence chain | decision fields bind oracle suite index, matrix receipt, calibration fixture set, policy and evidence summary |
+| C6 | explicit semantics | each row repeats aggregation, direction and inclusive `acceptance_threshold_q`; NI/IMP margins remain distinct |
 
 ## 4. Non-goals
 
@@ -50,12 +51,9 @@ fixture set, acceptance policy and evidence summary, plus
   blockers G1–G7 (`song_program_pil_genre_interpretation_draft.md`), which
   remain independently open.
 
-## 5. Suggested owner actions
+## 5. Remaining promotion authority
 
-1. Rule on C1 spelling (underscore IDs vs schema extension).
-2. Name the PIL-manifest binding field (C2) and the missing-value channel
-   (C4).
-3. Approve a PIL metric ID registry draft (C3, C6) — the implementation side
-   can prepare a candidate list from the Phase 1–4 report fields on request.
-4. Map the evidence chain (C5) onto the oracle suite and matrix receipt
-   assets that already exist.
+No Phase 1-4 `CalibrationDecision` is fabricated by this resolution. A real
+promotion remains blocked on independently collected calibration fixtures,
+acceptance policy and evidence summary. Genre Phase 5 remains separately
+blocked on G1-G7.

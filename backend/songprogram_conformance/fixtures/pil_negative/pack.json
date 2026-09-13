@@ -1,0 +1,33 @@
+{
+  "schema": "cps.pil-negative-case-pack",
+  "schema_version": "1.0.0",
+  "pack_version": "1.0.0",
+  "scope": "binding_and_schema_stage",
+  "oracle_suite_hash": "sha256:06c7c7c7e44fd467ab2eea2ee57a1a79a23084bf8d0836a13851efe6f51ffd90",
+  "oracle_matrix_receipt_hash": "sha256:734b54e584f4f75e1e0285a5ac491b17a5c44d107fd556d85c8e788cfafe62ea",
+  "cases": [
+    {
+      "case_id": "pil_neg_kernel_hash_binding",
+      "base_case_id": "pil_12et_ii_v_i",
+      "base_case_raw_sha256": "sha256:bd7cc69d842bcaa6280782dd831e14f5d7812bb66301fc13cf96d66a2552be92",
+      "operation": "replace",
+      "json_pointer": "/manifest/pitch_kernel/radius_millicents",
+      "replacement": 90000,
+      "expected_error": "PIL_BINDING_MISMATCH",
+      "delivery": "raise",
+      "expected_report": null
+    },
+    {
+      "case_id": "pil_neg_zero_kernel_radius",
+      "base_case_id": "pil_12et_ii_v_i",
+      "base_case_raw_sha256": "sha256:bd7cc69d842bcaa6280782dd831e14f5d7812bb66301fc13cf96d66a2552be92",
+      "operation": "replace",
+      "json_pointer": "/manifest/pitch_kernel/radius_millicents",
+      "replacement": 0,
+      "expected_error": "PIL_SCHEMA_INVALID",
+      "delivery": "raise",
+      "expected_report": null
+    }
+  ],
+  "pack_hash": "sha256:33f446d9df423764a4cda7738dfc9e0b73bea750a384aa83e0f177840fd6cc99"
+}

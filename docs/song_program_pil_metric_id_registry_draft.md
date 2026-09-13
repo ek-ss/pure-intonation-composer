@@ -1,20 +1,15 @@
-# PIL Metric ID Registry — Draft Candidate List
+# PIL Metric ID Registry — Promotion Record
 
-**Status:** non-normative design draft prepared by the implementation side,
-accompanying `song_program_pil_calibration_promotion_draft.md` (blockers
-C1–C6). This is **not** a contract and promotes nothing. It enumerates the
-candidate PIL metric IDs derivable from the Phase 1–4 report fields so the
-owner can rule on spelling (C1), directions/thresholds (C6) and aggregation.
-All PIL metrics remain audit-only.
+**Status:** the Phase 1–4 IDs and extraction semantics are authoritative in
+`backend/songprogram_conformance/fixtures/pil_calibration/metric_registry.json`
+under `song_program_pil_calibration_promotion_contract.md`. The registry
+promotes nothing by itself. All PIL metrics remain audit-only until an
+evidence-backed decision is promoted.
 
-## 1. Spelling convention assumed by this draft
+## 1. Spelling convention
 
-C1 is open: the CalibrationDecision 1.0 `metric_id` pattern
-(`^[a-z][a-z0-9_]{0,63}$`) cannot spell dots. This draft therefore writes
-candidate IDs with underscores (`pil_...`). If the owner instead extends the
-schema for dotted `pil.*` IDs, every row below maps mechanically
-(`pil_chord_confidence_q` → `pil.chord.confidence_q` or similar; the exact
-dotted forms remain an owner choice).
+C1 is closed with dotted IDs in a PIL-specific schema. The existing Genre
+CalibrationDecision 1.0 schema is not changed or reinterpreted.
 
 ## 2. Candidate metrics from the Phase 1–4 report
 
@@ -39,16 +34,13 @@ dotted forms remain an owner choice).
 Genre/style Q values (`typicality_q` etc.) are excluded: Phase 5 remains
 blocked on G1–G7 and would add its own registry rows later.
 
-## 3. Open decisions per row (owner)
+## 3. Closed common semantics
 
-1. **Aggregation**: report fields are per segment/transition/window; a
-   promotable metric needs one declared aggregation each (C3/C6).
-2. **Direction**: cost-like metrics are lower-is-better; the decision schema
-   has no direction member, so the convention must be fixed with C6.
-3. **Missing-value behavior**: nullable components (`bass`) and empty
-   trajectory results need the C4 channel before their rows can be promoted.
-4. **Namespace collision check**: any final ID must not collide with the
-   `native_ji.*` namespace after respelling.
+Aggregation, direction, selector and missing behavior are fixed per registry
+row. Thresholds are evidence-derived and appear in a decision, not fabricated
+in the registry. Cost and absolute tension-change metrics minimize; all other
+1.0 metrics maximize. Missing values are unavailable and never zero. Dotted
+`pil.*` IDs cannot collide with `native_ji.*`.
 
 ## 4. Non-goals
 
