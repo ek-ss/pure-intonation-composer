@@ -1,7 +1,13 @@
 import json
 from pathlib import Path
 
-from .search_loop13_fixture_oracle import action_id, artifact_hash, seal_event_payload, seal_record
+from .search_loop13_fixture_oracle import (
+    action_id,
+    artifact_hash,
+    manifest_hash,
+    seal_event_payload,
+    seal_record,
+)
 
 ROOT = Path(__file__).parent / "schemas"
 H = "sha256:" + "a" * 64
@@ -100,3 +106,6 @@ def test_minimal_cancellation_record_chain_is_schema_closed():
         _validate("search_loop_13_event_payload.schema.json", p)
     for r in (r0, r1, r2):
         _validate("search_run_record_1_1.schema.json", r)
+        body = dict(r)
+        del body["record_hash"]
+        assert r["record_hash"] == manifest_hash("cps.search-run-record/v1", body)

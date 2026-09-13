@@ -86,8 +86,11 @@ def seal_record(run_hash, sequence, kind, coordinate, payload_hash, previous):
         "kind": kind,
         "payload_hash": payload_hash,
         "previous_record_hash": previous,
+        "record_hash": "",
     }
-    record["record_hash"] = manifest_hash("cps.search-run-record/v1", record)
+    body = dict(record)
+    del body["record_hash"]
+    record["record_hash"] = manifest_hash("cps.search-run-record/v1", body)
     return record
 
 
