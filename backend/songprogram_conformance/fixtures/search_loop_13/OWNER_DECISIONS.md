@@ -54,6 +54,10 @@ are not production defaults.
   perceptual metric. The latter does not replace, reinterpret, normalize, or
   gate computation of Native JI evidence; both appear as distinct ordered
   EvaluationManifest rows and distinct ChallengerAcceptancePolicy rows.
+- `shared_authority/artifact_slot_index.json` is the authoritative 32-slot
+  `RunContext.artifacts` payload: exactly 27 authenticated bindings plus the
+  five planner nulls. Render selection binds only phase-available compile or
+  fingerprint evidence; it never reads the later EvaluationReport.
 - `fallback_sampler` and `broad_prior_production` bind the same exact raw bytes
   and SHA-256 of `docs/song_program_fallback_sampler_contract.md`, because that
   one versioned contract owns both named sections. Contract-binding field names

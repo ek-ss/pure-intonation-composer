@@ -1,0 +1,1 @@
+{"material_improvement":{"comparator":"qd-quality-lexicographic/v1","first_differing_component_min_delta":1,"new_cell_is_improvement":true},"maximum_rounds":1,"patience_rounds":1,"schema":"cps.stopping-policy","schema_version":"1.0.0","stop_precedence":["cancelled","logical_budget_exhausted","accepted","maximum_rounds","patience"]}

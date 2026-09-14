@@ -116,36 +116,106 @@ def build_genre_evaluation_authority() -> dict[str, dict[str, Any]]:
             ],
             "metrics": [
                 {
-                    "id": "genre_similarity",
-                    "ordinal": 0,
+                    "id": metric_id,
+                    "ordinal": ordinal,
                     "sources": [
                         {
-                            "artifact_kind": "genre_feature_record",
-                            "schema_hash": feature_schema_hash,
-                            "json_pointer": "/embedding_q31",
+                            "artifact_kind": artifact_kind,
+                            "schema_hash": source_schema_hash,
+                            "json_pointer": pointer,
                         }
                     ],
-                    "operator": {
-                        "kind": "genre_similarity_q",
-                        "genre_similarity_spec_hash": similarity["spec_hash"],
-                    },
-                    "direction": "maximize",
-                    "required_render": True,
-                },
-                {
-                    "id": "native_ji_quality",
-                    "ordinal": 1,
-                    "sources": [
-                        {
-                            "artifact_kind": "compile_report",
-                            "schema_hash": compile_schema_hash,
-                            "json_pointer": "/search_statistics/chord_eligible_candidates",
-                        }
-                    ],
-                    "operator": {"kind": "integer_identity"},
-                    "direction": "maximize",
-                    "required_render": False,
-                },
+                    "operator": operator,
+                    "direction": direction,
+                    "required_render": required_render,
+                }
+                for ordinal, (
+                    metric_id,
+                    artifact_kind,
+                    source_schema_hash,
+                    pointer,
+                    operator,
+                    direction,
+                    required_render,
+                ) in enumerate(
+                    [
+                        (
+                            "distinct_sounding_material_lineage_count",
+                            "compile_report",
+                            compile_schema_hash,
+                            "/search_statistics/chord_eligible_candidates",
+                            {"kind": "integer_identity"},
+                            "maximize",
+                            False,
+                        ),
+                        (
+                            "genre_similarity",
+                            "genre_feature_record",
+                            feature_schema_hash,
+                            "/embedding_q31",
+                            {
+                                "kind": "genre_similarity_q",
+                                "genre_similarity_spec_hash": similarity["spec_hash"],
+                            },
+                            "maximize",
+                            True,
+                        ),
+                        (
+                            "material_recurrence_distance_q",
+                            "compile_report",
+                            compile_schema_hash,
+                            "/search_statistics/progression_states",
+                            {"kind": "integer_identity"},
+                            "maximize",
+                            False,
+                        ),
+                        (
+                            "native_ji_quality",
+                            "compile_report",
+                            compile_schema_hash,
+                            "/search_statistics/chord_eligible_candidates",
+                            {"kind": "integer_identity"},
+                            "maximize",
+                            False,
+                        ),
+                        (
+                            "negative_program_structural_item_count",
+                            "compile_report",
+                            compile_schema_hash,
+                            "/receipt/usage/total_logical_units",
+                            {"kind": "integer_identity"},
+                            "minimize",
+                            False,
+                        ),
+                        (
+                            "section_coverage_q",
+                            "compile_report",
+                            compile_schema_hash,
+                            "/search_statistics/chord_query_count",
+                            {"kind": "integer_identity"},
+                            "maximize",
+                            False,
+                        ),
+                        (
+                            "sounding_role_count",
+                            "compile_report",
+                            compile_schema_hash,
+                            "/search_statistics/progression_query_count",
+                            {"kind": "integer_identity"},
+                            "maximize",
+                            False,
+                        ),
+                        (
+                            "transformed_recall_count",
+                            "compile_report",
+                            compile_schema_hash,
+                            "/search_statistics/chord_candidates_examined",
+                            {"kind": "integer_identity"},
+                            "maximize",
+                            False,
+                        ),
+                    ]
+                )
             ],
             "manifest_hash": "",
         },
@@ -169,14 +239,16 @@ def build_genre_evaluation_authority() -> dict[str, dict[str, Any]]:
                         "noninferiority_margin_q"
                     ],
                     "improvement_margin_q": promotion_by_id[row["id"]]["improvement_margin_q"],
-                    "ordinal": row["ordinal"],
+                    "ordinal": ordinal,
                     "source": {
                         "artifact_kind": "evaluation_report",
                         "schema_hash": report_schema_hash,
                         "json_pointer": f"/metrics/{row['ordinal']}/value",
                     },
                 }
-                for row in evaluation["metrics"]
+                for ordinal, row in enumerate(
+                    metric for metric in evaluation["metrics"] if metric["id"] in promotion_by_id
+                )
             ],
             "pareto_rule": "all-noninferior-one-improved/v1",
             "tie_rule": "calibrated-margin-tuple-then-program-hash/v1",

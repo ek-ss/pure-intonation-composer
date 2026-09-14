@@ -28,9 +28,12 @@ def test_genre_evaluation_chain_is_noncyclic_and_closed() -> None:
     assert evaluation["genre_intent_hash"] == intent["intent_hash"]
     assert challenger["genre_intent_hash"] == intent["intent_hash"]
     assert challenger["evaluation_manifest_hash"] == evaluation["manifest_hash"]
-    assert [row["id"] for row in evaluation["metrics"]] == [
-        row["id"] for row in challenger["metrics"]
+    evaluation_ids = {row["id"] for row in evaluation["metrics"]}
+    assert [row["id"] for row in challenger["metrics"]] == [
+        "genre_similarity",
+        "native_ji_quality",
     ]
+    assert set(row["id"] for row in challenger["metrics"]) <= evaluation_ids
 
 
 def test_native_ji_and_perceptual_metrics_are_parallel() -> None:

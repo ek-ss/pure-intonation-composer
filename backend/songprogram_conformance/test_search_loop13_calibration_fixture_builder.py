@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 from pathlib import Path
 
 from .search_loop13_calibration_fixture_builder import (
@@ -11,7 +12,9 @@ from .search_loop13_fixture_oracle import artifact_hash
 
 
 FIXTURE = Path(__file__).with_name("fixtures") / "search_loop_13" / "calibration_authority"
-RENDERER_HASH = "sha256:fe60b43c48a609d00d279f38a065f6a9e23d01cd322a33da87738e2bada7f567"
+RENDERER_HASH = json.loads(
+    (FIXTURE.parent / "shared_authority" / "artifacts" / "render_manifest.json").read_bytes()
+)["render_manifest_digest"]
 
 
 def test_fixture_only_calibration_draft_has_closed_primary_hashes() -> None:

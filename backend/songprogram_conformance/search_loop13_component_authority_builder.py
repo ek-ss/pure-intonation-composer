@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from copy import deepcopy
 from pathlib import Path
 from typing import Any
 
@@ -27,12 +28,35 @@ def _load(path: Path) -> dict[str, Any]:
 
 def build_reusable_components() -> dict[str, dict[str, Any]]:
     connected = _load(FIXTURES / "connected" / "gen0b_identity_request.json")
+    catalog = _load(FIXTURES / "render" / "catalog.json")
+    pitched_source = next(entry for entry in catalog["entries"] if entry["kind"] == "pitched")
+    for role in ("bass", "melody", "texture"):
+        entry = deepcopy(pitched_source)
+        entry["instrument_id"] = f"pitched_fixture_{role}"
+        entry["role"] = role
+        catalog["entries"].append(entry)
+    catalog["entries"].sort(key=lambda entry: entry["instrument_id"].encode())
+    catalog_digest = producer_digest("cps.instrument-catalog/v1", catalog)
+    render_manifest = _load(FIXTURES / "render" / "render_manifest.json")
+    render_manifest["catalog_digest"] = catalog_digest
+    render_manifest["renderer_build"] = {
+        "implementation_id": "cps-search-loop13-fixture-renderer",
+        "source_artifact": "backend/songprogram_conformance/search_loop13_component_authority_builder.py",
+        "source_sha256": "sha256:" + hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+        "dependency_lock_sha256": "sha256:"
+        + hashlib.sha256((ROOT / "requirements.txt").read_bytes()).hexdigest(),
+    }
+    render_core = dict(render_manifest)
+    render_core.pop("render_manifest_digest")
+    render_manifest["render_manifest_digest"] = producer_digest(
+        "cps.render-manifest/v1", render_core
+    )
     return {
         "compiler_manifest": _load(FIXTURES / "compiler" / "gen0b_compiler_manifest.json"),
         "mutation_choice_catalog": _load(FIXTURES / "search" / "mutation_choice_catalog.json"),
         "fingerprint_spec": _load(FIXTURES / "search" / "fingerprint_spec.json"),
-        "instrument_catalog": _load(FIXTURES / "render" / "catalog.json"),
-        "render_manifest": _load(FIXTURES / "render" / "render_manifest.json"),
+        "instrument_catalog": catalog,
+        "render_manifest": render_manifest,
         "executor_manifest": connected["executor_manifest"],
     }
 
@@ -62,7 +86,7 @@ def write_reusable_components(root: Path) -> dict[str, str]:
     components = build_reusable_components()
     root.mkdir(parents=True, exist_ok=True)
     for name, document in components.items():
-        (root / f"{name}.json").write_bytes(canonical_bytes(document))
+        (root / f"{name}.json").write_bytes(canonical_bytes(document) + b"\n")
     hashes = component_hashes(components)
-    (root / "reusable_component_hashes.json").write_bytes(canonical_bytes(hashes))
+    (root / "reusable_component_hashes.json").write_bytes(canonical_bytes(hashes) + b"\n")
     return hashes
