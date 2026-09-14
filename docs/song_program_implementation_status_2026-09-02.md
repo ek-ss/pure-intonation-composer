@@ -368,3 +368,20 @@ acceptance policy, and evidence summary replace the four
 `missing_external_authority` rows. SearchLoop13's synthetic fixture-only
 CalibrationDecision exercises bindings and MUST NOT satisfy or replace this
 external authority requirement.
+
+## 2026-09-15 GEN0 cohort gate specification closure
+
+The previously implicit output boundary for the preregistered 1,000-seed gate
+is now closed by `song_program_gen0_cohort_gate_contract.md` and three schemas:
+manifest, per-coordinate candidate record, and aggregate report. It fixes the
+1,000-coordinate domain, includes every failed coordinate in every rate
+denominator, separates exact and near duplicates, defines order-2 root/chord
+mode prevalence and the combined harmony-rhythm mode, freezes integer
+round-half-even rates and threshold comparators, and defines canonical hashes
+and validation failure precedence. Near-duplicate measurement remains
+audit-only until a matching CalibrationDecision is promoted; this does not
+block the other GEN0 gates and grants no PIL authority.
+
+Production aggregation and the real 1,000-seed run remain implementation and
+evidence work. Authoritative conformance expected hashes must come from an
+independent oracle owner rather than the production implementation.

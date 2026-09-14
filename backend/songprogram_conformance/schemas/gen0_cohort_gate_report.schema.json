@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cps.local/schemas/gen0_cohort_gate_report.schema.json",
+  "title": "CPS GEN0 CohortGateReport v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "schema_version", "status", "cohort_manifest_hash", "ledger_hash", "candidate_count", "terminal_stage_counts", "counts", "rates_bp", "qd_occupied_cells", "mode_maxima", "gates", "initial_gen0_passed", "planner_eligible", "failure_code", "report_hash"],
+  "properties": {
+    "schema": {"const": "cps.gen0-cohort-gate-report"},
+    "schema_version": {"const": "1.0.0"},
+    "status": {"const": "success"},
+    "cohort_manifest_hash": {"$ref": "#/$defs/sha"},
+    "ledger_hash": {"$ref": "#/$defs/sha"},
+    "candidate_count": {"const": 1000},
+    "terminal_stage_counts": {
+      "type": "object", "additionalProperties": false,
+      "required": ["sampler", "production", "compiler", "evaluation", "fingerprint", "duplicate", "complete"],
+      "properties": {"sampler": {"$ref": "#/$defs/count"}, "production": {"$ref": "#/$defs/count"}, "compiler": {"$ref": "#/$defs/count"}, "evaluation": {"$ref": "#/$defs/count"}, "fingerprint": {"$ref": "#/$defs/count"}, "duplicate": {"$ref": "#/$defs/count"}, "complete": {"$ref": "#/$defs/count"}}
+    },
+    "counts": {
+      "type": "object", "additionalProperties": false,
+      "required": ["compile_success", "automatic_viable", "exact_duplicate", "near_duplicate", "distinct", "transformed_recall"],
+      "properties": {"compile_success": {"$ref": "#/$defs/count"}, "automatic_viable": {"$ref": "#/$defs/count"}, "exact_duplicate": {"$ref": "#/$defs/count"}, "near_duplicate": {"$ref": "#/$defs/count"}, "distinct": {"$ref": "#/$defs/count"}, "transformed_recall": {"$ref": "#/$defs/count"}}
+    },
+    "rates_bp": {
+      "type": "object", "additionalProperties": false,
+      "required": ["compile_success", "automatic_viable", "exact_duplicate", "near_duplicate", "transformed_recall"],
+      "properties": {"compile_success": {"$ref": "#/$defs/bp"}, "automatic_viable": {"$ref": "#/$defs/bp"}, "exact_duplicate": {"$ref": "#/$defs/bp"}, "near_duplicate": {"$ref": "#/$defs/bp"}, "transformed_recall": {"$ref": "#/$defs/bp"}}
+    },
+    "qd_occupied_cells": {"type": "array", "uniqueItems": true, "items": {"type": "array", "minItems": 2, "maxItems": 2, "items": {"type": "integer", "minimum": 0}}},
+    "mode_maxima": {"type": "array", "minItems": 3, "maxItems": 3, "prefixItems": [{"$ref": "#/$defs/rootMode"}, {"$ref": "#/$defs/chordMode"}, {"$ref": "#/$defs/harmonyMode"}], "items": false},
+    "gates": {
+      "type": "object", "additionalProperties": false,
+      "required": ["compile_success", "initial_viability", "planner_viability", "exact_duplicate", "near_duplicate", "transformed_recall", "mode_prevalence"],
+      "properties": {"compile_success": {"$ref": "#/$defs/enforcedGate"}, "initial_viability": {"$ref": "#/$defs/enforcedGate"}, "planner_viability": {"$ref": "#/$defs/enforcedGate"}, "exact_duplicate": {"$ref": "#/$defs/enforcedGate"}, "near_duplicate": {"$ref": "#/$defs/optionalGate"}, "transformed_recall": {"$ref": "#/$defs/enforcedGate"}, "mode_prevalence": {"$ref": "#/$defs/enforcedGate"}}
+    },
+    "initial_gen0_passed": {"type": "boolean"},
+    "planner_eligible": {"type": "boolean"},
+    "failure_code": {"type": "null"},
+    "report_hash": {"$ref": "#/$defs/sha"}
+  },
+  "$defs": {
+    "sha": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "count": {"type": "integer", "minimum": 0, "maximum": 1000},
+    "bp": {"type": "integer", "minimum": 0, "maximum": 10000},
+    "mode": {"type": "object", "additionalProperties": false, "required": ["family", "key", "candidate_count", "prevalence_bp"], "properties": {"family": {"type": "string"}, "key": {"oneOf": [{"$ref": "#/$defs/sha"}, {"type": "null"}]}, "candidate_count": {"$ref": "#/$defs/count"}, "prevalence_bp": {"$ref": "#/$defs/bp"}}},
+    "rootMode": {"allOf": [{"$ref": "#/$defs/mode"}, {"type": "object", "properties": {"family": {"const": "root_anchor_ngram"}}, "additionalProperties": {}}]},
+    "chordMode": {"allOf": [{"$ref": "#/$defs/mode"}, {"type": "object", "properties": {"family": {"const": "chord_intent_ngram"}}, "additionalProperties": {}}]},
+    "harmonyMode": {"allOf": [{"$ref": "#/$defs/mode"}, {"type": "object", "properties": {"family": {"const": "harmony_rhythm_fingerprint"}}, "additionalProperties": {}}]},
+    "enforcedGate": {"type": "object", "additionalProperties": false, "required": ["value_bp", "comparator", "threshold_bp", "status"], "properties": {"value_bp": {"$ref": "#/$defs/bp"}, "comparator": {"enum": ["ge", "lt", "le"]}, "threshold_bp": {"$ref": "#/$defs/bp"}, "status": {"enum": ["passed", "failed"]}}},
+    "optionalGate": {"type": "object", "additionalProperties": false, "required": ["value_bp", "comparator", "threshold_bp", "status"], "properties": {"value_bp": {"$ref": "#/$defs/bp"}, "comparator": {"const": "lt"}, "threshold_bp": {"const": 1000}, "status": {"enum": ["passed", "failed", "not_enforced"]}}}
+  }
+}

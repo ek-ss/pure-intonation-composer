@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cps.local/schemas/gen0_cohort_gate_manifest.schema.json",
+  "title": "CPS GEN0 CohortGateManifest v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "schema_version", "contract", "root_seed", "cohort_size", "coordinate_rule", "bindings", "binding_schema_hashes", "thresholds_bp", "rate_algorithm", "mode_algorithm", "near_duplicate_policy", "manifest_hash"],
+  "properties": {
+    "schema": {"const": "cps.gen0-cohort-gate-manifest"},
+    "schema_version": {"const": "1.0.0"},
+    "contract": {"const": "cps-gen0-cohort-gate/v1"},
+    "root_seed": {"$ref": "#/$defs/u64"},
+    "cohort_size": {"const": 1000},
+    "coordinate_rule": {"const": "candidate-ordinal-equals-cohort-index-0-through-999/v1"},
+    "bindings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sampler_manifest_hash", "structural_lowering_manifest_hash", "production_lowering_manifest_hash", "compiler_manifest_hash", "evaluation_manifest_hash", "fingerprint_spec_hash", "qd_manifest_hash", "candidate_record_schema_hash", "gate_report_schema_hash"],
+      "properties": {
+        "sampler_manifest_hash": {"$ref": "#/$defs/sha"},
+        "structural_lowering_manifest_hash": {"$ref": "#/$defs/sha"},
+        "production_lowering_manifest_hash": {"$ref": "#/$defs/sha"},
+        "compiler_manifest_hash": {"$ref": "#/$defs/sha"},
+        "evaluation_manifest_hash": {"$ref": "#/$defs/sha"},
+        "fingerprint_spec_hash": {"$ref": "#/$defs/sha"},
+        "qd_manifest_hash": {"$ref": "#/$defs/sha"},
+        "candidate_record_schema_hash": {"$ref": "#/$defs/sha"},
+        "gate_report_schema_hash": {"$ref": "#/$defs/sha"}
+      }
+    },
+    "binding_schema_hashes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sampler_manifest", "structural_lowering_manifest", "production_lowering_manifest", "compiler_manifest", "evaluation_manifest", "fingerprint_spec", "qd_manifest"],
+      "properties": {
+        "sampler_manifest": {"$ref": "#/$defs/sha"},
+        "structural_lowering_manifest": {"$ref": "#/$defs/sha"},
+        "production_lowering_manifest": {"$ref": "#/$defs/sha"},
+        "compiler_manifest": {"$ref": "#/$defs/sha"},
+        "evaluation_manifest": {"$ref": "#/$defs/sha"},
+        "fingerprint_spec": {"$ref": "#/$defs/sha"},
+        "qd_manifest": {"$ref": "#/$defs/sha"}
+      }
+    },
+    "thresholds_bp": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["compile_success_ge", "initial_viability_ge", "planner_viability_ge", "exact_duplicate_lt", "near_duplicate_lt", "transformed_recall_ge", "mode_prevalence_le"],
+      "properties": {
+        "compile_success_ge": {"const": 9500},
+        "initial_viability_ge": {"const": 7000},
+        "planner_viability_ge": {"const": 8000},
+        "exact_duplicate_lt": {"const": 100},
+        "near_duplicate_lt": {"const": 1000},
+        "transformed_recall_ge": {"const": 8000},
+        "mode_prevalence_le": {"const": 3500}
+      }
+    },
+    "rate_algorithm": {"const": "round-half-even-10000-times-count-over-1000/v1"},
+    "mode_algorithm": {"const": "order2-root-chord-plus-harmony-rhythm-candidate-prevalence/v1"},
+    "near_duplicate_policy": {
+      "oneOf": [
+        {"type": "object", "additionalProperties": false, "required": ["status", "calibration_decision_hash"], "properties": {"status": {"const": "audit_only"}, "calibration_decision_hash": {"type": "null"}}},
+        {"type": "object", "additionalProperties": false, "required": ["status", "calibration_decision_hash"], "properties": {"status": {"const": "enforced"}, "calibration_decision_hash": {"$ref": "#/$defs/sha"}}}
+      ]
+    },
+    "manifest_hash": {"$ref": "#/$defs/sha"}
+  },
+  "$defs": {
+    "sha": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "u64": {"type": "integer", "minimum": 0, "maximum": 18446744073709551615}
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cps.local/schemas/render_determinism_matrix_receipt.schema.json",
+  "title": "CPS RenderDeterminismMatrixReceipt v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "schema_version", "manifest_hash", "baseline_sequence_hash", "process_coordinates", "block_coordinates", "all_process_equal", "all_blocks_equal", "receipt_hash"],
+  "properties": {
+    "schema": {"const": "cps.render-determinism-matrix-receipt"},
+    "schema_version": {"const": "1.0.0"},
+    "manifest_hash": {"$ref": "#/$defs/sha"},
+    "baseline_sequence_hash": {"$ref": "#/$defs/sha"},
+    "process_coordinates": {"type": "array", "minItems": 16, "maxItems": 16, "items": {"$ref": "#/$defs/process"}},
+    "block_coordinates": {"type": "array", "minItems": 3, "maxItems": 3, "prefixItems": [{"$ref": "#/$defs/block64"}, {"$ref": "#/$defs/block256"}, {"$ref": "#/$defs/block1024"}], "items": false},
+    "all_process_equal": {"const": true},
+    "all_blocks_equal": {"const": true},
+    "receipt_hash": {"$ref": "#/$defs/sha"}
+  },
+  "$defs": {
+    "sha": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "process": {"type": "object", "additionalProperties": false, "required": ["python_hash_seed", "workers", "invocation_count", "sequence_hash"], "properties": {"python_hash_seed": {"enum": [0, 1, 7, 42]}, "workers": {"enum": [1, 2, 4, 8]}, "invocation_count": {"const": 100}, "sequence_hash": {"$ref": "#/$defs/sha"}}},
+    "block": {"type": "object", "additionalProperties": false, "required": ["block_size", "case_count", "case_result_set_hash"], "properties": {"block_size": {"type": "integer"}, "case_count": {"type": "integer", "minimum": 1, "maximum": 100}, "case_result_set_hash": {"$ref": "#/$defs/sha"}}},
+    "block64": {"allOf": [{"$ref": "#/$defs/block"}, {"type": "object", "properties": {"block_size": {"const": 64}}, "additionalProperties": {}}]},
+    "block256": {"allOf": [{"$ref": "#/$defs/block"}, {"type": "object", "properties": {"block_size": {"const": 256}}, "additionalProperties": {}}]},
+    "block1024": {"allOf": [{"$ref": "#/$defs/block"}, {"type": "object", "properties": {"block_size": {"const": 1024}}, "additionalProperties": {}}]}
+  }
+}

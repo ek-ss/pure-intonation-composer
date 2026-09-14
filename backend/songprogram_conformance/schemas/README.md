@@ -143,6 +143,18 @@ for the SP0 conformance pack.
   `native_ji.coherence` authority used only as hash correlation by PIL.
 - `unscored_generation_receipt.schema.json`: evaluation-free
   SongProgram-to-Project-to-WAV artifact binding and output inventory.
+- `render_determinism_matrix_manifest.schema.json` and
+  `render_determinism_matrix_receipt.schema.json`: exact 100-invocation,
+  fresh-process 1/2/4/8-worker, and test-only 64/256/1024 block-boundary
+  equality coordinates for GEN0-C acceptance.
+- `gen0_cohort_gate_manifest.schema.json`,
+  `gen0_cohort_candidate_record.schema.json`, and
+  `gen0_cohort_gate_report.schema.json`: the closed 1,000-coordinate GEN0
+  viability/diversity measurement boundary. Failed candidates remain in every
+  rate denominator; PIL authority is not implied.
+- `gen0_cohort_gate_fixture_suite_index.schema.json`: immutable independent-
+  oracle file bindings and exact golden, policy, threshold-boundary, failure,
+  process, and worker coverage required before cohort implementation acceptance.
 
 All object schemas use `additionalProperties: false`; nullable values must be
 present where listed as required. Cross-record invariants that JSON Schema

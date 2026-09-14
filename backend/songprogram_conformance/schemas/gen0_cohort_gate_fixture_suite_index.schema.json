@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cps.local/schemas/gen0_cohort_gate_fixture_suite_index.schema.json",
+  "title": "CPS GEN0 CohortGate FixtureSuiteIndex v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "schema_version", "contract", "generator_identity", "schemas", "cases", "coverage", "suite_hash"],
+  "properties": {
+    "schema": {"const": "cps.gen0-cohort-gate-fixture-suite-index"},
+    "schema_version": {"const": "1.0.0"},
+    "contract": {"const": "cps-gen0-cohort-gate/v1"},
+    "generator_identity": {"type": "string", "minLength": 1, "maxLength": 200},
+    "schemas": {
+      "type": "object", "additionalProperties": false,
+      "required": ["manifest", "candidate_record", "report", "suite_index"],
+      "properties": {"manifest": {"$ref": "#/$defs/file"}, "candidate_record": {"$ref": "#/$defs/file"}, "report": {"$ref": "#/$defs/file"}, "suite_index": {"$ref": "#/$defs/file"}}
+    },
+    "cases": {"type": "array", "minItems": 1, "maxItems": 128, "items": {"oneOf": [{"$ref": "#/$defs/success"}, {"$ref": "#/$defs/failure"}]}},
+    "coverage": {"type": "array", "minItems": 35, "maxItems": 35, "uniqueItems": true, "items": {"$ref": "#/$defs/coverage"}},
+    "suite_hash": {"$ref": "#/$defs/sha"}
+  },
+  "$defs": {
+    "sha": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "path": {"type": "string", "pattern": "^(?!/)(?!.*(?:^|/)\\.{1,2}(?:/|$))(?!.*//)[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*$"},
+    "file": {"type": "object", "additionalProperties": false, "required": ["path", "raw_sha256"], "properties": {"path": {"$ref": "#/$defs/path"}, "raw_sha256": {"$ref": "#/$defs/sha"}}},
+    "base": {"type": "object", "additionalProperties": {}, "required": ["case_id", "kind", "manifest", "records", "coverage"], "properties": {"case_id": {"type": "string", "pattern": "^[a-z][a-z0-9_.-]{0,127}$"}, "kind": {"type": "string"}, "manifest": {"$ref": "#/$defs/file"}, "records": {"$ref": "#/$defs/file"}, "coverage": {"type": "array", "minItems": 1, "maxItems": 35, "uniqueItems": true, "items": {"$ref": "#/$defs/coverage"}}}},
+    "success": {"allOf": [{"$ref": "#/$defs/base"}, {"type": "object", "additionalProperties": false, "required": ["case_id", "kind", "manifest", "records", "coverage", "expected_report"], "properties": {"case_id": {"type": "string"}, "kind": {"const": "success"}, "manifest": {"$ref": "#/$defs/file"}, "records": {"$ref": "#/$defs/file"}, "coverage": {"type": "array", "items": {"$ref": "#/$defs/coverage"}}, "expected_report": {"$ref": "#/$defs/file"}}}]},
+    "failure": {"allOf": [{"$ref": "#/$defs/base"}, {"type": "object", "additionalProperties": false, "required": ["case_id", "kind", "manifest", "records", "coverage", "expected_code"], "properties": {"case_id": {"type": "string"}, "kind": {"const": "failure"}, "manifest": {"$ref": "#/$defs/file"}, "records": {"$ref": "#/$defs/file"}, "coverage": {"type": "array", "items": {"$ref": "#/$defs/coverage"}}, "expected_code": {"$ref": "#/$defs/error"}}}]},
+    "coverage": {"enum": ["golden.success", "policy.near_audit_only", "policy.near_enforced", "boundary.compile.9499_fail", "boundary.compile.9500_pass", "boundary.initial_viability.6999_fail", "boundary.initial_viability.7000_pass", "boundary.planner_viability.7999_fail", "boundary.planner_viability.8000_pass", "boundary.exact_duplicate.99_pass", "boundary.exact_duplicate.100_fail", "boundary.near_duplicate.999_pass", "boundary.near_duplicate.1000_fail", "boundary.transformed_recall.7999_fail", "boundary.transformed_recall.8000_pass", "boundary.mode.3500_pass", "boundary.mode.3501_fail", "failure.report_schema", "failure.manifest_schema", "failure.manifest_hash", "failure.record_count", "failure.record_order", "failure.record_hash", "failure.coordinate", "failure.artifact_binding", "failure.stage_precedence", "failure.duplicate_classification", "failure.mode_key", "failure.counter_overflow", "failure.ledger_hash", "failure.aggregate", "failure.gate_result", "failure.report_hash", "process.pythonhashseed_0_1_7_42", "parallel.workers_1_2_4_8"]},
+    "error": {"enum": ["COHORT_REPORT_SCHEMA_INVALID", "COHORT_MANIFEST_INVALID", "COHORT_MANIFEST_HASH_MISMATCH", "COHORT_RECORD_COUNT_MISMATCH", "COHORT_RECORD_ORDER_INVALID", "COHORT_RECORD_HASH_MISMATCH", "COHORT_COORDINATE_MISMATCH", "COHORT_ARTIFACT_BINDING_MISMATCH", "COHORT_STAGE_PRECEDENCE_INVALID", "COHORT_DUPLICATE_CLASSIFICATION_INVALID", "COHORT_MODE_KEY_INVALID", "COHORT_COUNTER_OVERFLOW", "COHORT_LEDGER_HASH_MISMATCH", "COHORT_AGGREGATE_MISMATCH", "COHORT_GATE_RESULT_MISMATCH", "COHORT_REPORT_HASH_MISMATCH"]}
+  }
+}
