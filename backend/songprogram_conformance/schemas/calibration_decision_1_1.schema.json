@@ -22,8 +22,8 @@
     "decision_hash":{"$ref":"#/$defs/sha"}
   },
   "allOf":[
-    {"if":{"properties":{"status":{"const":"promoted"}},"required":["status"]},"then":{"properties":{"metric_ids":{"minItems":1},"promoted_metrics":{"minItems":1},"failure_code":{"type":"null"}}}},
-    {"if":{"properties":{"status":{"const":"rejected"}},"required":["status"]},"then":{"properties":{"metric_ids":{"maxItems":0},"promoted_metrics":{"maxItems":0},"failure_code":{"enum":["CALIBRATION_INPUT_INVALID","CALIBRATION_CONTEXT_MISMATCH","CALIBRATION_REFERENCE_SET_MISMATCH","CALIBRATION_EXTRACTOR_MISMATCH","CALIBRATION_RENDERER_MISMATCH","CALIBRATION_COHORT_MISMATCH","CALIBRATION_THRESHOLD_NOT_MET","CALIBRATION_RESULT_INVALID"]}}}}
+    {"if":{"properties":{"status":{"const":"promoted"}},"required":["status"],"additionalProperties":{}},"then":{"properties":{"metric_ids":{"minItems":1},"promoted_metrics":{"minItems":1},"failure_code":{"type":"null"}},"additionalProperties":{}}},
+    {"if":{"properties":{"status":{"const":"rejected"}},"required":["status"],"additionalProperties":{}},"then":{"properties":{"metric_ids":{"maxItems":0},"promoted_metrics":{"maxItems":0},"failure_code":{"enum":["CALIBRATION_INPUT_INVALID","CALIBRATION_CONTEXT_MISMATCH","CALIBRATION_REFERENCE_SET_MISMATCH","CALIBRATION_EXTRACTOR_MISMATCH","CALIBRATION_RENDERER_MISMATCH","CALIBRATION_COHORT_MISMATCH","CALIBRATION_THRESHOLD_NOT_MET","CALIBRATION_RESULT_INVALID"]}},"additionalProperties":{}}}
   ],
   "$defs":{
     "sha":{"type":"string","pattern":"^sha256:[0-9a-f]{64}$"},

@@ -282,7 +282,8 @@ material:
 - two more input templates after promotion: `pil_trajectory_overlap_windows`
   (two consecutive template-length windows, promoted with the suite) and
   `pil_12tet_major_chord` (near-12-TET major third resolving to the major
-  template; awaiting maintainer promotion), plus three new required coverage
+  template; subsequently promoted by oracle-maintainer commit `ab9f96e` and
+  included in both suite index and matrix receipt), plus three required coverage
   labels (`segment_boundary`, `passing_tone_regression`,
   `native_ji_separation`) anchoring contract section 9 items 8, 3 and 6 —
   twenty-eight labels, all covered by the nineteen templates;
@@ -347,15 +348,23 @@ content-addressed `cps.pil-genre-matrix-receipt` 1.0.0 that
 This mirrors the Phase 1--4 `execute_pil_oracle_matrix` evidence shape; the
 authoritative oracle-side matrix remains the conformance suite's own.
 
-## 2026-09-14 Known cross-stream issue: schema pack closure failure
+## 2026-09-14 Resolved cross-stream schema-pack closure issue
 
 `tests/test_songprogram_schema_pack.py::test_every_schema_is_closed_and_has_identity`
-currently fails on `main`, independently of the PIL work above. The schema
+previously failed on the schema
 `backend/songprogram_conformance/schemas/calibration_decision_1_1.schema.json`
-(added by commit `1731ac0`, SearchLoop13 stream) contains an object under
-`allOf/0/if` without `additionalProperties: false`, which the pack closure
-test rejects. The file belongs to the protected conformance schema pack and
-to the SearchLoop13 stream, so the PIL stream deliberately does not modify
-it; the fix is owned by the SearchLoop13 stream (close the conditional
-object or adjust the pack test). Observed with the full suite otherwise at
-532 passed plus the intentionally deselected read-only guard test.
+(added by commit `1731ac0`, SearchLoop13 stream), because conditional object
+schemas omitted an explicit `additionalProperties` policy. The SearchLoop13
+stream has now closed those conditional schemas without changing decision
+semantics. The schema-pack failure is no longer an active PIL blocker.
+
+## 2026-09-15 Remaining external PIL promotion boundary
+
+`pil_12tet_major_chord` is authoritative and is not a remaining task. The
+remaining production boundary is narrower: `pil.genre.*` metrics stay
+audit-only until an owner issues the future PIL CalibrationDecision version
+and independently collected listener cohort, calibration fixture set,
+acceptance policy, and evidence summary replace the four
+`missing_external_authority` rows. SearchLoop13's synthetic fixture-only
+CalibrationDecision exercises bindings and MUST NOT satisfy or replace this
+external authority requirement.
