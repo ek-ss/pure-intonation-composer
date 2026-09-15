@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cps.local/schemas/gen0_cohort_fingerprint_component.schema.json",
+  "title": "CPS GEN0 Cohort Fingerprint Component Payload v1",
+  "oneOf": [
+    {"$ref": "#/$defs/sectionBars"},
+    {"$ref": "#/$defs/roleTimeGrid"},
+    {"$ref": "#/$defs/rootAnchorDeltas"},
+    {"$ref": "#/$defs/chordSteps"},
+    {"$ref": "#/$defs/lineageEdges"},
+    {"$ref": "#/$defs/soundingIntervals"}
+  ],
+  "$defs": {
+    "sha": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "header": {"type": "object", "additionalProperties": {}, "required": ["schema", "schema_version", "id", "payload", "component_hash"], "properties": {"schema": {"const": "cps.gen0-cohort-fingerprint-component"}, "schema_version": {"const": "1.0.0"}, "id": {"type": "string"}, "payload": {}, "component_hash": {"$ref": "#/$defs/sha"}}},
+    "sectionBars": {"allOf": [{"$ref": "#/$defs/header"}, {"type": "object", "additionalProperties": false, "required": ["schema", "schema_version", "id", "payload", "component_hash"], "properties": {"schema": {"const": "cps.gen0-cohort-fingerprint-component"}, "schema_version": {"const": "1.0.0"}, "id": {"const": "section_bars"}, "payload": {"type": "array", "items": {"type": "integer", "minimum": 1}}, "component_hash": {"$ref": "#/$defs/sha"}}}]},
+    "roleTimeGrid": {"allOf": [{"$ref": "#/$defs/header"}, {"type": "object", "additionalProperties": false, "required": ["schema", "schema_version", "id", "payload", "component_hash"], "properties": {"schema": {"const": "cps.gen0-cohort-fingerprint-component"}, "schema_version": {"const": "1.0.0"}, "id": {"const": "role_time_grid"}, "payload": {"type": "array", "items": {"type": "array", "prefixItems": [{"enum": ["drums", "bass", "harmony", "melody", "texture"]}, {"type": "integer"}, {"type": "integer", "minimum": 1}], "items": false, "minItems": 3, "maxItems": 3}}, "component_hash": {"$ref": "#/$defs/sha"}}}]},
+    "rootAnchorDeltas": {"allOf": [{"$ref": "#/$defs/header"}, {"type": "object", "additionalProperties": false, "required": ["schema", "schema_version", "id", "payload", "component_hash"], "properties": {"schema": {"const": "cps.gen0-cohort-fingerprint-component"}, "schema_version": {"const": "1.0.0"}, "id": {"const": "root_anchor_deltas"}, "payload": {"type": "array", "items": {"type": "array", "items": {"type": "integer"}}}, "component_hash": {"$ref": "#/$defs/sha"}}}]},
+    "chordSteps": {"allOf": [{"$ref": "#/$defs/header"}, {"type": "object", "additionalProperties": false, "required": ["schema", "schema_version", "id", "payload", "component_hash"], "properties": {"schema": {"const": "cps.gen0-cohort-fingerprint-component"}, "schema_version": {"const": "1.0.0"}, "id": {"const": "chord_steps"}, "payload": {"type": "array", "items": {"type": "array", "items": {"type": "integer", "minimum": 0}}}, "component_hash": {"$ref": "#/$defs/sha"}}}]},
+    "lineageEdges": {"allOf": [{"$ref": "#/$defs/header"}, {"type": "object", "additionalProperties": false, "required": ["schema", "schema_version", "id", "payload", "component_hash"], "properties": {"schema": {"const": "cps.gen0-cohort-fingerprint-component"}, "schema_version": {"const": "1.0.0"}, "id": {"const": "lineage_edges"}, "payload": {"type": "array", "items": {"type": "array", "prefixItems": [{"$ref": "#/$defs/sha"}, {"$ref": "#/$defs/sha"}, {"type": "string", "minLength": 1}], "items": false, "minItems": 3, "maxItems": 3}}, "component_hash": {"$ref": "#/$defs/sha"}}}]},
+    "soundingIntervals": {"allOf": [{"$ref": "#/$defs/header"}, {"type": "object", "additionalProperties": false, "required": ["schema", "schema_version", "id", "payload", "component_hash"], "properties": {"schema": {"const": "cps.gen0-cohort-fingerprint-component"}, "schema_version": {"const": "1.0.0"}, "id": {"const": "sounding_intervals"}, "payload": {"type": "array", "items": {"type": "string", "pattern": "^[1-9][0-9]*/[1-9][0-9]*$"}}, "component_hash": {"$ref": "#/$defs/sha"}}}]}
+  }
+}

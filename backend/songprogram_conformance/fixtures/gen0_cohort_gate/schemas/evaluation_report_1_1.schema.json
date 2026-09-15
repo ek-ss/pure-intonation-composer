@@ -1,0 +1,307 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cps.local/schemas/evaluation_report_1_1.schema.json",
+  "title": "SearchLoop13 EvaluationReport v1.1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "schema_version",
+    "status",
+    "run_hash",
+    "context_hash",
+    "source_decision_hash",
+    "evaluation_manifest_hash",
+    "genre_intent_hash",
+    "program_hash",
+    "project_hash",
+    "request_hash",
+    "hard_checks",
+    "metrics",
+    "failure_code",
+    "report_hash"
+  ],
+  "properties": {
+    "schema": {
+      "const": "cps.evaluation-report"
+    },
+    "schema_version": {
+      "const": "1.1.0"
+    },
+    "status": {
+      "enum": [
+        "success",
+        "failure"
+      ]
+    },
+    "run_hash": {
+      "$ref": "#/$defs/sha"
+    },
+    "context_hash": {
+      "$ref": "#/$defs/sha"
+    },
+    "source_decision_hash": {
+      "$ref": "#/$defs/sha"
+    },
+    "evaluation_manifest_hash": {
+      "$ref": "#/$defs/sha"
+    },
+    "genre_intent_hash": {
+      "$ref": "#/$defs/sha"
+    },
+    "program_hash": {
+      "$ref": "#/$defs/sha"
+    },
+    "project_hash": {
+      "$ref": "#/$defs/sha"
+    },
+    "request_hash": {
+      "$ref": "#/$defs/sha"
+    },
+    "hard_checks": {
+      "type": "array",
+      "maxItems": 64,
+      "items": {
+        "$ref": "#/$defs/hard"
+      }
+    },
+    "metrics": {
+      "type": "array",
+      "maxItems": 64,
+      "items": {
+        "$ref": "#/$defs/metric"
+      }
+    },
+    "failure_code": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/$defs/failure"
+        }
+      ]
+    },
+    "report_hash": {
+      "$ref": "#/$defs/sha"
+    }
+  },
+  "$defs": {
+    "sha": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]{0,63}$"
+    },
+    "missing": {
+      "enum": [
+        "source_unavailable",
+        "render_not_selected",
+        "render_failed",
+        "uncalibrated",
+        "not_applicable"
+      ]
+    },
+    "failure": {
+      "enum": [
+        "EVALUATION_REQUEST_INVALID",
+        "EVALUATION_CONTEXT_MISMATCH",
+        "EVALUATION_MANIFEST_MISMATCH",
+        "EVALUATION_GENRE_INTENT_MISMATCH",
+        "EVALUATION_SOURCE_MISMATCH",
+        "EVALUATION_PROJECT_MISMATCH",
+        "EVALUATION_FINGERPRINT_MISMATCH",
+        "EVALUATION_RENDER_EVIDENCE_MISMATCH",
+        "EVALUATION_SOURCE_TYPE_INVALID",
+        "EVALUATION_OPERATOR_INVALID",
+        "EVALUATION_OPERATOR_ARITY_INVALID",
+        "EVALUATION_ACCUMULATOR_OVERFLOW",
+        "EVALUATION_RESULT_OVERFLOW",
+        "EVALUATION_RESULT_INVALID"
+      ]
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifact_kind",
+        "artifact_hash",
+        "schema_hash",
+        "json_pointer"
+      ],
+      "properties": {
+        "artifact_kind": {
+          "enum": [
+            "project",
+            "compile_report",
+            "fingerprint_record",
+            "near_duplicate_decision",
+            "render_result",
+            "audio_artifact",
+            "genre_intent",
+            "genre_feature_record"
+          ]
+        },
+        "artifact_hash": {
+          "$ref": "#/$defs/sha"
+        },
+        "schema_hash": {
+          "$ref": "#/$defs/sha"
+        },
+        "json_pointer": {
+          "type": "string",
+          "pattern": "^/(?:[^~/]|~0|~1)+(?:/(?:[^~/]|~0|~1)+)*$"
+        }
+      }
+    },
+    "scalarEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_bindings",
+        "operator",
+        "inputs",
+        "result",
+        "evidence_hash"
+      ],
+      "properties": {
+        "source_bindings": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 16,
+          "items": {
+            "$ref": "#/$defs/source"
+          }
+        },
+        "operator": {
+          "oneOf": [
+            {
+              "$ref": "evaluation_manifest_1_1.schema.json#/$defs/hardOperator"
+            },
+            {
+              "$ref": "evaluation_manifest_1_1.schema.json#/$defs/metricOperator"
+            }
+          ]
+        },
+        "inputs": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 16,
+          "items": {
+            "type": [
+              "integer",
+              "boolean"
+            ]
+          }
+        },
+        "result": {
+          "type": [
+            "integer",
+            "boolean"
+          ]
+        },
+        "evidence_hash": {
+          "$ref": "#/$defs/sha"
+        }
+      }
+    },
+    "genreEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_bindings", "operator", "feature_record_hashes", "result", "evidence_hash"],
+      "properties": {
+        "source_bindings": {"type":"array","minItems":2,"maxItems":4097,"items":{"$ref":"#/$defs/source"}},
+        "operator": {"type":"object","additionalProperties":false,"required":["kind","genre_similarity_spec_hash"],"properties":{"kind":{"const":"genre_similarity_q"},"genre_similarity_spec_hash":{"$ref":"#/$defs/sha"}}},
+        "feature_record_hashes": {"type":"array","minItems":2,"maxItems":4097,"uniqueItems":true,"items":{"$ref":"#/$defs/sha"}},
+        "result": {"type":"integer","minimum":0,"maximum":10000},
+        "evidence_hash": {"$ref":"#/$defs/sha"}
+      }
+    },
+    "evidence": {
+      "oneOf": [{"$ref":"#/$defs/scalarEvidence"},{"$ref":"#/$defs/genreEvidence"}]
+    },
+    "hard": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "ordinal",
+        "passed",
+        "evidence"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "ordinal": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 63
+        },
+        "passed": {
+          "type": "boolean"
+        },
+        "evidence": {
+          "$ref": "#/$defs/scalarEvidence"
+        }
+      }
+    },
+    "metric": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "ordinal",
+        "value",
+        "missing_reason",
+        "evidence",
+        "available_source_bindings"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "ordinal": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 63
+        },
+        "value": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "missing_reason": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/missing"
+            }
+          ]
+        },
+        "evidence": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/evidence"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "available_source_bindings": {
+          "type": "array",
+          "maxItems": 16,
+          "items": {
+            "$ref": "#/$defs/source"
+          }
+        }
+      }
+    }
+  }
+}

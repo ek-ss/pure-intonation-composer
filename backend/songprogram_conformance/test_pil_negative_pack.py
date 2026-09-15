@@ -144,3 +144,35 @@ def test_phase_1_4_calibration_schemas_close_c1_through_c6() -> None:
         row["status"] == "missing_external_authority" and row["artifact_hash"] is None
         for row in readiness["external_authorities"]
     )
+
+
+def test_search_loop_fixture_decision_cannot_substitute_for_pil_authority() -> None:
+    """Keep fixture-only SearchLoop evidence outside the PIL promotion boundary."""
+    pil_schema = json.loads(
+        (ROOT / "schemas" / "pil_calibration_decision.schema.json").read_text(encoding="utf-8")
+    )
+    fixture_decision = json.loads(
+        (
+            ROOT
+            / "fixtures"
+            / "search_loop_13"
+            / "calibration_authority"
+            / "artifacts"
+            / "calibration_decision.json"
+        ).read_text(encoding="utf-8")
+    )
+
+    assert fixture_decision["schema"] != pil_schema["properties"]["schema"]["const"]
+    assert fixture_decision["schema_version"] != pil_schema["properties"]["schema_version"]["const"]
+    assert "scope" not in fixture_decision
+    assert not any(metric_id.startswith("pil.") for metric_id in fixture_decision["metric_ids"])
+
+
+def test_phase_1_4_registry_cannot_claim_genre_metrics() -> None:
+    registry = json.loads(
+        (ROOT / "fixtures" / "pil_calibration" / "metric_registry.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert registry["scope"] == "phase_1_4"
+    assert not any(row["metric_id"].startswith("pil.genre.") for row in registry["metrics"])

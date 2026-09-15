@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cps.local/schemas/gen0_cohort_gate_matrix_receipt.schema.json",
+  "title": "CPS GEN0 CohortGate MatrixReceipt v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "schema_version", "cohort_manifest_hash", "ledger_hash", "baseline_report_hash", "coordinates", "all_equal", "receipt_hash"],
+  "properties": {
+    "schema": {"const": "cps.gen0-cohort-gate-matrix-receipt"},
+    "schema_version": {"const": "1.0.0"},
+    "cohort_manifest_hash": {"$ref": "#/$defs/sha"},
+    "ledger_hash": {"$ref": "#/$defs/sha"},
+    "baseline_report_hash": {"$ref": "#/$defs/sha"},
+    "coordinates": {"type": "array", "minItems": 16, "maxItems": 16, "items": {"$ref": "#/$defs/coordinate"}},
+    "all_equal": {"const": true},
+    "receipt_hash": {"$ref": "#/$defs/sha"}
+  },
+  "$defs": {
+    "sha": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "coordinate": {"type": "object", "additionalProperties": false, "required": ["python_hash_seed", "workers", "report_raw_sha256", "report_hash"], "properties": {"python_hash_seed": {"enum": [0, 1, 7, 42]}, "workers": {"enum": [1, 2, 4, 8]}, "report_raw_sha256": {"$ref": "#/$defs/sha"}, "report_hash": {"$ref": "#/$defs/sha"}}}
+  }
+}

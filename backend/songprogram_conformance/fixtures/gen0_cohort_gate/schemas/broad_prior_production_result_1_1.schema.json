@@ -1,0 +1,157 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cps.local/schemas/broad_prior_production_result_1_1.schema.json",
+  "title": "BroadPriorProductionResult v1.1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "schema_version",
+    "status",
+    "run_hash",
+    "context_hash",
+    "source_decision_hash",
+    "request_hash",
+    "sampler_manifest_hash",
+    "structural_lowering_manifest_hash",
+    "production_lowering_manifest_hash",
+    "instrument_catalog_digest",
+    "structural_program_hash",
+    "rejections_consumed",
+    "role_decisions",
+    "decision_trace",
+    "output",
+    "error",
+    "result_hash"
+  ],
+  "properties": {
+    "schema": {
+      "const": "cps.broad-prior-production-result"
+    },
+    "schema_version": {
+      "const": "1.1.0"
+    },
+    "status": {
+      "enum": [
+        "success",
+        "failure"
+      ]
+    },
+    "run_hash": {
+      "$ref": "#/$defs/sha"
+    },
+    "context_hash": {
+      "$ref": "#/$defs/sha"
+    },
+    "source_decision_hash": {
+      "$ref": "#/$defs/sha"
+    },
+    "request_hash": {
+      "$ref": "#/$defs/sha"
+    },
+    "sampler_manifest_hash": {
+      "$ref": "#/$defs/sha"
+    },
+    "structural_lowering_manifest_hash": {
+      "$ref": "#/$defs/sha"
+    },
+    "production_lowering_manifest_hash": {
+      "$ref": "#/$defs/sha"
+    },
+    "instrument_catalog_digest": {
+      "$ref": "#/$defs/sha"
+    },
+    "structural_program_hash": {
+      "$ref": "#/$defs/sha"
+    },
+    "rejections_consumed": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 256
+    },
+    "role_decisions": {
+      "type": "array",
+      "maxItems": 5,
+      "items": {
+        "$ref": "broad_prior_production_result.schema.json#/$defs/roleDecision"
+      }
+    },
+    "decision_trace": {
+      "type": "array",
+      "items": {
+        "$ref": "broad_prior_production_result.schema.json#/$defs/trace"
+      }
+    },
+    "output": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "broad_prior_production_result.schema.json#/$defs/output"
+        }
+      ]
+    },
+    "error": {
+      "enum": [
+        null,
+        "SAMPLER_PRODUCTION_REQUEST_INVALID",
+        "SAMPLER_PRODUCTION_CONTEXT_MISMATCH",
+        "SAMPLER_PRODUCTION_SOURCE_MISMATCH",
+        "SAMPLER_PRODUCTION_MANIFEST_INVALID",
+        "SAMPLER_CATALOG_MISMATCH",
+        "SAMPLER_ACTIVE_ROLE_INVALID",
+        "SAMPLER_PRODUCTION_PROFILE_UNAVAILABLE",
+        "SAMPLER_NO_COMPATIBLE_INSTRUMENT",
+        "SAMPLER_NO_COMPATIBLE_REGISTER",
+        "SAMPLER_NO_COMPATIBLE_POLYPHONY",
+        "SAMPLER_DRUM_MAP_INVALID",
+        "SAMPLER_PRODUCTION_VALUE_INVALID",
+        "SAMPLER_RESULT_INVALID"
+      ]
+    },
+    "result_hash": {
+      "$ref": "#/$defs/sha"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "success"
+          }
+        },
+        "additionalProperties": {}
+      },
+      "then": {
+        "properties": {
+          "output": {
+            "$ref": "broad_prior_production_result.schema.json#/$defs/output"
+          },
+          "error": {
+            "type": "null"
+          }
+        },
+        "additionalProperties": {}
+      },
+      "else": {
+        "properties": {
+          "output": {
+            "type": "null"
+          },
+          "error": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": {}
+      }
+    }
+  ],
+  "$defs": {
+    "sha": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    }
+  }
+}

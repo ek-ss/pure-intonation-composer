@@ -1,0 +1,6 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema","$id":"https://cps.local/schemas/fingerprint_record.schema.json","title":"CPS FingerprintRecord v1","type":"object","additionalProperties":false,
+  "required":["schema","schema_version","fingerprint_spec_hash","project_hash","lineage_index_hash","component_hashes","fingerprint_hash"],
+  "properties":{"schema":{"const":"cps.fingerprint-record"},"schema_version":{"const":"1.0.0"},"fingerprint_spec_hash":{"$ref":"#/$defs/sha256"},"project_hash":{"$ref":"#/$defs/sha256"},"lineage_index_hash":{"$ref":"#/$defs/sha256"},"component_hashes":{"type":"array","minItems":6,"maxItems":6,"items":{"$ref":"#/$defs/component"}},"fingerprint_hash":{"$ref":"#/$defs/sha256"}},
+  "$defs":{"sha256":{"type":"string","pattern":"^sha256:[0-9a-f]{64}$"},"component":{"type":"object","additionalProperties":false,"required":["id","hash"],"properties":{"id":{"enum":["section_bars","role_time_grid","root_anchor_deltas","chord_steps","lineage_edges","sounding_intervals"]},"hash":{"$ref":"#/$defs/sha256"}}}}
+}

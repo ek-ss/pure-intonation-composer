@@ -42,5 +42,7 @@ def test_render_contract_fixes_schedule_hashes_and_failure_precedence() -> None:
         "`[64, 256, 1024]`",
         "`RENDER_MATRIX_CASE_ORDER_INVALID`",
         "Production implementation cannot\nwrite or update those expected values",
+        "The fixture set is inputs-only and non-cyclic",
+        "must exclude `fixture_set.json` itself",
     ):
         assert required in text

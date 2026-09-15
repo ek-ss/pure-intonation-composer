@@ -155,6 +155,17 @@ for the SP0 conformance pack.
 - `gen0_cohort_gate_fixture_suite_index.schema.json`: immutable independent-
   oracle file bindings and exact golden, policy, threshold-boundary, failure,
   process, and worker coverage required before cohort implementation acceptance.
+- `gen0_cohort_gate_cas_index.schema.json`: the suite-local, content-addressed
+  resolver inventory required to replay every non-null candidate artifact hash.
+- `gen0_cohort_fingerprint_component.schema.json`: canonical six-component
+  payload sidecars needed to independently recompute fingerprint and mode keys.
+- `near_duplicate_calibration_decision.schema.json`: FingerprintSpec- and
+  threshold-specific authority required before the cohort near-duplicate gate
+  changes from audit-only to enforced.
+- `gen0_cohort_gate_matrix_receipt.schema.json`: fresh-process
+  `PYTHONHASHSEED` and 1/2/4/8-worker report-byte parity evidence.
+- `gen0_cohort_candidate_ledger.schema.json`: exactly 1,000 ordinal-ordered
+  candidate records bound to one cohort manifest and ledger hash.
 
 All object schemas use `additionalProperties: false`; nullable values must be
 present where listed as required. Cross-record invariants that JSON Schema

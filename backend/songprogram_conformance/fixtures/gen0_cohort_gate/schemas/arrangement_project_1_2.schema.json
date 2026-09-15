@@ -1,0 +1,115 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cps.local/schemas/arrangement_project_1_2.schema.json",
+  "title": "CPS ArrangementProject 1.2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "schema_version", "source_program", "compiler", "lattice", "clock", "tracks", "form", "material_instances", "resolved_chords", "harmony_occurrences", "events", "mix", "render_settings"],
+  "properties": {
+    "schema": {"const": "cps.arrangement-project"},
+    "schema_version": {"const": "1.2.0"},
+    "source_program": {"$ref": "#/$defs/sourceProgram"},
+    "compiler": {"$ref": "#/$defs/compilerIdentity"},
+    "lattice": {"$ref": "#/$defs/lattice"},
+    "clock": {"$ref": "#/$defs/clock"},
+    "tracks": {"type": "array", "minItems": 1, "maxItems": 8, "items": {"$ref": "#/$defs/track"}},
+    "form": {"type": "array", "minItems": 1, "maxItems": 16, "items": {"$ref": "#/$defs/section"}},
+    "material_instances": {"type": "array", "maxItems": 512, "items": {"$ref": "#/$defs/materialInstance"}},
+    "resolved_chords": {"type": "array", "maxItems": 4096, "items": {"$ref": "#/$defs/resolvedChord"}},
+    "harmony_occurrences": {"type": "array", "maxItems": 8192, "items": {"$ref": "#/$defs/harmonyOccurrence"}},
+    "events": {"type": "array", "minItems": 1, "maxItems": 8192, "items": {"oneOf": [{"$ref": "#/$defs/drumEvent"}, {"$ref": "#/$defs/noteEvent"}]}},
+    "mix": {"type": "object", "propertyNames": {"$ref": "#/$defs/symbolId"}, "additionalProperties": {"$ref": "#/$defs/mix"}, "maxProperties": 8},
+    "render_settings": {"$ref": "#/$defs/renderSettings"}
+  },
+  "$defs": {
+    "symbolId": {"type": "string", "pattern": "^[a-z][a-z0-9_-]{0,39}$"},
+    "eventId": {"type": "string", "pattern": "^ev_[a-z2-7]{20}$"},
+    "resolvedChordId": {"type": "string", "pattern": "^rc_[a-z2-7]{26}$"},
+    "semanticAddress": {"type": "string", "pattern": "^sa_[a-z2-7]{26}$"},
+    "sha256": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "ratio": {"type": "string", "pattern": "^[1-9][0-9]*/[1-9][0-9]*$"},
+    "vector": {"type": "array", "minItems": 1, "maxItems": 3, "items": {"type": "integer", "minimum": -32, "maximum": 32}},
+    "sourceProgram": {
+      "type": "object", "additionalProperties": false,
+      "required": ["hash", "schema", "schema_version"],
+      "properties": {"hash": {"$ref": "#/$defs/sha256"}, "schema": {"const": "cps.song-program"}, "schema_version": {"const": "0.1.0"}}
+    },
+    "compilerIdentity": {
+      "type": "object", "additionalProperties": false,
+      "required": ["build_id", "numeric_contract", "resolver_build_id", "resolver_profile_hash", "budget_profile_digest", "instrument_catalog_digest"],
+      "properties": {
+        "build_id": {"type": "string", "minLength": 1, "maxLength": 160},
+        "numeric_contract": {"const": "cps-numeric/decimal-log2-rhe-v1"},
+        "resolver_build_id": {"type": "string", "minLength": 1, "maxLength": 160},
+        "resolver_profile_hash": {"$ref": "#/$defs/sha256"},
+        "budget_profile_digest": {"$ref": "#/$defs/sha256"},
+        "instrument_catalog_digest": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "boundPair": {"type": "array", "prefixItems": [{"type": "integer", "minimum": -32, "maximum": 32}, {"type": "integer", "minimum": -32, "maximum": 32}], "items": false, "minItems": 2, "maxItems": 2},
+    "lattice": {
+      "type": "object", "additionalProperties": false,
+      "required": ["domain_hash", "base_frequency_millihz", "equave", "generators", "coordinate_bounds", "register_bounds", "maximum_odd_limit", "maximum_reduced_complexity_bits"],
+      "properties": {
+        "domain_hash": {"$ref": "#/$defs/sha256"}, "base_frequency_millihz": {"type": "integer", "minimum": 20000, "maximum": 2000000},
+        "equave": {"$ref": "#/$defs/ratio"}, "generators": {"type": "array", "minItems": 1, "maxItems": 3, "items": {"$ref": "#/$defs/ratio"}},
+        "coordinate_bounds": {"type": "array", "minItems": 1, "maxItems": 3, "items": {"$ref": "#/$defs/boundPair"}},
+        "register_bounds": {"type": "array", "prefixItems": [{"type": "integer", "minimum": -32, "maximum": 32}, {"type": "integer", "minimum": -32, "maximum": 32}], "items": false, "minItems": 2, "maxItems": 2},
+        "maximum_odd_limit": {"type": "integer", "minimum": 1, "maximum": 65535}, "maximum_reduced_complexity_bits": {"type": "integer", "minimum": 2, "maximum": 4096}
+      }
+    },
+    "clock": {
+      "type": "object", "additionalProperties": false,
+      "required": ["tempo_milli_bpm", "beats_per_bar", "ticks_per_beat", "bars", "total_ticks"],
+      "properties": {"tempo_milli_bpm": {"type": "integer", "minimum": 30000, "maximum": 300000}, "beats_per_bar": {"enum": [2,3,4,6]}, "ticks_per_beat": {"const": 480}, "bars": {"type": "integer", "minimum": 1, "maximum": 128}, "total_ticks": {"type": "integer", "minimum": 1, "maximum": 737280}}
+    },
+    "track": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "role", "instrument_id", "register_millicents", "maximum_polyphony", "drum_map"],
+      "properties": {"id": {"$ref": "#/$defs/symbolId"}, "role": {"enum": ["drums","bass","harmony","melody","texture"]}, "instrument_id": {"type": "string", "minLength": 1, "maxLength": 80}, "register_millicents": {"type": ["array","null"], "prefixItems": [{"type":"integer"},{"type":"integer"}], "items": false, "minItems": 2, "maxItems": 2}, "maximum_polyphony": {"type": "integer", "minimum": 1, "maximum": 64}, "drum_map": {"type": ["object","null"], "propertyNames": {"$ref": "#/$defs/symbolId"}, "additionalProperties": {"type":"integer","minimum":0,"maximum":127}, "maxProperties": 128}}
+    },
+    "section": {
+      "type":"object", "additionalProperties":false, "required":["id","role","start_bar","bars"],
+      "properties":{"id":{"$ref":"#/$defs/symbolId"},"role":{"type":"string","minLength":1,"maxLength":40},"start_bar":{"type":"integer","minimum":0,"maximum":127},"bars":{"type":"integer","minimum":1,"maximum":128}}
+    },
+    "materialInstance": {
+      "type":"object", "additionalProperties":false, "required":["id","material_id","realization_id","section_id","track_id","repeat_ordinal","at_tick","source_program_path"],
+      "properties":{"id":{"$ref":"#/$defs/symbolId"},"material_id":{"$ref":"#/$defs/symbolId"},"realization_id":{"$ref":"#/$defs/symbolId"},"section_id":{"$ref":"#/$defs/symbolId"},"track_id":{"$ref":"#/$defs/symbolId"},"repeat_ordinal":{"type":"integer","minimum":0,"maximum":31},"at_tick":{"type":"integer","minimum":0,"maximum":737279},"source_program_path":{"type":"string","pattern":"^(|/(?:[^~/]|~0|~1)*)$","maxLength":512}}
+    },
+    "eventSource": {
+      "type":"object", "additionalProperties":false, "required":["material_instance_id","source_step_ordinal","emitted_voice_ordinal","semantic_address"],
+      "properties":{"material_instance_id":{"$ref":"#/$defs/symbolId"},"source_step_ordinal":{"type":"integer","minimum":0,"maximum":63},"emitted_voice_ordinal":{"type":"integer","minimum":0,"maximum":7},"semantic_address":{"$ref":"#/$defs/semanticAddress"}}
+    },
+    "directPitch": {
+      "type":"object", "additionalProperties":false, "required":["kind","material_vector","tonal_center","register_delta","register_shift_equaves","placed_equave_exponent","final_vector","equave_exponent","final_ratio"],
+      "properties":{"kind":{"const":"direct_vector"},"material_vector":{"$ref":"#/$defs/vector"},"tonal_center":{"$ref":"#/$defs/vector"},"register_delta":{"type":"integer","minimum":-32,"maximum":32},"register_shift_equaves":{"type":"integer","minimum":-32,"maximum":32},"placed_equave_exponent":{"type":"integer","minimum":-32,"maximum":32},"final_vector":{"$ref":"#/$defs/vector"},"equave_exponent":{"type":"integer","minimum":-96,"maximum":96},"final_ratio":{"$ref":"#/$defs/ratio"}}
+    },
+    "chordPitch": {
+      "type":"object", "additionalProperties":false, "required":["kind","resolved_chord_id","target_voice_ordinal","shape_voice_ordinal","anchor_vector","offset_vector","final_vector","equave_exponent","final_ratio"],
+      "properties":{"kind":{"const":"resolved_chord_voice"},"resolved_chord_id":{"$ref":"#/$defs/resolvedChordId"},"target_voice_ordinal":{"type":"integer","minimum":0,"maximum":7},"shape_voice_ordinal":{"type":"integer","minimum":0,"maximum":7},"anchor_vector":{"$ref":"#/$defs/vector"},"offset_vector":{"$ref":"#/$defs/vector"},"final_vector":{"$ref":"#/$defs/vector"},"equave_exponent":{"type":"integer","minimum":-32,"maximum":32},"final_ratio":{"$ref":"#/$defs/ratio"}}
+    },
+    "melodyPitch": {
+      "type":"object", "additionalProperties":false, "required":["kind","melody_intent_id","relation","active_resolved_chord_id","active_target_voice_ordinal","next_resolved_chord_id","source_vector","relation_delta_vector","tonal_center_delta_vector","final_vector","equave_exponent","final_ratio"],
+      "properties":{"kind":{"const":"resolved_melody"},"melody_intent_id":{"$ref":"#/$defs/symbolId"},"relation":{"enum":["chord_member","neighbor","approach"]},"active_resolved_chord_id":{"$ref":"#/$defs/resolvedChordId"},"active_target_voice_ordinal":{"type":"integer","minimum":0,"maximum":7},"next_resolved_chord_id":{"oneOf":[{"$ref":"#/$defs/resolvedChordId"},{"type":"null"}]},"source_vector":{"$ref":"#/$defs/vector"},"relation_delta_vector":{"$ref":"#/$defs/vector"},"tonal_center_delta_vector":{"$ref":"#/$defs/vector"},"final_vector":{"$ref":"#/$defs/vector"},"equave_exponent":{"type":"integer","minimum":-32,"maximum":32},"final_ratio":{"$ref":"#/$defs/ratio"}}
+    },
+    "drumEvent": {
+      "type":"object", "additionalProperties":false, "required":["id","kind","track_id","section_id","start_tick","duration_ticks","velocity","articulation","drum_note","ratio","chord_index","pitch_provenance","source"],
+      "properties":{"id":{"$ref":"#/$defs/eventId"},"kind":{"const":"drum"},"track_id":{"$ref":"#/$defs/symbolId"},"section_id":{"$ref":"#/$defs/symbolId"},"start_tick":{"type":"integer","minimum":0,"maximum":737279},"duration_ticks":{"type":"integer","minimum":1,"maximum":737280},"velocity":{"type":"integer","minimum":1,"maximum":127},"articulation":{"type":"string","minLength":1,"maxLength":24},"drum_note":{"type":"integer","minimum":0,"maximum":127},"ratio":{"type":"null"},"chord_index":{"type":"null"},"pitch_provenance":{"type":"null"},"source":{"$ref":"#/$defs/eventSource"}}
+    },
+    "noteEvent": {
+      "type":"object", "additionalProperties":false, "required":["id","kind","track_id","section_id","start_tick","duration_ticks","velocity","articulation","drum_note","ratio","chord_index","pitch_provenance","source"],
+      "properties":{"id":{"$ref":"#/$defs/eventId"},"kind":{"const":"note"},"track_id":{"$ref":"#/$defs/symbolId"},"section_id":{"$ref":"#/$defs/symbolId"},"start_tick":{"type":"integer","minimum":0,"maximum":737279},"duration_ticks":{"type":"integer","minimum":1,"maximum":737280},"velocity":{"type":"integer","minimum":1,"maximum":127},"articulation":{"type":"string","minLength":1,"maxLength":24},"drum_note":{"type":"null"},"ratio":{"$ref":"#/$defs/ratio"},"chord_index":{"type":["integer","null"],"minimum":0,"maximum":8191},"pitch_provenance":{"oneOf":[{"$ref":"#/$defs/directPitch"},{"$ref":"#/$defs/chordPitch"},{"$ref":"#/$defs/melodyPitch"}]},"source":{"$ref":"#/$defs/eventSource"}}
+    },
+    "eligibility": {
+      "type":"object", "additionalProperties":false, "required":["bass_policy","bass_target_ordinal","minimum_spacing_millicents","maximum_span_millicents","maximum_pair_error_millicents","maximum_pair_rms_millicents","complexity_budget"],
+      "properties":{"bass_policy":{"enum":["any","preserve_target"]},"bass_target_ordinal":{"type":["integer","null"],"minimum":0,"maximum":7},"minimum_spacing_millicents":{"type":"integer","minimum":0},"maximum_span_millicents":{"type":"integer","minimum":0},"maximum_pair_error_millicents":{"type":"integer","minimum":0},"maximum_pair_rms_millicents":{"type":"integer","minimum":0},"complexity_budget":{"type":"integer","minimum":0,"maximum":65535}}
+    },
+    "resolvedChord": {
+      "type":"object", "additionalProperties":false, "required":["id","domain_hash","intent_hash","resolver_build_id","numeric_contract","search_completeness","reference_equave","reference_divisions","canonical_steps","eligibility_contract","anchor_vector","voice_offsets","equave_exponents","exact_ratios","target_voice_ordinals","pair_errors_millicents","maximum_pair_error_millicents","pair_rms_error_millicents","complexity_score"],
+      "properties":{"id":{"$ref":"#/$defs/resolvedChordId"},"domain_hash":{"$ref":"#/$defs/sha256"},"intent_hash":{"$ref":"#/$defs/sha256"},"resolver_build_id":{"type":"string","minLength":1,"maxLength":160},"numeric_contract":{"const":"cps-numeric/decimal-log2-rhe-v1"},"search_completeness":{"const":"exact"},"reference_equave":{"$ref":"#/$defs/ratio"},"reference_divisions":{"type":"integer","minimum":1,"maximum":96},"canonical_steps":{"type":"array","minItems":2,"maxItems":8,"uniqueItems":true,"items":{"type":"integer","minimum":0,"maximum":95}},"eligibility_contract":{"$ref":"#/$defs/eligibility"},"anchor_vector":{"$ref":"#/$defs/vector"},"voice_offsets":{"type":"array","minItems":2,"maxItems":8,"items":{"$ref":"#/$defs/vector"}},"equave_exponents":{"type":"array","minItems":2,"maxItems":8,"items":{"type":"integer","minimum":-32,"maximum":32}},"exact_ratios":{"type":"array","minItems":2,"maxItems":8,"items":{"$ref":"#/$defs/ratio"}},"target_voice_ordinals":{"type":"array","minItems":2,"maxItems":8,"uniqueItems":true,"items":{"type":"integer","minimum":0,"maximum":7}},"pair_errors_millicents":{"type":"array","minItems":1,"maxItems":28,"items":{"type":"integer"}},"maximum_pair_error_millicents":{"type":"integer","minimum":0},"pair_rms_error_millicents":{"type":"integer","minimum":0},"complexity_score":{"type":"integer","minimum":0}}
+    },
+    "harmonyOccurrence": {"type":"object","additionalProperties":false,"required":["chord_index","section_id","start_tick","duration_ticks","resolved_chord_id"],"properties":{"chord_index":{"type":"integer","minimum":0,"maximum":8191},"section_id":{"$ref":"#/$defs/symbolId"},"start_tick":{"type":"integer","minimum":0,"maximum":737279},"duration_ticks":{"type":"integer","minimum":1,"maximum":737280},"resolved_chord_id":{"$ref":"#/$defs/resolvedChordId"}}},
+    "mix": {"type":"object","additionalProperties":false,"required":["gain_q","pan_q"],"properties":{"gain_q":{"type":"integer","minimum":0,"maximum":10000},"pan_q":{"type":"integer","minimum":-10000,"maximum":10000}}},
+    "renderSettings": {"type":"object","additionalProperties":false,"required":["sample_rate","channel_layout"],"properties":{"sample_rate":{"type":"integer","enum":[22050,44100,48000,96000]},"channel_layout":{"enum":["mono","stereo"]}}}
+  }
+}

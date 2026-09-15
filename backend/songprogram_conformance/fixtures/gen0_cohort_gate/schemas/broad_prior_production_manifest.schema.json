@@ -1,0 +1,310 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://cps.local/schemas/broad_prior_production_manifest.schema.json",
+    "title": "CPS BroadPrior ProductionLoweringManifest v1",
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+        "schema",
+        "schema_version",
+        "algorithm",
+        "stream_domain",
+        "choice_algorithm",
+        "sampler_manifest_hash",
+        "instrument_catalog_digest",
+        "maximum_production_rejections",
+        "role_order",
+        "profile_ids",
+        "instrument_entries_by_role",
+        "register_presets_by_role",
+        "polyphony_by_role",
+        "drum_map_profiles",
+        "gain_q_by_role",
+        "pan_q_by_role"
+    ],
+    "properties": {
+        "schema": {
+            "const": "cps.broad-prior-production-manifest"
+        },
+        "schema_version": {
+            "const": "1.0.0"
+        },
+        "algorithm": {
+            "const": "broad-prior-production-lowering/v1"
+        },
+        "stream_domain": {
+            "const": "cps.broad-prior-production/v1"
+        },
+        "choice_algorithm": {
+            "const": "sha256-u64-mod-cumulative/v1"
+        },
+        "sampler_manifest_hash": {
+            "$ref": "#/$defs/sha"
+        },
+        "instrument_catalog_digest": {
+            "$ref": "#/$defs/sha"
+        },
+        "maximum_production_rejections": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 256
+        },
+        "role_order": {
+            "const": [
+                "drums",
+                "bass",
+                "harmony",
+                "melody",
+                "texture"
+            ]
+        },
+        "profile_ids": {
+            "$ref": "#/$defs/profileTable"
+        },
+        "instrument_entries_by_role": {
+            "$ref": "#/$defs/roleIdTables"
+        },
+        "register_presets_by_role": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "bass",
+                "harmony",
+                "melody",
+                "texture"
+            ],
+            "properties": {
+                "bass": {
+                    "$ref": "#/$defs/boundsTable"
+                },
+                "harmony": {
+                    "$ref": "#/$defs/boundsTable"
+                },
+                "melody": {
+                    "$ref": "#/$defs/boundsTable"
+                },
+                "texture": {
+                    "$ref": "#/$defs/boundsTable"
+                }
+            }
+        },
+        "polyphony_by_role": {
+            "$ref": "#/$defs/roleIntTables"
+        },
+        "drum_map_profiles": {
+            "$ref": "#/$defs/drumMapTable"
+        },
+        "gain_q_by_role": {
+            "$ref": "#/$defs/roleIntTables"
+        },
+        "pan_q_by_role": {
+            "$ref": "#/$defs/roleIntTables"
+        }
+    },
+    "$defs": {
+        "sha": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_-]{0,79}$"
+        },
+        "weight": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 18446744073709551615
+        },
+        "idChoice": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "value",
+                "weight"
+            ],
+            "properties": {
+                "value": {
+                    "$ref": "#/$defs/id"
+                },
+                "weight": {
+                    "$ref": "#/$defs/weight"
+                }
+            }
+        },
+        "profileChoice": {
+            "type": "object", "additionalProperties": false,
+            "required": ["value", "weight"],
+            "properties": {
+                "value": {
+                    "type": "object", "additionalProperties": false,
+                    "required": ["profile_id", "profile_payload", "profile_payload_hash"],
+                    "properties": {
+                        "profile_id": { "$ref": "#/$defs/id" },
+                        "profile_payload": {
+                            "type": "object", "additionalProperties": false,
+                            "required": ["profile_id", "render_profile_id"],
+                            "properties": {
+                                "profile_id": { "$ref": "#/$defs/id" },
+                                "render_profile_id": { "$ref": "#/$defs/id" }
+                            }
+                        },
+                        "profile_payload_hash": { "$ref": "#/$defs/sha" }
+                    }
+                },
+                "weight": { "$ref": "#/$defs/weight" }
+            }
+        },
+        "drumMapChoice": {
+            "type": "object", "additionalProperties": false,
+            "required": ["value", "weight"],
+            "properties": {
+                "value": {
+                    "type": "object", "additionalProperties": false,
+                    "required": ["drum_map_id", "drum_map", "drum_map_payload_hash"],
+                    "properties": {
+                        "drum_map_id": { "$ref": "#/$defs/id" },
+                        "drum_map": {
+                            "type": "object", "minProperties": 1, "maxProperties": 128,
+                            "propertyNames": { "$ref": "#/$defs/id" },
+                            "additionalProperties": { "type": "integer", "minimum": 0, "maximum": 127 }
+                        },
+                        "drum_map_payload_hash": { "$ref": "#/$defs/sha" }
+                    }
+                },
+                "weight": { "$ref": "#/$defs/weight" }
+            }
+        },
+        "intChoice": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "value",
+                "weight"
+            ],
+            "properties": {
+                "value": {
+                    "type": "integer",
+                    "minimum": -10000,
+                    "maximum": 10000
+                },
+                "weight": {
+                    "$ref": "#/$defs/weight"
+                }
+            }
+        },
+        "boundsChoice": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "value",
+                "weight"
+            ],
+            "properties": {
+                "value": {
+                    "type": "array",
+                    "prefixItems": [
+                        {
+                            "type": "integer",
+                            "minimum": -9600000,
+                            "maximum": 9600000
+                        },
+                        {
+                            "type": "integer",
+                            "minimum": -9600000,
+                            "maximum": 9600000
+                        }
+                    ],
+                    "items": false
+                },
+                "weight": {
+                    "$ref": "#/$defs/weight"
+                }
+            }
+        },
+        "idTable": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+                "$ref": "#/$defs/idChoice"
+            }
+        },
+        "profileTable": {
+            "type": "array", "minItems": 1,
+            "items": { "$ref": "#/$defs/profileChoice" }
+        },
+        "drumMapTable": {
+            "type": "array", "minItems": 1,
+            "items": { "$ref": "#/$defs/drumMapChoice" }
+        },
+        "intTable": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+                "$ref": "#/$defs/intChoice"
+            }
+        },
+        "boundsTable": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+                "$ref": "#/$defs/boundsChoice"
+            }
+        },
+        "roleIdTables": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "drums",
+                "bass",
+                "harmony",
+                "melody",
+                "texture"
+            ],
+            "properties": {
+                "drums": {
+                    "$ref": "#/$defs/idTable"
+                },
+                "bass": {
+                    "$ref": "#/$defs/idTable"
+                },
+                "harmony": {
+                    "$ref": "#/$defs/idTable"
+                },
+                "melody": {
+                    "$ref": "#/$defs/idTable"
+                },
+                "texture": {
+                    "$ref": "#/$defs/idTable"
+                }
+            }
+        },
+        "roleIntTables": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "drums",
+                "bass",
+                "harmony",
+                "melody",
+                "texture"
+            ],
+            "properties": {
+                "drums": {
+                    "$ref": "#/$defs/intTable"
+                },
+                "bass": {
+                    "$ref": "#/$defs/intTable"
+                },
+                "harmony": {
+                    "$ref": "#/$defs/intTable"
+                },
+                "melody": {
+                    "$ref": "#/$defs/intTable"
+                },
+                "texture": {
+                    "$ref": "#/$defs/intTable"
+                }
+            }
+        }
+    }
+}
