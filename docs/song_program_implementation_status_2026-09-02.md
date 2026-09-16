@@ -385,3 +385,15 @@ block the other GEN0 gates and grants no PIL authority.
 Production aggregation and the real 1,000-seed run remain implementation and
 evidence work. Authoritative conformance expected hashes must come from an
 independent oracle owner rather than the production implementation.
+
+## 2026-09-17 External PIL authority intake implementation
+
+The external evidence values remain owner-supplied, but their software intake
+boundary is now executable. Genre Phase 5 has dedicated closed policy, fixture
+set, and evidence-summary schemas rather than reusing the incompatible
+Phase 1--4 scopes. The production-independent read-only validator checks schema
+callbacks, canonical identities, complete context links, sorted registry and
+metric joins, integer threshold equality, count minima, evidence hashes, and
+the exact promoted/rejected CalibrationDecision payload without repairing or
+creating authority. Native JI remains unchanged and SearchLoop fixture-only
+decisions remain forbidden as external PIL authority.

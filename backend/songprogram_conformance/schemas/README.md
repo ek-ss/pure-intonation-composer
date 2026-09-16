@@ -198,3 +198,10 @@ PIL Phase 5 genre interpretation is closed by
 `pil_genre_phase5_oracle_{case,suite_index}.schema.json` authority pair. These
 artifacts are a parallel PIL interpretation only; they do not replace Native
 JI evidence and acquire no search authority without CalibrationDecision.
+
+External PIL genre promotion is closed by
+`pil_genre_calibration_acceptance_policy.schema.json`,
+`pil_genre_calibration_fixture_set.schema.json`,
+`pil_genre_calibration_metric_evidence_summary.schema.json`, and
+`pil_genre_calibration_decision.schema.json`. These Phase 5 artifacts are not
+interchangeable with Phase 1–4 or SearchLoop calibration authority.

@@ -75,6 +75,26 @@ def test_genre_decision_is_versioned_and_binds_complete_context() -> None:
     assert properties["metric_ids"]["items"]["pattern"].startswith("^pil\\.genre\\.")
 
 
+def test_genre_external_authority_chain_has_dedicated_closed_schemas() -> None:
+    policy = _load_schema("pil_genre_calibration_acceptance_policy.schema.json")
+    fixture_set = _load_schema("pil_genre_calibration_fixture_set.schema.json")
+    evidence = _load_schema("pil_genre_calibration_metric_evidence_summary.schema.json")
+
+    assert policy["properties"]["scope"] == {"const": "genre_phase_5"}
+    assert fixture_set["properties"]["scope"] == {"const": "genre_phase_5_external"}
+    assert evidence["properties"]["scope"] == {"const": "genre_phase_5_external"}
+    for schema in (policy, fixture_set):
+        assert {
+            "phase5_build_id",
+            "genre_intent_hash",
+            "genre_model_hash",
+            "genre_reference_set_manifest_hash",
+            "genre_metric_registry_hash",
+        } <= set(schema["required"])
+    assert "evidence_summary_hash" not in fixture_set["required"]
+    assert "fixture_set_hash" in evidence["required"]
+
+
 def test_fixture_only_search_loop_decision_remains_unchanged_authority_kind() -> None:
     fixture = json.loads(
         (

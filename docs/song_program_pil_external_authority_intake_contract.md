@@ -54,6 +54,16 @@ binds the exact PIL manifest, `pil.phase5.1.0.0` build, GenreIntent,
 PerceptualGenreModel, genre reference-set manifest, genre metric registry,
 oracle suite, external fixture set, policy and evidence summary.
 
+The external owner supplies, in dependency order, the existing
+ListenerCohortManifest; `cps.pil-genre-calibration-acceptance-policy` 1.0;
+`cps.pil-genre-calibration-fixture-set` 1.0; and
+`cps.pil-genre-calibration-metric-evidence-summary` 1.0 before issuing the v2
+decision. These are governed respectively by
+`pil_genre_calibration_acceptance_policy.schema.json`,
+`pil_genre_calibration_fixture_set.schema.json`, and
+`pil_genre_calibration_metric_evidence_summary.schema.json`. Phase 1–4
+authority artifacts are never accepted in these slots.
+
 The authoritative registry selects only result rows whose `genre_id` occurs
 in the bound GenreIntent target IDs. Missing target rows are unavailable.
 Across all selected targets: typicality, idiomaticity and novelty use minimum
