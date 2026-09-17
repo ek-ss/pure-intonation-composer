@@ -106,6 +106,16 @@ untrusted bundle, and writes atomically beneath the distinct
 `synthetic-audit/sha256` namespace. Re-intake of identical content is
 idempotent; a receipt mismatch at the same address is a collision failure.
 
+Fresh calls cross only the provider-neutral judge boundary. The adapter
+receives the sealed PCM bytes, an opaque item ID, and a closed request without
+genre labels, filenames, reference IDs, scores, SongProgram data, or planner
+commentary. It may return only canonical `cps.pil-synthetic-judge-response`
+JSON. Free text, extra fields, duplicate or unordered metrics, invalid
+availability semantics, and noncanonical bytes fail the trial. There is no
+automatic retry: a later call is a new response artifact and never an extra
+vote for the failed trial. Remote fresh-call bytes are not a conformance target;
+stored-response replay is.
+
 ## 6. SearchLoop binding
 
 `cps.pil-synthetic-audit-binding` is an out-of-band sidecar over an immutable
