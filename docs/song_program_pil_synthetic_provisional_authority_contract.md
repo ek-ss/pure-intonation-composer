@@ -98,6 +98,14 @@ The runner creates artifacts; intake only validates and atomically copies
 complete bundles. Intake must not call a model, synthesize missing evidence,
 repair hashes, or relabel synthetic evidence as human evidence.
 
+Stored-response intake is rooted at `cps.pil-synthetic-bundle-index`. The
+index lists every agent and response identity in sorted order and binds all
+single chain artifacts. Intake resolves only hash-derived member paths,
+replays the complete validator, receives expected bindings from outside the
+untrusted bundle, and writes atomically beneath the distinct
+`synthetic-audit/sha256` namespace. Re-intake of identical content is
+idempotent; a receipt mismatch at the same address is a collision failure.
+
 ## 6. SearchLoop binding
 
 `cps.pil-synthetic-audit-binding` is an out-of-band sidecar over an immutable
