@@ -30,6 +30,7 @@ app = ["static/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = ["live_api: explicitly enabled tests that make billed external API calls"]
 
 [tool.ruff]
 line-length = 100

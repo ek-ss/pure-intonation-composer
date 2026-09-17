@@ -67,6 +67,14 @@ Quorum is evaluated independently for every metric using distinct agent
 manifest hashes; retries and multiple contexts from one agent never increase
 that metric's agent quorum.
 
+The complete integer policy is
+`cps.pil-synthetic-evaluation-policy`: it binds scope, registry, minimum
+distinct-agent quorum, the five fixed ordinal values, round-half-to-even, and
+the sorted metric threshold rows. The deterministic aggregator consumes that
+policy and stored response records to create the judgment set, evidence
+summary, and provisional decision; none of those output values is supplied by
+the provider.
+
 ## 4. Separation from external authority
 
 The synthetic chain must never use `ListenerCohortManifest`, an `*_external`
