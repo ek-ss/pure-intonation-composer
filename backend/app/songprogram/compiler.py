@@ -539,7 +539,7 @@ def compile_sp0(program: dict[str, Any], identity: CompilerIdentity) -> dict[str
                     event["id"] = _event_id(event)
                     project["events"].append(event)
             continue
-        if material["kind"] == "harmony_intent_cell" and track["role"] == "harmony":
+        if material["kind"] == "harmony_intent_cell" and track["role"] in {"harmony", "texture"}:
             rotations = sum(transform["ticks"] for transform in realization["rhythm_transforms"])
             intents = {intent["id"]: intent for intent in program["chord_intents"]}
             for repeat in range(realization["repeat"]):
@@ -644,7 +644,7 @@ def compile_sp0(program: dict[str, Any], identity: CompilerIdentity) -> dict[str
                         }
                     )
             continue
-        if material["kind"] == "melody_intent" and track["role"] == "melody":
+        if material["kind"] == "melody_intent" and track["role"] in {"melody", "texture"}:
             rotations = sum(transform["ticks"] for transform in realization["rhythm_transforms"])
             for repeat in range(realization["repeat"]):
                 instance_id = _instance_id(realization["id"], repeat)
@@ -1221,7 +1221,7 @@ def _gen0b_harmony_expansion(
     for realization in program["realizations"]:
         material = materials[realization["material_id"]]
         track = tracks[realization["track_id"]]
-        if material["kind"] != "harmony_intent_cell" or track["role"] != "harmony":
+        if material["kind"] != "harmony_intent_cell" or track["role"] not in {"harmony", "texture"}:
             continue
         rhythm = materials[material["rhythm_id"]]
         section = sections[realization["section_id"]]

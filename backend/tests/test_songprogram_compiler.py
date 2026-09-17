@@ -15,6 +15,7 @@ from app.songprogram.compiler import (
     CompilerIdentity,
     build_lineage_index,
     compile_direct_sp0,
+    compile_sp0,
     compile_gen0b,
     compile_gen0b_report,
     initial_material_lineage_seeds,
@@ -42,6 +43,14 @@ def test_direct_compiler_matches_authoritative_project_golden() -> None:
     assert compile_direct_sp0(_load("minimal_direct_song_program.json"), IDENTITY) == _load(
         "minimal_direct_project.json"
     )
+
+
+def test_texture_role_uses_direct_pitch_lowering_semantics() -> None:
+    program = _load("minimal_direct_song_program.json")
+    program["tracks"][0]["role"] = "texture"
+    project = compile_sp0(program, IDENTITY)
+    assert project["tracks"][0]["role"] == "texture"
+    assert project["events"]
 
 
 def test_direct_compiler_is_cross_process_and_hash_seed_invariant() -> None:

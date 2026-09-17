@@ -245,6 +245,14 @@ The profile supplies static synthesis/mix defaults only. Broad prior v1 writes
 an empty envelope array. It may not produce form, rhythm, note, chord, sidechain
 onset, or automation events. Pan duplication and instrument reuse are valid.
 
+At the v1.1 structural boundary, a selected drum map also closes otherwise
+unresolved drum-lane references. For every rhythm material directly realized
+by the drums role, each `lane_id:null` step is assigned the UTF-8-smallest lane
+ID in that role's selected nonempty drum map. Explicit lane IDs are preserved
+and remain subject to compiler validation. This is reference completion, not
+event generation, and is performed after role decisions and before hashing the
+completed SongProgram.
+
 Failure precedence is:
 
 ```text

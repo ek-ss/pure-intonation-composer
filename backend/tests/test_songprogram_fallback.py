@@ -278,6 +278,48 @@ def test_v11_production_creates_canonical_tracks_and_rebinds_structural_realizat
     assert result["output"]["program_hash"] == program_hash(program)
 
 
+def test_v11_production_closes_null_drum_lanes_from_selected_map() -> None:
+    from tests.test_songprogram_structural_sampler import _authorities
+    from app.songprogram.structural_sampler import _hash, execute_structural_sampler
+
+    sampler_request, sampler, structural_manifest = _authorities()
+    sampler_request["root_seed"] = 1
+    sampler_request["request_hash"] = _hash(
+        "cps.structural-sampler-request/v1.1", sampler_request, omit="request_hash"
+    )
+    structural = execute_structural_sampler(
+        sampler_request, sampler, structural_manifest
+    )["structural_program"]
+    request, manifest, catalog, _ = _production_v11_request()
+    request.update(
+        root_seed=1,
+        cohort_index=1,
+        structural_program=structural,
+        structural_program_hash=structural_program_hash(structural),
+        active_roles=sorted(
+            {item["role"] for item in structural["realizations"]},
+            key=("drums", "bass", "harmony", "melody", "texture").index,
+        ),
+        structural_lowering_manifest_hash=structural_manifest["manifest_hash"],
+    )
+    request["request_hash"] = fallback._search_decision_hash(request, "request_hash")
+    result = execute_broad_prior_production(request, manifest, catalog, structural_manifest)
+    assert result["status"] == "success"
+    program = result["output"]["program"]
+    drum_track = next(track for track in program["tracks"] if track["role"] == "drums")
+    drum_material_ids = {
+        item["material_id"]
+        for item in program["realizations"]
+        if item["track_id"] == drum_track["id"]
+    }
+    assert all(
+        step["lane_id"] in drum_track["drum_map"]
+        for material in program["materials"]
+        if material["id"] in drum_material_ids
+        for step in material["steps"]
+    )
+
+
 def test_v11_production_requires_the_exact_structural_lowering_manifest_before_catalog() -> None:
     request, manifest, catalog, structural_manifest = _production_v11_request()
     request["instrument_catalog_digest"] = "sha256:" + "0" * 64

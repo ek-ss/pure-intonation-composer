@@ -301,6 +301,12 @@ insertion ordering charge, is canonically inserted, and, when the resulting
 list exceeds K, the final member is dropped. A complete candidate is never
 rejected in advance as `WORSE_THAN_TOP_K`.
 
+The `texture` track role is timbral rather than a distinct pitch-lowering
+semantic. A texture realization therefore lowers `direct_vector_cell` through
+the direct path, `harmony_intent_cell` through GEN0-B harmony, and
+`melody_intent` through chord-member melody exactly as the corresponding bass,
+harmony, and melody paths do. Track role never changes lattice pitch identity.
+
 At every popped partial BnB node, compute lower-bound RMS exactly once from
 stored pair errors. A complete node reuses that value when it is already the
 final RMS; only a complete RMS containing previously absent pairs is evaluated

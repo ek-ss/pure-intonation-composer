@@ -781,6 +781,20 @@ def apply_structural_broad_prior_production(structural_program: dict[str, Any], 
         lowered_realizations.append(lowered)
     result["tracks"] = tracks
     result["realizations"] = lowered_realizations
+    materials_by_id = {material.get("id"): material for material in result.get("materials", [])}
+    drum_lanes = {
+        track["id"]: sorted(track["drum_map"], key=lambda value: value.encode("utf-8"))
+        for track in tracks
+        if track["role"] == "drums" and track["drum_map"]
+    }
+    for realization in lowered_realizations:
+        lanes = drum_lanes.get(realization["track_id"])
+        material = materials_by_id.get(realization["material_id"])
+        if lanes is None or not isinstance(material, dict) or material.get("kind") != "rhythm_cell":
+            continue
+        for step in material.get("steps", []):
+            if step.get("lane_id") is None:
+                step["lane_id"] = lanes[0]
     result["production"] = {
         "profile_id": choices["profile"]["profile_id"],
         "catalog_digest": catalog_digest,
