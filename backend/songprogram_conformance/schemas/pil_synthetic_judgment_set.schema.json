@@ -14,6 +14,7 @@
     "scope",
     "protocol_hash",
     "cohort_manifest_hash",
+    "assignment_set_hash",
     "sealed_context_set_hash",
     "response_record_hashes",
     "response_count",
@@ -50,6 +51,9 @@
       "$ref": "#/$defs/sha"
     },
     "cohort_manifest_hash": {
+      "$ref": "#/$defs/sha"
+    },
+    "assignment_set_hash": {
       "$ref": "#/$defs/sha"
     },
     "sealed_context_set_hash": {

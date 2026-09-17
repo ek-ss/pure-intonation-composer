@@ -13,6 +13,7 @@ from .pil_synthetic_authority_validator import (
     evidence_hash,
     validate_synthetic_provisional_authority,
 )
+from .pil_synthetic_blind_assignment import build_blind_assignment_set
 
 
 ROOT = Path(__file__).resolve().parent
@@ -100,6 +101,16 @@ def _chain() -> dict:
         },
         "manifest_hash",
     )
+    assignment_set = build_blind_assignment_set(
+        scope="genre_phase_5",
+        protocol_hash=protocol["protocol_hash"],
+        cohort_manifest_hash=cohort["manifest_hash"],
+        agent_manifest_hashes=[agent["manifest_hash"] for agent in agents],
+        sealed_context_hashes=[H],
+    )
+    assignment_by_agent = {
+        row["agent_manifest_hash"]: row for row in assignment_set["assignments"]
+    }
     metric_id = registry["metrics"][0]["metric_id"]
     responses = []
     for ordinal, agent in enumerate(agents):
@@ -113,6 +124,8 @@ def _chain() -> dict:
                     "human_listener_response": False,
                     "scope": "genre_phase_5",
                     "protocol_hash": protocol["protocol_hash"],
+                    "assignment_set_hash": assignment_set["assignment_set_hash"],
+                    "assignment_id": assignment_by_agent[agent["manifest_hash"]]["assignment_id"],
                     "agent_manifest_hash": agent["manifest_hash"],
                     "sealed_context_hash": H,
                     "request_hash": H,
@@ -137,6 +150,7 @@ def _chain() -> dict:
             "scope": "genre_phase_5",
             "protocol_hash": protocol["protocol_hash"],
             "cohort_manifest_hash": cohort["manifest_hash"],
+            "assignment_set_hash": assignment_set["assignment_set_hash"],
             "sealed_context_set_hash": H,
             "response_record_hashes": [response["record_hash"] for response in responses],
             "response_count": len(responses),
@@ -214,7 +228,8 @@ def _chain() -> dict:
     }
     decision["decision_hash"] = decision_hash(decision)
     return {
-        "protocol": protocol, "agents": agents, "cohort": cohort, "responses": responses,
+        "protocol": protocol, "agents": agents, "cohort": cohort,
+        "assignment_set": assignment_set, "responses": responses,
         "judgment_set": judgment_set, "registry": registry, "evidence_summary": summary,
         "decision": decision, "expected_bindings": {
             "pil_manifest_hash": H, "oracle_suite_index_hash": H,
@@ -224,6 +239,27 @@ def _chain() -> dict:
 
 def _validate(chain: dict) -> str:
     return validate_synthetic_provisional_authority(**chain)
+
+
+def _reseal_response_chain(chain: dict) -> None:
+    chain["responses"].sort(key=lambda value: value["record_hash"])
+    judgment_set = chain["judgment_set"]
+    judgment_set["response_record_hashes"] = [
+        response["record_hash"] for response in chain["responses"]
+    ]
+    judgment_set["judgment_set_hash"] = artifact_hash(judgment_set, "judgment_set_hash")
+    summary = chain["evidence_summary"]
+    summary["judgment_set_hash"] = judgment_set["judgment_set_hash"]
+    summary["metrics"][0]["source_judgment_hash"] = judgment_set["judgment_set_hash"]
+    summary["metrics"][0]["evidence_hash"] = evidence_hash(summary["metrics"][0])
+    summary["summary_hash"] = artifact_hash(summary, "summary_hash")
+    decision = chain["decision"]
+    decision["judgment_set_hash"] = judgment_set["judgment_set_hash"]
+    decision["evidence_summary_hash"] = summary["summary_hash"]
+    decision["provisional_metrics"][0]["evidence_hash"] = summary["metrics"][0][
+        "evidence_hash"
+    ]
+    decision["decision_hash"] = decision_hash(decision)
 
 
 def test_complete_synthetic_chain_is_accepted_read_only() -> None:
@@ -277,6 +313,33 @@ def test_human_external_artifact_is_never_accepted_in_synthetic_slot() -> None:
     with pytest.raises(PILSyntheticAuthorityError) as caught:
         _validate(chain)
     assert caught.value.code == "PIL_SYNTHETIC_INPUT_INVALID"
+
+
+def test_duplicate_agent_votes_are_rejected_even_with_distinct_records() -> None:
+    chain = _chain()
+    duplicate = copy.deepcopy(chain["responses"][0])
+    duplicate["provider_response_hash"] = "sha256:" + "f" * 64
+    duplicate["record_hash"] = artifact_hash(duplicate, "record_hash")
+    chain["responses"][1] = duplicate
+    chain["responses"].sort(key=lambda value: value["record_hash"])
+    with pytest.raises(PILSyntheticAuthorityError) as caught:
+        _validate(chain)
+    assert caught.value.code == "PIL_SYNTHETIC_INPUT_INVALID"
+
+
+def test_quorum_is_enforced_per_metric_not_only_per_cohort() -> None:
+    chain = _chain()
+    response = chain["responses"][0]
+    response["judgments"][0] = {
+        "metric_id": response["judgments"][0]["metric_id"],
+        "ordinal_label": "unavailable",
+        "available": False,
+    }
+    response["record_hash"] = artifact_hash(response, "record_hash")
+    _reseal_response_chain(chain)
+    with pytest.raises(PILSyntheticAuthorityError) as caught:
+        _validate(chain)
+    assert caught.value.code == "PIL_SYNTHETIC_THRESHOLD_NOT_MET"
 
 
 def test_same_generator_and_judge_family_is_rejected() -> None:

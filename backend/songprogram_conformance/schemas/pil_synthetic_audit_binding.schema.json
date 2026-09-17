@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cps.local/schemas/pil_synthetic_audit_binding.schema.json",
+  "title": "PIL Synthetic Audit Binding v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema", "schema_version", "authority_kind", "human_authority_compatible",
+    "authority_effect", "run_context_hash", "decision_hash", "assignment_set_hash",
+    "permitted_uses", "binding_hash"
+  ],
+  "properties": {
+    "schema": {"const": "cps.pil-synthetic-audit-binding"},
+    "schema_version": {"const": "1.0.0"},
+    "authority_kind": {"const": "synthetic_llm"},
+    "human_authority_compatible": {"const": false},
+    "authority_effect": {"const": "audit_only"},
+    "run_context_hash": {"$ref": "#/$defs/sha"},
+    "decision_hash": {"$ref": "#/$defs/sha"},
+    "assignment_set_hash": {"$ref": "#/$defs/sha"},
+    "permitted_uses": {
+      "type": "array", "minItems": 4, "maxItems": 4,
+      "prefixItems": [
+        {"const": "human_review_selection"},
+        {"const": "planner_diagnostics"},
+        {"const": "shadow_archive"},
+        {"const": "soft_reranking"}
+      ],
+      "items": false
+    },
+    "binding_hash": {"$ref": "#/$defs/sha"}
+  },
+  "$defs": {
+    "sha": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+  }
+}

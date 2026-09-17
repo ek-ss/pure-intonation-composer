@@ -25,16 +25,20 @@ The dependency order is:
 2. Each `cps.pil-synthetic-agent-manifest` binds that protocol, an independent
    seed, and the execution environment.
 3. `cps.pil-synthetic-cohort-manifest` binds the unique agent manifests.
-4. Each `cps.pil-synthetic-raw-response-record` binds a sealed PIL context,
+4. `cps.pil-synthetic-blind-assignment-set` deterministically binds every
+   agent/context pair to an opaque item ID and presentation ordinal.
+5. Each `cps.pil-synthetic-raw-response-record` binds exactly one assignment,
+   a sealed PIL context,
    request bytes, provider response bytes, and closed ordinal judgments.
-5. `cps.pil-synthetic-judgment-set` binds the cohort, response records,
+6. `cps.pil-synthetic-judgment-set` binds the cohort, assignment set, response records,
    partition membership, and zero partition leakage.
-6. `cps.pil-synthetic-evidence-summary` binds the judgment set, existing PIL
+7. `cps.pil-synthetic-evidence-summary` binds the judgment set, existing PIL
    metric registry, evaluation policy, deterministic aggregation, and evidence.
-7. `cps.pil-synthetic-provisional-decision` binds the complete chain and records
+8. `cps.pil-synthetic-provisional-decision` binds the complete chain and records
    only provisional metric results.
 
-Schemas are the seven `pil_synthetic_*.schema.json` files in the conformance
+The eight evidence-chain schemas and the separate audit-binding schema are the
+`pil_synthetic_*.schema.json` files in the conformance
 schema directory. All are closed Draft 2020-12 schemas. Artifact self hashes
 use the existing `cps-artifact-hash/v1` rule with only the named self-hash
 member removed. Decision hashing uses the domain
@@ -59,6 +63,9 @@ The runner and validator use the fixed mapping `strongly_below=0`,
 then apply `ordinal-label-median-q/v1`. An even median uses round-half-to-even.
 Missing or
 unavailable evidence remains unavailable; it is never replaced by zero.
+Quorum is evaluated independently for every metric using distinct agent
+manifest hashes; retries and multiple contexts from one agent never increase
+that metric's agent quorum.
 
 ## 4. Separation from external authority
 
@@ -79,6 +86,24 @@ sort ascending in a judgment set; metric rows and IDs sort by UTF-8 metric ID.
 Counts must equal their bound arrays and all scope, protocol, cohort, registry,
 policy, context, evidence, and self-hash links are recomputed at intake.
 
+For each agent, context order is the ascending digest order defined by
+`cps.pil-synthetic-order/v1`. Opaque IDs use
+`cps.pil-synthetic-opaque-item/v1`; assignment IDs use
+`cps.pil-synthetic-assignment/v1`. Neither worker count nor dispatch order is
+an input. Replay regenerates the complete Cartesian agent/context assignment
+and requires byte-equivalent canonical content. A response whose assignment,
+agent, or sealed context does not match is rejected.
+
 The runner creates artifacts; intake only validates and atomically copies
 complete bundles. Intake must not call a model, synthesize missing evidence,
 repair hashes, or relabel synthetic evidence as human evidence.
+
+## 6. SearchLoop binding
+
+`cps.pil-synthetic-audit-binding` is an out-of-band sidecar over an immutable
+SearchLoop13 `context_hash`; it is deliberately not one of the 32 authoritative
+RunContext slots. It binds the provisional decision and blind assignment set.
+The only permitted uses, in canonical order, are `human_review_selection`,
+`planner_diagnostics`, `shadow_archive`, and `soft_reranking`. GEN0 gates, hard
+validity, production archive admission, production stopping, and every
+`native_ji.*` result reject this binding.

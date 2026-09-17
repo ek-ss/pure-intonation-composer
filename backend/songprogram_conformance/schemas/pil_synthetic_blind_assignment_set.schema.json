@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cps.local/schemas/pil_synthetic_blind_assignment_set.schema.json",
+  "title": "PIL Synthetic Blind Assignment Set v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema", "schema_version", "authority_kind",
+    "human_authority_compatible", "authority_effect", "scope",
+    "protocol_hash", "cohort_manifest_hash", "sealed_context_hashes",
+    "assignments", "assignment_count", "assignment_set_hash"
+  ],
+  "properties": {
+    "schema": {"const": "cps.pil-synthetic-blind-assignment-set"},
+    "schema_version": {"const": "1.0.0"},
+    "authority_kind": {"const": "synthetic_llm"},
+    "human_authority_compatible": {"const": false},
+    "authority_effect": {"const": "audit_only"},
+    "scope": {"enum": ["phase_1_4", "genre_phase_5"]},
+    "protocol_hash": {"$ref": "#/$defs/sha"},
+    "cohort_manifest_hash": {"$ref": "#/$defs/sha"},
+    "sealed_context_hashes": {
+      "type": "array", "minItems": 1, "maxItems": 100000,
+      "uniqueItems": true, "items": {"$ref": "#/$defs/sha"}
+    },
+    "assignments": {
+      "type": "array", "minItems": 1, "maxItems": 1000000,
+      "items": {"$ref": "#/$defs/assignment"}
+    },
+    "assignment_count": {"type": "integer", "minimum": 1, "maximum": 1000000},
+    "assignment_set_hash": {"$ref": "#/$defs/sha"}
+  },
+  "$defs": {
+    "sha": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "assignment": {
+      "type": "object", "additionalProperties": false,
+      "required": [
+        "assignment_id", "agent_manifest_hash", "sealed_context_hash",
+        "opaque_item_id", "presentation_ordinal"
+      ],
+      "properties": {
+        "assignment_id": {"$ref": "#/$defs/sha"},
+        "agent_manifest_hash": {"$ref": "#/$defs/sha"},
+        "sealed_context_hash": {"$ref": "#/$defs/sha"},
+        "opaque_item_id": {"type": "string", "pattern": "^item_[0-9a-f]{24}$"},
+        "presentation_ordinal": {"type": "integer", "minimum": 0, "maximum": 99999}
+      }
+    }
+  }
+}

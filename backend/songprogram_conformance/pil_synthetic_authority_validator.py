@@ -61,6 +61,7 @@ def validate_synthetic_provisional_authority(
     protocol: Mapping[str, Any],
     agents: Sequence[Mapping[str, Any]],
     cohort: Mapping[str, Any],
+    assignment_set: Mapping[str, Any],
     responses: Sequence[Mapping[str, Any]],
     judgment_set: Mapping[str, Any],
     registry: Mapping[str, Any],
@@ -82,6 +83,7 @@ def validate_synthetic_provisional_authority(
     for name, value in (
         ("pil_synthetic_protocol_manifest.schema.json", protocol),
         ("pil_synthetic_cohort_manifest.schema.json", cohort),
+        ("pil_synthetic_blind_assignment_set.schema.json", assignment_set),
         ("pil_synthetic_judgment_set.schema.json", judgment_set),
         (registry_schema, registry),
         ("pil_synthetic_evidence_summary.schema.json", evidence_summary),
@@ -92,7 +94,10 @@ def validate_synthetic_provisional_authority(
         _require_schema(schema_validator, "pil_synthetic_agent_manifest.schema.json", value)
     for value in responses:
         _require_schema(schema_validator, "pil_synthetic_raw_response_record.schema.json", value)
-    synthetic_values = (protocol, *agents, cohort, *responses, judgment_set, evidence_summary, decision)
+    synthetic_values = (
+        protocol, *agents, cohort, assignment_set, *responses,
+        judgment_set, evidence_summary, decision,
+    )
     if any(value.get("human_authority_compatible") is not False for value in synthetic_values):
         raise PILSyntheticAuthorityError(invalid)
     if protocol["generator_model_family_hash"] == protocol["judge_model_family_hash"]:
@@ -102,6 +107,7 @@ def validate_synthetic_provisional_authority(
         (protocol, "protocol_hash"),
         *((value, "manifest_hash") for value in agents),
         (cohort, "manifest_hash"),
+        (assignment_set, "assignment_set_hash"),
         *((value, "record_hash") for value in responses),
         (judgment_set, "judgment_set_hash"),
         (registry, "registry_hash"),
@@ -113,7 +119,10 @@ def validate_synthetic_provisional_authority(
         raise PILSyntheticAuthorityError(result_invalid)
 
     scope = decision["scope"]
-    if any(value["scope"] != scope for value in (protocol, judgment_set, evidence_summary)):
+    if any(
+        value["scope"] != scope
+        for value in (protocol, assignment_set, judgment_set, evidence_summary)
+    ):
         raise PILSyntheticAuthorityError(mismatch)
     for response in responses:
         if response["scope"] != scope:
@@ -136,12 +145,39 @@ def validate_synthetic_provisional_authority(
     if len(agents) < protocol["minimum_agent_count"]:
         raise PILSyntheticAuthorityError(threshold)
 
+    from .pil_synthetic_blind_assignment import (  # avoid module initialization cycle
+        PILSyntheticAssignmentError,
+        replay_blind_assignment_set,
+    )
+
+    try:
+        replay_blind_assignment_set(dict(assignment_set))
+    except PILSyntheticAssignmentError as error:
+        raise PILSyntheticAuthorityError(error.code) from error
+    if (
+        assignment_set["protocol_hash"] != protocol_hash
+        or assignment_set["cohort_manifest_hash"] != cohort["manifest_hash"]
+    ):
+        raise PILSyntheticAuthorityError(mismatch)
+    assignments = {row["assignment_id"]: row for row in assignment_set["assignments"]}
+
     response_hashes = [response["record_hash"] for response in responses]
     if not _sorted_unique(response_hashes):
         raise PILSyntheticAuthorityError(invalid)
     known_agents = set(agent_hashes)
+    response_assignment_ids = [response["assignment_id"] for response in responses]
+    if len(response_assignment_ids) != len(set(response_assignment_ids)):
+        raise PILSyntheticAuthorityError(invalid)
     for response in responses:
         if response["protocol_hash"] != protocol_hash or response["agent_manifest_hash"] not in known_agents:
+            raise PILSyntheticAuthorityError(mismatch)
+        assignment = assignments.get(response["assignment_id"])
+        if (
+            response["assignment_set_hash"] != assignment_set["assignment_set_hash"]
+            or assignment is None
+            or response["agent_manifest_hash"] != assignment["agent_manifest_hash"]
+            or response["sealed_context_hash"] != assignment["sealed_context_hash"]
+        ):
             raise PILSyntheticAuthorityError(mismatch)
         metric_ids = [row["metric_id"] for row in response["judgments"]]
         if not _sorted_unique(metric_ids):
@@ -152,6 +188,7 @@ def validate_synthetic_provisional_authority(
     if (
         judgment_set["protocol_hash"] != protocol_hash
         or judgment_set["cohort_manifest_hash"] != cohort["manifest_hash"]
+        or judgment_set["assignment_set_hash"] != assignment_set["assignment_set_hash"]
         or judgment_set["response_record_hashes"] != response_hashes
     ):
         raise PILSyntheticAuthorityError(mismatch)
@@ -197,6 +234,18 @@ def validate_synthetic_provisional_authority(
             for judgment in response["judgments"]
             if judgment["metric_id"] == row["metric_id"] and judgment["available"]
         )
+        metric_agent_count = len(
+            {
+                response["agent_manifest_hash"]
+                for response in responses
+                if any(
+                    judgment["metric_id"] == row["metric_id"] and judgment["available"]
+                    for judgment in response["judgments"]
+                )
+            }
+        )
+        if metric_agent_count < protocol["minimum_agent_count"]:
+            raise PILSyntheticAuthorityError(threshold)
         recomputed_q = None
         if observed_values:
             middle = len(observed_values) // 2

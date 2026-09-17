@@ -206,7 +206,7 @@ External PIL genre promotion is closed by
 `pil_genre_calibration_decision.schema.json`. These Phase 5 artifacts are not
 interchangeable with Phase 1–4 or SearchLoop calibration authority.
 
-Synthetic PIL audit evidence is closed by the seven
+Synthetic PIL audit evidence is closed by the eight
 `pil_synthetic_*.schema.json` artifacts. This family always declares
 `authority_kind: synthetic_llm` and is permanently `audit_only`; its
 provisional decision is neither human-listener evidence nor promotion

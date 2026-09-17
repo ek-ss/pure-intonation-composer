@@ -8,10 +8,12 @@ NAMES = (
     "pil_synthetic_protocol_manifest",
     "pil_synthetic_agent_manifest",
     "pil_synthetic_cohort_manifest",
+    "pil_synthetic_blind_assignment_set",
     "pil_synthetic_raw_response_record",
     "pil_synthetic_judgment_set",
     "pil_synthetic_evidence_summary",
     "pil_synthetic_provisional_decision",
+    "pil_synthetic_audit_binding",
 )
 
 
@@ -33,6 +35,7 @@ def test_synthetic_authority_family_is_closed_and_explicitly_nonhuman() -> None:
     for name in (
         "pil_synthetic_protocol_manifest",
         "pil_synthetic_cohort_manifest",
+        "pil_synthetic_blind_assignment_set",
         "pil_synthetic_judgment_set",
         "pil_synthetic_evidence_summary",
         "pil_synthetic_provisional_decision",
@@ -55,6 +58,8 @@ def test_synthetic_raw_records_bind_model_execution_without_free_text_authority(
     required = set(record["required"])
     assert {
         "protocol_hash",
+        "assignment_set_hash",
+        "assignment_id",
         "agent_manifest_hash",
         "sealed_context_hash",
         "request_hash",

@@ -12,6 +12,8 @@
     "human_listener_response",
     "scope",
     "protocol_hash",
+    "assignment_set_hash",
+    "assignment_id",
     "agent_manifest_hash",
     "sealed_context_hash",
     "request_hash",
@@ -42,6 +44,12 @@
       ]
     },
     "protocol_hash": {
+      "$ref": "#/$defs/sha"
+    },
+    "assignment_set_hash": {
+      "$ref": "#/$defs/sha"
+    },
+    "assignment_id": {
       "$ref": "#/$defs/sha"
     },
     "agent_manifest_hash": {
