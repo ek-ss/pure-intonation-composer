@@ -1,0 +1,120 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cps.local/schemas/pil_synthetic_protocol_manifest.schema.json",
+  "title": "PIL Synthetic LLM Judgment Protocol Manifest v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "schema_version",
+    "authority_kind",
+    "human_authority_compatible",
+    "human_listener_evidence",
+    "authority_effect",
+    "scope",
+    "task",
+    "input_modality",
+    "audio_capable",
+    "provider",
+    "model",
+    "model_snapshot",
+    "generator_model_family_hash",
+    "judge_model_family_hash",
+    "reasoning_effort",
+    "prompt_asset_hash",
+    "input_schema_hash",
+    "output_schema_hash",
+    "evaluation_policy_hash",
+    "minimum_agent_count",
+    "protocol_hash"
+  ],
+  "properties": {
+    "schema": {
+      "const": "cps.pil-synthetic-protocol-manifest"
+    },
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "authority_kind": {
+      "const": "synthetic_llm"
+    },
+    "human_authority_compatible": {
+      "const": false
+    },
+    "human_listener_evidence": {
+      "const": false
+    },
+    "authority_effect": {
+      "const": "audit_only"
+    },
+    "scope": {
+      "enum": [
+        "phase_1_4",
+        "genre_phase_5"
+      ]
+    },
+    "task": {
+      "const": "sealed_pil_semantic_style_judgment"
+    },
+    "input_modality": {
+      "const": "audio_pcm"
+    },
+    "audio_capable": {
+      "const": true
+    },
+    "provider": {
+      "$ref": "#/$defs/id"
+    },
+    "model": {
+      "$ref": "#/$defs/id"
+    },
+    "model_snapshot": {
+      "$ref": "#/$defs/id"
+    },
+    "generator_model_family_hash": {
+      "$ref": "#/$defs/sha"
+    },
+    "judge_model_family_hash": {
+      "$ref": "#/$defs/sha"
+    },
+    "reasoning_effort": {
+      "enum": [
+        "none",
+        "low",
+        "medium",
+        "high",
+        "xhigh"
+      ]
+    },
+    "prompt_asset_hash": {
+      "$ref": "#/$defs/sha"
+    },
+    "input_schema_hash": {
+      "$ref": "#/$defs/sha"
+    },
+    "output_schema_hash": {
+      "$ref": "#/$defs/sha"
+    },
+    "evaluation_policy_hash": {
+      "$ref": "#/$defs/sha"
+    },
+    "minimum_agent_count": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 10000
+    },
+    "protocol_hash": {
+      "$ref": "#/$defs/sha"
+    }
+  },
+  "$defs": {
+    "sha": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._/-]{0,127}$"
+    }
+  }
+}

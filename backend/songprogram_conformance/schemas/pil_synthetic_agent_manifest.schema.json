@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cps.local/schemas/pil_synthetic_agent_manifest.schema.json",
+  "title": "PIL Synthetic LLM Agent Manifest v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "schema_version",
+    "authority_kind",
+    "human_authority_compatible",
+    "human_listener",
+    "agent_id",
+    "protocol_hash",
+    "independent_seed",
+    "execution_environment_hash",
+    "manifest_hash"
+  ],
+  "properties": {
+    "schema": {
+      "const": "cps.pil-synthetic-agent-manifest"
+    },
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "authority_kind": {
+      "const": "synthetic_llm"
+    },
+    "human_authority_compatible": {
+      "const": false
+    },
+    "human_listener": {
+      "const": false
+    },
+    "agent_id": {
+      "$ref": "#/$defs/id"
+    },
+    "protocol_hash": {
+      "$ref": "#/$defs/sha"
+    },
+    "independent_seed": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 18446744073709551615
+    },
+    "execution_environment_hash": {
+      "$ref": "#/$defs/sha"
+    },
+    "manifest_hash": {
+      "$ref": "#/$defs/sha"
+    }
+  },
+  "$defs": {
+    "sha": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_.-]{0,127}$"
+    }
+  }
+}

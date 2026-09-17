@@ -1,0 +1,169 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cps.local/schemas/pil_synthetic_provisional_decision.schema.json",
+  "title": "PIL Synthetic Provisional Decision v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "schema_version",
+    "authority_kind",
+    "human_authority_compatible",
+    "human_listener_evidence",
+    "authority_effect",
+    "promotion_eligible",
+    "status",
+    "scope",
+    "pil_manifest_hash",
+    "metric_registry_hash",
+    "oracle_suite_index_hash",
+    "protocol_hash",
+    "cohort_manifest_hash",
+    "judgment_set_hash",
+    "evaluation_policy_hash",
+    "evidence_summary_hash",
+    "provisional_metrics",
+    "metric_ids",
+    "failure_code",
+    "decision_hash"
+  ],
+  "properties": {
+    "schema": {
+      "const": "cps.pil-synthetic-provisional-decision"
+    },
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "authority_kind": {
+      "const": "synthetic_llm"
+    },
+    "human_authority_compatible": {
+      "const": false
+    },
+    "human_listener_evidence": {
+      "const": false
+    },
+    "authority_effect": {
+      "const": "audit_only"
+    },
+    "promotion_eligible": {
+      "const": false
+    },
+    "status": {
+      "const": "synthetic_provisional"
+    },
+    "scope": {
+      "enum": [
+        "phase_1_4",
+        "genre_phase_5"
+      ]
+    },
+    "pil_manifest_hash": {
+      "$ref": "#/$defs/sha"
+    },
+    "metric_registry_hash": {
+      "$ref": "#/$defs/sha"
+    },
+    "oracle_suite_index_hash": {
+      "$ref": "#/$defs/sha"
+    },
+    "protocol_hash": {
+      "$ref": "#/$defs/sha"
+    },
+    "cohort_manifest_hash": {
+      "$ref": "#/$defs/sha"
+    },
+    "judgment_set_hash": {
+      "$ref": "#/$defs/sha"
+    },
+    "evaluation_policy_hash": {
+      "$ref": "#/$defs/sha"
+    },
+    "evidence_summary_hash": {
+      "$ref": "#/$defs/sha"
+    },
+    "provisional_metrics": {
+      "type": "array",
+      "maxItems": 32,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/result"
+      }
+    },
+    "metric_ids": {
+      "type": "array",
+      "maxItems": 32,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^pil\\.[a-z][a-z0-9_.]{0,59}$"
+      }
+    },
+    "failure_code": {
+      "enum": [
+        null,
+        "PIL_SYNTHETIC_INPUT_INVALID",
+        "PIL_SYNTHETIC_CONTEXT_MISMATCH",
+        "PIL_SYNTHETIC_THRESHOLD_NOT_MET",
+        "PIL_SYNTHETIC_RESULT_INVALID"
+      ]
+    },
+    "decision_hash": {
+      "$ref": "#/$defs/sha"
+    }
+  },
+  "$defs": {
+    "sha": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "q": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 10000
+    },
+    "result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "metric_id",
+        "direction",
+        "observed_q",
+        "acceptance_threshold_q",
+        "passed",
+        "evidence_hash"
+      ],
+      "properties": {
+        "metric_id": {
+          "type": "string",
+          "pattern": "^pil\\.[a-z][a-z0-9_.]{0,59}$"
+        },
+        "direction": {
+          "enum": [
+            "maximize",
+            "minimize"
+          ]
+        },
+        "observed_q": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/q"
+            }
+          ]
+        },
+        "acceptance_threshold_q": {
+          "$ref": "#/$defs/q"
+        },
+        "passed": {
+          "type": "boolean"
+        },
+        "evidence_hash": {
+          "$ref": "#/$defs/sha"
+        }
+      }
+    }
+  }
+}

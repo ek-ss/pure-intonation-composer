@@ -1,0 +1,84 @@
+# PIL Synthetic Provisional Authority Contract 1.0
+
+## 1. Purpose and authority boundary
+
+This contract defines a synthetic LLM cohort used to produce reproducible,
+provisional PIL calibration evidence. It is an audit aid, not listener
+research. Every artifact declares `authority_kind: synthetic_llm`; cohort,
+set, summary, and decision artifacts declare `authority_effect: audit_only`.
+Every artifact fixes `human_authority_compatible: false`.
+No artifact in this family is human-listener evidence or a PIL promotion
+authority.
+
+The final artifact is `cps.pil-synthetic-provisional-decision` 1.0. Its status
+is always `synthetic_provisional`, `promotion_eligible` is always false, and it
+cannot appear in a run context slot that requires `cps.pil-calibration-decision`.
+It does not change Native JI, search acceptance, rejection, archive admission,
+or QD axes.
+
+## 2. Closed artifact chain
+
+The dependency order is:
+
+1. `cps.pil-synthetic-protocol-manifest` binds provider, exact model snapshot,
+   reasoning effort, prompt, input/output schemas, and evaluation policy.
+2. Each `cps.pil-synthetic-agent-manifest` binds that protocol, an independent
+   seed, and the execution environment.
+3. `cps.pil-synthetic-cohort-manifest` binds the unique agent manifests.
+4. Each `cps.pil-synthetic-raw-response-record` binds a sealed PIL context,
+   request bytes, provider response bytes, and closed ordinal judgments.
+5. `cps.pil-synthetic-judgment-set` binds the cohort, response records,
+   partition membership, and zero partition leakage.
+6. `cps.pil-synthetic-evidence-summary` binds the judgment set, existing PIL
+   metric registry, evaluation policy, deterministic aggregation, and evidence.
+7. `cps.pil-synthetic-provisional-decision` binds the complete chain and records
+   only provisional metric results.
+
+Schemas are the seven `pil_synthetic_*.schema.json` files in the conformance
+schema directory. All are closed Draft 2020-12 schemas. Artifact self hashes
+use the existing `cps-artifact-hash/v1` rule with only the named self-hash
+member removed. Decision hashing uses the domain
+`cps.pil-synthetic-provisional-decision/v1`.
+
+## 3. Permitted model task
+
+An agent may judge semantic or stylistic evidence in an already sealed PIL
+context. It must not calculate or replace frequency, cents, segmentation,
+pitch support, chord matching, voice matching, trajectory, or Phase 5 numeric
+similarity. Provider prose and hidden model state are non-normative. The raw
+provider response is bound by hash, while authority contains only the closed
+ordinal labels in the response record.
+
+The protocol requires `input_modality: audio_pcm` and `audio_capable: true`.
+Feature-only or text-only judgments are not listener-equivalent evidence and
+must not enter this chain. Generator and judge model-family hashes must differ.
+The protocol also fixes the minimum agent quorum.
+
+The runner and validator use the fixed mapping `strongly_below=0`,
+`below=2500`, `borderline=5000`, `above=7500`, and `strongly_above=10000`,
+then apply `ordinal-label-median-q/v1`. An even median uses round-half-to-even.
+Missing or
+unavailable evidence remains unavailable; it is never replaced by zero.
+
+## 4. Separation from external authority
+
+The synthetic chain must never use `ListenerCohortManifest`, an `*_external`
+scope, `status: promoted`, or a human calibration decision schema. Conversely,
+the external PIL authority intake must reject every synthetic schema even when
+metric rows and hashes otherwise resemble a human authority bundle.
+
+Synthetic bundles are stored under a separate content-addressed namespace and
+selected only through an explicitly synthetic audit interface. There is no
+implicit conversion from a provisional decision to an external decision.
+
+## 5. Determinism and intake
+
+Canonical JSON is NFC, sorted-key, compact UTF-8 with integers only and no
+trailing LF. Agent hashes sort ascending in a cohort; response-record hashes
+sort ascending in a judgment set; metric rows and IDs sort by UTF-8 metric ID.
+Counts must equal their bound arrays and all scope, protocol, cohort, registry,
+policy, context, evidence, and self-hash links are recomputed at intake.
+
+The runner creates artifacts; intake only validates and atomically copies
+complete bundles. Intake must not call a model, synthesize missing evidence,
+repair hashes, or relabel synthetic evidence as human evidence.
