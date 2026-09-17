@@ -84,3 +84,25 @@ def test_structural_sampler_rejects_request_hash_before_attempts():
     envelope = execute_structural_sampler(request, sampler, lowering)
     assert envelope["result"]["error"] == "SAMPLER_REQUEST_INVALID"
     assert envelope["trace"] is None
+
+
+def test_structural_sampler_emits_compiler_viable_intent_role_coverage() -> None:
+    for seed in range(32):
+        request, sampler, lowering = _authorities()
+        request["root_seed"] = seed
+        request["request_hash"] = _hash(
+            "cps.structural-sampler-request/v1.1", request, omit="request_hash"
+        )
+        program = execute_structural_sampler(request, sampler, lowering)["structural_program"]
+        kinds = {material["id"]: material["kind"] for material in program["materials"]}
+        for section in program["form"]:
+            rows = [
+                row for row in program["realizations"] if row["section_id"] == section["id"]
+            ]
+            melody = [row for row in rows if kinds[row["material_id"]] == "melody_intent"]
+            harmony = [
+                row for row in rows if kinds[row["material_id"]] == "harmony_intent_cell"
+            ]
+            assert not melody or len(harmony) == 1
+            if any(row["role"] == "harmony" for row in harmony):
+                assert all(row["role"] != "texture" for row in harmony)

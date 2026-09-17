@@ -541,10 +541,16 @@ def _lower(
     active = values["active_roles"]
     realizations, rid = [], 0
     for recall, (section, material) in enumerate(values["recalls"]):
+        material_kind = values["material_kind"][material]
+        compatible = [role for role in ROLES if role in active and role in _COMPATIBLE[material_kind]]
+        if material_kind == "harmony_intent" and "harmony" in compatible:
+            compatible = ["harmony"]
+        elif material_kind == "melody_intent" and "melody" in compatible:
+            compatible = ["melody"]
         for role in (
             role
             for role in ROLES
-            if role in active and role in _COMPATIBLE[values["material_kind"][material]]
+            if role in compatible
         ):
             entries = []
             for kind, amount in transforms.get((section, material), []):
@@ -617,6 +623,21 @@ def _coverage(
             minimum,
             True,
         )
+    kinds = {item["id"]: item["kind"] for item in program["materials"]}
+    for section in sections:
+        section_rows = [row for row in realizations if row["section_id"] == section]
+        melody_rows = [row for row in section_rows if kinds[row["material_id"]] == "melody_intent"]
+        harmony_rows = [
+            row for row in section_rows if kinds[row["material_id"]] == "harmony_intent_cell"
+        ]
+        if melody_rows and len(harmony_rows) != 1:
+            raise _AttemptFailure(
+                "SAMPLER_STRUCTURAL_SEMANTIC_INVALID",
+                ["/realizations"],
+                {"section_id": section, "harmony_occurrences": len(harmony_rows)},
+                "exactly one harmony realization in every section containing melody",
+                True,
+            )
     by_material: dict[str, list[dict[str, Any]]] = {}
     for row in realizations:
         by_material.setdefault(row["material_id"], []).append(row)

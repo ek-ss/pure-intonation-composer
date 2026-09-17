@@ -157,6 +157,14 @@ An `identity` transform stores no rotate item; retained rotate items preserve
 selected transform ordinal order. Overflow or a nonpositive quantum is
 `SAMPLER_STRUCTURAL_SEMANTIC_INVALID`.
 
+Intent-role compatibility is compiler-aware. When the dedicated `harmony`
+role is active, a harmony intent is not duplicated onto `texture`; `texture`
+is its fallback only when `harmony` is absent. Melody follows the same rule
+with the dedicated `melody` role. Every section containing a melody-intent
+realization must contain exactly one harmony-intent realization; otherwise the
+attempt is rejected as `SAMPLER_STRUCTURAL_SEMANTIC_INVALID` and the next
+bounded attempt is evaluated.
+
 IDs are exactly the manifest prefixes plus zero-padded decimal ordinals:
 section/material/rhythm/chord/realization use widths declared by the manifest;
 tracks do not exist at this stage. `program_id` is its prefix plus the first 26
