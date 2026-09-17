@@ -444,6 +444,19 @@ def _lower(
         for ordinal in range(count)
     ]
     domain = values["equave_domain"]
+    mismatched_chords = [
+        index
+        for index, reference in enumerate(values["chord_reference"])
+        if reference.get("equave") != domain.get("equave")
+    ]
+    if mismatched_chords:
+        raise _AttemptFailure(
+            "SAMPLER_STRUCTURAL_SEMANTIC_INVALID",
+            [f"/chord_intents/{index}/reference/equave" for index in mismatched_chords],
+            [values["chord_reference"][index].get("equave") for index in mismatched_chords],
+            domain.get("equave"),
+            True,
+        )
     lattice = {
         "base_frequency_millihz": lowering["lattice_constants"]["base_frequency_millihz"],
         "equave": domain["equave"],
@@ -542,19 +555,17 @@ def _lower(
     realizations, rid = [], 0
     for recall, (section, material) in enumerate(values["recalls"]):
         material_kind = values["material_kind"][material]
-        compatible = [role for role in ROLES if role in active and role in _COMPATIBLE[material_kind]]
+        compatible = [
+            role for role in ROLES if role in active and role in _COMPATIBLE[material_kind]
+        ]
         if material_kind == "harmony_intent" and "harmony" in compatible:
             compatible = ["harmony"]
         elif material_kind == "melody_intent" and "melody" in compatible:
             compatible = ["melody"]
-        for role in (
-            role
-            for role in ROLES
-            if role in compatible
-        ):
+        for role in (role for role in ROLES if role in compatible):
             entries = []
             for kind, amount in transforms.get((section, material), []):
-                if kind == "rotate":
+                if kind == "rotate" and material_kind not in {"harmony_intent", "melody_intent"}:
                     entries.append({"op": "rotate", "ticks": amount * quantum[material]})
             realizations.append(
                 {
@@ -638,6 +649,37 @@ def _coverage(
                 "exactly one harmony realization in every section containing melody",
                 True,
             )
+        if melody_rows:
+            harmony_ordinal = next(
+                index
+                for index, material_id in enumerate(values["primary_ids"])
+                if material_id == harmony_rows[0]["material_id"]
+            )
+            harmony_rhythm = (
+                values["rhythm_grid"][harmony_ordinal],
+                values["rhythm_density"][harmony_ordinal],
+            )
+            for melody_row in melody_rows:
+                melody_ordinal = next(
+                    index
+                    for index, material_id in enumerate(values["primary_ids"])
+                    if material_id == melody_row["material_id"]
+                )
+                melody_rhythm = (
+                    values["rhythm_grid"][melody_ordinal],
+                    values["rhythm_density"][melody_ordinal],
+                )
+                if melody_rhythm != harmony_rhythm:
+                    raise _AttemptFailure(
+                        "SAMPLER_STRUCTURAL_SEMANTIC_INVALID",
+                        ["/realizations"],
+                        {
+                            "melody_rhythm": list(melody_rhythm),
+                            "harmony_rhythm": list(harmony_rhythm),
+                        },
+                        "matching melody and harmony rhythm grids and densities",
+                        True,
+                    )
     by_material: dict[str, list[dict[str, Any]]] = {}
     for row in realizations:
         by_material.setdefault(row["material_id"], []).append(row)

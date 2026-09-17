@@ -4,9 +4,13 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import io
 import json
+import math
+import struct
 import sys
 import time
+import wave
 from collections import Counter
 from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
@@ -17,6 +21,7 @@ sys.path.insert(0, str(BACKEND))
 
 from app.songprogram.compiler import CompilerIdentity, compile_sp0  # noqa: E402
 from app.songprogram.fallback import (  # noqa: E402
+    _artifact_hash,
     _search_decision_hash,
     execute_broad_prior_production,
 )
@@ -27,77 +32,330 @@ from app.songprogram.search import canonical_bytes  # noqa: E402
 from app.songprogram.structural_sampler import (  # noqa: E402
     _hash,
     execute_structural_sampler,
+    structural_lowering_manifest_hash,
     structural_program_hash,
 )
-from tests.test_songprogram_fallback import _production_v11_request  # noqa: E402
-from tests.test_songprogram_structural_sampler import _authorities  # noqa: E402
 
 RENDER_FIXTURE = BACKEND / "songprogram_conformance" / "fixtures" / "render"
 ROLE_ORDER = ("drums", "bass", "harmony", "melody", "texture")
+SEARCH_MANIFEST = (
+    BACKEND / "songprogram_conformance" / "fixtures" / "search" / "sampler_manifest.json"
+)
+SHARED_AUTHORITY = (
+    BACKEND
+    / "songprogram_conformance"
+    / "fixtures"
+    / "search_loop_13"
+    / "shared_authority"
+    / "artifacts"
+)
 
 
-def _trial_catalog() -> tuple[dict[str, Any], bytes, str]:
-    base = json.loads((RENDER_FIXTURE / "catalog.json").read_text())
-    pitched = next(item for item in base["entries"] if item["kind"] == "pitched")
-    drum = next(item for item in base["entries"] if item["kind"] == "drum_kit")
-    entries = [drum]
+def _seed_choice(seed: int, domain: str, values: list[Any]) -> Any:
+    digest = hashlib.sha256(f"cps.exploration-authority/v1\0{seed}\0{domain}".encode()).digest()
+    return json.loads(json.dumps(values[int.from_bytes(digest[:8], "big") % len(values)]))
+
+
+def _exploration_authorities(seed: int) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
+    """Build a sealed, seed-addressed authority independent of golden fixtures."""
+    sampler = json.loads((SHARED_AUTHORITY / "sampler_manifest.json").read_text())
+    lowering = json.loads((SHARED_AUTHORITY / "structural_lowering_manifest.json").read_text())
+    broad = json.loads(SEARCH_MANIFEST.read_text())
+    for name in sampler["tables"]:
+        sampler["tables"][name] = json.loads(json.dumps(broad["tables"][name]))
+    sampler["tables"].update(
+        section_count=[{"value": 3, "weight": 1}],
+        section_bars=[{"value": 8, "weight": 1}],
+        total_bars=[{"value": 24, "weight": 1}],
+        recall_decision=[{"value": True, "weight": 1}],
+        transform_count=[{"value": 1, "weight": 1}],
+        transform_type=[{"value": "rotate", "weight": 1}],
+        equave_domain=[
+            {
+                "value": {
+                    "equave": "2/1",
+                    "generators": ["3/1", "5/1"],
+                    "coordinate_bounds": [[-3, 3], [-2, 2]],
+                    "register_bounds": [-3, 3],
+                },
+                "weight": 1,
+            },
+            {
+                "value": {
+                    "equave": "3/1",
+                    "generators": ["2/1", "5/1"],
+                    "coordinate_bounds": [[-3, 3], [-2, 2]],
+                    "register_bounds": [-2, 2],
+                },
+                "weight": 1,
+            },
+        ],
+        chord_reference=[
+            {"value": {"divisions": 12, "equave": "2/1", "steps": [0, 4, 7]}, "weight": 1},
+            {"value": {"divisions": 13, "equave": "3/1", "steps": [0, 4, 8]}, "weight": 1},
+        ],
+        rhythm_grid=[{"value": 240, "weight": 2}, {"value": 480, "weight": 1}],
+        rhythm_density=[{"value": 2500, "weight": 1}, {"value": 4000, "weight": 2}],
+    )
+    specs = [
+        ("section_count", "once", ["form", "section_count"]),
+        ("total_bars", "once", ["form", "total_bars"]),
+        ("section_role", "per_section", ["form", "{section}", "role"]),
+        ("section_bars", "per_section", ["form", "{section}", "bars"]),
+        ("material_count", "once", ["materials", "count"]),
+        ("material_kind", "per_material", ["materials", "{material}", "kind"]),
+        ("active_roles", "once", ["roles"]),
+        ("equave_domain", "once", ["lattice"]),
+        ("rhythm_grid", "per_material", ["materials", "{material}", "grid"]),
+        ("rhythm_density", "per_material", ["materials", "{material}", "density"]),
+        ("chord_reference", "per_material", ["materials", "{material}", "chord"]),
+        ("recall_decision", "per_recall", ["recall", "{section}", "{material}"]),
+        ("transform_count", "per_recall", ["recall", "{recall}", "count"]),
+        (
+            "transform_type",
+            "per_transform",
+            ["recall", "{recall}", "{transform}", "type"],
+        ),
+        (
+            "rotate_amount",
+            "per_transform",
+            ["recall", "{recall}", "{transform}", "amount"],
+        ),
+    ]
+    sampler["decision_program"] = [
+        {
+            "ordinal": ordinal,
+            "stage": "realizations" if ordinal >= 11 else "materials" if ordinal >= 4 else "form",
+            "path": path,
+            "table": table,
+            "repeat": repeat,
+        }
+        for ordinal, (table, repeat, path) in enumerate(specs)
+    ]
+    sampler["maximum_rejections_per_seed"] = 256
+    lowering["clock"]["tempo_milli_bpm"] = _seed_choice(
+        seed, "tempo", [128000, 140000, 150000, 160000]
+    )
+    lowering["lattice_constants"]["pitch_exploration"]["maximum_domain_points"] = 35
+    lowering["chord_constants"]["complexity_budget"] = 64
+    lowering["section_templates"]["tonal_center"] = _seed_choice(
+        seed, "tonal-center", [[0, 0], [1, 0], [-1, 0]]
+    )
+    walk = _seed_choice(
+        seed,
+        "vector-walk",
+        [
+            [[0, 0], [1, 0], [0, 1], [-1, 1]],
+            [[0, 0], [-1, 0], [1, -1], [0, -1]],
+            [[1, 0], [1, 1], [0, 1], [-1, 2]],
+            [[-2, 1], [-1, 1], [0, 0], [1, -1]],
+            [[0, 0], [2, -1], [-1, 2], [1, -2]],
+            [[1, -1], [2, -1], [1, 0], [0, 1]],
+        ],
+    )
+    lowering["material_builders"]["direct_vectors"] = walk
+    lowering["material_builders"]["harmony_root_anchors"] = [[0, 0]]
+    lowering["material_builders"]["melody_members"] = [0, 1]
+    lowering["material_builders"]["rhythm_duration_ticks"] = _seed_choice(
+        seed, "rhythm-duration", [60, 120, 180, 240]
+    )
+    lowering["material_builders"]["rhythm_accent_q"] = _seed_choice(
+        seed, "rhythm-accent", [6500, 8000, 9500, 10000]
+    )
+    lowering["manifest_hash"] = structural_lowering_manifest_hash(lowering)
+    sampler["structural_lowering_manifest_hash"] = lowering["manifest_hash"]
+    sampler["manifest_hash"] = _hash(
+        "cps.exploration-sampler-manifest/v1", sampler, omit="manifest_hash"
+    )
+    request = {
+        "schema": "cps.structural-sampler-request",
+        "schema_version": "1.1.0",
+        "run_hash": _hash("cps.exploration-run/v1", {"seed": seed}),
+        "context_hash": _hash("cps.exploration-context/v1", {"seed": seed}),
+        "source_decision_hash": _hash("cps.exploration-source/v1", {"seed": seed}),
+        "sampler_manifest_hash": sampler["manifest_hash"],
+        "structural_lowering_manifest_hash": lowering["manifest_hash"],
+        "structural_program_schema_hash": sampler["structural_program_schema_hash"],
+        "structural_rejection_evidence_schema_hash": sampler[
+            "structural_rejection_evidence_schema_hash"
+        ],
+        "root_seed": seed,
+        "cohort_index": seed,
+        "request_hash": "",
+    }
+    request["request_hash"] = _hash(
+        "cps.structural-sampler-request/v1.1", request, omit="request_hash"
+    )
+    return request, sampler, lowering
+
+
+def _production_authorities(
+    seed: int, structural: dict[str, Any], lowering: dict[str, Any], sampler_hash: str
+) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
+    manifest = json.loads((SHARED_AUTHORITY / "broad_prior_production_manifest.json").read_text())
+    catalog = json.loads((SHARED_AUTHORITY / "instrument_catalog.json").read_text())
+    for entry in catalog["entries"]:
+        entry["maximum_polyphony"] = 64
+        if entry["role"] != "drums":
+            entry["allowed_frequency_millihz"] = [20000, 4000000]
+    catalog_digest = (
+        "sha256:"
+        + hashlib.sha256(b"cps.instrument-catalog/v1\0" + canonical_bytes(catalog)).hexdigest()
+    )
+    manifest["instrument_catalog_digest"] = catalog_digest
+    manifest["sampler_manifest_hash"] = sampler_hash
+    manifest["register_presets_by_role"] = {
+        role: [{"value": [-3600000, 3600000], "weight": 1}] for role in ROLE_ORDER[1:]
+    }
+    manifest["polyphony_by_role"] = {role: [{"value": 64, "weight": 1}] for role in ROLE_ORDER}
+    drum_map = {"kick": 36}
+    manifest["drum_map_profiles"] = [
+        {
+            "value": {
+                "drum_map_id": "exploration-kick",
+                "drum_map": drum_map,
+                "drum_map_payload_hash": _hash("cps.drum-map-profile/v1", drum_map),
+            },
+            "weight": 1,
+        }
+    ]
+    active_roles = sorted(
+        {item["role"] for item in structural["realizations"]}, key=ROLE_ORDER.index
+    )
+    request = {
+        "schema": "cps.broad-prior-production-request",
+        "schema_version": "1.1.0",
+        "run_hash": _hash("cps.exploration-run/v1", {"seed": seed}),
+        "context_hash": _hash("cps.exploration-context/v1", {"seed": seed}),
+        "source_decision_hash": _hash("cps.exploration-source/v1", {"seed": seed}),
+        "root_seed": seed,
+        "cohort_index": seed,
+        "production_rejection_ordinal": 0,
+        "sampler_manifest_hash": manifest["sampler_manifest_hash"],
+        "structural_lowering_manifest_hash": lowering["manifest_hash"],
+        "production_lowering_manifest_hash": _artifact_hash(
+            "cps.production-lowering-manifest/v1", manifest
+        ),
+        "instrument_catalog_digest": catalog_digest,
+        "structural_program_hash": structural_program_hash(structural),
+        "structural_program": structural,
+        "active_roles": active_roles,
+        "lattice_equave": structural["lattice"]["equave"],
+        "request_hash": "",
+    }
+    request["request_hash"] = _search_decision_hash(request, "request_hash")
+    return request, manifest, catalog
+
+
+def _wav_asset(samples: list[int]) -> tuple[dict[str, Any], bytes]:
+    buffer = io.BytesIO()
+    with wave.open(buffer, "wb") as output:
+        output.setparams((1, 4, 48000, len(samples), "NONE", "not compressed"))
+        output.writeframes(b"".join(struct.pack("<i", sample) for sample in samples))
+    payload = buffer.getvalue()
+    digest = hashlib.sha256(payload).hexdigest()
+    return {
+        "uri": f"asset://sha256/{digest}",
+        "sha256": f"sha256:{digest}",
+        "byte_length": len(payload),
+        "frames": len(samples),
+        "channels": 1,
+        "sample_rate": 48000,
+    }, payload
+
+
+def _trial_catalog() -> tuple[dict[str, Any], bytes, str, dict[str, bytes]]:
+    assets: dict[str, bytes] = {}
+
+    def asset(samples: list[int]) -> dict[str, Any]:
+        descriptor, payload = _wav_asset(samples)
+        assets[descriptor["uri"]] = payload
+        return descriptor
+
+    drum_asset = asset([900_000_000 if index == 0 else 0 for index in range(256)])
+    entries: list[dict[str, Any]] = [
+        {
+            "engine": "sample-linear-q31/v1",
+            "gain_q14": 16384,
+            "instrument_id": "drum_fixture_kit",
+            "kind": "drum_kit",
+            "maximum_polyphony": 64,
+            "note_map": [{"asset": drum_asset, "drum_note": 36, "gain_q14": 16384}],
+            "role": "drums",
+        }
+    ]
+    harmonic_sets = {
+        "bass": (1, 2),
+        "harmony": (1, 3),
+        "melody": (1, 5),
+        "texture": (2, 7),
+    }
     for role in ROLE_ORDER[1:]:
-        item = json.loads(json.dumps(pitched))
-        item["instrument_id"] = f"trial_{role}"
-        item["role"] = role
-        entries.append(item)
+        partial_a, partial_b = harmonic_sets[role]
+        samples = [
+            round(
+                280_000_000 * math.sin(2 * math.pi * partial_a * frame / 256)
+                + 90_000_000 * math.sin(2 * math.pi * partial_b * frame / 256)
+            )
+            for frame in range(256)
+        ]
+        entries.append(
+            {
+                "allowed_frequency_millihz": [20000, 4000000],
+                "asset": asset(samples),
+                "engine": "sample-linear-q31/v1",
+                "gain_q14": 12288 if role == "texture" else 16384,
+                "instrument_id": f"trial_{role}",
+                "kind": "pitched",
+                "loop": {"end_frame": 256, "mode": "forward", "start_frame": 0},
+                "maximum_polyphony": 64,
+                "release_frames": 240,
+                "role": role,
+                "root_frequency_millihz": 220000,
+            }
+        )
     catalog = {
-        "schema": base["schema"],
-        "schema_version": base["schema_version"],
-        "engine": base["engine"],
+        "schema": "cps.instrument-catalog",
+        "schema_version": "1.0.0",
+        "engine": "sample-linear-q31/v1",
         "entries": entries,
     }
     payload = canonical_bytes(catalog)
     digest = "sha256:" + hashlib.sha256(b"cps.instrument-catalog/v1\0" + payload).hexdigest()
-    return catalog, payload, digest
+    return catalog, payload, digest, assets
 
 
 def _one(seed: int, output: str) -> dict[str, Any]:
     started = time.monotonic()
     row: dict[str, Any] = {"seed": seed, "status": "sampler_failed"}
     try:
-        request, sampler, structural_manifest = _authorities()
-        request["root_seed"] = seed
-        request["cohort_index"] = seed
-        request["request_hash"] = _hash(
-            "cps.structural-sampler-request/v1.1", request, omit="request_hash"
-        )
+        request, sampler, structural_manifest = _exploration_authorities(seed)
         sampled = execute_structural_sampler(request, sampler, structural_manifest)
         if sampled["result"]["status"] != "success":
             row["error"] = sampled["result"]["error"]
             return row
         structural = sampled["structural_program"]
-        production_request, production_manifest, _, _ = _production_v11_request()
-        active_roles = sorted(
-            {item["role"] for item in structural["realizations"]}, key=ROLE_ORDER.index
+        row.update(
+            sampled_equave=structural["lattice"]["equave"],
+            sampled_generators=structural["lattice"]["generators"],
+            sampler_manifest_hash=sampler["manifest_hash"],
+            lowering_manifest_hash=structural_manifest["manifest_hash"],
         )
-        production_request.update(
-            root_seed=seed,
-            cohort_index=seed,
-            structural_program=structural,
-            structural_program_hash=structural_program_hash(structural),
-            active_roles=active_roles,
-            structural_lowering_manifest_hash=structural_manifest["manifest_hash"],
+        production_request, production_manifest, production_catalog = _production_authorities(
+            seed, structural, structural_manifest, sampler["manifest_hash"]
         )
-        production_request["request_hash"] = _search_decision_hash(
-            production_request, "request_hash"
-        )
+        active_roles = production_request["active_roles"]
         produced = execute_broad_prior_production(
             production_request,
             production_manifest,
-            _production_v11_request()[2],
+            production_catalog,
             structural_manifest,
         )
         if produced["status"] != "success":
             row.update(status="production_failed", error=produced["error"])
             return row
         program = produced["output"]["program"]
-        catalog, catalog_bytes, catalog_digest = _trial_catalog()
+        catalog, catalog_bytes, catalog_digest, assets = _trial_catalog()
         program["production"]["catalog_digest"] = catalog_digest
         for track in program["tracks"]:
             track["instrument_id"] = (
@@ -116,7 +374,7 @@ def _one(seed: int, output: str) -> dict[str, Any]:
         manifest = json.loads((RENDER_FIXTURE / "render_manifest.json").read_text())
 
         def resolve(uri: str) -> bytes:
-            return (RENDER_FIXTURE / "assets" / f"{uri.rsplit('/', 1)[-1]}.wav").read_bytes()
+            return assets[uri]
 
         rendered = render_reference(
             project,
@@ -127,6 +385,8 @@ def _one(seed: int, output: str) -> dict[str, Any]:
         )
         destination = Path(output) / f"seed-{seed:04d}"
         destination.mkdir(parents=True, exist_ok=True)
+        (destination / "sampler_manifest.json").write_bytes(canonical_bytes(sampler))
+        (destination / "lowering_manifest.json").write_bytes(canonical_bytes(structural_manifest))
         (destination / "program.json").write_bytes(canonical_bytes(program))
         (destination / "project.json").write_bytes(canonical_bytes(project))
         (destination / "preview.wav").write_bytes(rendered.wav)
@@ -141,6 +401,7 @@ def _one(seed: int, output: str) -> dict[str, Any]:
             status="success",
             program_hash=program_hash(program),
             project_hash=project_hash(project),
+            audible_project_hash=audible_project_hash(project),
             wav_hash=rendered.report["wav_hash"],
             event_count=len(project["events"]),
             compile_ms=compile_ms,
@@ -179,6 +440,45 @@ def _duplicates(rows: list[dict[str, Any]], key: str) -> dict[str, int]:
     }
 
 
+def audible_project_hash(project: dict[str, Any]) -> str:
+    """Hash only fields that can alter reference-renderer PCM."""
+    tracks = {track["id"]: track for track in project["tracks"]}
+    payload = {
+        "clock": project["clock"],
+        "base_frequency_millihz": project["lattice"]["base_frequency_millihz"],
+        "tracks": [
+            {
+                "role": track["role"],
+                "instrument_id": track["instrument_id"],
+                "maximum_polyphony": track["maximum_polyphony"],
+                "mix": project["mix"][track["id"]],
+            }
+            for track in sorted(project["tracks"], key=lambda item: item["role"].encode())
+        ],
+        "events": [
+            {
+                key: value
+                for key in (
+                    "kind",
+                    "role",
+                    "start_tick",
+                    "duration_ticks",
+                    "velocity",
+                    "ratio",
+                    "drum_note",
+                )
+                if (value := ({**event, "role": tracks[event["track_id"]]["role"]}).get(key))
+                is not None
+            }
+            for event in project["events"]
+        ],
+    }
+    return (
+        "sha256:"
+        + hashlib.sha256(b"cps.audible-project/v1\0" + canonical_bytes(payload)).hexdigest()
+    )
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--seeds", type=int, default=32)
@@ -188,12 +488,29 @@ def main() -> None:
     if not 1 <= args.seeds <= 1000 or not 1 <= args.workers <= 32:
         parser.error("seeds must be 1..1000 and workers 1..32")
     args.output.mkdir(parents=True, exist_ok=True)
+    _, catalog_bytes, catalog_digest, _ = _trial_catalog()
+    (args.output / "exploration_catalog.json").write_bytes(catalog_bytes)
     with ProcessPoolExecutor(max_workers=args.workers) as pool:
         rows = list(pool.map(_one, range(args.seeds), [str(args.output)] * args.seeds))
     rows.sort(key=lambda row: row["seed"])
     successes = [row for row in rows if row["status"] == "success"]
+    representatives: dict[str, int] = {}
+    for row in successes:
+        digest = row["audible_project_hash"]
+        row["semantic_admission"] = (
+            {"status": "accepted", "representative_seed": row["seed"]}
+            if digest not in representatives
+            else {
+                "status": "rejected_duplicate",
+                "representative_seed": representatives[digest],
+            }
+        )
+        representatives.setdefault(digest, row["seed"])
     role_presence = Counter(role for row in successes for role in row["roles"])
     material_counts = Counter(kind for row in successes for kind in row["material_kinds"])
+    failure_counts = Counter(
+        row.get("error", "UNKNOWN") for row in rows if row["status"] != "success"
+    )
     equaves = Counter(row["equave"] for row in successes)
     vectors = Counter(tuple(vector) for row in successes for vector in row["unique_vectors"])
     vector_events: Counter[tuple[int, ...]] = Counter()
@@ -207,13 +524,26 @@ def main() -> None:
         "non_authoritative": True,
         "seed_count": args.seeds,
         "worker_count": args.workers,
+        "exploration_catalog_digest": catalog_digest,
         "compile_survival": {
             "success": len(successes),
             "failed": args.seeds - len(successes),
             "basis_points": round(10000 * len(successes) / args.seeds),
         },
+        "failure_count": dict(sorted(failure_counts.items())),
         "duplicates": {
-            key: _duplicates(rows, key) for key in ("program_hash", "project_hash", "wav_hash")
+            key: _duplicates(rows, key)
+            for key in (
+                "program_hash",
+                "project_hash",
+                "audible_project_hash",
+                "wav_hash",
+            )
+        },
+        "semantic_duplicate_rejection": {
+            "policy": "first-seed-wins-by-audible-project-hash/v1",
+            "accepted": len(representatives),
+            "rejected": len(successes) - len(representatives),
         },
         "role_presence": dict(sorted(role_presence.items())),
         "role_presence_basis_points": {
