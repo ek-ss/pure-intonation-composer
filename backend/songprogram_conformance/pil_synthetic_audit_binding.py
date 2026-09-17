@@ -20,7 +20,11 @@ class PILSyntheticAuditBindingError(ValueError):
 
 
 def build_audit_binding(
-    *, run_context_hash: str, decision: Mapping[str, Any], assignment_set_hash: str
+    *,
+    run_context_hash: str,
+    sealed_context_hash: str,
+    decision: Mapping[str, Any],
+    assignment_set_hash: str,
 ) -> dict[str, Any]:
     if (
         decision.get("schema") != "cps.pil-synthetic-provisional-decision"
@@ -36,6 +40,7 @@ def build_audit_binding(
         "human_authority_compatible": False,
         "authority_effect": "audit_only",
         "run_context_hash": run_context_hash,
+        "sealed_context_hash": sealed_context_hash,
         "decision_hash": decision["decision_hash"],
         "assignment_set_hash": assignment_set_hash,
         "permitted_uses": PERMITTED_USES,
@@ -50,6 +55,7 @@ def validate_audit_binding(
 ) -> str:
     expected = build_audit_binding(
         run_context_hash=run_context_hash,
+        sealed_context_hash=value.get("sealed_context_hash", ""),
         decision=decision,
         assignment_set_hash=value.get("assignment_set_hash", ""),
     )

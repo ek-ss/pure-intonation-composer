@@ -6,7 +6,8 @@
   "additionalProperties": false,
   "required": [
     "schema", "schema_version", "authority_kind", "human_authority_compatible",
-    "authority_effect", "run_context_hash", "decision_hash", "assignment_set_hash",
+    "authority_effect", "run_context_hash", "sealed_context_hash",
+    "decision_hash", "assignment_set_hash",
     "permitted_uses", "binding_hash"
   ],
   "properties": {
@@ -16,6 +17,7 @@
     "human_authority_compatible": {"const": false},
     "authority_effect": {"const": "audit_only"},
     "run_context_hash": {"$ref": "#/$defs/sha"},
+    "sealed_context_hash": {"$ref": "#/$defs/sha"},
     "decision_hash": {"$ref": "#/$defs/sha"},
     "assignment_set_hash": {"$ref": "#/$defs/sha"},
     "permitted_uses": {

@@ -107,3 +107,11 @@ The only permitted uses, in canonical order, are `human_review_selection`,
 `planner_diagnostics`, `shadow_archive`, and `soft_reranking`. GEN0 gates, hard
 validity, production archive admission, production stopping, and every
 `native_ji.*` result reject this binding.
+
+Soft reranking is separately bound by
+`cps.pil-synthetic-soft-reranking-policy`. Its ordered metric list is compared
+lexicographically; unavailable values sort after available values, direction
+is explicit per metric, and the sealed context hash is the final tie-break.
+The output is a `cps.pil-synthetic-soft-reranking-result` with
+`authority_effect: audit_only` and a `shadow_order`. It cannot replace the
+production candidate order or an archive-admission decision.

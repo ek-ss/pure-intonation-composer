@@ -29,6 +29,7 @@ def test_binding_is_out_of_band_and_exactly_replayable() -> None:
     decision = _decision()
     value = build_audit_binding(
         run_context_hash=H,
+        sealed_context_hash="sha256:" + "e" * 64,
         decision=decision,
         assignment_set_hash="sha256:" + "c" * 64,
     )
@@ -45,6 +46,7 @@ def test_binding_is_out_of_band_and_exactly_replayable() -> None:
 def test_binding_rejects_authoritative_uses(forbidden: str) -> None:
     value = build_audit_binding(
         run_context_hash=H,
+        sealed_context_hash="sha256:" + "e" * 64,
         decision=_decision(),
         assignment_set_hash="sha256:" + "c" * 64,
     )
@@ -56,6 +58,7 @@ def test_binding_rejects_context_tampering_and_human_substitution() -> None:
     decision = _decision()
     value = build_audit_binding(
         run_context_hash=H,
+        sealed_context_hash="sha256:" + "e" * 64,
         decision=decision,
         assignment_set_hash="sha256:" + "c" * 64,
     )
@@ -68,6 +71,7 @@ def test_binding_rejects_context_tampering_and_human_substitution() -> None:
     with pytest.raises(PILSyntheticAuditBindingError, match="PIL_SYNTHETIC_AUTHORITY_KIND_MISMATCH"):
         build_audit_binding(
             run_context_hash=H,
+            sealed_context_hash="sha256:" + "e" * 64,
             decision=human,
             assignment_set_hash="sha256:" + "c" * 64,
         )
