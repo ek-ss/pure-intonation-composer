@@ -20,6 +20,12 @@ BACKEND = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(BACKEND))
 
 from app.songprogram.compiler import CompilerIdentity, compile_sp0  # noqa: E402
+from app.songprogram.exploration_profile import (  # noqa: E402
+    apply_profile,
+    selected_layout,
+    symbolic_coverage,
+    validate_profile,
+)
 from app.songprogram.fallback import (  # noqa: E402
     _artifact_hash,
     _search_decision_hash,
@@ -49,6 +55,11 @@ SHARED_AUTHORITY = (
     / "shared_authority"
     / "artifacts"
 )
+PROFILE_DIRECTORY = BACKEND / "songprogram_conformance" / "profiles"
+PROFILE_FILES = {
+    "song-preview": PROFILE_DIRECTORY / "song_preview_exploration_v1.json",
+    "full-song": PROFILE_DIRECTORY / "full_song_exploration_v1.json",
+}
 
 
 def _seed_choice(seed: int, domain: str, values: list[Any]) -> Any:
@@ -56,7 +67,9 @@ def _seed_choice(seed: int, domain: str, values: list[Any]) -> Any:
     return json.loads(json.dumps(values[int.from_bytes(digest[:8], "big") % len(values)]))
 
 
-def _exploration_authorities(seed: int) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
+def _exploration_authorities(
+    seed: int, profile: dict[str, Any] | None = None
+) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
     """Build a sealed, seed-addressed authority independent of golden fixtures."""
     sampler = json.loads((SHARED_AUTHORITY / "sampler_manifest.json").read_text())
     lowering = json.loads((SHARED_AUTHORITY / "structural_lowering_manifest.json").read_text())
@@ -97,6 +110,18 @@ def _exploration_authorities(seed: int) -> tuple[dict[str, Any], dict[str, Any],
         rhythm_grid=[{"value": 240, "weight": 2}, {"value": 480, "weight": 1}],
         rhythm_density=[{"value": 2500, "weight": 1}, {"value": 4000, "weight": 2}],
     )
+    if profile is not None:
+        layout = selected_layout(profile, seed)
+        sampler["tables"].update(
+            section_count=[{"value": layout["section_count"], "weight": 1}],
+            section_bars=[{"value": layout["bars_per_section"], "weight": 1}],
+            total_bars=[
+                {
+                    "value": layout["section_count"] * layout["bars_per_section"],
+                    "weight": 1,
+                }
+            ],
+        )
     specs = [
         ("section_count", "once", ["form", "section_count"]),
         ("total_bars", "once", ["form", "total_bars"]),
@@ -325,16 +350,23 @@ def _trial_catalog() -> tuple[dict[str, Any], bytes, str, dict[str, bytes]]:
     return catalog, payload, digest, assets
 
 
-def _one(seed: int, output: str) -> dict[str, Any]:
+def _one(seed: int, output: str, profile_path: str | None = None) -> dict[str, Any]:
     started = time.monotonic()
     row: dict[str, Any] = {"seed": seed, "status": "sampler_failed"}
     try:
-        request, sampler, structural_manifest = _exploration_authorities(seed)
+        profile = None
+        if profile_path is not None:
+            profile = json.loads(Path(profile_path).read_text())
+            validate_profile(profile)
+            row.update(profile_id=profile["profile_id"], profile_hash=profile["profile_hash"])
+        request, sampler, structural_manifest = _exploration_authorities(seed, profile)
         sampled = execute_structural_sampler(request, sampler, structural_manifest)
         if sampled["result"]["status"] != "success":
             row["error"] = sampled["result"]["error"]
             return row
         structural = sampled["structural_program"]
+        if profile is not None:
+            structural = apply_profile(structural, profile, seed)
         row.update(
             sampled_equave=structural["lattice"]["equave"],
             sampled_generators=structural["lattice"]["generators"],
@@ -371,6 +403,7 @@ def _one(seed: int, output: str) -> dict[str, Any]:
         compile_started = time.monotonic()
         project = compile_sp0(program, identity)
         compile_ms = round((time.monotonic() - compile_started) * 1000)
+        coverage = symbolic_coverage(project, profile) if profile is not None else None
         manifest = json.loads((RENDER_FIXTURE / "render_manifest.json").read_text())
 
         def resolve(uri: str) -> bytes:
@@ -419,7 +452,10 @@ def _one(seed: int, output: str) -> dict[str, Any]:
                 {"vector": list(vector), "event_count": count}
                 for vector, count in sorted(vector_counts.items())
             ],
+            pcm_continuity=pcm_continuity(rendered.wav),
         )
+        if coverage is not None:
+            row["symbolic_coverage"] = coverage
         return row
     except Exception as error:  # trial ledger must retain every failed coordinate
         row.update(status="compile_or_render_failed", error=f"{type(error).__name__}:{error}")
@@ -437,6 +473,37 @@ def _duplicates(rows: list[dict[str, Any]], key: str) -> dict[str, int]:
         "unique": unique,
         "duplicates": duplicates,
         "duplicate_basis_points": round(10000 * duplicates / len(values)) if values else 0,
+    }
+
+
+def pcm_continuity(wav_payload: bytes) -> dict[str, int]:
+    """Measure exact zero-valued frames and fully silent one-second windows."""
+    with wave.open(io.BytesIO(wav_payload), "rb") as source:
+        channels = source.getnchannels()
+        rate = source.getframerate()
+        frame_count = source.getnframes()
+        if source.getsampwidth() != 4:
+            raise ValueError("PCM_CONTINUITY_REQUIRES_PCM32")
+        samples = struct.unpack(
+            "<" + "i" * (frame_count * channels), source.readframes(frame_count)
+        )
+    active_frames = [
+        any(samples[frame * channels + channel] != 0 for channel in range(channels))
+        for frame in range(frame_count)
+    ]
+    windows = [
+        any(active_frames[start : min(frame_count, start + rate)])
+        for start in range(0, frame_count, rate)
+    ]
+    silent_frames = frame_count - sum(active_frames)
+    return {
+        "frame_count": frame_count,
+        "silent_frame_count": silent_frames,
+        "silent_frame_basis_points": round(10000 * silent_frames / frame_count)
+        if frame_count
+        else 10000,
+        "one_second_window_count": len(windows),
+        "fully_silent_one_second_window_count": windows.count(False),
     }
 
 
@@ -484,28 +551,55 @@ def main() -> None:
     parser.add_argument("--seeds", type=int, default=32)
     parser.add_argument("--workers", type=int, default=4)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument(
+        "--profile",
+        choices=("cohort", "song-preview", "full-song"),
+        default="cohort",
+    )
     args = parser.parse_args()
     if not 1 <= args.seeds <= 1000 or not 1 <= args.workers <= 32:
         parser.error("seeds must be 1..1000 and workers 1..32")
     args.output.mkdir(parents=True, exist_ok=True)
+    profile_path = None if args.profile == "cohort" else PROFILE_FILES[args.profile]
+    profile = None
+    if profile_path is not None:
+        profile = json.loads(profile_path.read_text())
+        validate_profile(profile)
+        (args.output / "exploration_profile.json").write_bytes(canonical_bytes(profile))
     _, catalog_bytes, catalog_digest, _ = _trial_catalog()
     (args.output / "exploration_catalog.json").write_bytes(catalog_bytes)
     with ProcessPoolExecutor(max_workers=args.workers) as pool:
-        rows = list(pool.map(_one, range(args.seeds), [str(args.output)] * args.seeds))
+        rows = list(
+            pool.map(
+                _one,
+                range(args.seeds),
+                [str(args.output)] * args.seeds,
+                [None if profile_path is None else str(profile_path)] * args.seeds,
+            )
+        )
     rows.sort(key=lambda row: row["seed"])
     successes = [row for row in rows if row["status"] == "success"]
     representatives: dict[str, int] = {}
     for row in successes:
         digest = row["audible_project_hash"]
-        row["semantic_admission"] = (
-            {"status": "accepted", "representative_seed": row["seed"]}
-            if digest not in representatives
-            else {
+        coverage_passed = row.get("symbolic_coverage", {}).get("status", "passed") == "passed"
+        if not coverage_passed:
+            row["semantic_admission"] = {
+                "status": "rejected_coverage",
+                "representative_seed": None,
+            }
+        elif digest in representatives:
+            row["semantic_admission"] = {
                 "status": "rejected_duplicate",
                 "representative_seed": representatives[digest],
             }
-        )
-        representatives.setdefault(digest, row["seed"])
+        else:
+            row["semantic_admission"] = {
+                "status": "accepted",
+                "representative_seed": row["seed"],
+            }
+            representatives[digest] = row["seed"]
+    admission_counts = Counter(row["semantic_admission"]["status"] for row in successes)
     role_presence = Counter(role for row in successes for role in row["roles"])
     material_counts = Counter(kind for row in successes for kind in row["material_kinds"])
     failure_counts = Counter(
@@ -522,6 +616,8 @@ def main() -> None:
         "schema": "cps.fixture-generation-cohort-report",
         "schema_version": "1.0.0",
         "non_authoritative": True,
+        "profile_id": "cohort" if profile is None else profile["profile_id"],
+        "profile_hash": None if profile is None else profile["profile_hash"],
         "seed_count": args.seeds,
         "worker_count": args.workers,
         "exploration_catalog_digest": catalog_digest,
@@ -542,8 +638,52 @@ def main() -> None:
         },
         "semantic_duplicate_rejection": {
             "policy": "first-seed-wins-by-audible-project-hash/v1",
-            "accepted": len(representatives),
-            "rejected": len(successes) - len(representatives),
+            "accepted": admission_counts["accepted"],
+            "rejected_duplicate": admission_counts["rejected_duplicate"],
+            "rejected_coverage": admission_counts["rejected_coverage"],
+        },
+        "symbolic_coverage": {
+            "measured": sum("symbolic_coverage" in row for row in successes),
+            "passed": sum(
+                row.get("symbolic_coverage", {}).get("status") == "passed" for row in successes
+            ),
+            "rejected": sum(
+                row.get("symbolic_coverage", {}).get("status") == "rejected" for row in successes
+            ),
+            "mean_coverage_basis_points": round(
+                sum(
+                    row.get("symbolic_coverage", {}).get("overall_coverage_basis_points", 0)
+                    for row in successes
+                )
+                / max(1, sum("symbolic_coverage" in row for row in successes))
+            ),
+            "maximum_empty_bar_run": max(
+                (
+                    row.get("symbolic_coverage", {}).get("maximum_empty_bar_run", 0)
+                    for row in successes
+                ),
+                default=0,
+            ),
+        },
+        "pcm_continuity": {
+            "measured": sum("pcm_continuity" in row for row in successes),
+            "silent_frame_basis_points": round(
+                10000
+                * sum(
+                    row.get("pcm_continuity", {}).get("silent_frame_count", 0) for row in successes
+                )
+                / max(
+                    1,
+                    sum(row.get("pcm_continuity", {}).get("frame_count", 0) for row in successes),
+                )
+            ),
+            "fully_silent_one_second_window_count": sum(
+                row.get("pcm_continuity", {}).get("fully_silent_one_second_window_count", 0)
+                for row in successes
+            ),
+            "one_second_window_count": sum(
+                row.get("pcm_continuity", {}).get("one_second_window_count", 0) for row in successes
+            ),
         },
         "role_presence": dict(sorted(role_presence.items())),
         "role_presence_basis_points": {

@@ -50,3 +50,47 @@ candidate-presence and event-frequency lattice-vector distributions.
 Reports under `songprogram_conformance/reports/non_authoritative` are measured
 evidence, not golden outputs. A filename or `measurement_note` identifies a
 report produced before a subsequently documented fix.
+
+## Musical-time exploration profiles
+
+The sparse cohort authority remains the default and is not changed by the
+musical-time profiles. `song-preview-exploration-v1` and
+`full-song-exploration-v1` are separate, closed, self-hashed inputs selected by
+the runner's `--profile` option. The preview layout is 3 sections of 4 bars.
+The full-song layout is deterministically selected per seed from 28, 32, and
+40 bars.
+
+Profile lowering is the sole owner of realization timing. It removes cohort
+rhythm rotations and assigns each material to one seeded weighted role. If
+that global ownership would fall below the profile's minimum sounding-role
+count, deterministic role-specialized copies are added; each resulting
+material is still bound to exactly one role. It then derives `repeat` from the
+containing section's bar count and applies role-specific entry, period,
+duration, and gate values. The final repeat's remaining section time is a hard
+duration bound. Harmony and texture are continuous-bed roles:
+their duration equals their complete 2- or 4-bar period and their gate is
+10000. This prevents the earlier one-bar-on/one-bar-off silent pattern.
+
+After compilation, the runner measures symbolic coverage from event intervals
+in section-relative time. Coverage rejection precedes audible-hash duplicate
+rejection. Continuous section roles (`build`, `drop`, `final`) allow no empty
+bar; other sections allow at most two consecutive empty bars; overall coverage
+must be at least 8500 basis points and at least three roles must sound. This is
+an exploration admission gate, not a Native JI or PIL score and does not
+replace either evaluation path.
+
+The profile schema is
+`songprogram_conformance/schemas/song_preview_exploration_profile.schema.json`.
+All reports and rendered previews produced by these profiles remain
+non-authoritative measurement artifacts.
+
+Example invocations from the repository root:
+
+```console
+backend/.venv/bin/python backend/tools/run_fixture_generation_cohort.py \
+  --profile song-preview --seeds 4 --workers 4 --output /tmp/cps-preview-4
+backend/.venv/bin/python backend/tools/run_fixture_generation_cohort.py \
+  --profile song-preview --seeds 32 --workers 8 --output /tmp/cps-preview-32
+backend/.venv/bin/python backend/tools/run_fixture_generation_cohort.py \
+  --profile full-song --seeds 1 --workers 1 --output /tmp/cps-full-song-smoke
+```
