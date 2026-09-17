@@ -85,3 +85,6 @@ CAS, but MUST NOT synthesize missing artifacts, repair hashes, select a newer
 decision implicitly, generate expected outputs, or convert a readiness record
 into a decision. Promotion requires an explicit exact decision hash in the run
 context; absent or rejected decisions leave the affected metrics audit-only.
+
+Trusted expected bindings come from the caller's sealed RunContext and MUST
+NOT be read from the submitted bundle.

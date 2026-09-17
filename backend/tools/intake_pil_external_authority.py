@@ -72,6 +72,12 @@ def _identity(name: str, value: dict) -> str:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--bundle", required=True, type=Path)
+    parser.add_argument(
+        "--expected-bindings",
+        required=True,
+        type=Path,
+        help="Trusted bindings supplied independently of the untrusted bundle.",
+    )
     parser.add_argument("--store", required=True, type=Path)
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
@@ -80,7 +86,7 @@ def main() -> None:
         raw: dict[str, bytes] = {}
         for name in FILES:
             values[name], raw[name] = _load_canonical(args.bundle / f"{name}.json")
-        bindings, _ = _load_canonical(args.bundle / "expected_bindings.json")
+        bindings, _ = _load_canonical(args.expected_bindings)
         decision = validate_external_authority(
             listener_cohort=values["listener_cohort"],
             registry=values["registry"],
@@ -109,7 +115,9 @@ def main() -> None:
                 try:
                     for name in FILES:
                         (temporary / f"{name}.json").write_bytes(raw[name])
-                    (temporary / "expected_bindings.json").write_bytes(_canonical(bindings))
+                    (temporary / "trusted_expected_bindings.json").write_bytes(
+                        _canonical(bindings)
+                    )
                     (temporary / "receipt.json").write_bytes(receipt_bytes)
                     os.replace(temporary, target)
                 finally:
