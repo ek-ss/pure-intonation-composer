@@ -26,6 +26,9 @@ from app.songprogram.exploration_profile import (  # noqa: E402
     symbolic_coverage,
     validate_profile,
 )
+from app.songprogram.exploration_generation import (  # noqa: E402
+    validate_exploration_generation_manifest,
+)
 from app.songprogram.fallback import (  # noqa: E402
     _artifact_hash,
     _search_decision_hash,
@@ -60,6 +63,7 @@ PROFILE_FILES = {
     "song-preview": PROFILE_DIRECTORY / "song_preview_exploration_v2.json",
     "full-song": PROFILE_DIRECTORY / "full_song_exploration_v2.json",
 }
+DEFAULT_GENERATION_MANIFEST = PROFILE_DIRECTORY / "full_song_generation_v1.json"
 
 
 def _seed_choice(seed: int, domain: str, values: list[Any]) -> Any:
@@ -68,7 +72,9 @@ def _seed_choice(seed: int, domain: str, values: list[Any]) -> Any:
 
 
 def _exploration_authorities(
-    seed: int, profile: dict[str, Any] | None = None
+    seed: int,
+    profile: dict[str, Any] | None = None,
+    generation_manifest: dict[str, Any] | None = None,
 ) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
     """Build a sealed, seed-addressed authority independent of golden fixtures."""
     sampler = json.loads((SHARED_AUTHORITY / "sampler_manifest.json").read_text())
@@ -76,6 +82,11 @@ def _exploration_authorities(
     broad = json.loads(SEARCH_MANIFEST.read_text())
     for name in sampler["tables"]:
         sampler["tables"][name] = json.loads(json.dumps(broad["tables"][name]))
+    if generation_manifest is None:
+        generation_manifest = json.loads(DEFAULT_GENERATION_MANIFEST.read_text())
+    validate_exploration_generation_manifest(generation_manifest)
+    configured_tables = generation_manifest["sampler_tables"]
+    lowering_choices = generation_manifest["lowering_choices"]
     sampler["tables"].update(
         section_count=[{"value": 3, "weight": 1}],
         section_bars=[{"value": 8, "weight": 1}],
@@ -83,32 +94,7 @@ def _exploration_authorities(
         recall_decision=[{"value": True, "weight": 1}],
         transform_count=[{"value": 1, "weight": 1}],
         transform_type=[{"value": "rotate", "weight": 1}],
-        equave_domain=[
-            {
-                "value": {
-                    "equave": "2/1",
-                    "generators": ["3/1", "5/1"],
-                    "coordinate_bounds": [[-3, 3], [-2, 2]],
-                    "register_bounds": [-3, 3],
-                },
-                "weight": 1,
-            },
-            {
-                "value": {
-                    "equave": "3/1",
-                    "generators": ["2/1", "5/1"],
-                    "coordinate_bounds": [[-3, 3], [-2, 2]],
-                    "register_bounds": [-2, 2],
-                },
-                "weight": 1,
-            },
-        ],
-        chord_reference=[
-            {"value": {"divisions": 12, "equave": "2/1", "steps": [0, 4, 7]}, "weight": 1},
-            {"value": {"divisions": 13, "equave": "3/1", "steps": [0, 4, 8]}, "weight": 1},
-        ],
-        rhythm_grid=[{"value": 240, "weight": 2}, {"value": 480, "weight": 1}],
-        rhythm_density=[{"value": 2500, "weight": 1}, {"value": 4000, "weight": 2}],
+        **json.loads(json.dumps(configured_tables)),
     )
     if profile is not None:
         layout = selected_layout(profile, seed)
@@ -159,33 +145,28 @@ def _exploration_authorities(
     ]
     sampler["maximum_rejections_per_seed"] = 256
     lowering["clock"]["tempo_milli_bpm"] = _seed_choice(
-        seed, "tempo", [128000, 140000, 150000, 160000]
+        seed, "tempo", lowering_choices["tempo_milli_bpm"]
     )
-    lowering["lattice_constants"]["pitch_exploration"]["maximum_domain_points"] = 35
-    lowering["chord_constants"]["complexity_budget"] = 64
+    lowering["lattice_constants"]["pitch_exploration"]["maximum_domain_points"] = lowering_choices[
+        "maximum_domain_points"
+    ]
+    lowering["chord_constants"]["complexity_budget"] = lowering_choices["chord_complexity_budget"]
     lowering["section_templates"]["tonal_center"] = _seed_choice(
-        seed, "tonal-center", [[0, 0], [1, 0], [-1, 0]]
+        seed, "tonal-center", lowering_choices["tonal_centers"]
     )
     walk = _seed_choice(
         seed,
         "vector-walk",
-        [
-            [[0, 0], [1, 0], [0, 1], [-1, 1]],
-            [[0, 0], [-1, 0], [1, -1], [0, -1]],
-            [[1, 0], [1, 1], [0, 1], [-1, 2]],
-            [[-2, 1], [-1, 1], [0, 0], [1, -1]],
-            [[0, 0], [2, -1], [-1, 2], [1, -2]],
-            [[1, -1], [2, -1], [1, 0], [0, 1]],
-        ],
+        lowering_choices["vector_walks"],
     )
     lowering["material_builders"]["direct_vectors"] = walk
     lowering["material_builders"]["harmony_root_anchors"] = [[0, 0]]
     lowering["material_builders"]["melody_members"] = [0, 1]
     lowering["material_builders"]["rhythm_duration_ticks"] = _seed_choice(
-        seed, "rhythm-duration", [60, 120, 180, 240]
+        seed, "rhythm-duration", lowering_choices["rhythm_duration_ticks"]
     )
     lowering["material_builders"]["rhythm_accent_q"] = _seed_choice(
-        seed, "rhythm-accent", [6500, 8000, 9500, 10000]
+        seed, "rhythm-accent", lowering_choices["rhythm_accent_q"]
     )
     lowering["manifest_hash"] = structural_lowering_manifest_hash(lowering)
     sampler["structural_lowering_manifest_hash"] = lowering["manifest_hash"]
@@ -215,14 +196,19 @@ def _exploration_authorities(
 
 
 def _production_authorities(
-    seed: int, structural: dict[str, Any], lowering: dict[str, Any], sampler_hash: str
+    seed: int,
+    structural: dict[str, Any],
+    lowering: dict[str, Any],
+    sampler_hash: str,
+    generation_manifest: dict[str, Any],
 ) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
     manifest = json.loads((SHARED_AUTHORITY / "broad_prior_production_manifest.json").read_text())
     catalog = json.loads((SHARED_AUTHORITY / "instrument_catalog.json").read_text())
+    policy = generation_manifest["production_policy"]
     for entry in catalog["entries"]:
-        entry["maximum_polyphony"] = 64
+        entry["maximum_polyphony"] = policy["maximum_polyphony"]
         if entry["role"] != "drums":
-            entry["allowed_frequency_millihz"] = [20000, 4000000]
+            entry["allowed_frequency_millihz"] = policy["pitched_frequency_millihz"]
     catalog_digest = (
         "sha256:"
         + hashlib.sha256(b"cps.instrument-catalog/v1\0" + canonical_bytes(catalog)).hexdigest()
@@ -230,9 +216,11 @@ def _production_authorities(
     manifest["instrument_catalog_digest"] = catalog_digest
     manifest["sampler_manifest_hash"] = sampler_hash
     manifest["register_presets_by_role"] = {
-        role: [{"value": [-3600000, 3600000], "weight": 1}] for role in ROLE_ORDER[1:]
+        role: [{"value": policy["register_millicents"], "weight": 1}] for role in ROLE_ORDER[1:]
     }
-    manifest["polyphony_by_role"] = {role: [{"value": 64, "weight": 1}] for role in ROLE_ORDER}
+    manifest["polyphony_by_role"] = {
+        role: [{"value": policy["maximum_polyphony"], "weight": 1}] for role in ROLE_ORDER
+    }
     drum_map = {"kick": 36}
     manifest["drum_map_profiles"] = [
         {
@@ -289,7 +277,13 @@ def _wav_asset(samples: list[int]) -> tuple[dict[str, Any], bytes]:
     }, payload
 
 
-def _trial_catalog() -> tuple[dict[str, Any], bytes, str, dict[str, bytes]]:
+def _trial_catalog(
+    generation_manifest: dict[str, Any] | None = None,
+) -> tuple[dict[str, Any], bytes, str, dict[str, bytes]]:
+    if generation_manifest is None:
+        generation_manifest = json.loads(DEFAULT_GENERATION_MANIFEST.read_text())
+    validate_exploration_generation_manifest(generation_manifest)
+    policy = generation_manifest["render_catalog_policy"]
     assets: dict[str, bytes] = {}
 
     def asset(samples: list[int]) -> dict[str, Any]:
@@ -297,44 +291,42 @@ def _trial_catalog() -> tuple[dict[str, Any], bytes, str, dict[str, bytes]]:
         assets[descriptor["uri"]] = payload
         return descriptor
 
-    drum_asset = asset([900_000_000 if index == 0 else 0 for index in range(256)])
+    drum_asset = asset([policy["drum_impulse_q31"] if index == 0 else 0 for index in range(256)])
     entries: list[dict[str, Any]] = [
         {
             "engine": "sample-linear-q31/v1",
             "gain_q14": 16384,
             "instrument_id": "drum_fixture_kit",
             "kind": "drum_kit",
-            "maximum_polyphony": 64,
+            "maximum_polyphony": generation_manifest["production_policy"]["maximum_polyphony"],
             "note_map": [{"asset": drum_asset, "drum_note": 36, "gain_q14": 16384}],
             "role": "drums",
         }
     ]
-    harmonic_sets = {
-        "bass": (1, 2),
-        "harmony": (1, 3),
-        "melody": (1, 5),
-        "texture": (2, 7),
-    }
     for role in ROLE_ORDER[1:]:
-        partial_a, partial_b = harmonic_sets[role]
+        timbre = policy["pitched_roles"][role]
         samples = [
             round(
-                280_000_000 * math.sin(2 * math.pi * partial_a * frame / 256)
-                + 90_000_000 * math.sin(2 * math.pi * partial_b * frame / 256)
+                sum(
+                    gain * math.sin(2 * math.pi * partial * frame / 256)
+                    for partial, gain in zip(timbre["partials"], timbre["partial_gains_q31"])
+                )
             )
             for frame in range(256)
         ]
         entries.append(
             {
-                "allowed_frequency_millihz": [20000, 4000000],
+                "allowed_frequency_millihz": generation_manifest["production_policy"][
+                    "pitched_frequency_millihz"
+                ],
                 "asset": asset(samples),
                 "engine": "sample-linear-q31/v1",
-                "gain_q14": 12288 if role == "texture" else 16384,
+                "gain_q14": timbre["gain_q14"],
                 "instrument_id": f"trial_{role}",
                 "kind": "pitched",
                 "loop": {"end_frame": 256, "mode": "forward", "start_frame": 0},
-                "maximum_polyphony": 64,
-                "release_frames": 240,
+                "maximum_polyphony": generation_manifest["production_policy"]["maximum_polyphony"],
+                "release_frames": timbre["release_frames"],
                 "role": role,
                 "root_frequency_millihz": 220000,
             }
@@ -350,7 +342,12 @@ def _trial_catalog() -> tuple[dict[str, Any], bytes, str, dict[str, bytes]]:
     return catalog, payload, digest, assets
 
 
-def _one(seed: int, output: str, profile_path: str | None = None) -> dict[str, Any]:
+def _one(
+    seed: int,
+    output: str,
+    profile_path: str | None = None,
+    generation_manifest_path: str | None = None,
+) -> dict[str, Any]:
     started = time.monotonic()
     row: dict[str, Any] = {"seed": seed, "status": "sampler_failed"}
     try:
@@ -359,7 +356,14 @@ def _one(seed: int, output: str, profile_path: str | None = None) -> dict[str, A
             profile = json.loads(Path(profile_path).read_text())
             validate_profile(profile)
             row.update(profile_id=profile["profile_id"], profile_hash=profile["profile_hash"])
-        request, sampler, structural_manifest = _exploration_authorities(seed, profile)
+        generation_manifest = json.loads(
+            Path(generation_manifest_path or DEFAULT_GENERATION_MANIFEST).read_text()
+        )
+        validate_exploration_generation_manifest(generation_manifest)
+        row["generation_manifest_hash"] = generation_manifest["manifest_hash"]
+        request, sampler, structural_manifest = _exploration_authorities(
+            seed, profile, generation_manifest
+        )
         sampled = execute_structural_sampler(request, sampler, structural_manifest)
         if sampled["result"]["status"] != "success":
             row["error"] = sampled["result"]["error"]
@@ -375,7 +379,7 @@ def _one(seed: int, output: str, profile_path: str | None = None) -> dict[str, A
             lowering_manifest_hash=structural_manifest["manifest_hash"],
         )
         production_request, production_manifest, production_catalog = _production_authorities(
-            seed, structural, structural_manifest, sampler["manifest_hash"]
+            seed, structural, structural_manifest, sampler["manifest_hash"], generation_manifest
         )
         active_roles = production_request["active_roles"]
         produced = execute_broad_prior_production(
@@ -388,7 +392,7 @@ def _one(seed: int, output: str, profile_path: str | None = None) -> dict[str, A
             row.update(status="production_failed", error=produced["error"])
             return row
         program = produced["output"]["program"]
-        catalog, catalog_bytes, catalog_digest, assets = _trial_catalog()
+        catalog, catalog_bytes, catalog_digest, assets = _trial_catalog(generation_manifest)
         program["production"]["catalog_digest"] = catalog_digest
         for track in program["tracks"]:
             track["instrument_id"] = (
@@ -559,12 +563,18 @@ def audible_project_hash(project: dict[str, Any]) -> str:
     )
 
 
+def _one_star(arguments: tuple[int, str, str | None, str]) -> dict[str, Any]:
+    """Pickle-safe adapter for the multi-process execution path."""
+    return _one(*arguments)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--seeds", type=int, default=32)
     parser.add_argument("--seed-start", type=int, default=0)
     parser.add_argument("--workers", type=int, default=4)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--generation-manifest", type=Path, default=DEFAULT_GENERATION_MANIFEST)
     parser.add_argument(
         "--profile",
         choices=("cohort", "song-preview", "full-song"),
@@ -578,24 +588,37 @@ def main() -> None:
     ):
         parser.error("seeds must be 1..1000, seed-start must fit uint64, and workers 1..32")
     args.output.mkdir(parents=True, exist_ok=True)
+    if not args.generation_manifest.is_file():
+        parser.error(f"generation manifest does not exist: {args.generation_manifest}")
+    try:
+        generation_manifest = json.loads(args.generation_manifest.read_text())
+        validate_exploration_generation_manifest(generation_manifest)
+    except (OSError, json.JSONDecodeError, ValueError) as error:
+        parser.error(str(error))
+    (args.output / "generation_manifest.json").write_bytes(canonical_bytes(generation_manifest))
     profile_path = None if args.profile == "cohort" else PROFILE_FILES[args.profile]
     profile = None
     if profile_path is not None:
         profile = json.loads(profile_path.read_text())
         validate_profile(profile)
         (args.output / "exploration_profile.json").write_bytes(canonical_bytes(profile))
-    _, catalog_bytes, catalog_digest, _ = _trial_catalog()
+    _, catalog_bytes, catalog_digest, _ = _trial_catalog(generation_manifest)
     (args.output / "exploration_catalog.json").write_bytes(catalog_bytes)
     seed_values = list(range(args.seed_start, args.seed_start + args.seeds))
-    with ProcessPoolExecutor(max_workers=args.workers) as pool:
-        rows = list(
-            pool.map(
-                _one,
-                seed_values,
-                [str(args.output)] * args.seeds,
-                [None if profile_path is None else str(profile_path)] * args.seeds,
-            )
+    worker_arguments = [
+        (
+            seed,
+            str(args.output),
+            None if profile_path is None else str(profile_path),
+            str(args.generation_manifest),
         )
+        for seed in seed_values
+    ]
+    if args.workers == 1:
+        rows = [_one(*arguments) for arguments in worker_arguments]
+    else:
+        with ProcessPoolExecutor(max_workers=args.workers) as pool:
+            rows = list(pool.map(_one_star, worker_arguments))
     rows.sort(key=lambda row: row["seed"])
     successes = [row for row in rows if row["status"] == "success"]
     representatives: dict[str, int] = {}
@@ -658,6 +681,8 @@ def main() -> None:
         "non_authoritative": True,
         "profile_id": "cohort" if profile is None else profile["profile_id"],
         "profile_hash": None if profile is None else profile["profile_hash"],
+        "generation_manifest_id": generation_manifest["manifest_id"],
+        "generation_manifest_hash": generation_manifest["manifest_hash"],
         "seed_count": args.seeds,
         "seed_start": args.seed_start,
         "worker_count": args.workers,

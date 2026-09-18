@@ -101,6 +101,38 @@ backend/.venv/bin/python backend/tools/run_fixture_generation_cohort.py \
 ## Section-aware arrangement v2
 
 The runner's `song-preview` and `full-song` selectors bind the v2 profiles.
+
+## Generation authority manifest
+
+Musical-form and arrangement policy remain owned by the selected exploration
+profile. The formerly hard-coded stochastic and rendering inputs are owned by
+the closed `cps.exploration-generation-manifest` v1 payload. The checked-in
+default is `backend/songprogram_conformance/profiles/full_song_generation_v1.json`;
+another self-hashed manifest may be supplied with `--generation-manifest`.
+
+The manifest is the authority for the equave/generator domains, chord-reference
+tables, rhythm grid and density, tempo, tonal centres, vector walks, rhythm
+duration/accent choices, lattice/chord budgets, production range/polyphony, and
+the role-specific deterministic trial timbres. Choices use
+`seed-domain-sha256-mod/v1`; worker count and scheduling never enter a choice
+preimage. Every equave must have at least one chord reference and vice versa.
+
+The manifest hash is:
+
+```text
+sha256("cps.exploration-generation-manifest/v1" || 0x00 || canonical_json(payload_without_manifest_hash))
+```
+
+This runner is deliberately evaluation-free. Its only valid evaluation payload
+is `{"mode":"none"}`. Native JI, PIL, genre calibration, mutation rounds, and
+archive admission are connected through their existing Evaluation and
+SearchLoop contracts. Supplying another evaluation mode here fails with
+`GENERATION_EVALUATION_UNAVAILABLE`; it must never be silently ignored.
+
+`workers=1` executes in the calling process. Larger worker counts use the
+process pool, while consuming identical seed-addressed authority. The report
+records both `generation_manifest_id` and `generation_manifest_hash`, and the
+exact canonical manifest is copied into the output directory.
 The checked v1 profiles and their measured reports remain immutable historical
 evidence. V2 adds the closed `arrangement_policy` payload and emits one
 `cps.section-arrangement-plan` sidecar per successful seed.
