@@ -1,0 +1,21 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"https://cps.local/schemas/genre_feature_cohort_audit.schema.json",
+  "title":"GenreFeatureCohortAudit v1","type":"object","additionalProperties":false,
+  "required":["schema","schema_version","set_id","record_count","partition_counts","unique_audio_hash_count","unique_embedding_count","pair_summary","closest_pairs","farthest_pairs","diagnostic_only","diagnostics","report_hash"],
+  "properties":{
+    "schema":{"const":"cps.genre-feature-cohort-audit"},"schema_version":{"const":"1.0.0"},"set_id":{"type":"string"},
+    "record_count":{"type":"integer","minimum":1},"partition_counts":{"$ref":"#/$defs/counts"},
+    "unique_audio_hash_count":{"type":"integer","minimum":1},"unique_embedding_count":{"type":"integer","minimum":1},
+    "pair_summary":{"type":"object","additionalProperties":{"$ref":"#/$defs/summary"}},
+    "closest_pairs":{"type":"array","maxItems":10,"items":{"$ref":"#/$defs/pair"}},"farthest_pairs":{"type":"array","maxItems":10,"items":{"$ref":"#/$defs/pair"}},
+    "diagnostic_only":{"const":true},"diagnostics":{"type":"array","uniqueItems":true,"items":{"enum":["audio_hash_duplicates","embedding_duplicates","baseline_feature_separation_low"]}},
+    "report_hash":{"$ref":"#/$defs/sha"}
+  },
+  "$defs":{
+    "sha":{"type":"string","pattern":"^sha256:[0-9a-f]{64}$"},"q":{"type":"integer","minimum":0,"maximum":10000},
+    "counts":{"type":"object","additionalProperties":false,"required":["calibration","validation","holdout"],"properties":{"calibration":{"type":"integer","minimum":1},"validation":{"type":"integer","minimum":1},"holdout":{"type":"integer","minimum":1}}},
+    "summary":{"type":"object","additionalProperties":false,"required":["pair_count","minimum_q","lower_quartile_q","median_q","upper_quartile_q","maximum_q","mean_q"],"properties":{"pair_count":{"type":"integer","minimum":1},"minimum_q":{"$ref":"#/$defs/q"},"lower_quartile_q":{"$ref":"#/$defs/q"},"median_q":{"$ref":"#/$defs/q"},"upper_quartile_q":{"$ref":"#/$defs/q"},"maximum_q":{"$ref":"#/$defs/q"},"mean_q":{"$ref":"#/$defs/q"}}},
+    "pair":{"type":"object","additionalProperties":false,"required":["left_id","right_id","similarity_q"],"properties":{"left_id":{"type":"string"},"right_id":{"type":"string"},"similarity_q":{"$ref":"#/$defs/q"}}}
+  }
+}

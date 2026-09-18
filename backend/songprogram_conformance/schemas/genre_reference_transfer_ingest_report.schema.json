@@ -1,0 +1,18 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"https://cps.local/schemas/genre_reference_transfer_ingest_report.schema.json",
+  "title":"GenreReferenceTransferIngestReport v1","type":"object","additionalProperties":false,
+  "required":["schema","schema_version","set_id","transfer_manifest_sha256","caption_set_sha256","feature_extractor_manifest_hash","entry_count","partition_counts","feature_record_count","status","authority_status","failures","report_hash"],
+  "properties":{
+    "schema":{"const":"cps.genre-reference-transfer-ingest-report"},"schema_version":{"const":"1.0.0"},
+    "set_id":{"type":"string","pattern":"^[a-z][a-z0-9_.-]{0,127}$"},
+    "transfer_manifest_sha256":{"$ref":"#/$defs/sha"},"caption_set_sha256":{"$ref":"#/$defs/sha"},"feature_extractor_manifest_hash":{"$ref":"#/$defs/sha"},
+    "entry_count":{"type":"integer","minimum":1,"maximum":4096},
+    "partition_counts":{"type":"object","additionalProperties":false,"required":["calibration","validation","holdout"],"properties":{"calibration":{"type":"integer","minimum":1},"validation":{"type":"integer","minimum":1},"holdout":{"type":"integer","minimum":1}}},
+    "feature_record_count":{"type":"integer","minimum":0,"maximum":4096},"status":{"enum":["passed","failed"]},
+    "authority_status":{"const":"staged_pending_rights_and_calibration"},
+    "failures":{"type":"array","maxItems":4096,"items":{"type":"object","additionalProperties":false,"required":["id","code"],"properties":{"id":{"type":"string"},"code":{"type":"string"}}}},
+    "report_hash":{"$ref":"#/$defs/sha"}
+  },
+  "$defs":{"sha":{"type":"string","pattern":"^sha256:[0-9a-f]{64}$"}}
+}
