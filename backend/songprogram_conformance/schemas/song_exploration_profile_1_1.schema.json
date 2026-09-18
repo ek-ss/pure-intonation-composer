@@ -18,7 +18,7 @@
       "type": "object", "additionalProperties": false,
       "required": ["algorithm", "minimum_distinct_role_masks", "role_count_choices_by_section_role", "role_priority_by_section_role", "velocity_scale_q_by_section_role"],
       "properties": {
-        "algorithm": {"const": "section-role-mask-and-recall/v1"},
+        "algorithm": {"const": "section-role-mask-and-recall/v1.1"},
         "minimum_distinct_role_masks": {"type": "integer", "minimum": 2, "maximum": 64},
         "role_count_choices_by_section_role": {"$ref": "#/$defs/sectionCountMap"},
         "role_priority_by_section_role": {"$ref": "#/$defs/sectionPriorityMap"},

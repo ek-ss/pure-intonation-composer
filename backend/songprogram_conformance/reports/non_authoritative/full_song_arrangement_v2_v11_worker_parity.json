@@ -1,0 +1,18 @@
+{
+  "schema": "cps.non-authoritative-worker-parity-report",
+  "schema_version": "1.0.0",
+  "profile_hash": "sha256:fbc80414c4a67c3d0dbf660707a89cf0759600d43fb903268461b771d750812e",
+  "seed": 0,
+  "worker_counts": [1, 4],
+  "status": "passed",
+  "hashes": {
+    "arrangement_plan": "sha256:577c8cf23740a7ff4e16a89211c5f07453a52b7ec00abe673b4c0345505be33f",
+    "arrangement_plan_bytes": "sha256:91061c1c5f4a2e3a8c50a8dc83ca8bf03b581ed87bd1a9d6db4512e70668b11f",
+    "program": "sha256:bdd55346ae876209362517baf74c093fa5e2db38b68b2bcf78941a08cafab591",
+    "program_bytes": "sha256:af35f47597a7deba91ce67a8458c390652635f1dcb7020e4c33c50746b6ce3bd",
+    "project": "sha256:ef20e2e6daa5f9f3fda862359ab5a3c783dec7db2699f6f415e64fbcff4bd3fa",
+    "project_bytes": "sha256:5a9f23a89a402279baf7f45f16893463bc3cb1eeb6b74d8d8d2719baa06343b7",
+    "wav": "sha256:af7114a0f5d19ed2ecb2ef12cff312b57e96e3b97f2f01c161b09fdbc9d6e20a"
+  },
+  "non_authoritative": true
+}

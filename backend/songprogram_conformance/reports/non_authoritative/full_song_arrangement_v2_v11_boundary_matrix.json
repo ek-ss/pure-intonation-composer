@@ -1,0 +1,36 @@
+{
+  "schema": "cps.non-authoritative-full-song-boundary-matrix",
+  "schema_version": "1.0.0",
+  "profile_hash": "sha256:fbc80414c4a67c3d0dbf660707a89cf0759600d43fb903268461b771d750812e",
+  "status": "passed",
+  "non_authoritative": true,
+  "cases": [
+    {
+      "bars": 28, "seed": 2, "duration_ms": 44810, "elapsed_ms": 96908, "compile_ms": 31204,
+      "distinct_role_mask_count": 3, "sounding_role_count": 3, "coverage_basis_points": 10000,
+      "fully_silent_one_second_window_count": 0,
+      "plan_hash": "sha256:1bdda166bfa3c8ea5acf7f4851a15a2f14505548fc5d9f613105371e3a491e4b",
+      "program_hash": "sha256:19f22fb343159ac6d207521cae34bae09e451c5e1e59487d10a0a3ec6b721981",
+      "project_hash": "sha256:c89d47e32c4e94b3054e77e9b98df36eeaff046b6519785628c4eb3aef1ff6c2",
+      "wav_hash": "sha256:594337ffa9c5f4679f63f71ea72ac1d9232bfa683c696027a8452911cfc82d10"
+    },
+    {
+      "bars": 32, "seed": 0, "duration_ms": 60010, "elapsed_ms": 166697, "compile_ms": 30793,
+      "distinct_role_mask_count": 2, "sounding_role_count": 3, "coverage_basis_points": 10000,
+      "fully_silent_one_second_window_count": 0,
+      "plan_hash": "sha256:577c8cf23740a7ff4e16a89211c5f07453a52b7ec00abe673b4c0345505be33f",
+      "program_hash": "sha256:bdd55346ae876209362517baf74c093fa5e2db38b68b2bcf78941a08cafab591",
+      "project_hash": "sha256:ef20e2e6daa5f9f3fda862359ab5a3c783dec7db2699f6f415e64fbcff4bd3fa",
+      "wav_hash": "sha256:af7114a0f5d19ed2ecb2ef12cff312b57e96e3b97f2f01c161b09fdbc9d6e20a"
+    },
+    {
+      "bars": 40, "seed": 4, "duration_ms": 64010, "elapsed_ms": 107472, "compile_ms": 31036,
+      "distinct_role_mask_count": 4, "sounding_role_count": 3, "coverage_basis_points": 10000,
+      "fully_silent_one_second_window_count": 0,
+      "plan_hash": "sha256:cd1d9ae5edb40b4de43c5bd1bbc57e3ec79870da4eb6c1f343eb9458ab3701b3",
+      "program_hash": "sha256:87a9ee1fd3b0923ab0b9fb73c266d936790960ddb913c7e66774a1dc0c8a4f15",
+      "project_hash": "sha256:7ac1a7796cb4e208055048bb305c19de4a86efdd0237c0990f3f8dd8a6a5486b",
+      "wav_hash": "sha256:566e7962ce43fa76e27008b8888dc5fd00afba25f92ff6aa5f285c452cba9a87"
+    }
+  ]
+}

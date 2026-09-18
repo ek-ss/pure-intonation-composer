@@ -93,6 +93,9 @@ backend/.venv/bin/python backend/tools/run_fixture_generation_cohort.py \
   --profile song-preview --seeds 32 --workers 8 --output /tmp/cps-preview-32
 backend/.venv/bin/python backend/tools/run_fixture_generation_cohort.py \
   --profile full-song --seeds 1 --workers 1 --output /tmp/cps-full-song-smoke
+backend/.venv/bin/python backend/tools/run_fixture_generation_cohort.py \
+  --profile full-song --seed-start 4 --seeds 1 --workers 1 \
+  --output /tmp/cps-full-song-40-bars
 ```
 
 ## Section-aware arrangement v2
@@ -102,7 +105,7 @@ The checked v1 profiles and their measured reports remain immutable historical
 evidence. V2 adds the closed `arrangement_policy` payload and emits one
 `cps.section-arrangement-plan` sidecar per successful seed.
 
-`section-role-mask-and-recall/v1` first completes global single-role material
+`section-role-mask-and-recall/v1.1` first completes global single-role material
 ownership, then makes one deterministic representative for each sounding role
 available in every section. It selects the active role mask and velocity from
 the section role (`intro`, `verse`, `build`, `drop`, `break`, `final`, or
@@ -121,12 +124,23 @@ The plan sidecar binds the profile hash, source structural program ID, ordered
 section plans, active roles, development stage, velocity, distinct-mask count,
 and a domain-separated canonical plan hash. It is diagnostic input for later
 search and evaluation; it does not replace Native JI or PIL evaluation.
+Before compilation, the closed plan validator checks canonical role ordering,
+form section ID/role/stage correspondence, section-role velocity membership,
+mask and sounding-role counts, status, profile binding, and plan hash.
 
 V2 also closes the gap between bar-level symbolic coverage and audible
 continuity. `maximum_fully_silent_one_second_windows` is evaluated from the
 rendered PCM32 payload. Arrangement rejection has first precedence, followed
 by PCM-silence rejection, symbolic-coverage rejection, and semantic duplicate
 rejection.
+
+V1.1 also defines the effective realization period as
+`gcd(configured_period_bars, section_bars - entry_bar)`. This keeps the period
+divisible into the remaining section span. In particular, harmony and texture
+in a five-bar section become one-bar bed periods instead of shortening every
+two- or four-bar event to the final one-bar tail and leaving uncovered gaps.
+`--seed-start` selects an explicit contiguous uint64 seed range so 28-, 32-,
+and 40-bar boundary coordinates can be rerun independently.
 
 The normative payload schemas are
 `songprogram_conformance/schemas/song_exploration_profile_1_1.schema.json` and

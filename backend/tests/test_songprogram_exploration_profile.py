@@ -4,12 +4,15 @@ import copy
 import json
 from pathlib import Path
 
+import pytest
+
 from app.songprogram.exploration_profile import (
     apply_profile,
     apply_profile_with_arrangement,
     profile_hash,
     selected_layout,
     symbolic_coverage,
+    validate_arrangement_plan,
     validate_profile,
 )
 
@@ -71,6 +74,41 @@ def test_profile_owns_schedule_and_bounds_the_final_repeat() -> None:
         + step["at_tick"]
     )
     assert final_onset + step["duration_ticks"] <= 4 * 4 * 480
+
+
+def test_odd_section_normalizes_bed_period_without_tail_gap() -> None:
+    profile = _profile("full_song_exploration_v1.json")
+    structural = {
+        "clock": {"beats_per_bar": 4, "ticks_per_beat": 480},
+        "form": [{"id": "sec_000", "bars": 5}],
+        "materials": [
+            {
+                "id": "rhy_000",
+                "kind": "rhythm_cell",
+                "steps": [{"at_tick": 0, "duration_ticks": 120}],
+            },
+            {
+                "id": "mat_000",
+                "kind": "harmony_intent_cell",
+                "rhythm_id": "rhy_000",
+            },
+        ],
+        "realizations": [
+            {
+                "id": "rea_000",
+                "section_id": "sec_000",
+                "material_id": "mat_000",
+                "role": "harmony",
+                "rhythm_transforms": [],
+            }
+        ],
+    }
+    lowered = apply_profile(structural, profile, 4)
+    realization = lowered["realizations"][0]
+    step = lowered["materials"][0]["steps"][0]
+    assert realization["every_ticks"] == 1920
+    assert realization["repeat"] == 5
+    assert step["duration_ticks"] == 1920
 
 
 def test_full_song_layout_is_deterministic_and_in_requested_range() -> None:
@@ -239,6 +277,12 @@ def test_v2_arrangement_is_deterministic_and_has_section_contrast() -> None:
     assert plans["drop"]["velocity_scale_q"] > plans["intro"]["velocity_scale_q"]
     realized_sections = {row["section_id"] for row in first_program["realizations"]}
     assert realized_sections == {"sec_000", "sec_001", "sec_002"}
+    validate_arrangement_plan(first_plan, first_program, profile)
+
+    tampered = copy.deepcopy(first_plan)
+    tampered["section_plans"][0]["development_stage"] = "close"
+    with pytest.raises(ValueError, match="ARRANGEMENT_PLAN_INVALID"):
+        validate_arrangement_plan(tampered, first_program, profile)
 
     impossible = copy.deepcopy(profile)
     impossible["arrangement_policy"]["minimum_distinct_role_masks"] = 4

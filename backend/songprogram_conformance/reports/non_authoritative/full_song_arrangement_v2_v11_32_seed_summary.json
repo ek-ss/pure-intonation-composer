@@ -1,0 +1,34 @@
+{
+  "schema": "cps.non-authoritative-full-song-cohort-summary",
+  "schema_version": "1.0.0",
+  "profile_hash": "sha256:fbc80414c4a67c3d0dbf660707a89cf0759600d43fb903268461b771d750812e",
+  "seed_start": 0,
+  "seed_count": 32,
+  "worker_count": 8,
+  "non_authoritative": true,
+  "status": "passed",
+  "overall": {
+    "compile_success": 32,
+    "compile_failed": 0,
+    "arrangement_passed": 32,
+    "coverage_passed": 32,
+    "accepted": 32,
+    "fully_silent_one_second_window_count": 0,
+    "one_second_window_count": 1853,
+    "silent_frame_basis_points": 59,
+    "program_duplicates": 0,
+    "project_duplicates": 0,
+    "audible_project_duplicates": 0,
+    "wav_duplicates": 0,
+    "processing_total_ms": 7922645,
+    "processing_mean_ms": 247583,
+    "processing_minimum_ms": 144056,
+    "processing_maximum_ms": 476428,
+    "compile_mean_ms": 51416
+  },
+  "layouts": [
+    {"bars": 28, "seed_count": 8, "processing_mean_ms": 244360, "processing_minimum_ms": 144056, "processing_maximum_ms": 389228, "compile_mean_ms": 47071, "fully_silent_one_second_window_count": 0, "minimum_distinct_role_mask_count": 2, "maximum_distinct_role_mask_count": 3},
+    {"bars": 32, "seed_count": 14, "processing_mean_ms": 246133, "processing_minimum_ms": 166784, "processing_maximum_ms": 476428, "compile_mean_ms": 53118, "fully_silent_one_second_window_count": 0, "minimum_distinct_role_mask_count": 2, "maximum_distinct_role_mask_count": 3},
+    {"bars": 40, "seed_count": 10, "processing_mean_ms": 252190, "processing_minimum_ms": 187719, "processing_maximum_ms": 408224, "compile_mean_ms": 52509, "fully_silent_one_second_window_count": 0, "minimum_distinct_role_mask_count": 2, "maximum_distinct_role_mask_count": 4}
+  ]
+}

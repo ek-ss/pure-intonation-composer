@@ -562,6 +562,7 @@ def audible_project_hash(project: dict[str, Any]) -> str:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--seeds", type=int, default=32)
+    parser.add_argument("--seed-start", type=int, default=0)
     parser.add_argument("--workers", type=int, default=4)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument(
@@ -570,8 +571,12 @@ def main() -> None:
         default="cohort",
     )
     args = parser.parse_args()
-    if not 1 <= args.seeds <= 1000 or not 1 <= args.workers <= 32:
-        parser.error("seeds must be 1..1000 and workers 1..32")
+    if (
+        not 1 <= args.seeds <= 1000
+        or not 0 <= args.seed_start <= (2**64 - args.seeds)
+        or not 1 <= args.workers <= 32
+    ):
+        parser.error("seeds must be 1..1000, seed-start must fit uint64, and workers 1..32")
     args.output.mkdir(parents=True, exist_ok=True)
     profile_path = None if args.profile == "cohort" else PROFILE_FILES[args.profile]
     profile = None
@@ -581,11 +586,12 @@ def main() -> None:
         (args.output / "exploration_profile.json").write_bytes(canonical_bytes(profile))
     _, catalog_bytes, catalog_digest, _ = _trial_catalog()
     (args.output / "exploration_catalog.json").write_bytes(catalog_bytes)
+    seed_values = list(range(args.seed_start, args.seed_start + args.seeds))
     with ProcessPoolExecutor(max_workers=args.workers) as pool:
         rows = list(
             pool.map(
                 _one,
-                range(args.seeds),
+                seed_values,
                 [str(args.output)] * args.seeds,
                 [None if profile_path is None else str(profile_path)] * args.seeds,
             )
@@ -653,12 +659,24 @@ def main() -> None:
         "profile_id": "cohort" if profile is None else profile["profile_id"],
         "profile_hash": None if profile is None else profile["profile_hash"],
         "seed_count": args.seeds,
+        "seed_start": args.seed_start,
         "worker_count": args.workers,
         "exploration_catalog_digest": catalog_digest,
         "compile_survival": {
             "success": len(successes),
             "failed": args.seeds - len(successes),
             "basis_points": round(10000 * len(successes) / args.seeds),
+        },
+        "processing_time_ms": {
+            "total": sum(row["elapsed_ms"] for row in rows),
+            "minimum": min((row["elapsed_ms"] for row in rows), default=0),
+            "maximum": max((row["elapsed_ms"] for row in rows), default=0),
+            "mean": round(sum(row["elapsed_ms"] for row in rows) / len(rows)) if rows else 0,
+            "compile_mean": round(
+                sum(row.get("compile_ms", 0) for row in successes) / len(successes)
+            )
+            if successes
+            else 0,
         },
         "failure_count": dict(sorted(failure_counts.items())),
         "duplicates": {

@@ -1,6 +1,6 @@
 {
   "arrangement_policy": {
-    "algorithm": "section-role-mask-and-recall/v1",
+    "algorithm": "section-role-mask-and-recall/v1.1",
     "minimum_distinct_role_masks": 2,
     "role_count_choices_by_section_role": {
       "break": [1, 2], "build": [2, 3], "drop": [3, 4, 5],
@@ -29,7 +29,7 @@
     "minimum_overall_coverage_bp": 8500,
     "minimum_sounding_roles": 3
   },
-  "profile_hash": "sha256:cbc1a24641379defdf4eb3264180c3ec1e2f533f0a9f02bd3f1ec73950870c28",
+  "profile_hash": "sha256:bba1e1d2e03449733f67ee38592dc9df13e7a5fd12fde07fac0653484c2f0cb0",
   "profile_id": "song-preview-exploration-v2",
   "realization_policy": {
     "bass": {"duration_ticks": [240, 480, 720], "entry_bar_choices": [0], "gate_q": [7000, 8500, 10000], "period_bars": 1},

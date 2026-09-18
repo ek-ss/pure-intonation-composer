@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import copy
 import hashlib
+import math
 from collections import Counter, defaultdict
 from typing import Any, Mapping
 
@@ -82,7 +83,7 @@ def validate_profile(profile: Mapping[str, Any]) -> None:
                 "velocity_scale_q_by_section_role",
                 "minimum_distinct_role_masks",
             }
-            or arrangement["algorithm"] != "section-role-mask-and-recall/v1"
+            or arrangement["algorithm"] != "section-role-mask-and-recall/v1.1"
             or set(arrangement["role_count_choices_by_section_role"]) != section_roles
             or set(arrangement["role_priority_by_section_role"]) != section_roles
             or set(arrangement["velocity_scale_q_by_section_role"]) != section_roles
@@ -100,6 +101,76 @@ def selected_layout(profile: Mapping[str, Any], seed: int) -> dict[str, int]:
     if set(layout) != {"section_count", "bars_per_section"}:
         raise ExplorationProfileError("EXPLORATION_PROFILE_INVALID")
     return layout
+
+
+def arrangement_plan_hash(plan: Mapping[str, Any]) -> str:
+    payload = {key: value for key, value in plan.items() if key != "plan_hash"}
+    return (
+        "sha256:"
+        + hashlib.sha256(
+            b"cps.section-arrangement-plan/v1\0" + canonical_bytes(payload)
+        ).hexdigest()
+    )
+
+
+def validate_arrangement_plan(
+    plan: Mapping[str, Any], program: Mapping[str, Any], profile: Mapping[str, Any]
+) -> None:
+    """Validate the closed semantic bindings of a v2 arrangement sidecar."""
+    validate_profile(profile)
+    if profile["schema_version"] != "1.1.0" or set(plan) != {
+        "schema",
+        "schema_version",
+        "profile_hash",
+        "source_program_id",
+        "section_plans",
+        "distinct_role_mask_count",
+        "sounding_role_count",
+        "status",
+        "plan_hash",
+    }:
+        raise ExplorationProfileError("ARRANGEMENT_PLAN_INVALID")
+    if (
+        plan["schema"] != "cps.section-arrangement-plan"
+        or plan["schema_version"] != "1.0.0"
+        or plan["profile_hash"] != profile["profile_hash"]
+        or plan["source_program_id"] != program["program_id"]
+        or plan["plan_hash"] != arrangement_plan_hash(plan)
+        or len(plan["section_plans"]) != len(program["form"])
+    ):
+        raise ExplorationProfileError("ARRANGEMENT_PLAN_INVALID")
+    role_index = {role: ordinal for ordinal, role in enumerate(profile["role_order"])}
+    masks = []
+    for section, section_plan in zip(program["form"], plan["section_plans"], strict=True):
+        roles = section_plan["active_roles"]
+        if (
+            section_plan["section_id"] != section["id"]
+            or section_plan["section_role"] != section["role"]
+            or section_plan["development_stage"] != section["development_stage"]
+            or not roles
+            or len(roles) != len(set(roles))
+            or roles != sorted(roles, key=role_index.__getitem__)
+            or section_plan["velocity_scale_q"]
+            not in profile["arrangement_policy"]["velocity_scale_q_by_section_role"][
+                section["role"]
+            ]
+        ):
+            raise ExplorationProfileError("ARRANGEMENT_PLAN_INVALID")
+        masks.append(tuple(roles))
+    distinct = len(set(masks))
+    sounding = len({role for mask in masks for role in mask})
+    expected_status = (
+        "passed"
+        if distinct >= profile["arrangement_policy"]["minimum_distinct_role_masks"]
+        and sounding >= profile["coverage_gate"]["minimum_sounding_roles"]
+        else "rejected"
+    )
+    if (
+        plan["distinct_role_mask_count"] != distinct
+        or plan["sounding_role_count"] != sounding
+        or plan["status"] != expected_status
+    ):
+        raise ExplorationProfileError("ARRANGEMENT_PLAN_INVALID")
 
 
 def apply_profile_with_arrangement(
@@ -279,19 +350,13 @@ def apply_profile_with_arrangement(
             or arrangement_report["sounding_role_count"] < minimum_roles
         ):
             arrangement_report["status"] = "rejected"
-        arrangement_report["plan_hash"] = (
-            "sha256:"
-            + hashlib.sha256(
-                b"cps.section-arrangement-plan/v1\0"
-                + canonical_bytes(
-                    {key: value for key, value in arrangement_report.items() if key != "plan_hash"}
-                )
-            ).hexdigest()
-        )
+        arrangement_report["plan_hash"] = arrangement_plan_hash(arrangement_report)
+        validate_arrangement_plan(arrangement_report, result, profile)
 
     ticks_per_bar = result["clock"]["beats_per_bar"] * result["clock"]["ticks_per_beat"]
     helper_roles: dict[str, str] = {}
     helper_tail_ticks: dict[str, int] = {}
+    helper_period_ticks: dict[str, int] = {}
     for realization in retained:
         role = realization["role"]
         policy = profile["realization_policy"][role]
@@ -305,7 +370,8 @@ def apply_profile_with_arrangement(
             f"entry-bar/{realization['section_id']}/{realization['material_id']}/{role}",
             [value for value in policy["entry_bar_choices"] if value < section_bars],
         )
-        period = policy["period_bars"]
+        remaining_bars = section_bars - entry_bar
+        period = math.gcd(policy["period_bars"], remaining_bars)
         realization["at_tick"] = entry_bar * ticks_per_bar
         realization["every_ticks"] = period * ticks_per_bar
         realization["repeat"] = 1 + (section_bars - entry_bar - 1) // period
@@ -323,13 +389,18 @@ def apply_profile_with_arrangement(
             - (realization["repeat"] - 1) * realization["every_ticks"]
         )
         helper_tail_ticks[helper_id] = min(helper_tail_ticks.get(helper_id, tail), tail)
+        effective_period_ticks = period * ticks_per_bar
+        helper_period_ticks[helper_id] = min(
+            helper_period_ticks.get(helper_id, effective_period_ticks),
+            effective_period_ticks,
+        )
 
     for helper_id, role in helper_roles.items():
         helper = materials[helper_id]
         if role in {"harmony", "texture"}:
             helper["steps"] = [{**helper["steps"][0], "at_tick": 0}]
         choices = profile["realization_policy"][role]["duration_ticks"]
-        period_ticks = profile["realization_policy"][role]["period_bars"] * ticks_per_bar
+        period_ticks = helper_period_ticks[helper_id]
         for ordinal, step in enumerate(helper["steps"]):
             maximum = min(period_ticks, helper_tail_ticks[helper_id]) - step["at_tick"]
             if maximum < 1:
