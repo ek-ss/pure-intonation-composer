@@ -1,0 +1,53 @@
+{
+  "arrangement_policy": {
+    "algorithm": "section-role-mask-and-recall/v1",
+    "minimum_distinct_role_masks": 2,
+    "role_count_choices_by_section_role": {
+      "break": [1, 2], "build": [2, 3], "drop": [3, 4, 5],
+      "final": [3, 4, 5], "intro": [1, 2], "outro": [1, 2], "verse": [2, 3]
+    },
+    "role_priority_by_section_role": {
+      "break": ["harmony", "texture", "melody", "bass", "drums"],
+      "build": ["harmony", "bass", "drums", "texture", "melody"],
+      "drop": ["harmony", "bass", "drums", "melody", "texture"],
+      "final": ["harmony", "bass", "drums", "melody", "texture"],
+      "intro": ["harmony", "texture", "melody", "bass", "drums"],
+      "outro": ["harmony", "texture", "melody", "bass", "drums"],
+      "verse": ["harmony", "bass", "drums", "melody", "texture"]
+    },
+    "velocity_scale_q_by_section_role": {
+      "break": [6500, 7000], "build": [8500, 9000], "drop": [10000],
+      "final": [9500, 10000], "intro": [6000, 6500], "outro": [5500, 6000],
+      "verse": [7500, 8000]
+    }
+  },
+  "coverage_gate": {
+    "continuous_section_roles": ["build", "drop", "final"],
+    "maximum_empty_bar_run_continuous": 0,
+    "maximum_empty_bar_run_other": 2,
+    "maximum_fully_silent_one_second_windows": 0,
+    "minimum_overall_coverage_bp": 8500,
+    "minimum_sounding_roles": 3
+  },
+  "profile_hash": "sha256:452ccd9e85096c35a970a65571ff98ce5fac85edcdd24a1844cd92f47ec196ee",
+  "profile_id": "full-song-exploration-v2",
+  "realization_policy": {
+    "bass": {"duration_ticks": [240, 480, 720], "entry_bar_choices": [0], "gate_q": [7000, 8500, 10000], "period_bars": 1},
+    "drums": {"duration_ticks": [60, 120, 240], "entry_bar_choices": [0], "gate_q": [7000, 8500, 10000], "period_bars": 1},
+    "harmony": {"duration_ticks": [3840], "entry_bar_choices": [0], "gate_q": [10000], "period_bars": 2},
+    "melody": {"duration_ticks": [240, 480, 720], "entry_bar_choices": [0, 1], "gate_q": [7000, 8500, 10000], "period_bars": 2},
+    "texture": {"duration_ticks": [7680], "entry_bar_choices": [0], "gate_q": [10000], "period_bars": 4}
+  },
+  "role_order": ["drums", "bass", "harmony", "melody", "texture"],
+  "schema": "cps.song-preview-exploration-profile",
+  "schema_version": "1.1.0",
+  "section_layouts": [
+    {"bars_per_section": 4, "section_count": 7},
+    {"bars_per_section": 4, "section_count": 8},
+    {"bars_per_section": 5, "section_count": 8}
+  ],
+  "single_role_binding": {
+    "algorithm": "seeded-weighted-owner-with-role-specialization/v1",
+    "role_weights": {"bass": 3, "drums": 1, "harmony": 1, "melody": 1, "texture": 2}
+  }
+}

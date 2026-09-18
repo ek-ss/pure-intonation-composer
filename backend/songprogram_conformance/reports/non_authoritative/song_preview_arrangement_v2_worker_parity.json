@@ -1,0 +1,16 @@
+{
+  "schema": "cps.non-authoritative-worker-parity-report",
+  "schema_version": "1.0.0",
+  "profile_hash": "sha256:cbc1a24641379defdf4eb3264180c3ec1e2f533f0a9f02bd3f1ec73950870c28",
+  "seed": 0,
+  "worker_counts": [1, 4],
+  "status": "passed",
+  "hashes": {
+    "arrangement_plan_bytes": "sha256:651b450b2ca11a6d92533b5907ae0c23baed4074a199b1528a6307ebdde4ff69",
+    "program": "sha256:68ce1263b016417ad4d1b3c2ef7079464b6b5ed6265c7a0c12dde21ca1046007",
+    "project": "sha256:82dd78d9eeafbf4796bffefce050def79dc5ae83b5a44a9c283f261b3e1bfc41",
+    "audible_project": "sha256:d33269af866a7234cd487fe78cc1dddeafc98e26c36cea72a576fb6789da7634",
+    "wav": "sha256:2e9ac679119ef8f83de7c52e8bec2b0a20b74ba7b341edfad34f9a52b7763619"
+  },
+  "non_authoritative": true
+}

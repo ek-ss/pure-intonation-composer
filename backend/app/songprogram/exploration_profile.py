@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import copy
 import hashlib
-from collections import defaultdict
+from collections import Counter, defaultdict
 from typing import Any, Mapping
 
 from .search import canonical_bytes
@@ -45,11 +45,14 @@ def validate_profile(profile: Mapping[str, Any]) -> None:
         "coverage_gate",
         "profile_hash",
     }
+    version = profile.get("schema_version") if isinstance(profile, Mapping) else None
+    if version == "1.1.0":
+        required.add("arrangement_policy")
     if (
         not isinstance(profile, Mapping)
         or set(profile) != required
         or profile.get("schema") != "cps.song-preview-exploration-profile"
-        or profile.get("schema_version") != "1.0.0"
+        or version not in {"1.0.0", "1.1.0"}
         or profile.get("profile_hash") != profile_hash(profile)
     ):
         raise ExplorationProfileError("EXPLORATION_PROFILE_INVALID")
@@ -67,6 +70,28 @@ def validate_profile(profile: Mapping[str, Any]) -> None:
             raise ExplorationProfileError("EXPLORATION_PROFILE_INVALID")
         if policy["period_bars"] < 1 or not policy["entry_bar_choices"]:
             raise ExplorationProfileError("EXPLORATION_PROFILE_INVALID")
+    if version == "1.1.0":
+        arrangement = profile["arrangement_policy"]
+        section_roles = {"intro", "verse", "build", "drop", "break", "final", "outro"}
+        if (
+            set(arrangement)
+            != {
+                "algorithm",
+                "role_count_choices_by_section_role",
+                "role_priority_by_section_role",
+                "velocity_scale_q_by_section_role",
+                "minimum_distinct_role_masks",
+            }
+            or arrangement["algorithm"] != "section-role-mask-and-recall/v1"
+            or set(arrangement["role_count_choices_by_section_role"]) != section_roles
+            or set(arrangement["role_priority_by_section_role"]) != section_roles
+            or set(arrangement["velocity_scale_q_by_section_role"]) != section_roles
+            or any(
+                set(arrangement["role_priority_by_section_role"][section_role]) != set(roles)
+                for section_role in section_roles
+            )
+        ):
+            raise ExplorationProfileError("EXPLORATION_PROFILE_INVALID")
 
 
 def selected_layout(profile: Mapping[str, Any], seed: int) -> dict[str, int]:
@@ -77,10 +102,10 @@ def selected_layout(profile: Mapping[str, Any], seed: int) -> dict[str, int]:
     return layout
 
 
-def apply_profile(
+def apply_profile_with_arrangement(
     structural_program: Mapping[str, Any], profile: Mapping[str, Any], seed: int
-) -> dict[str, Any]:
-    """Apply single-role ownership and role schedules to a structural program."""
+) -> tuple[dict[str, Any], dict[str, Any] | None]:
+    """Apply ownership, section arrangement, and role schedules."""
     validate_profile(profile)
     result = copy.deepcopy(dict(structural_program))
     roles = list(profile["role_order"])
@@ -147,6 +172,123 @@ def apply_profile(
         sounding_roles.add(role)
 
     sections = {section["id"]: section for section in result["form"]}
+    arrangement_report = None
+    if "arrangement_policy" in profile:
+        arrangement = profile["arrangement_policy"]
+        global_roles = sorted({row["role"] for row in retained}, key=role_index.__getitem__)
+        templates = {
+            role: min(
+                (row for row in retained if row["role"] == role),
+                key=lambda row: (row["material_id"].encode(), row["id"].encode()),
+            )
+            for role in global_roles
+        }
+        existing = {(row["section_id"], row["role"]) for row in retained}
+        for section_ordinal, section in enumerate(result["form"]):
+            for role in global_roles:
+                if (section["id"], role) in existing:
+                    continue
+                clone = copy.deepcopy(templates[role])
+                clone["id"] = f"arr_{section_ordinal:02d}_{role_index[role]}"
+                clone["section_id"] = section["id"]
+                retained.append(clone)
+
+        masks: dict[str, list[str]] = {}
+        velocities: dict[str, int] = {}
+        for section in result["form"]:
+            section_role = section["role"]
+            count = _choice(
+                seed,
+                f"arrangement-role-count/{section['id']}/{section_role}",
+                arrangement["role_count_choices_by_section_role"][section_role],
+            )
+            count = max(1, min(count, len(global_roles)))
+            priority = arrangement["role_priority_by_section_role"][section_role]
+            mask = [role for role in priority if role in global_roles][:count]
+            mask.sort(key=role_index.__getitem__)
+            masks[section["id"]] = mask
+            velocities[section["id"]] = _choice(
+                seed,
+                f"arrangement-velocity/{section['id']}/{section_role}",
+                arrangement["velocity_scale_q_by_section_role"][section_role],
+            )
+
+        active_union = {role for mask in masks.values() for role in mask}
+        missing_roles = [role for role in global_roles if role not in active_union]
+        energetic_sections = sorted(
+            result["form"],
+            key=lambda section: (-velocities[section["id"]], section["id"].encode()),
+        )
+        for role in missing_roles[: max(0, minimum_roles - len(active_union))]:
+            target = next(
+                section["id"] for section in energetic_sections if role not in masks[section["id"]]
+            )
+            masks[target].append(role)
+            masks[target].sort(key=role_index.__getitem__)
+            active_union.add(role)
+
+        minimum_masks = arrangement["minimum_distinct_role_masks"]
+        distinct_masks = {tuple(mask) for mask in masks.values()}
+        if len(result["form"]) > 1 and len(distinct_masks) < minimum_masks:
+            last = result["form"][-1]["id"]
+            current = masks[last]
+            occurrences = Counter(role for mask in masks.values() for role in mask)
+            last_section_role = result["form"][-1]["role"]
+            protected = next(
+                role
+                for role in arrangement["role_priority_by_section_role"][last_section_role]
+                if role in global_roles
+            )
+            removable = [role for role in reversed(current) if occurrences[role] > 1]
+            removable = [role for role in removable if role != protected]
+            if len(current) > 1 and removable:
+                masks[last] = [role for role in current if role != removable[0]]
+            elif len(global_roles) > 1:
+                masks[last] = current + [role for role in global_roles if role not in current][:1]
+
+        retained = [row for row in retained if row["role"] in masks[row["section_id"]]]
+        for row in retained:
+            row["velocity_scale_q"] = velocities[row["section_id"]]
+        section_plans = [
+            {
+                "section_id": section["id"],
+                "section_role": section["role"],
+                "development_stage": section["development_stage"],
+                "active_roles": masks[section["id"]],
+                "velocity_scale_q": velocities[section["id"]],
+            }
+            for section in result["form"]
+        ]
+        arrangement_report = {
+            "schema": "cps.section-arrangement-plan",
+            "schema_version": "1.0.0",
+            "profile_hash": profile["profile_hash"],
+            "source_program_id": result["program_id"],
+            "section_plans": section_plans,
+            "distinct_role_mask_count": len(
+                {tuple(plan["active_roles"]) for plan in section_plans}
+            ),
+            "sounding_role_count": len(
+                {role for plan in section_plans for role in plan["active_roles"]}
+            ),
+            "status": "passed",
+            "plan_hash": "",
+        }
+        if (
+            arrangement_report["distinct_role_mask_count"] < minimum_masks
+            or arrangement_report["sounding_role_count"] < minimum_roles
+        ):
+            arrangement_report["status"] = "rejected"
+        arrangement_report["plan_hash"] = (
+            "sha256:"
+            + hashlib.sha256(
+                b"cps.section-arrangement-plan/v1\0"
+                + canonical_bytes(
+                    {key: value for key, value in arrangement_report.items() if key != "plan_hash"}
+                )
+            ).hexdigest()
+        )
+
     ticks_per_bar = result["clock"]["beats_per_bar"] * result["clock"]["ticks_per_beat"]
     helper_roles: dict[str, str] = {}
     helper_tail_ticks: dict[str, int] = {}
@@ -208,7 +350,14 @@ def apply_profile(
             row["id"].encode(),
         ),
     )
-    return result
+    return result, arrangement_report
+
+
+def apply_profile(
+    structural_program: Mapping[str, Any], profile: Mapping[str, Any], seed: int
+) -> dict[str, Any]:
+    """Apply an exploration profile while preserving the v1 public return type."""
+    return apply_profile_with_arrangement(structural_program, profile, seed)[0]
 
 
 def symbolic_coverage(project: Mapping[str, Any], profile: Mapping[str, Any]) -> dict[str, Any]:

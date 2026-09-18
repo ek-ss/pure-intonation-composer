@@ -21,7 +21,7 @@ sys.path.insert(0, str(BACKEND))
 
 from app.songprogram.compiler import CompilerIdentity, compile_sp0  # noqa: E402
 from app.songprogram.exploration_profile import (  # noqa: E402
-    apply_profile,
+    apply_profile_with_arrangement,
     selected_layout,
     symbolic_coverage,
     validate_profile,
@@ -57,8 +57,8 @@ SHARED_AUTHORITY = (
 )
 PROFILE_DIRECTORY = BACKEND / "songprogram_conformance" / "profiles"
 PROFILE_FILES = {
-    "song-preview": PROFILE_DIRECTORY / "song_preview_exploration_v1.json",
-    "full-song": PROFILE_DIRECTORY / "full_song_exploration_v1.json",
+    "song-preview": PROFILE_DIRECTORY / "song_preview_exploration_v2.json",
+    "full-song": PROFILE_DIRECTORY / "full_song_exploration_v2.json",
 }
 
 
@@ -365,8 +365,9 @@ def _one(seed: int, output: str, profile_path: str | None = None) -> dict[str, A
             row["error"] = sampled["result"]["error"]
             return row
         structural = sampled["structural_program"]
+        arrangement = None
         if profile is not None:
-            structural = apply_profile(structural, profile, seed)
+            structural, arrangement = apply_profile_with_arrangement(structural, profile, seed)
         row.update(
             sampled_equave=structural["lattice"]["equave"],
             sampled_generators=structural["lattice"]["generators"],
@@ -423,6 +424,8 @@ def _one(seed: int, output: str, profile_path: str | None = None) -> dict[str, A
         (destination / "program.json").write_bytes(canonical_bytes(program))
         (destination / "project.json").write_bytes(canonical_bytes(project))
         (destination / "preview.wav").write_bytes(rendered.wav)
+        if arrangement is not None:
+            (destination / "arrangement_plan.json").write_bytes(canonical_bytes(arrangement))
         pitched = [event for event in project["events"] if event["kind"] == "note"]
         vectors = [
             tuple(event["pitch_provenance"]["final_vector"])
@@ -456,6 +459,16 @@ def _one(seed: int, output: str, profile_path: str | None = None) -> dict[str, A
         )
         if coverage is not None:
             row["symbolic_coverage"] = coverage
+        if arrangement is not None:
+            row["arrangement"] = {
+                "plan_hash": arrangement["plan_hash"],
+                "distinct_role_mask_count": arrangement["distinct_role_mask_count"],
+                "sounding_role_count": arrangement["sounding_role_count"],
+                "status": arrangement["status"],
+                "section_role_counts": [
+                    len(item["active_roles"]) for item in arrangement["section_plans"]
+                ],
+            }
         return row
     except Exception as error:  # trial ledger must retain every failed coordinate
         row.update(status="compile_or_render_failed", error=f"{type(error).__name__}:{error}")
@@ -583,7 +596,28 @@ def main() -> None:
     for row in successes:
         digest = row["audible_project_hash"]
         coverage_passed = row.get("symbolic_coverage", {}).get("status", "passed") == "passed"
-        if not coverage_passed:
+        arrangement_passed = row.get("arrangement", {}).get("status", "passed") == "passed"
+        maximum_silent_windows = (
+            profile.get("coverage_gate", {}).get("maximum_fully_silent_one_second_windows")
+            if profile is not None
+            else None
+        )
+        pcm_passed = (
+            maximum_silent_windows is None
+            or row.get("pcm_continuity", {}).get("fully_silent_one_second_window_count", 0)
+            <= maximum_silent_windows
+        )
+        if not arrangement_passed:
+            row["semantic_admission"] = {
+                "status": "rejected_arrangement",
+                "representative_seed": None,
+            }
+        elif not pcm_passed:
+            row["semantic_admission"] = {
+                "status": "rejected_pcm_silence",
+                "representative_seed": None,
+            }
+        elif not coverage_passed:
             row["semantic_admission"] = {
                 "status": "rejected_coverage",
                 "representative_seed": None,
@@ -641,6 +675,8 @@ def main() -> None:
             "accepted": admission_counts["accepted"],
             "rejected_duplicate": admission_counts["rejected_duplicate"],
             "rejected_coverage": admission_counts["rejected_coverage"],
+            "rejected_arrangement": admission_counts["rejected_arrangement"],
+            "rejected_pcm_silence": admission_counts["rejected_pcm_silence"],
         },
         "symbolic_coverage": {
             "measured": sum("symbolic_coverage" in row for row in successes),
@@ -683,6 +719,31 @@ def main() -> None:
             ),
             "one_second_window_count": sum(
                 row.get("pcm_continuity", {}).get("one_second_window_count", 0) for row in successes
+            ),
+        },
+        "arrangement": {
+            "measured": sum("arrangement" in row for row in successes),
+            "passed": sum(
+                row.get("arrangement", {}).get("status") == "passed" for row in successes
+            ),
+            "rejected": sum(
+                row.get("arrangement", {}).get("status") == "rejected" for row in successes
+            ),
+            "minimum_distinct_role_mask_count": min(
+                (
+                    row["arrangement"]["distinct_role_mask_count"]
+                    for row in successes
+                    if "arrangement" in row
+                ),
+                default=0,
+            ),
+            "maximum_distinct_role_mask_count": max(
+                (
+                    row["arrangement"]["distinct_role_mask_count"]
+                    for row in successes
+                    if "arrangement" in row
+                ),
+                default=0,
             ),
         },
         "role_presence": dict(sorted(role_presence.items())),

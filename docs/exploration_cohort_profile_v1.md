@@ -94,3 +94,40 @@ backend/.venv/bin/python backend/tools/run_fixture_generation_cohort.py \
 backend/.venv/bin/python backend/tools/run_fixture_generation_cohort.py \
   --profile full-song --seeds 1 --workers 1 --output /tmp/cps-full-song-smoke
 ```
+
+## Section-aware arrangement v2
+
+The runner's `song-preview` and `full-song` selectors bind the v2 profiles.
+The checked v1 profiles and their measured reports remain immutable historical
+evidence. V2 adds the closed `arrangement_policy` payload and emits one
+`cps.section-arrangement-plan` sidecar per successful seed.
+
+`section-role-mask-and-recall/v1` first completes global single-role material
+ownership, then makes one deterministic representative for each sounding role
+available in every section. It selects the active role mask and velocity from
+the section role (`intro`, `verse`, `build`, `drop`, `break`, `final`, or
+`outro`). Lower-intensity roles prefer harmony/texture; build, drop, and final
+prefer harmony/bass/drums before melodic decoration. The planner repairs the
+mask set deterministically when necessary so that:
+
+- the union across the song meets `minimum_sounding_roles`;
+- a multi-section song has at least `minimum_distinct_role_masks`;
+- the priority-leading bed role cannot be removed by mask-diversity repair;
+- every emitted material remains bound to exactly one role;
+- propagated realizations preserve their source material and therefore encode
+  recall rather than creating an unrelated pitch object.
+
+The plan sidecar binds the profile hash, source structural program ID, ordered
+section plans, active roles, development stage, velocity, distinct-mask count,
+and a domain-separated canonical plan hash. It is diagnostic input for later
+search and evaluation; it does not replace Native JI or PIL evaluation.
+
+V2 also closes the gap between bar-level symbolic coverage and audible
+continuity. `maximum_fully_silent_one_second_windows` is evaluated from the
+rendered PCM32 payload. Arrangement rejection has first precedence, followed
+by PCM-silence rejection, symbolic-coverage rejection, and semantic duplicate
+rejection.
+
+The normative payload schemas are
+`songprogram_conformance/schemas/song_exploration_profile_1_1.schema.json` and
+`songprogram_conformance/schemas/section_arrangement_plan.schema.json`.
