@@ -208,7 +208,7 @@ CalibrationDecisionの`promoted`を宣言してはならない。使用モデル
 ```text
 /Users/ek4sfs/Documents/CPS/local_authority/kawaii_future_bass_synthetic_v1/
 ├── masters/
-├── audio/
+├── clips/
 │   ├── calibration/
 │   ├── validation/
 │   └── holdout/
@@ -217,7 +217,9 @@ CalibrationDecisionの`promoted`を宣言してはならない。使用モデル
 └── transfer_manifest.json
 ```
 
-別PCの`clips/`をCPS PCの`audio/`へ対応させる。WAVをGit管理対象の`backend/`、
+別PCの`clips/`はディレクトリ名と内部の相対パスを変更せず転送する。
+`transfer_manifest.json`のパスが不変の検証対象であるため、`audio/`への改名は禁止する。
+WAVをGit管理対象の`backend/`、
 `docs/`、fixtureディレクトリへ置いてはならない。転送後はCPS PC上で全hashを再計算し、
 transfer manifestとの一致を確認する。
 
