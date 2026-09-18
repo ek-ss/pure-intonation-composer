@@ -1,0 +1,17 @@
+{
+  "schema": "cps.feature-extractor-manifest",
+  "schema_version": "1.0.0",
+  "extractor_id": "cps.pcm32-temporal-energy-zcr",
+  "extractor_version": "1.0.0",
+  "extractor_build_hash": "sha256:504525daa00c8bccae838c53de6a2c019b7b42ed4a7f0e19de57596af9a68413",
+  "input_audio_contract_hash": "sha256:1f5533e12142c7511e7776d872df0fa3d4043e09a8a08bc5f953bdd9f1163741",
+  "model_config_hash": "sha256:ad67fb3d28ec216c6ae3a5aa8221f4a76855d99299a9e2f658975936b816f6ae",
+  "model_weights_hash": "sha256:69f080be4309cbe7a2717f5f7c937ba52f573ac7e0a1fdc92578fa37a948940b",
+  "runtime_hash": "sha256:18da59156e86089127dde4b3c63f2b5df8595c6c6cc272086827e9678abead05",
+  "sample_rate_hz": 48000,
+  "channel_policy": "mono_downmix_rhe_q31/v1",
+  "segment_policy": {"algorithm": "fixed-frame-window/v1", "start_frame": 0, "frame_count": 480000},
+  "embedding_dimension": 32,
+  "quantization": "signed_q31_rhe/v1",
+  "manifest_hash": "sha256:80759f558482005d57c9ab1ab4f555b4d169447f7be1a1b88f739999fbbff884"
+}

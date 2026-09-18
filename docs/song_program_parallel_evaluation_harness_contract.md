@@ -65,3 +65,28 @@ backend/.venv/bin/python backend/tools/evaluate_parallel.py \
 
 The command writes the aggregate report plus Native JI, PIL, and PIL genre
 sidecars. It never modifies the Project or any reference authority.
+
+## Fixed feature snapshot and reference intake
+
+The checked `pcm32_genre_feature_extractor_v1.json` manifest pins the production
+`cps.pcm32-temporal-energy-zcr` 1.0.0 provider by exact source hash. It accepts
+48 kHz uncompressed PCM32 mono/stereo WAV, applies integer round-half-even mono
+downmix, and emits 16 temporal mean-absolute-amplitude plus 16 zero-crossing
+Q1.31 bins over the fixed ten-second window. Short input is rejected; it is
+never padded or looped. The provider is intentionally a deterministic baseline,
+not evidence that a genre calibration has succeeded.
+
+`extract_genre_feature.py` creates a candidate FeatureRecord. For reference
+audio, `build_genre_reference_set.py` consumes an operational intake JSON with
+`reference_set_id`, `evaluation_epoch_day`, and `sources`. Each source contains
+`partition`, `provenance`, and `wav` paths. It verifies the sealed license
+policy and provenance, storage/extraction/evaluation rights, expiry,
+revocation, and exact raw-audio hash. Calibration, validation, and holdout must
+all be non-empty.
+
+The intake tool emits the ReferenceSetManifest, one FeatureRecord per member,
+and `calibration_readiness.json`. The readiness status remains
+`awaiting_external_calibration` until a real listener cohort, blinded
+assignments, response set, holdout evidence, and maintainer promotion decision
+exist. Neither the tool nor the implementation tests may issue a promoted
+CalibrationDecision from synthetic or missing evidence.

@@ -1,0 +1,13 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"https://cps.local/schemas/genre_calibration_readiness.schema.json",
+  "title":"GenreCalibrationReadiness v1","type":"object","additionalProperties":false,
+  "required":["schema","schema_version","reference_set_manifest_hash","feature_extractor_manifest_hash","status","missing"],
+  "properties":{
+    "schema":{"const":"cps.genre-calibration-readiness"},"schema_version":{"const":"1.0.0"},
+    "reference_set_manifest_hash":{"$ref":"#/$defs/sha"},"feature_extractor_manifest_hash":{"$ref":"#/$defs/sha"},
+    "status":{"const":"awaiting_external_calibration"},
+    "missing":{"type":"array","prefixItems":[{"const":"listener_cohort"},{"const":"blinded_assignments"},{"const":"calibration_responses"},{"const":"holdout_evidence"},{"const":"maintainer_promotion_decision"}],"items":false,"minItems":5,"maxItems":5}
+  },
+  "$defs":{"sha":{"type":"string","pattern":"^sha256:[0-9a-f]{64}$"}}
+}
