@@ -43,11 +43,17 @@ def main() -> None:
         for item in intake["sources"]:
             if not isinstance(item, dict) or set(item) != {"partition", "provenance", "wav"}:
                 raise ValueError("GENRE_REFERENCE_INTAKE_INVALID")
+            provenance_path = Path(item["provenance"])
+            wav_path = Path(item["wav"])
+            if not provenance_path.is_absolute():
+                provenance_path = arguments.intake.parent / provenance_path
+            if not wav_path.is_absolute():
+                wav_path = arguments.intake.parent / wav_path
             sources.append(
                 (
                     item["partition"],
-                    _object(Path(item["provenance"])),
-                    Path(item["wav"]).read_bytes(),
+                    _object(provenance_path),
+                    wav_path.read_bytes(),
                 )
             )
         manifest, records = build_genre_reference_set(

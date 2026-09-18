@@ -1,0 +1,16 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"https://cps.local/schemas/genre_reference_rights_grant.schema.json",
+  "title":"GenreReferenceRightsGrant v1","type":"object","additionalProperties":false,
+  "required":["schema","schema_version","reference_set_id","transfer_manifest_hash","grantor_role","source_class","rights_basis","storage_allowed","feature_extraction_allowed","evaluation_allowed","expiry_epoch_day","revoked","attribution_required","issued_epoch_day","grant_hash"],
+  "properties":{
+    "schema":{"const":"cps.genre-reference-rights-grant"},"schema_version":{"const":"1.0.0"},
+    "reference_set_id":{"$ref":"#/$defs/id"},"transfer_manifest_hash":{"$ref":"#/$defs/sha"},
+    "grantor_role":{"const":"asset_owner"},"source_class":{"const":"user_supplied"},
+    "rights_basis":{"const":"user_supplied_explicit_grant"},
+    "storage_allowed":{"const":true},"feature_extraction_allowed":{"const":true},"evaluation_allowed":{"const":true},
+    "expiry_epoch_day":{"type":"null"},"revoked":{"const":false},"attribution_required":{"const":false},
+    "issued_epoch_day":{"type":"integer","minimum":0},"grant_hash":{"$ref":"#/$defs/sha"}
+  },
+  "$defs":{"sha":{"type":"string","pattern":"^sha256:[0-9a-f]{64}$"},"id":{"type":"string","pattern":"^[a-z][a-z0-9_.-]{0,127}$"}}
+}
