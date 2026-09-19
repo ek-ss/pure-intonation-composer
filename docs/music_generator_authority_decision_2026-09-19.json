@@ -1,0 +1,28 @@
+{
+  "schema": "cps.music-generator-authority-decision",
+  "schema_version": "1.0.0",
+  "decision_date": "2026-09-19",
+  "decision_id": "music_generator_authority_2026_09_19_v1",
+  "allowed": [
+    {
+      "provider": "ACE-Step",
+      "model_family": "ACE-Step 1.5",
+      "scope": ["positive_reference_generation", "negative_reference_generation"],
+      "conditions": [
+        "local_inference_only",
+        "snapshot_and_repository_commit_recorded",
+        "request_seed_receipt_and_output_hash_recorded",
+        "owner_rights_grant_required_before_reference_set_promotion"
+      ]
+    }
+  ],
+  "held": [
+    {"provider":"ElevenLabs","model_family":"Eleven Music v2.5","reason":"managed_service_terms_review_deferred"},
+    {"provider":"Google Cloud","model_family":"Lyria 3","reason":"competitive_use_restriction_review_required"},
+    {"provider":"Meta","model_family":"MusicGen","reason":"cc_by_nc_weight_scope"},
+    {"provider":"Tencent AI Lab","model_family":"SongGeneration 2","reason":"authoritative_license_unverified"},
+    {"provider":"Stability AI","model_family":"Stable Audio Open","reason":"community_license_and_competitive_use_scope"},
+    {"provider":"M-A-P","model_family":"YuE and YuE2","reason":"checkpoint_generation_license_variance"}
+  ],
+  "reconsideration_policy": "explicit_owner_approval_with_current_license_snapshot/v1"
+}

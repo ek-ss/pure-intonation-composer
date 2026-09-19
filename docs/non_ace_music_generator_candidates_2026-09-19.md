@@ -7,15 +7,16 @@ external-generator validation cohortを作る候補を整理する。採用時�
 model ID、snapshotまたはAPI version、全request、seed、response metadata、利用規約snapshot、
 raw audio hashを固定する。
 
-## 結論
+## 採用決定
 
-第一候補は`Eleven Music v2.5`、第二候補は`Lyria 3 Pro Preview`、ローカル再現性の比較対象は
-`MusicGen stereo`または`SongGeneration 2`とする。ただし、一つの外部modelで48曲を置換する
-のではなく、まず各model 4曲のpilotでcaption追従、無音率、clip品質、receipt取得性を比較する。
+2026-09-19のowner決定により、現段階ではACE-Step 1.5だけを継続利用する。
+本書の他候補はすべて`held_license_or_terms_review`とし、pilot生成、API接続、音源取り込み、
+provenance発行を行わない。再開にはownerによる明示的な再承認と、利用時点のlicense／terms
+snapshot確認を必要とする。
 
 ## 候補比較
 
-### 1. Eleven Music v2.5 — 優先pilot
+### 1. Eleven Music v2.5 — 保留
 
 - 公式APIは3秒から600秒を受け付け、90秒masterを直接生成できる。
 - `music_v2_5`はcomposition planによるsection制御とinstrumental生成に対応する。
@@ -31,7 +32,7 @@ raw audio hashを固定する。
 - https://elevenlabs.io/docs/eleven-api/guides/how-to/music/composition-plans
 - https://elevenlabs.io/docs/help-center/product/core-capabilities/music/what-is-eleven-music
 
-### 2. Google Lyria 3 Pro Preview — managed APIの独立検証
+### 2. Google Lyria 3 Pro Preview — 保留
 
 - `lyria-3-pro-preview`は184秒、`lyria-3-clip-preview`は30秒を生成できるため、Proなら90秒
   master契約を満たせる。
@@ -43,7 +44,7 @@ raw audio hashを固定する。
 
 - https://docs.cloud.google.com/vertex-ai/docs/release-notes#March_25_2026
 
-### 3. Meta MusicGen stereo — 非商用research baseline
+### 3. Meta MusicGen stereo — 保留
 
 - local checkpointをdigest固定でき、seed、sampling parameter、runtimeを保存しやすい。
 - native生成は32 kHz。30秒を超える生成はextended generationを使えるが、90秒では継ぎ目や
@@ -57,7 +58,7 @@ raw audio hashを固定する。
 - https://github.com/facebookresearch/audiocraft/blob/main/docs/MUSICGEN.md
 - https://github.com/facebookresearch/audiocraft/blob/main/model_cards/MUSICGEN_MODEL_CARD.md
 
-### 4. Tencent SongGeneration 2 — local full-song pilot候補
+### 4. Tencent SongGeneration 2 — 保留
 
 - 公式repositoryはSongGeneration-v2-largeを公開し、最大4分30秒、instrumental出力、
   text description制御を掲げる。
@@ -70,7 +71,7 @@ raw audio hashを固定する。
 
 - https://github.com/tencent-ailab/SongGeneration
 
-### 5. Stable Audio Open 1.0 — 10秒clipの補助対照
+### 5. Stable Audio Open 1.0 — 保留
 
 - local model、stereo 44.1 kHz、最大47秒で、30–40秒clipは取得できる。
 - positiveと同じ90秒master契約は満たさないため、主cohortではなくclip-level robustness試験に限る。
@@ -81,7 +82,7 @@ raw audio hashを固定する。
 - https://github.com/Stability-AI/stable-audio-tools
 - https://github.com/Stability-AI/stable-audio-open-demo/blob/main/README.md
 
-### 6. YuE / YuE2 — 現時点では保留
+### 6. YuE / YuE2 — 保留
 
 - full-song生成とartifact保存の能力は有望だが、公式repository内で世代ごとのweight licenseが
   異なる。YuE READMEのApache 2.0説明とYuE2 weightのCC BY-NC 4.0を混同してはならない。
@@ -92,15 +93,14 @@ raw audio hashを固定する。
 - https://github.com/multimodal-art-projection/YuE
 - https://github.com/multimodal-art-projection/YuE/blob/main/MODEL_LICENSE
 
-## 推奨pilot
+## 現行実行経路
 
-1. hard negativeから4 captionを事前固定する。
-2. Eleven Music v2.5、Lyria 3 Pro、MusicGen stereo、SongGeneration 2で各4曲を生成する。
-3. 90秒に対応しないmodelは別のclip-only experimentとして分離する。
-4. providerごとに独立したReferenceSet IDとprovenanceを発行する。
-5. modelを跨いで再生成結果を聴感選別しない。
-6. calibrationだけでprovider差とgenre差を分析し、validation前に採用feature specを固定する。
-7. holdoutは最終判定まで開封しない。
+1. 固定済み48 captionからACE-Step 1.5 negative cohortを生成する。
+2. positive cohortとrepository commit、model snapshot、runtime、推論parameterを一致させる。
+3. calibrationだけでpositive／negative分離を測定する。
+4. validation前にfeature specと判定規則を固定する。
+5. holdoutは最終確認まで開封しない。
+6. 他generatorによるmodel-bias検査は将来の別decision versionへ延期する。
 
 ## 採用判定
 

@@ -1,0 +1,22 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"https://cps.local/schemas/genre_feature_discrimination_report.schema.json",
+  "title":"GenreFeatureDiscriminationReport v1","type":"object","additionalProperties":false,
+  "required":["schema","schema_version","positive_set_id","negative_set_id","feature_extractor_manifest_hash","calibration_reference_count","threshold_q","threshold_rule","partitions","diagnostics","diagnostic_only","report_hash"],
+  "properties":{
+    "schema":{"const":"cps.genre-feature-discrimination-report"},"schema_version":{"const":"1.0.0"},
+    "positive_set_id":{"$ref":"#/$defs/id"},"negative_set_id":{"$ref":"#/$defs/id"},
+    "feature_extractor_manifest_hash":{"$ref":"#/$defs/sha"},"calibration_reference_count":{"type":"integer","minimum":2},
+    "threshold_q":{"type":"integer","minimum":0,"maximum":10001},
+    "threshold_rule":{"const":"max-balanced-accuracy-then-min-recall-then-highest-threshold/calibration-only/v1"},
+    "partitions":{"type":"object","additionalProperties":false,"required":["calibration","validation","holdout"],"properties":{"calibration":{"$ref":"#/$defs/partition"},"validation":{"$ref":"#/$defs/partition"},"holdout":{"$ref":"#/$defs/partition"}}},
+    "diagnostics":{"type":"array","uniqueItems":true,"items":{"enum":["validation_separation_insufficient","holdout_separation_insufficient"]}},
+    "diagnostic_only":{"const":true},"report_hash":{"$ref":"#/$defs/sha"}
+  },
+  "$defs":{
+    "sha":{"type":"string","pattern":"^sha256:[0-9a-f]{64}$"},"id":{"type":"string","pattern":"^[a-z][a-z0-9_.-]{0,127}$"},"q":{"type":"integer","minimum":0,"maximum":10000},
+    "summary":{"type":"object","additionalProperties":false,"required":["count","minimum_q","median_q","maximum_q","mean_q"],"properties":{"count":{"type":"integer","minimum":1},"minimum_q":{"$ref":"#/$defs/q"},"median_q":{"$ref":"#/$defs/q"},"maximum_q":{"$ref":"#/$defs/q"},"mean_q":{"$ref":"#/$defs/q"}}},
+    "performance":{"type":"object","additionalProperties":false,"required":["true_positive","false_negative","true_negative","false_positive","positive_recall_q","negative_recall_q","balanced_accuracy_q","auc_q"],"properties":{"true_positive":{"type":"integer","minimum":0},"false_negative":{"type":"integer","minimum":0},"true_negative":{"type":"integer","minimum":0},"false_positive":{"type":"integer","minimum":0},"positive_recall_q":{"$ref":"#/$defs/q"},"negative_recall_q":{"$ref":"#/$defs/q"},"balanced_accuracy_q":{"$ref":"#/$defs/q"},"auc_q":{"$ref":"#/$defs/q"}}},
+    "partition":{"type":"object","additionalProperties":false,"required":["positive_scores","negative_scores","performance"],"properties":{"positive_scores":{"$ref":"#/$defs/summary"},"negative_scores":{"$ref":"#/$defs/summary"},"performance":{"$ref":"#/$defs/performance"}}}
+  }
+}
