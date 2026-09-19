@@ -14,6 +14,7 @@ from app.songprogram.connected import canonical_lf  # noqa: E402
 from app.songprogram.evaluation_harness import (  # noqa: E402
     ParallelEvaluationError,
     evaluate_parallel,
+    evaluate_parallel_mock,
 )
 from app.songprogram.native_ji import NativeJIError  # noqa: E402
 from app.songprogram.perceptual import PilError  # noqa: E402
@@ -33,6 +34,11 @@ def main() -> None:
     parser.add_argument("--candidate-genre-feature", type=Path, required=True)
     parser.add_argument("--cache-directory", type=Path)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument(
+        "--mock-failed-genre-calibration",
+        action="store_true",
+        help="run the explicitly non-authoritative plumbing path",
+    )
     arguments = parser.parse_args()
     for option, path in (
         ("--project", arguments.project),
@@ -42,7 +48,12 @@ def main() -> None:
         if not path.is_file():
             parser.error(f"{option} does not exist or is not a file: {path}")
     try:
-        report = evaluate_parallel(
+        evaluator = (
+            evaluate_parallel_mock
+            if arguments.mock_failed_genre_calibration
+            else evaluate_parallel
+        )
+        report = evaluator(
             _object(arguments.project),
             _object(arguments.authority),
             _object(arguments.candidate_genre_feature),

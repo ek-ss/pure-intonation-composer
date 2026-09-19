@@ -66,6 +66,33 @@ backend/.venv/bin/python backend/tools/evaluate_parallel.py \
 The command writes the aggregate report plus Native JI, PIL, and PIL genre
 sidecars. It never modifies the Project or any reference authority.
 
+## Failed-calibration mock loop
+
+FeatureExtractor v1 may be used to exercise the complete
+sample → mutate → compile → render → evaluate → archive plumbing even when its
+genre discrimination has failed. This is a separate interface, not a
+CalibrationDecision promotion and not a production fallback.
+
+`cps.mock-parallel-evaluation-authority` must contain a sealed rejected
+CalibrationDecision with `CALIBRATION_THRESHOLD_NOT_MET`, the sealed diagnostic
+discrimination report, and the exact fixed mock policy. The report must bind
+the same positive ReferenceSet and extractor as the authority and must contain
+at least one failed-separation diagnostic. A promoted decision is not accepted
+by this mock interface.
+
+`evaluate_parallel_mock` and `MockSearchEvaluationAdapter` emit
+`cps.mock-parallel-evaluation-report`. Every report says
+`evaluation_mode=mock_failed_genre_discrimination`,
+`genre_similarity_authoritative=false`, and
+`production_decisions_allowed=false`. SearchLoop may use the five-element
+quality tuple and populate its mock archive, but no resulting ranking,
+champion, threshold, calibration, or genre claim may be promoted or compared
+with a production run. FeatureExtractor v2 remains deferred.
+
+The standalone evaluator selects this path only with the explicit
+`--mock-failed-genre-calibration` flag. The production entry point and schema
+continue to reject a failed calibration.
+
 ## Fixed feature snapshot and reference intake
 
 The checked `pcm32_genre_feature_extractor_v1.json` manifest pins the production

@@ -7,9 +7,10 @@ oracle, never from production code.
 from __future__ import annotations
 
 import json
+from fractions import Fraction
 from pathlib import Path
 
-from app.songprogram.resolver import resolve_joint_bnb
+from app.songprogram.resolver import _mc, resolve_joint_bnb
 from songprogram_conformance.reference import resolve_exact
 
 
@@ -27,3 +28,11 @@ def test_joint_bnb_is_invariant_to_physical_placed_domain_order() -> None:
     original = resolve_joint_bnb(query, 24)
     query["domain"]["coordinate_bounds"] = [list(item) for item in query["domain"]["coordinate_bounds"]]
     assert resolve_joint_bnb(query, 24) == original
+
+
+def test_millicent_conversion_reuses_exact_ratio_result() -> None:
+    _mc.cache_clear()
+    assert _mc(Fraction(3, 2)) == _mc(Fraction(3, 2))
+    info = _mc.cache_info()
+    assert info.misses == 1
+    assert info.hits == 1

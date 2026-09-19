@@ -9,6 +9,7 @@ from __future__ import annotations
 import hashlib
 from decimal import Decimal, DivisionByZero, InvalidOperation, Overflow, ROUND_HALF_EVEN, localcontext
 from fractions import Fraction
+from functools import lru_cache
 from itertools import combinations, permutations
 from math import gcd
 from typing import Any, Iterable
@@ -45,10 +46,12 @@ def _stable(compute: Any) -> int:
     raise ValueError("NUMERIC_INDETERMINATE")
 
 
+@lru_cache(maxsize=65_536)
 def _mc(value: Fraction) -> int:
     return _stable(lambda: int((Decimal(1_200_000) * (Decimal(value.numerator).ln() - Decimal(value.denominator).ln()) / Decimal(2).ln()).to_integral_value(rounding=ROUND_HALF_EVEN)))
 
 
+@lru_cache(maxsize=4_096)
 def _edo(equave: Fraction, divisions: int, step: int) -> int:
     return _stable(lambda: int((Decimal(1_200_000) * ((Decimal(equave.numerator).ln() - Decimal(equave.denominator).ln()) / Decimal(2).ln()) * (step % divisions) / divisions).to_integral_value(rounding=ROUND_HALF_EVEN)))
 

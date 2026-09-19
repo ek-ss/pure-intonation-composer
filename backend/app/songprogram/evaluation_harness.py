@@ -77,7 +77,9 @@ def genre_similarity_q(
     return scores[(len(scores) - 1) // 2]
 
 
-def _validate_genre_authority(authority: Mapping[str, Any]) -> list[Mapping[str, Any]]:
+def _validate_genre_authority(
+    authority: Mapping[str, Any], *, allow_failed_calibration: bool = False
+) -> list[Mapping[str, Any]]:
     intent = authority["genre_intent"]
     reference_set = authority["genre_reference_set_manifest"]
     similarity = authority["genre_similarity_spec"]
@@ -92,21 +94,32 @@ def _validate_genre_authority(authority: Mapping[str, Any]) -> list[Mapping[str,
         != reference_set.get("feature_extractor_manifest_hash")
         or intent.get("genre_similarity_spec_hash") != similarity.get("spec_hash")
         or intent.get("calibration_decision_hash") != calibration.get("decision_hash")
-        or calibration.get("status") != "promoted"
         or calibration.get("reference_set_manifest_hash") != reference_set.get("manifest_hash")
         or calibration.get("feature_extractor_manifest_hash")
         != reference_set.get("feature_extractor_manifest_hash")
-        or not isinstance(calibration.get("metric_ids"), list)
-        or "genre_similarity" not in calibration.get("metric_ids", [])
-        or not isinstance(calibration.get("promoted_metrics"), list)
-        or not any(
+        or similarity.get("algorithm") != "normalized-l1-q31/v1"
+        or similarity.get("aggregation") != "lower-median-reference-score/v1"
+    ):
+        raise ParallelEvaluationError("GENRE_AUTHORITY_BINDING_MISMATCH")
+    promoted = (
+        calibration.get("status") == "promoted"
+        and isinstance(calibration.get("metric_ids"), list)
+        and "genre_similarity" in calibration.get("metric_ids", [])
+        and isinstance(calibration.get("promoted_metrics"), list)
+        and any(
             row.get("metric_id") == "genre_similarity"
             for row in calibration.get("promoted_metrics", [])
             if isinstance(row, Mapping)
         )
-        or similarity.get("algorithm") != "normalized-l1-q31/v1"
-        or similarity.get("aggregation") != "lower-median-reference-score/v1"
-    ):
+    )
+    rejected_for_mock = (
+        allow_failed_calibration
+        and calibration.get("status") == "rejected"
+        and calibration.get("metric_ids") == []
+        and calibration.get("promoted_metrics") == []
+        and calibration.get("failure_code") == "CALIBRATION_THRESHOLD_NOT_MET"
+    )
+    if not promoted and not rejected_for_mock:
         raise ParallelEvaluationError("GENRE_AUTHORITY_BINDING_MISMATCH")
     supplied = authority["genre_reference_feature_records"]
     if not isinstance(supplied, list):
@@ -134,12 +147,13 @@ def _validate_genre_authority(authority: Mapping[str, Any]) -> list[Mapping[str,
     return selected
 
 
-def evaluate_parallel(
+def _evaluate_parallel(
     project: Mapping[str, Any],
     authority: Mapping[str, Any],
     candidate_genre_feature_record: Mapping[str, Any],
     *,
     cache_dir: str | None = None,
+    mock: bool = False,
 ) -> dict[str, Any]:
     """Evaluate all branches without allowing one branch to replace another."""
     required = {
@@ -160,15 +174,48 @@ def evaluate_parallel(
         "genre_reference_feature_records",
         "authority_hash",
     }
+    if mock:
+        required |= {"mock_policy", "genre_discrimination_report"}
+    expected_schema = (
+        "cps.mock-parallel-evaluation-authority"
+        if mock
+        else "cps.parallel-evaluation-authority"
+    )
     if (
         not isinstance(authority, Mapping)
         or set(authority) != required
-        or authority.get("schema") != "cps.parallel-evaluation-authority"
+        or authority.get("schema") != expected_schema
         or authority.get("schema_version") != "1.0.0"
         or authority.get("authority_hash") != parallel_evaluation_authority_hash(authority)
     ):
         raise ParallelEvaluationError("EVALUATION_AUTHORITY_INVALID")
-    references = _validate_genre_authority(authority)
+    if mock:
+        policy = authority["mock_policy"]
+        discrimination = authority["genre_discrimination_report"]
+        if (
+            policy
+            != {
+                "purpose": "whole_loop_plumbing_only",
+                "genre_similarity_authoritative": False,
+                "production_decisions_allowed": False,
+                "archive_behavior": "allow_mock_ranking",
+                "feature_extractor_upgrade_status": "deferred",
+            }
+            or not _sealed(discrimination, "report_hash")
+            or discrimination.get("schema") != "cps.genre-feature-discrimination-report"
+            or discrimination.get("schema_version") != "1.0.0"
+            or discrimination.get("diagnostic_only") is not True
+            or not discrimination.get("diagnostics")
+            or authority["calibration_decision"].get("status") != "rejected"
+            or discrimination.get("positive_set_id")
+            != authority["genre_reference_set_manifest"].get("reference_set_id")
+            or discrimination.get("feature_extractor_manifest_hash")
+            != authority["genre_reference_set_manifest"].get(
+                "feature_extractor_manifest_hash"
+            )
+        ):
+            raise ParallelEvaluationError("MOCK_GENRE_EVIDENCE_INVALID")
+    references = _validate_genre_authority(authority, allow_failed_calibration=mock)
     if candidate_genre_feature_record.get("feature_extractor_manifest_hash") != authority[
         "genre_reference_set_manifest"
     ].get("feature_extractor_manifest_hash"):
@@ -211,7 +258,11 @@ def evaluate_parallel(
         10_000 - best["cliche_dependence_q"],
     ]
     report = {
-        "schema": "cps.parallel-evaluation-report",
+        "schema": (
+            "cps.mock-parallel-evaluation-report"
+            if mock
+            else "cps.parallel-evaluation-report"
+        ),
         "schema_version": "1.0.0",
         "project_hash": project_hash(project),
         "authority_hash": authority["authority_hash"],
@@ -230,8 +281,49 @@ def evaluate_parallel(
         "quality": quality,
         "report_hash": "",
     }
+    if mock:
+        report.update(
+            {
+                "evaluation_mode": "mock_failed_genre_discrimination",
+                "genre_similarity_authoritative": False,
+                "production_decisions_allowed": False,
+                "discrimination_report_hash": authority[
+                    "genre_discrimination_report"
+                ]["report_hash"],
+            }
+        )
     report["report_hash"] = parallel_evaluation_report_hash(report)
     return report
+
+
+def evaluate_parallel(
+    project: Mapping[str, Any],
+    authority: Mapping[str, Any],
+    candidate_genre_feature_record: Mapping[str, Any],
+    *,
+    cache_dir: str | None = None,
+) -> dict[str, Any]:
+    """Run the production path; rejected genre calibration is never accepted."""
+    return _evaluate_parallel(
+        project, authority, candidate_genre_feature_record, cache_dir=cache_dir
+    )
+
+
+def evaluate_parallel_mock(
+    project: Mapping[str, Any],
+    authority: Mapping[str, Any],
+    candidate_genre_feature_record: Mapping[str, Any],
+    *,
+    cache_dir: str | None = None,
+) -> dict[str, Any]:
+    """Run end-to-end plumbing with explicitly non-authoritative genre evidence."""
+    return _evaluate_parallel(
+        project,
+        authority,
+        candidate_genre_feature_record,
+        cache_dir=cache_dir,
+        mock=True,
+    )
 
 
 GenreFeatureProvider = Callable[[Mapping[str, Any]], Mapping[str, Any]]
@@ -255,3 +347,25 @@ class SearchEvaluationAdapter:
         del descriptor, fingerprint, connected_output
         feature = self.feature_provider(deepcopy(project))
         return evaluate_parallel(project, self.authority, feature, cache_dir=self.cache_dir)
+
+
+@dataclass(frozen=True)
+class MockSearchEvaluationAdapter:
+    """SearchLoop adapter that preserves a visible non-production mock marker."""
+
+    authority: Mapping[str, Any]
+    feature_provider: GenreFeatureProvider
+    cache_dir: str | None = None
+
+    def __call__(
+        self,
+        project: dict[str, Any],
+        descriptor: dict[str, Any],
+        fingerprint: dict[str, Any],
+        connected_output: dict[str, Any],
+    ) -> dict[str, Any]:
+        del descriptor, fingerprint, connected_output
+        feature = self.feature_provider(deepcopy(project))
+        return evaluate_parallel_mock(
+            project, self.authority, feature, cache_dir=self.cache_dir
+        )

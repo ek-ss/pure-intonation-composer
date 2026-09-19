@@ -37,6 +37,13 @@ from .fallback import (
     structural_program_hash,
 )
 from .fixture_suite import REQUIRED_COVERAGE, validate_fixture_suite
+from .evaluation_harness import (
+    MockSearchEvaluationAdapter,
+    ParallelEvaluationError,
+    SearchEvaluationAdapter,
+    evaluate_parallel,
+    evaluate_parallel_mock,
+)
 from .perceptual import PilError, run_perceptual_interpretation
 from .resolver import resolve_joint_bnb, resolve_progression
 from .renderer import RenderError, RenderResult, render_reference
@@ -99,6 +106,8 @@ __all__ = [
     "ConnectedExecutionError",
     "FallbackError",
     "LocalRunStore",
+    "MockSearchEvaluationAdapter",
+    "ParallelEvaluationError",
     "ProductionSearchLoop",
     "RenderError",
     "RenderResult",
@@ -107,6 +116,7 @@ __all__ = [
     "SearchLoopError",
     "SearchLoopResult",
     "SearchLoopSeams",
+    "SearchEvaluationAdapter",
     "ProjectValidationError",
     "PilError",
     "action_id",
@@ -130,6 +140,8 @@ __all__ = [
     "execute_broad_prior_production",
     "execute_fallback",
     "execute_structural_sampler",
+    "evaluate_parallel",
+    "evaluate_parallel_mock",
     "fallback_mutation_id",
     "decision_action_id",
     "decision_artifact_hash",

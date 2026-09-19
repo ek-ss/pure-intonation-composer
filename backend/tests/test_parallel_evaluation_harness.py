@@ -6,9 +6,11 @@ from pathlib import Path
 import pytest
 
 from app.songprogram.evaluation_harness import (
+    MockSearchEvaluationAdapter,
     ParallelEvaluationError,
     SearchEvaluationAdapter,
     _artifact_hash,
+    evaluate_parallel_mock,
     genre_similarity_q,
 )
 from app.songprogram.native_ji import NativeJIError, evaluate_native_ji
@@ -92,3 +94,41 @@ def test_search_adapter_uses_candidate_audio_feature_provider(
     result = adapter({"project": 1}, {}, {}, {})
     assert result["quality"] == [1, 2, 3, 4, 5]
     assert calls == [({"project": 1}, feature)]
+
+
+def test_mock_search_adapter_uses_only_explicit_mock_entrypoint(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    feature = _feature([1], "sha256:" + "20" * 32)
+    calls: list[tuple[dict, dict]] = []
+
+    def fake_mock(project: dict, authority: dict, candidate: dict, *, cache_dir: str | None):
+        calls.append((project, candidate))
+        return {
+            "quality": [1, 2, 3, 4, 5],
+            "evaluation_mode": "mock_failed_genre_discrimination",
+            "production_decisions_allowed": False,
+        }
+
+    monkeypatch.setattr(
+        "app.songprogram.evaluation_harness.evaluate_parallel_mock", fake_mock
+    )
+    adapter = MockSearchEvaluationAdapter(
+        authority={"authority_hash": "sha256:" + "01" * 32},
+        feature_provider=lambda project: feature,
+        cache_dir="/tmp/evaluation-cache",
+    )
+    result = adapter({"project": 1}, {}, {}, {})
+    assert result["evaluation_mode"] == "mock_failed_genre_discrimination"
+    assert result["production_decisions_allowed"] is False
+    assert calls == [({"project": 1}, feature)]
+
+
+def test_mock_evaluator_rejects_production_authority_before_execution() -> None:
+    authority = {
+        "schema": "cps.parallel-evaluation-authority",
+        "schema_version": "1.0.0",
+        "authority_hash": "sha256:" + "00" * 32,
+    }
+    with pytest.raises(ParallelEvaluationError, match="EVALUATION_AUTHORITY_INVALID"):
+        evaluate_parallel_mock({}, authority, {})

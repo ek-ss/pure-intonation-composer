@@ -1,0 +1,18 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"https://cps.local/schemas/mock_parallel_evaluation_report.schema.json",
+  "title":"MockParallelEvaluationReport v1","type":"object","additionalProperties":false,
+  "required":["schema","schema_version","project_hash","authority_hash","genre_intent_hash","native_ji_report","pil_report","pil_genre_results","genre_similarity_q","quality_metric_ids","quality","evaluation_mode","genre_similarity_authoritative","production_decisions_allowed","discrimination_report_hash","report_hash"],
+  "properties":{
+    "schema":{"const":"cps.mock-parallel-evaluation-report"},"schema_version":{"const":"1.0.0"},
+    "project_hash":{"$ref":"#/$defs/sha"},"authority_hash":{"$ref":"#/$defs/sha"},"genre_intent_hash":{"$ref":"#/$defs/sha"},
+    "native_ji_report":{"$ref":"native_ji_evaluation_report.schema.json"},"pil_report":{"$ref":"perceptual_interpretation_report.schema.json"},
+    "pil_genre_results":{"type":"array","minItems":1,"items":{"$ref":"perceptual_genre_result.schema.json"}},
+    "genre_similarity_q":{"$ref":"#/$defs/q"},
+    "quality_metric_ids":{"const":["genre_similarity_q","native_ji.coherence","pil_genre.typicality_q","pil_genre.idiomaticity_q","pil_genre.inverse_cliche_q"]},
+    "quality":{"type":"array","prefixItems":[{"$ref":"#/$defs/q"},{"$ref":"#/$defs/q"},{"$ref":"#/$defs/q"},{"$ref":"#/$defs/q"},{"$ref":"#/$defs/q"}],"items":false,"minItems":5,"maxItems":5},
+    "evaluation_mode":{"const":"mock_failed_genre_discrimination"},"genre_similarity_authoritative":{"const":false},"production_decisions_allowed":{"const":false},
+    "discrimination_report_hash":{"$ref":"#/$defs/sha"},"report_hash":{"$ref":"#/$defs/sha"}
+  },
+  "$defs":{"sha":{"type":"string","pattern":"^sha256:[0-9a-f]{64}$"},"q":{"type":"integer","minimum":0,"maximum":10000}}
+}
