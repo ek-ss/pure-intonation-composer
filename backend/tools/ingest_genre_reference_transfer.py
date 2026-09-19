@@ -88,7 +88,9 @@ def ingest(
             receipt = json.loads(receipt_bytes)
             if not isinstance(receipt, dict):
                 raise TransferError("TRANSFER_RECEIPT_INVALID")
-            for key in ("seed", "caption", "lyrics", "bpm", "keyscale"):
+            binding_keys = ["seed", "caption", "lyrics", "bpm", "keyscale"]
+            binding_keys.extend(key for key in ("negative_tier", "genre_label") if key in track)
+            for key in binding_keys:
                 if receipt.get(key) != track.get(key):
                     raise TransferError("TRANSFER_RECEIPT_BINDING_MISMATCH")
             if (
