@@ -47,14 +47,28 @@ def validate_profile(profile: Mapping[str, Any]) -> None:
         "profile_hash",
     }
     version = profile.get("schema_version") if isinstance(profile, Mapping) else None
+    optional = {"recall_transform_policy"}
     if version == "1.1.0":
         required.add("arrangement_policy")
     if (
         not isinstance(profile, Mapping)
-        or set(profile) != required
+        or not (required <= set(profile) <= required | optional)
         or profile.get("schema") != "cps.song-preview-exploration-profile"
         or version not in {"1.0.0", "1.1.0"}
         or profile.get("profile_hash") != profile_hash(profile)
+    ):
+        raise ExplorationProfileError("EXPLORATION_PROFILE_INVALID")
+    recall_policy = profile.get("recall_transform_policy")
+    if recall_policy is not None and (
+        not isinstance(recall_policy, Mapping)
+        or set(recall_policy) != {"algorithm", "rotation_denominator_choices"}
+        or recall_policy.get("algorithm") != "seeded-nonidentity-rotate-recall/v1"
+        or not isinstance(recall_policy.get("rotation_denominator_choices"), list)
+        or not recall_policy["rotation_denominator_choices"]
+        or any(
+            type(denominator) is not int or denominator < 2
+            for denominator in recall_policy["rotation_denominator_choices"]
+        )
     ):
         raise ExplorationProfileError("EXPLORATION_PROFILE_INVALID")
     roles = profile.get("role_order")
@@ -354,16 +368,65 @@ def apply_profile_with_arrangement(
         validate_arrangement_plan(arrangement_report, result, profile)
 
     ticks_per_bar = result["clock"]["beats_per_bar"] * result["clock"]["ticks_per_beat"]
-    helper_roles: dict[str, str] = {}
+    helper_role_by_id: dict[str, str] = {}
+    for row in retained:
+        material = materials[row["material_id"]]
+        helper_id = material.get("rhythm_id", material["id"])
+        existing = helper_role_by_id.setdefault(helper_id, row["role"])
+        if existing != row["role"]:
+            raise ExplorationProfileError("EXPLORATION_MATERIAL_ROLE_CONFLICT")
+    recall_policy = profile.get("recall_transform_policy")
+    section_order = {section["id"]: ordinal for ordinal, section in enumerate(result["form"])}
+    recall_rotation: dict[str, tuple[str, int]] = {}
+    if recall_policy is not None:
+        realizations_by_material: dict[str, list[dict[str, Any]]] = defaultdict(list)
+        for row in retained:
+            realizations_by_material[row["material_id"]].append(row)
+        for material_id, rows in sorted(realizations_by_material.items()):
+            section_ids = sorted(
+                {row["section_id"] for row in rows}, key=section_order.__getitem__
+            )
+            if len(section_ids) < 2:
+                continue
+            material = materials[material_id]
+            helper_id = material.get("rhythm_id", material["id"])
+            # Pad beds (harmony/texture) tile their sections continuously;
+            # rotating one would open a silent gap that PIL segmentation
+            # cannot tolerate.  Rotating non-pad recalls keeps continuous note
+            # coverage while still providing a non-identity transformed reuse.
+            if helper_role_by_id[helper_id] in {"harmony", "texture"}:
+                continue
+            helper = materials[helper_id]
+            length_ticks = helper["length_ticks"]
+            amounts = [
+                amount
+                for denominator in recall_policy["rotation_denominator_choices"]
+                if 0 < (amount := length_ticks // denominator) < length_ticks
+            ]
+            target_section = _choice(
+                seed, f"recall-transform-section/{material_id}", section_ids[1:]
+            )
+            rotation = _choice(seed, f"recall-transform-amount/{material_id}", amounts)
+            recall_rotation[material_id] = (target_section, rotation)
     helper_tail_ticks: dict[str, int] = {}
     helper_period_ticks: dict[str, int] = {}
+    helper_rotations: dict[str, list[int]] = defaultdict(list)
     for realization in retained:
         role = realization["role"]
         policy = profile["realization_policy"][role]
-        # This profile is the sole owner of musical-time placement.  Structural
-        # rotate transforms belong to the sparse cohort prior and would shift a
-        # final repeated event beyond the tail used for the duration bound.
-        realization["rhythm_transforms"] = []
+        # This profile owns musical-time placement, so structural rotate
+        # transforms from the sparse cohort prior are replaced here.  When a
+        # recall policy is sealed into the profile, one later recall of each
+        # repeated material carries a non-identity rotate.  A rotation stays
+        # inside the one-bar rhythm cell, while both the period and the final
+        # tail span at least one bar, so no rotated event can leave its section.
+        recall = recall_rotation.get(realization["material_id"])
+        rotation_ticks = 0
+        if recall is not None and realization["section_id"] == recall[0]:
+            rotation_ticks = recall[1]
+            realization["rhythm_transforms"] = [{"op": "rotate", "ticks": rotation_ticks}]
+        else:
+            realization["rhythm_transforms"] = []
         section_bars = sections[realization["section_id"]]["bars"]
         entry_bar = _choice(
             seed,
@@ -380,9 +443,7 @@ def apply_profile_with_arrangement(
         )
         material = materials[realization["material_id"]]
         helper_id = material.get("rhythm_id", material["id"])
-        existing = helper_roles.setdefault(helper_id, role)
-        if existing != role:
-            raise ExplorationProfileError("EXPLORATION_MATERIAL_ROLE_CONFLICT")
+        helper_rotations[helper_id].append(rotation_ticks)
         tail = (
             section_bars * ticks_per_bar
             - realization["at_tick"]
@@ -395,14 +456,21 @@ def apply_profile_with_arrangement(
             effective_period_ticks,
         )
 
-    for helper_id, role in helper_roles.items():
+    for helper_id, role in helper_role_by_id.items():
         helper = materials[helper_id]
         if role in {"harmony", "texture"}:
             helper["steps"] = [{**helper["steps"][0], "at_tick": 0}]
         choices = profile["realization_policy"][role]["duration_ticks"]
         period_ticks = helper_period_ticks[helper_id]
+        # Structural rhythm cells are exactly one bar long; fall back to the
+        # same invariant for minimal fixtures that omit the field.
+        length_ticks = helper.get("length_ticks", ticks_per_bar)
         for ordinal, step in enumerate(helper["steps"]):
-            maximum = min(period_ticks, helper_tail_ticks[helper_id]) - step["at_tick"]
+            maximum_offset = max(
+                (step["at_tick"] + rotation) % length_ticks
+                for rotation in helper_rotations[helper_id]
+            )
+            maximum = min(period_ticks, helper_tail_ticks[helper_id]) - maximum_offset
             if maximum < 1:
                 raise ExplorationProfileError("EXPLORATION_DURATION_NO_PLACEMENT")
             eligible = [value for value in choices if value <= maximum]

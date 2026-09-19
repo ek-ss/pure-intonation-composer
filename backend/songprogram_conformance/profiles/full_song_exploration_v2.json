@@ -29,8 +29,12 @@
     "minimum_overall_coverage_bp": 8500,
     "minimum_sounding_roles": 3
   },
-  "profile_hash": "sha256:fbc80414c4a67c3d0dbf660707a89cf0759600d43fb903268461b771d750812e",
+  "profile_hash": "sha256:de1bd1c65fe5aafe10131d03d886ebb1b58bca7aa5d3fd926922bc7697fe0b1d",
   "profile_id": "full-song-exploration-v2",
+  "recall_transform_policy": {
+    "algorithm": "seeded-nonidentity-rotate-recall/v1",
+    "rotation_denominator_choices": [2, 3, 4]
+  },
   "realization_policy": {
     "bass": {"duration_ticks": [240, 480, 720], "entry_bar_choices": [0], "gate_q": [7000, 8500, 10000], "period_bars": 1},
     "drums": {"duration_ticks": [60, 120, 240], "entry_bar_choices": [0], "gate_q": [7000, 8500, 10000], "period_bars": 1},

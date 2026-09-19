@@ -290,3 +290,154 @@ def test_v2_arrangement_is_deterministic_and_has_section_contrast() -> None:
     _, rejected = apply_profile_with_arrangement(structural, impossible, 19)
     assert rejected is not None
     assert rejected["status"] == "rejected"
+
+
+def _full_song_structural() -> dict:
+    return {
+        "program_id": "sp_recall_transform_test",
+        "clock": {"beats_per_bar": 4, "ticks_per_beat": 480},
+        "form": [
+            {"id": "sec_000", "role": "intro", "bars": 4, "development_stage": "introduce"},
+            {"id": "sec_001", "role": "verse", "bars": 4, "development_stage": "develop"},
+            {"id": "sec_002", "role": "drop", "bars": 4, "development_stage": "contrast"},
+        ],
+        "materials": [
+            {
+                "id": "rhy_000",
+                "kind": "rhythm_cell",
+                "length_ticks": 1920,
+                "steps": [
+                    {"at_tick": 0, "duration_ticks": 120},
+                    {"at_tick": 480, "duration_ticks": 120},
+                ],
+            },
+            {"id": "mat_000", "kind": "direct_vector_cell", "rhythm_id": "rhy_000"},
+            {
+                "id": "rhy_001",
+                "kind": "rhythm_cell",
+                "length_ticks": 1920,
+                "steps": [{"at_tick": 0, "duration_ticks": 120}],
+            },
+            {"id": "mat_001", "kind": "direct_vector_cell", "rhythm_id": "rhy_001"},
+            {
+                "id": "rhy_002",
+                "kind": "rhythm_cell",
+                "length_ticks": 1920,
+                "steps": [{"at_tick": 0, "duration_ticks": 120}],
+            },
+            {"id": "mat_002", "kind": "harmony_intent_cell", "rhythm_id": "rhy_002"},
+        ],
+        "realizations": [
+            {
+                "id": f"rea_{role}",
+                "section_id": "sec_000",
+                "material_id": material,
+                "role": role,
+                "rhythm_transforms": [],
+                "velocity_scale_q": 10000,
+            }
+            for role, material in (
+                ("bass", "mat_000"),
+                ("drums", "mat_001"),
+                ("harmony", "mat_002"),
+            )
+        ],
+    }
+
+
+def _assert_recall_transforms_valid(program: dict, profile: dict) -> None:
+    ticks_per_bar = program["clock"]["beats_per_bar"] * program["clock"]["ticks_per_beat"]
+    sections = {section["id"]: section for section in program["form"]}
+    materials = {material["id"]: material for material in program["materials"]}
+    allowed_amounts = [
+        1920 // denominator
+        for denominator in profile["recall_transform_policy"]["rotation_denominator_choices"]
+    ]
+    rotated_by_material: dict[str, int] = {}
+    for realization in program["realizations"]:
+        transforms = realization["rhythm_transforms"]
+        if not transforms:
+            continue
+        assert len(transforms) == 1
+        entry = transforms[0]
+        assert set(entry) == {"op", "ticks"} and entry["op"] == "rotate"
+        assert entry["ticks"] in allowed_amounts
+        material_id = realization["material_id"]
+        assert material_id not in rotated_by_material
+        rotated_by_material[material_id] = entry["ticks"]
+    role_by_material = {
+        realization["material_id"]: realization["role"]
+        for realization in program["realizations"]
+    }
+    materials_in_two_sections = {
+        material_id
+        for material_id, rows in _realizations_by_material(program).items()
+        if len({row["section_id"] for row in rows}) >= 2
+    }
+    expected_rotated = {
+        material_id
+        for material_id in materials_in_two_sections
+        if role_by_material[material_id] not in {"harmony", "texture"}
+    }
+    assert set(rotated_by_material) == expected_rotated
+    for realization in program["realizations"]:
+        material = materials[realization["material_id"]]
+        helper = (
+            material
+            if material["kind"] == "rhythm_cell"
+            else materials[material["rhythm_id"]]
+        )
+        length_ticks = helper["length_ticks"]
+        rotation = sum(
+            entry["ticks"] for entry in realization["rhythm_transforms"]
+        )
+        section_bars = sections[realization["section_id"]]["bars"]
+        for step in helper["steps"]:
+            final_onset = (
+                realization["at_tick"]
+                + (realization["repeat"] - 1) * realization["every_ticks"]
+                + (step["at_tick"] + rotation) % length_ticks
+            )
+            assert final_onset + step["duration_ticks"] <= section_bars * ticks_per_bar
+
+
+def _realizations_by_material(program: dict) -> dict[str, list[dict]]:
+    grouped: dict[str, list[dict]] = {}
+    for realization in program["realizations"]:
+        grouped.setdefault(realization["material_id"], []).append(realization)
+    return grouped
+
+
+def test_full_song_recall_transform_is_nonidentity_and_section_bounded() -> None:
+    profile = _profile("full_song_exploration_v2.json")
+    structural = _full_song_structural()
+    first_program, plan = apply_profile_with_arrangement(structural, profile, 23)
+    second_program, _ = apply_profile_with_arrangement(structural, profile, 23)
+    second_plan = apply_profile_with_arrangement(structural, profile, 23)[1]
+    assert (first_program, plan) == (second_program, second_plan)
+    _assert_recall_transforms_valid(first_program, profile)
+    for seed in (0, 1, 2, 3):
+        program, _ = apply_profile_with_arrangement(structural, profile, seed)
+        _assert_recall_transforms_valid(program, profile)
+    rotated = [
+        realization["rhythm_transforms"]
+        for realization in first_program["realizations"]
+        if realization["rhythm_transforms"]
+    ]
+    assert rotated, "expected at least one non-identity transformed recall"
+
+
+def test_recall_transform_policy_validation() -> None:
+    profile = _profile("full_song_exploration_v2.json")
+    for policy in (
+        {"algorithm": "other/v1", "rotation_denominator_choices": [2, 3]},
+        {"algorithm": "seeded-nonidentity-rotate-recall/v1", "rotation_denominator_choices": []},
+        {"algorithm": "seeded-nonidentity-rotate-recall/v1", "rotation_denominator_choices": [1, 2]},
+        {"algorithm": "seeded-nonidentity-rotate-recall/v1", "rotation_denominator_choices": [2, True]},
+        {"algorithm": "seeded-nonidentity-rotate-recall/v1"},
+    ):
+        invalid = copy.deepcopy(profile)
+        invalid["recall_transform_policy"] = policy
+        invalid["profile_hash"] = profile_hash(invalid)
+        with pytest.raises(ValueError, match="EXPLORATION_PROFILE_INVALID"):
+            validate_profile(invalid)

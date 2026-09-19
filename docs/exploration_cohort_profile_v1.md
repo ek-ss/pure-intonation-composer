@@ -174,6 +174,25 @@ two- or four-bar event to the final one-bar tail and leaving uncovered gaps.
 `--seed-start` selects an explicit contiguous uint64 seed range so 28-, 32-,
 and 40-bar boundary coordinates can be rerun independently.
 
+When a profile seals `recall_transform_policy`
+(`seeded-nonidentity-rotate-recall/v1`), the profile lowering replaces the
+structural rotate transforms with its own recall transform: for every material
+realized in two or more sections, exactly one later recall (seed-selected)
+carries a single non-identity `{"op":"rotate","ticks":...}` transform whose
+amount is seed-selected from `length_ticks // k` over the sealed denominators
+`k`; every other realization keeps an empty transform list. Rotation is applied
+to non-pad materials (drums/bass/melody) only: pad beds (harmony/texture) tile
+their sections continuously, and rotating one would open a silent gap that PIL
+harmonic segmentation rejects as `PIL_SEGMENT_EMPTY`. Because structural rhythm
+cells are exactly one bar long while both the effective period and the final
+tail span at least one bar, a rotated event cannot leave its section; step
+durations are bounded by the maximum effective offset across all realizations
+of that helper. `full_song_exploration_v2.json` seals denominators `[2, 3, 4]`;
+the v1 profiles and `song_preview_exploration_v2.json` omit the policy and keep
+transform-free lowering. This satisfies the GEN0 hard check
+`non_identity_transformed_recall_across_sections` without loosening any
+evaluation threshold.
+
 The normative payload schemas are
 `songprogram_conformance/schemas/song_exploration_profile_1_1.schema.json` and
 `songprogram_conformance/schemas/section_arrangement_plan.schema.json`.

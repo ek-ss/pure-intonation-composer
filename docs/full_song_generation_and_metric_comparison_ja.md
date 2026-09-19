@@ -258,7 +258,20 @@ local_authority/mock_full_song_12seed_recall_fix_v1/
 - reference rendererは決定論性優先で、full-song WAV生成時間が大きくなります。
 - hard gate合格曲が0件のcohortでは、3指標の完成楽曲選別性能は確定できません。
 - 変形recallが生成されない場合は、評価閾値を緩めずsampler／loweringを修正します。
+  full-song loweringへの非identity変形recall生成は2026-09-19に実装済みです
+  （`full_song_exploration_v2.json`の`recall_transform_policy`、
+  `exploration_cohort_profile_v1.md`参照）。
 
 ## 13. 推奨する次の試験
 
 full-song loweringへ非identity変形recall生成を実装した後、同じseed 0〜11を別ディレクトリへ再生成します。修正前後でseedを揃えることで、成立率の変化と3指標への影響を対応比較できます。
+
+2026-09-19実施記録: 実装後、seed 0〜11を
+`local_authority/mock_full_song_12seed_recall_fix_v1/`へ再生成し、
+`local_authority/mock_full_song_100seed_v1/`の同一seed範囲と対応比較しました。
+結果はcompile survival 12/12維持、重複0件維持、変形recall 0/12→12/12、
+GEN0完成楽曲成立率0/12→9/12（残る失敗は
+`minimum_three_core_sounding_roles`のみ）、
+`performance_conclusion`が
+`distribution_only_no_viable_song_discrimination`→
+`viable_song_comparison_available`へ変化しました。
