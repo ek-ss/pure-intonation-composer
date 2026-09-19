@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cps.local/schemas/composition_calibration_split.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "schema_version", "calibration_basis_points", "assignments", "split_hash"],
+  "properties": {
+    "schema": {"const": "cps.composition-calibration-split"},
+    "schema_version": {"const": "1.0.0"},
+    "calibration_basis_points": {"type": "integer", "minimum": 1, "maximum": 9999},
+    "assignments": {"type": "array", "items": {"$ref": "#/$defs/assignment"}},
+    "split_hash": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "assignment": {
+      "type": "object",
+      "required": ["candidate_id", "lineage_id", "cohort", "audio_path", "audio_hash", "partition"],
+      "properties": {
+        "candidate_id": {"type": "string", "minLength": 1},
+        "lineage_id": {"type": "string", "minLength": 1},
+        "cohort": {"type": "string", "minLength": 1},
+        "audio_path": {"type": "string", "minLength": 1},
+        "audio_hash": {"$ref": "#/$defs/sha256"},
+        "g1_feature_report_hash": {"$ref": "#/$defs/sha256"},
+        "partition": {"enum": ["calibration", "holdout"]}
+      }
+    }
+  }
+}

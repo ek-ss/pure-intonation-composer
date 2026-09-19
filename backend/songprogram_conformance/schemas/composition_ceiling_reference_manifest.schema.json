@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cps.local/schemas/composition_ceiling_reference_manifest.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "schema_version", "source_set_id", "partition", "usage", "g1_symbolic_features_available", "entries", "manifest_hash"],
+  "properties": {
+    "schema": {"const": "cps.composition-ceiling-reference-manifest"},
+    "schema_version": {"const": "1.0.0"},
+    "source_set_id": {"type": "string", "minLength": 1},
+    "partition": {"type": "string", "minLength": 1},
+    "usage": {"const": "g2_perceptual_ceiling_only"},
+    "g1_symbolic_features_available": {"const": false},
+    "entries": {"type": "array", "minItems": 24, "maxItems": 24},
+    "manifest_hash": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+  }
+}

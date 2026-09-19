@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cps.local/schemas/composition_plan_2_0.schema.json",
+  "title": "CPS Composition Plan 2.0",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema", "schema_version", "profile_id", "profile_hash", "seed", "form_template_id", "total_bars", "sections", "harmonic_trajectory", "motif_plan", "part_coordination", "plan_hash"],
+  "properties": {
+    "schema": {"const": "cps.composition-plan"}, "schema_version": {"const": "2.0.0"},
+    "profile_id": {"type": "string", "minLength": 1}, "profile_hash": {"$ref": "#/$defs/sha256"},
+    "seed": {"type": "integer", "minimum": 0, "maximum": 18446744073709551615},
+    "form_template_id": {"type": "string", "minLength": 1}, "total_bars": {"type": "integer", "minimum": 16, "maximum": 64},
+    "sections": {"type": "array", "minItems": 3, "maxItems": 8, "items": {"$ref": "#/$defs/section"}},
+    "harmonic_trajectory": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/harmonicTrajectoryEntry"}},
+    "motif_plan": {"$ref": "#/$defs/motifPlan"},
+    "part_coordination": {"$ref": "#/$defs/partCoordination"},
+    "plan_hash": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "id": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,63}$"},
+    "harmonicTrajectoryEntry": {"type": "object", "additionalProperties": false, "required": ["phrase_id", "state_id", "harmonic_function", "root_degree_ordinal"], "properties": {"phrase_id": {"$ref": "#/$defs/id"}, "state_id": {"$ref": "#/$defs/id"}, "harmonic_function": {"enum": ["home", "departure", "preparation", "arrival", "return"]}, "root_degree_ordinal": {"type": "integer", "minimum": -64, "maximum": 64}}},
+    "motifEvent": {"type": "object", "additionalProperties": false, "required": ["event_id", "source_event_id", "position_q", "duration_q", "degree_delta"], "properties": {"event_id": {"$ref": "#/$defs/id"}, "source_event_id": {"oneOf": [{"$ref": "#/$defs/id"}, {"type": "null"}]}, "position_q": {"type": "integer", "minimum": 0, "maximum": 9999}, "duration_q": {"type": "integer", "minimum": 1, "maximum": 10000}, "degree_delta": {"type": "integer", "minimum": -64, "maximum": 64}}},
+    "motifOccurrence": {"type": "object", "additionalProperties": false, "required": ["phrase_id", "lineage_id", "source_phrase_id", "operation", "events"], "properties": {"phrase_id": {"$ref": "#/$defs/id"}, "lineage_id": {"oneOf": [{"$ref": "#/$defs/id"}, {"type": "null"}]}, "source_phrase_id": {"oneOf": [{"$ref": "#/$defs/id"}, {"type": "null"}]}, "operation": {"enum": ["rest", "statement", "recall", "answer", "rhythmic_displacement", "fragmentation", "cadential_release"]}, "events": {"type": "array", "maxItems": 16, "items": {"$ref": "#/$defs/motifEvent"}}}},
+    "motifPlan": {"type": "object", "additionalProperties": false, "required": ["template_id", "root_phrase_id", "occurrences"], "properties": {"template_id": {"type": "string", "minLength": 1}, "root_phrase_id": {"oneOf": [{"$ref": "#/$defs/id"}, {"type": "null"}]}, "occurrences": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/motifOccurrence"}}}},
+    "partCoordination": {"type": "object", "additionalProperties": false, "required": ["algorithm", "drum_onsets_q", "bass_onsets_q", "drum_duration_q", "bass_duration_q", "boundary_gesture_onset_q", "melody_chord_member_cycle"], "properties": {"algorithm": {"const": "kick-bass-harmony-foreground/v1"}, "drum_onsets_q": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "integer", "minimum": 0, "maximum": 9999}}, "bass_onsets_q": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "integer", "minimum": 0, "maximum": 9999}}, "drum_duration_q": {"type": "integer", "minimum": 1, "maximum": 10000}, "bass_duration_q": {"type": "integer", "minimum": 1, "maximum": 10000}, "boundary_gesture_onset_q": {"type": "integer", "minimum": 0, "maximum": 9999}, "melody_chord_member_cycle": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "integer", "minimum": 0, "maximum": 7}}}},
+    "phrase": {
+      "type": "object", "additionalProperties": false,
+      "required": ["phrase_id", "ordinal", "start_bar", "length_bars", "slots", "cadence_target"],
+      "properties": {
+        "phrase_id": {"$ref": "#/$defs/id"}, "ordinal": {"type": "integer", "minimum": 0},
+        "start_bar": {"type": "integer", "minimum": 0}, "length_bars": {"type": "integer", "minimum": 2, "maximum": 8},
+        "slots": {"type": "array", "minItems": 2, "maxItems": 8, "items": {"enum": ["pickup", "body", "answer", "cadence"]}},
+        "cadence_target": {"enum": ["none", "continuation", "arrival", "home", "open"]}
+      }
+    },
+    "section": {
+      "type": "object", "additionalProperties": false,
+      "required": ["section_id", "ordinal", "section_key", "function", "bars", "energy_q", "density_q", "cadence_target", "foreground_state", "phrases"],
+      "properties": {
+        "section_id": {"$ref": "#/$defs/id"}, "ordinal": {"type": "integer", "minimum": 0},
+        "section_key": {"type": "string", "minLength": 1},
+        "function": {"enum": ["opening", "statement", "preparation", "arrival", "contrast", "return", "closure"]},
+        "bars": {"type": "integer", "minimum": 2, "maximum": 16}, "energy_q": {"type": "integer", "minimum": 0, "maximum": 10000},
+        "density_q": {"type": "integer", "minimum": 0, "maximum": 10000},
+        "cadence_target": {"enum": ["none", "continuation", "arrival", "home", "open"]},
+        "foreground_state": {"enum": ["absent", "introduce", "present", "develop", "recall", "release"]},
+        "phrases": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/phrase"}}
+      }
+    }
+  }
+}

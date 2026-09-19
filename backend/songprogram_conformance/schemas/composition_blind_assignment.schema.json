@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cps.local/schemas/composition_blind_assignment.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "schema_version", "source_split_hash", "partition", "assignment_seed", "questions", "response_enum", "assignments", "assignment_hash"],
+  "properties": {
+    "schema": {"const": "cps.composition-blind-assignment"},
+    "schema_version": {"const": "1.0.0"},
+    "source_split_hash": {"$ref": "#/$defs/sha256"},
+    "partition": {"enum": ["calibration", "holdout"]},
+    "assignment_seed": {"type": "integer", "minimum": 0},
+    "questions": {"type": "array", "minItems": 6, "maxItems": 6, "items": {"type": "string"}},
+    "response_enum": {"const": ["yes", "uncertain", "no"]},
+    "assignments": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["ordinal", "blind_id", "audio_path", "audio_hash"],
+        "properties": {
+          "ordinal": {"type": "integer", "minimum": 0},
+          "blind_id": {"type": "string", "pattern": "^blind_[0-9a-f]{16}$"},
+          "audio_path": {"type": "string", "minLength": 1},
+          "audio_hash": {"$ref": "#/$defs/sha256"}
+        }
+      }
+    },
+    "assignment_hash": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {"sha256": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}}
+}

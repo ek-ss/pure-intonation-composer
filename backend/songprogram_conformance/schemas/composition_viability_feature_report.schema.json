@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cps.local/schemas/composition_viability_feature_report.schema.json",
+  "title": "G1 Composition Viability Feature Report",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema", "schema_version", "non_authoritative", "usage", "program_id", "project_id", "metrics_q", "diagnostics", "report_hash"],
+  "properties": {
+    "schema": {"const": "cps.composition-viability-feature-report"},
+    "schema_version": {"const": "1.0.0"},
+    "non_authoritative": {"const": true},
+    "usage": {"const": "g1_calibration_feature_only_not_archive_admission"},
+    "program_id": {"type": ["string", "null"]}, "project_id": {"type": ["string", "null"]},
+    "metrics_q": {"$ref": "#/$defs/metrics"},
+    "diagnostics": {"type": "object", "additionalProperties": {"type": ["integer", "boolean"]}},
+    "report_hash": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+  },
+  "$defs": {
+    "q": {"type": "integer", "minimum": 0, "maximum": 10000},
+    "metrics": {
+      "type": "object", "additionalProperties": false,
+      "required": ["formal_arc_consistency_q", "phrase_boundary_strength_q", "audible_motif_recurrence_q", "motif_development_distance_q", "harmonic_motion_q", "groove_distribution_q", "section_contrast_q", "adjacent_section_continuity_q", "part_coordination_q", "foreground_presence_q", "ending_closure_q"],
+      "properties": {
+        "formal_arc_consistency_q": {"$ref": "#/$defs/q"}, "phrase_boundary_strength_q": {"$ref": "#/$defs/q"},
+        "audible_motif_recurrence_q": {"$ref": "#/$defs/q"}, "motif_development_distance_q": {"$ref": "#/$defs/q"},
+        "harmonic_motion_q": {"$ref": "#/$defs/q"}, "groove_distribution_q": {"$ref": "#/$defs/q"},
+        "section_contrast_q": {"$ref": "#/$defs/q"}, "adjacent_section_continuity_q": {"$ref": "#/$defs/q"},
+        "part_coordination_q": {"$ref": "#/$defs/q"}, "foreground_presence_q": {"$ref": "#/$defs/q"},
+        "ending_closure_q": {"$ref": "#/$defs/q"}
+      }
+    }
+  }
+}

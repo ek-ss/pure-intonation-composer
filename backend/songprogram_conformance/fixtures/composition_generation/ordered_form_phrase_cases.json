@@ -1,0 +1,27 @@
+{
+  "schema": "cps.composition-plan-case-set",
+  "schema_version": "1.0.0",
+  "profile_hash": "sha256:99c6e1fa74ff0ffecf8bbb7a0d1a2252201deabbd33475ce09f7259913448019",
+  "cases": [
+    {
+      "seed": 0,
+      "form_template_id": "intro-verse-build-drop-return-final-outro",
+      "total_bars": 32,
+      "phrase_lengths_by_section": [[2, 2], [2, 2], [4], [4], [4], [2, 2], [4], [2, 2]],
+      "harmonic_state_ids": ["harm_home", "harm_home", "harm_departure", "harm_home", "harm_preparation", "harm_arrival", "harm_departure", "harm_preparation", "harm_preparation", "harm_return", "harm_home", "harm_return"],
+      "motif_template_id": "ascending-answerable-v1",
+      "motif_operations": ["statement", "recall", "answer", "recall", "rhythmic_displacement", "recall", "fragmentation", "rhythmic_displacement", "rhythmic_displacement", "rhythmic_displacement", "cadential_release", "cadential_release"],
+      "plan_hash": "sha256:a21fd62e0b187755e9e49b9039b214eb8d34ae3baa6aed1192a80fd1100d308b"
+    },
+    {
+      "seed": 1,
+      "form_template_id": "intro-statement-arrival-contrast-build-final-outro",
+      "total_bars": 28,
+      "phrase_lengths_by_section": [[2, 2], [4], [4], [2, 2], [2, 2], [4], [2, 2]],
+      "harmonic_state_ids": ["harm_home", "harm_home", "harm_home", "harm_home", "harm_preparation", "harm_preparation", "harm_preparation", "harm_preparation", "harm_home", "harm_home", "harm_return"],
+      "motif_template_id": "ascending-answerable-v1",
+      "motif_operations": ["statement", "recall", "recall", "recall", "answer", "answer", "fragmentation", "rhythmic_displacement", "answer", "cadential_release", "cadential_release"],
+      "plan_hash": "sha256:779cf25557215904f97a71f56d682af998d5993ce7f945e90e513ac080a8861f"
+    }
+  ]
+}
