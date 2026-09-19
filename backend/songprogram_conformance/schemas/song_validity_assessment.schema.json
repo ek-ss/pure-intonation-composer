@@ -1,0 +1,14 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"https://cps.local/schemas/song_validity_assessment.schema.json",
+  "title":"Completed Song Validity Assessment v1","type":"object","additionalProperties":false,
+  "required":["schema","schema_version","status","archive_eligible","hard_checks","diagnostics","failure_codes","assessment_hash"],
+  "properties":{
+    "schema":{"const":"cps.song-validity-assessment"},"schema_version":{"const":"1.0.0"},
+    "status":{"enum":["passed","failed"]},"archive_eligible":{"type":"boolean"},
+    "hard_checks":{"type":"object","additionalProperties":false,"required":["bars_16_to_64","sections_3_to_8","every_section_realized","minimum_three_core_sounding_roles","symbolic_coverage_at_least_8500_bp","no_fully_silent_one_second_window","arrangement_development_passed","polyphony_within_track_limits","non_identity_transformed_recall_across_sections"],"properties":{"bars_16_to_64":{"type":"boolean"},"sections_3_to_8":{"type":"boolean"},"every_section_realized":{"type":"boolean"},"minimum_three_core_sounding_roles":{"type":"boolean"},"symbolic_coverage_at_least_8500_bp":{"type":"boolean"},"no_fully_silent_one_second_window":{"type":"boolean"},"arrangement_development_passed":{"type":"boolean"},"polyphony_within_track_limits":{"type":"boolean"},"non_identity_transformed_recall_across_sections":{"type":"boolean"}}},
+    "diagnostics":{"type":"object","additionalProperties":false,"required":["bars","section_count","event_count","emitted_core_roles","overall_coverage_basis_points","fully_silent_one_second_window_count","distinct_role_mask_count"],"properties":{"bars":{"type":"integer","minimum":0},"section_count":{"type":"integer","minimum":0},"event_count":{"type":"integer","minimum":0},"emitted_core_roles":{"type":"array","uniqueItems":true,"items":{"enum":["bass","drums","harmony","melody"]}},"overall_coverage_basis_points":{"type":["integer","null"],"minimum":0,"maximum":10000},"fully_silent_one_second_window_count":{"type":["integer","null"],"minimum":0},"distinct_role_mask_count":{"type":["integer","null"],"minimum":0}}},
+    "failure_codes":{"type":"array","uniqueItems":true,"items":{"type":"string"}},
+    "assessment_hash":{"type":"string","pattern":"^sha256:[0-9a-f]{64}$"}
+  }
+}

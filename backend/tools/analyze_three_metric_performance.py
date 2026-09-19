@@ -22,6 +22,21 @@ METRICS = (
 )
 
 
+def _preview_viable(row: dict) -> bool:
+    checks = row["song_validity"]["hard_checks"]
+    return all(
+        checks[key]
+        for key in (
+            "every_section_realized",
+            "minimum_three_core_sounding_roles",
+            "symbolic_coverage_at_least_8500_bp",
+            "no_fully_silent_one_second_window",
+            "arrangement_development_passed",
+            "polyphony_within_track_limits",
+        )
+    )
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--report", type=Path, required=True)
@@ -62,16 +77,16 @@ def main() -> None:
         "excluded_metric_ids": ["genre_similarity_q", "pil_genre.inverse_cliche_q"],
         "seed_count": len(rows),
         "preview_viable_count": sum(
-            row["song_validity"]["profile_preview_viable"] for row in rows
+            _preview_viable(row) for row in rows
         ),
         "gen0_song_viable_count": sum(
-            row["song_validity"]["gen0_song_viable"] for row in rows
+            row["song_validity"]["archive_eligible"] for row in rows
         ),
         "failed_hard_check_count": dict(sorted(failed_checks.items())),
         "metric_summaries": summaries,
         "performance_conclusion": (
             "distribution_only_no_viable_song_discrimination"
-            if not any(row["song_validity"]["gen0_song_viable"] for row in rows)
+            if not any(row["song_validity"]["archive_eligible"] for row in rows)
             else "viable_song_comparison_available"
         ),
         "report_hash": "",

@@ -74,6 +74,7 @@ from .search_decisions import (
     validate_cancellation_scenario,
     validate_parallel_scenario,
 )
+from .song_validity import SongValidityError, assess_completed_song
 from .search import (
     ArchiveCandidate,
     LocalRunStore,
@@ -117,12 +118,14 @@ __all__ = [
     "SearchLoopResult",
     "SearchLoopSeams",
     "SearchEvaluationAdapter",
+    "SongValidityError",
     "ProjectValidationError",
     "PilError",
     "action_id",
     "apply_broad_prior_production",
     "apply_structural_broad_prior_production",
     "archive_admission",
+    "assess_completed_song",
     "canonical_bytes",
     "cancellation_cutoff_action_id",
     "challenger_acceptance",

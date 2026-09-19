@@ -15,6 +15,7 @@ from app.songprogram.connected import canonical_lf  # noqa: E402
 from app.songprogram.evaluation_harness import _artifact_hash, evaluate_parallel_mock  # noqa: E402
 from app.songprogram.perceptual import manifest_hash  # noqa: E402
 from app.songprogram.perceptual_genre import genre_model_hash  # noqa: E402
+from app.songprogram.song_validity import assess_completed_song  # noqa: E402
 
 
 def _load(path: Path) -> dict:
@@ -115,76 +116,14 @@ def _authority(local_authority: Path) -> dict:
 
 
 def _song_validity(program: dict, project: dict, cohort_row: dict) -> dict:
-    sections = program["form"]
-    realizations = program["realizations"]
-    section_ids = {section["id"] for section in sections}
-    realized_sections = {row["section_id"] for row in realizations}
-    track_roles = {track["id"]: track["role"] for track in project["tracks"]}
-    emitted_roles = {
-        track_roles[event["track_id"]]
-        for event in project["events"]
-        if event["kind"] in {"note", "drum"} and event["track_id"] in track_roles
-    }
-    eligible_roles = emitted_roles & {"drums", "bass", "harmony", "melody"}
-    transformed_material_sections: dict[str, set[str]] = {}
-    for realization in realizations:
-        if realization.get("pitch_transforms") or realization.get("rhythm_transforms"):
-            transformed_material_sections.setdefault(realization["material_id"], set()).add(
-                realization["section_id"]
-            )
-    recalled_material_sections: dict[str, set[str]] = {}
-    for realization in realizations:
-        recalled_material_sections.setdefault(realization["material_id"], set()).add(
-            realization["section_id"]
-        )
-    transformed_recall = any(
-        len(recalled_material_sections[material_id]) >= 2
-        for material_id in transformed_material_sections
+    result = assess_completed_song(
+        program,
+        project,
+        symbolic_coverage=cohort_row["symbolic_coverage"],
+        arrangement=cohort_row["arrangement"],
+        pcm_continuity=cohort_row["pcm_continuity"],
     )
-    continuity = cohort_row["pcm_continuity"]
-    coverage = cohort_row["symbolic_coverage"]
-    arrangement = cohort_row["arrangement"]
-    total_bars = sum(section["bars"] for section in sections)
-    checks = {
-        "bars_16_to_64": 16 <= total_bars <= 64,
-        "sections_3_to_8": 3 <= len(sections) <= 8,
-        "every_section_realized": realized_sections == section_ids,
-        "minimum_three_core_sounding_roles": len(eligible_roles) >= 3,
-        "symbolic_coverage_passed": coverage["status"] == "passed",
-        "no_fully_silent_one_second_window": continuity[
-            "fully_silent_one_second_window_count"
-        ]
-        == 0,
-        "arrangement_development_passed": arrangement["status"] == "passed",
-        "non_identity_transformed_recall_across_sections": transformed_recall,
-    }
-    return {
-        "schema": "cps.mock-song-validity-assessment",
-        "schema_version": "1.0.0",
-        "profile_preview_viable": all(
-            checks[key]
-            for key in (
-                "every_section_realized",
-                "minimum_three_core_sounding_roles",
-                "symbolic_coverage_passed",
-                "no_fully_silent_one_second_window",
-                "arrangement_development_passed",
-            )
-        ),
-        "gen0_song_viable": all(checks.values()),
-        "hard_checks": checks,
-        "diagnostics": {
-            "bars": total_bars,
-            "section_count": len(sections),
-            "event_count": len(project["events"]),
-            "emitted_core_roles": sorted(eligible_roles),
-            "overall_coverage_basis_points": coverage["overall_coverage_basis_points"],
-            "fully_silent_one_second_window_count": continuity[
-                "fully_silent_one_second_window_count"
-            ],
-            "distinct_role_mask_count": arrangement["distinct_role_mask_count"],
-        },
-    }
+    return result
 
 
 def main() -> None:
@@ -214,7 +153,7 @@ def main() -> None:
         except Exception as error:
             rows.append({"seed": seed, "status": "evaluation_failed", "error": getattr(error, "code", type(error).__name__)})
     admitted = sorted((row for row in rows if row["status"] == "preview_archived"), key=lambda row: (row["quality"], -row["seed"]), reverse=True)
-    gen0_admitted = [row for row in admitted if row["song_validity"]["gen0_song_viable"]]
+    gen0_admitted = [row for row in admitted if row["song_validity"]["archive_eligible"]]
     output = {"schema": "cps.mock-sample-archive-trial-report", "schema_version": "1.0.0", "non_authoritative": True, "production_decisions_allowed": False, "authority_hash": authority["authority_hash"], "quality_metric_ids": ["genre_similarity_q", "native_ji.coherence", "pil_genre.typicality_q", "pil_genre.idiomaticity_q", "pil_genre.inverse_cliche_q"], "seed_count": len(rows), "archive_scope": "preview_only", "archive_count": len(admitted), "preview_archive_count": len(admitted), "gen0_song_archive_count": len(gen0_admitted), "archive": admitted, "gen0_song_archive": gen0_admitted, "rows": rows, "report_hash": ""}
     output["report_hash"] = _artifact_hash(output, "report_hash")
     (arguments.cohort / "mock_sample_archive_report.json").write_bytes(canonical_lf(output))
