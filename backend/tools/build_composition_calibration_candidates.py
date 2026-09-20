@@ -14,6 +14,17 @@ sys.path.insert(0, str(BACKEND))
 from app.songprogram.search import canonical_bytes  # noqa: E402
 
 
+REPO_ROOT = BACKEND.parent
+
+
+def _audio_path(path: Path) -> str:
+    resolved = path.resolve()
+    try:
+        return str(resolved.relative_to(REPO_ROOT))
+    except ValueError as error:
+        raise ValueError(f"audio path is outside repository: {path}") from error
+
+
 def _feature_hash(directory: Path) -> str:
     return json.loads((directory / "g1_features.json").read_text())["report_hash"]
 
@@ -37,7 +48,7 @@ def main() -> None:
                 "candidate_id": f"old-seed-{row['seed']:04d}",
                 "lineage_id": f"old-seed-{row['seed']:04d}",
                 "cohort": "old_generator",
-                "audio_path": str(directory / "preview.wav"),
+                "audio_path": _audio_path(directory / "preview.wav"),
                 "audio_hash": row["wav_hash"],
                 "g1_feature_report_hash": _feature_hash(directory),
             }
@@ -52,7 +63,7 @@ def main() -> None:
                 "candidate_id": f"new-seed-{row['seed']:04d}",
                 "lineage_id": row["lineage_id"],
                 "cohort": "new_generator",
-                "audio_path": str(directory / "preview.wav"),
+                "audio_path": _audio_path(directory / "preview.wav"),
                 "audio_hash": row["receipt"]["wav_hash"],
                 "g1_feature_report_hash": row["receipt"]["g1_feature_report_hash"],
             }
@@ -64,7 +75,7 @@ def main() -> None:
                 "candidate_id": row["candidate_id"],
                 "lineage_id": row["lineage_id"],
                 "cohort": f"negative:{row['negative_type']}",
-                "audio_path": row["audio_path"],
+                "audio_path": _audio_path(Path(row["audio_path"])),
                 "audio_hash": row["audio_hash"],
                 "g1_feature_report_hash": row["g1_feature_report_hash"],
             }
@@ -76,7 +87,7 @@ def main() -> None:
                 "candidate_id": row["candidate_id"],
                 "lineage_id": row["lineage_id"],
                 "cohort": "ceiling_reference",
-                "audio_path": row["audio_path"],
+                "audio_path": _audio_path(Path(row["audio_path"])),
                 "audio_hash": row["audio_hash"],
             }
         )

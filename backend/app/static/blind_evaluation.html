@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Blind composition evaluation</title>
+  <style>
+    :root { color-scheme: dark; --bg:#10131a; --panel:#191e29; --line:#31394a; --ink:#eef2ff; --muted:#aeb8cf; --accent:#77dbc8; --warn:#ffca70; }
+    * { box-sizing:border-box } body { margin:0; background:linear-gradient(135deg,#0b1019,#15192a); color:var(--ink); font:16px/1.5 system-ui,sans-serif }
+    main { max-width:1040px; margin:auto; padding:32px 20px 80px } h1 { margin:0 0 8px; font-size:clamp(28px,5vw,48px) } .lede,.muted { color:var(--muted) }
+    .panel { background:rgba(25,30,41,.96); border:1px solid var(--line); border-radius:18px; padding:20px; margin:20px 0; box-shadow:0 18px 50px #0005 }
+    .setup { display:grid; grid-template-columns:1fr 1fr auto; gap:12px; align-items:end } label { display:grid; gap:6px; font-weight:650 } input,select,textarea,button { font:inherit }
+    input,select,textarea { width:100%; color:var(--ink); background:#0f1420; border:1px solid var(--line); border-radius:9px; padding:10px }
+    button { border:0; border-radius:10px; padding:11px 16px; font-weight:750; cursor:pointer; background:var(--accent); color:#08201d } button.secondary { background:#2a3243; color:var(--ink) } button:disabled { opacity:.45; cursor:not-allowed }
+    .toolbar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; position:sticky; top:0; z-index:4; padding:12px; background:#10131aee; border-bottom:1px solid var(--line) }
+    progress { width:min(420px,100%); height:12px } audio { width:100%; margin:12px 0 18px }
+    .question { padding:14px 0; border-top:1px solid var(--line) } .choices { display:flex; gap:8px; margin-top:8px; flex-wrap:wrap }
+    .choices label { display:block; cursor:pointer } .choices input { position:absolute; opacity:0 } .choices span { display:block; min-width:96px; text-align:center; padding:9px 14px; border:1px solid var(--line); border-radius:999px; color:var(--muted) }
+    .choices input:checked + span { color:#071c19; background:var(--accent); border-color:var(--accent) }
+    .item-head { display:flex; justify-content:space-between; align-items:center; gap:12px } .failure { color:var(--warn) }
+    .nav { display:flex; justify-content:space-between; gap:10px; margin-top:20px } #message { min-height:24px; font-weight:650 } @media(max-width:720px){.setup{grid-template-columns:1fr}.toolbar{position:static}}
+  </style>
+</head>
+<body>
+<main>
+  <h1>Blind listening</h1>
+  <p class="lede">音源の生成方式や評価値を伏せたまま、曲としての成立性を回答します。好みやジャンル適合性ではなく、聞こえた構造を評価してください。</p>
+  <section class="panel setup" id="setup">
+    <label>評価者ID<input id="listener" autocomplete="off" placeholder="listener_001"></label>
+    <label>セッションID<input id="session" autocomplete="off" placeholder="session_001"></label>
+    <label>対象<select id="partition"><option value="calibration">Calibration</option><option value="holdout">Holdout</option></select></label>
+    <button id="start">開始／再開</button>
+  </section>
+  <section id="workspace" hidden>
+    <div class="toolbar"><strong id="counter"></strong><progress id="progress" max="1" value="0"></progress><button class="secondary" id="saveDraft">下書き保存</button></div>
+    <article class="panel">
+      <div class="item-head"><h2 id="itemTitle"></h2><span class="muted" id="listenCount"></span></div>
+      <audio id="audio" controls preload="metadata"></audio>
+      <label class="failure"><span><input id="failure" type="checkbox"> 技術的問題で判定不能</span></label>
+      <div id="questions"></div>
+      <label>確信度 <input id="confidence" type="range" min="0" max="10000" step="500" value="7500"><span id="confidenceValue">7500</span></label>
+      <label>任意コメント<textarea id="comment" rows="3" maxlength="2000"></textarea></label>
+      <div class="nav"><button class="secondary" id="previous">前へ</button><button id="next">次へ</button></div>
+    </article>
+    <p id="message"></p><button id="submit" disabled>全回答を確定して保存</button>
+  </section>
+</main>
+<script>
+const labels={formal_arc_is_coherent:'始まりから終わりまでの構成が一貫して聞こえる',motif_recurs_and_develops:'認識できるモチーフが反復・展開される',harmony_has_directed_motion:'ハーモニーに方向性と到達感がある',groove_and_parts_coordinate:'リズム・ベース・和声・前景が協調している',sections_contrast_without_discontinuity:'セクションに対比があり、断絶しすぎない',ending_feels_complete:'終わりとして納得できる'};
+let assignment,index=0,state={},startedAt; const $=id=>document.getElementById(id);
+function key(){return `cps-blind:${assignment?.assignment_hash}:${$('listener').value}:${$('session').value}`}
+function persist(){if(assignment)localStorage.setItem(key(),JSON.stringify({state,index,startedAt}))}
+function complete(row){return row && (row.technical_failure || Object.keys(labels).every(q=>row.answers?.[q]))}
+function render(){const item=assignment.assignments[index],row=state[item.blind_id]||{answers:{},listening_count:0,confidence_q:7500,comment:'',technical_failure:false};state[item.blind_id]=row;$('counter').textContent=`${index+1} / ${assignment.assignments.length}`;$('progress').max=assignment.assignments.length;$('progress').value=Object.values(state).filter(complete).length;$('itemTitle').textContent=`音源 ${String(index+1).padStart(2,'0')}`;$('audio').src=item.audio_url;$('listenCount').textContent=`再生 ${row.listening_count}回`;$('failure').checked=row.technical_failure;$('confidence').value=row.confidence_q;$('confidenceValue').textContent=row.confidence_q;$('comment').value=row.comment;$('questions').innerHTML=Object.entries(labels).map(([q,text])=>`<div class="question"><strong>${text}</strong><div class="choices">${['yes','uncertain','no'].map(v=>`<label><input type="radio" name="${q}" value="${v}" ${row.answers[q]===v?'checked':''}><span>${{yes:'はい',uncertain:'不明',no:'いいえ'}[v]}</span></label>`).join('')}</div></div>`).join('');$('previous').disabled=index===0;$('next').textContent=index===assignment.assignments.length-1?'確認':'次へ';$('submit').disabled=!assignment.assignments.every(x=>complete(state[x.blind_id]));}
+function capture(){const item=assignment.assignments[index],row=state[item.blind_id];document.querySelectorAll('#questions input:checked').forEach(x=>row.answers[x.name]=x.value);row.technical_failure=$('failure').checked;row.confidence_q=Number($('confidence').value);row.comment=$('comment').value;persist()}
+$('start').onclick=async()=>{if(!/^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$/.test($('listener').value)||!/^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$/.test($('session').value)){alert('評価者IDとセッションIDを入力してください');return}const p=$('partition').value;const response=await fetch(`/api/blind-evaluation/assignment/${p}`);if(!response.ok){alert('assignmentを読み込めません');return}assignment=await response.json();const saved=JSON.parse(localStorage.getItem(key())||'null');state=saved?.state||{};index=saved?.index||0;startedAt=saved?.startedAt||new Date().toISOString();$('setup').hidden=true;$('workspace').hidden=false;render()};
+$('audio').onplay=()=>{const row=state[assignment.assignments[index].blind_id];row.listening_count++;$('listenCount').textContent=`再生 ${row.listening_count}回`;persist()};$('confidence').oninput=()=>$('confidenceValue').textContent=$('confidence').value;$('saveDraft').onclick=()=>{capture();$('message').textContent='このブラウザに下書きを保存しました'};$('previous').onclick=()=>{capture();index--;render()};$('next').onclick=()=>{capture();if(index<assignment.assignments.length-1)index++;render()};function updateCompletion(){capture();$('progress').value=Object.values(state).filter(complete).length;$('submit').disabled=!assignment.assignments.every(x=>complete(state[x.blind_id]))}$('questions').onchange=updateCompletion;$('failure').onchange=updateCompletion;$('comment').onchange=capture;
+$('submit').onclick=async()=>{capture();if(!assignment.assignments.every(x=>complete(state[x.blind_id])))return;const body={assignment_hash:assignment.assignment_hash,listener_id:$('listener').value,session_id:$('session').value,started_at:startedAt,responses:assignment.assignments.map(x=>{const row={blind_id:x.blind_id,...state[x.blind_id]};if(row.technical_failure)row.answers=null;return row})};const response=await fetch(`/api/blind-evaluation/responses/${assignment.partition}`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});const result=await response.json();if(!response.ok){$('message').textContent=`保存失敗: ${result.detail||response.status}`;return}$('message').textContent=`保存完了: ${result.response_hash}`;$('submit').disabled=true;localStorage.removeItem(key())};
+</script>
+</body>
+</html>

@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cps.local/schemas/composition_blind_response.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "schema_version", "partition", "assignment_hash", "listener_id", "session_id", "started_at", "completed_at", "responses", "response_hash"],
+  "properties": {
+    "schema": {"const": "cps.composition-blind-response"},
+    "schema_version": {"const": "1.0.0"},
+    "partition": {"enum": ["calibration", "holdout"]},
+    "assignment_hash": {"$ref": "#/$defs/hash"},
+    "listener_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$"},
+    "session_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$"},
+    "started_at": {"type": "string", "minLength": 1},
+    "completed_at": {"type": "string", "minLength": 1},
+    "responses": {"type": "array", "items": {"$ref": "#/$defs/response"}},
+    "response_hash": {"$ref": "#/$defs/hash"}
+  },
+  "$defs": {
+    "hash": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "answer": {"enum": ["yes", "uncertain", "no"]},
+    "answers": {
+      "type": "object", "additionalProperties": false,
+      "required": ["formal_arc_is_coherent", "motif_recurs_and_develops", "harmony_has_directed_motion", "groove_and_parts_coordinate", "sections_contrast_without_discontinuity", "ending_feels_complete"],
+      "properties": {
+        "formal_arc_is_coherent": {"$ref": "#/$defs/answer"},
+        "motif_recurs_and_develops": {"$ref": "#/$defs/answer"},
+        "harmony_has_directed_motion": {"$ref": "#/$defs/answer"},
+        "groove_and_parts_coordinate": {"$ref": "#/$defs/answer"},
+        "sections_contrast_without_discontinuity": {"$ref": "#/$defs/answer"},
+        "ending_feels_complete": {"$ref": "#/$defs/answer"}
+      }
+    },
+    "response": {
+      "type": "object", "additionalProperties": false,
+      "required": ["blind_id", "answers", "technical_failure", "confidence_q", "listening_count", "comment"],
+      "properties": {
+        "blind_id": {"type": "string", "pattern": "^blind_[0-9a-f]{16}$"},
+        "answers": {"oneOf": [{"$ref": "#/$defs/answers"}, {"type": "null"}]},
+        "technical_failure": {"type": "boolean"},
+        "confidence_q": {"type": ["integer", "null"], "minimum": 0, "maximum": 10000},
+        "listening_count": {"type": "integer", "minimum": 1, "maximum": 100},
+        "comment": {"type": "string", "maxLength": 2000}
+      }
+    }
+  }
+}

@@ -173,8 +173,10 @@ from app.rhythm.mixed_meter import (
     render_wav as render_mixed_meter_wav,
     validate_pattern as validate_mixed_meter_pattern,
 )
+from app.blind_evaluation import router as blind_evaluation_router
 
 app = FastAPI(title="Pure Intonation Workbench API", version="0.1.0")
+app.include_router(blind_evaluation_router)
 STATIC_DIR = Path(__file__).parent / "static"
 render_jobs = RenderJobs()
 app.add_middleware(
@@ -219,6 +221,11 @@ def motif_development() -> FileResponse:
 @app.get("/midi-toolkit", include_in_schema=False)
 def midi_toolkit() -> FileResponse:
     return FileResponse(STATIC_DIR / "midi_toolkit.html")
+
+
+@app.get("/blind-evaluation", include_in_schema=False)
+def blind_evaluation() -> FileResponse:
+    return FileResponse(STATIC_DIR / "blind_evaluation.html")
 
 
 @app.get("/favicon.ico", include_in_schema=False, status_code=204)
