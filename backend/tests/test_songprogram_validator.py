@@ -48,6 +48,18 @@ def test_compiled_drum_project_validates() -> None:
     validate_project(compile_direct_sp0(program, identity))
 
 
+def test_project_1_3_validator_accepts_five_dimensions() -> None:
+    program = _load("minimal_direct_song_program.json")
+    program["schema_version"] = "0.2.0"
+    program["lattice"]["generators"] = ["3/1", "5/1", "7/1", "11/1", "13/1"]
+    program["lattice"]["coordinate_bounds"] = [[0, 0]] * 5
+    program["lattice"]["pitch_exploration"]["maximum_domain_points"] = 1
+    program["form"][0]["tonal_center"] = [0] * 5
+    program["materials"][1]["vectors"] = [[0] * 5]
+    identity = CompilerIdentity("fixture-build", "fixture-resolver", "sha256:" + "0" * 64, "sha256:" + "0" * 64, "sha256:" + "0" * 64)
+    validate_project(compile_direct_sp0(program, identity))
+
+
 def test_all_declared_project_negative_cases_fail_exactly() -> None:
     fixture = _load("project_negative_cases.json")
     base = _load(fixture["base_path"])

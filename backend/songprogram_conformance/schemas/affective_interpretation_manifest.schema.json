@@ -1,0 +1,18 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"https://cps.local/schemas/affective_interpretation_manifest.schema.json",
+  "title":"AffectiveInterpretationManifest 1.0","type":"object","additionalProperties":false,
+  "required":["schema","schema_version","algorithm","implementation_build_id","numeric_contract","major_template_millicents","minor_template_millicents","template_radius_millicents","valence_component_weights_q","arousal_component_weights_q","audio_feature_policy","manifest_hash"],
+  "properties":{
+    "schema":{"const":"cps.affective-interpretation-manifest"},"schema_version":{"const":"1.0.0"},
+    "algorithm":{"const":"symbolic-affect-five-axis/v1"},"implementation_build_id":{"type":"string","minLength":1,"maxLength":128},
+    "numeric_contract":{"const":"cps-numeric/decimal-log2-rhe-v1"},
+    "major_template_millicents":{"const":400000},"minor_template_millicents":{"const":300000},
+    "template_radius_millicents":{"type":"integer","minimum":1,"maximum":200000},
+    "valence_component_weights_q":{"const":{"majorness":6000,"register":2000,"pitch_direction":2000}},
+    "arousal_component_weights_q":{"const":{"tempo":4000,"onset_rate":3000,"velocity":3000}},
+    "audio_feature_policy":{"const":"not_evaluated_without_bound_pcm_extractor/v1"},
+    "manifest_hash":{"$ref":"#/$defs/sha"}
+  },
+  "$defs":{"sha":{"type":"string","pattern":"^sha256:[0-9a-f]{64}$"}}
+}

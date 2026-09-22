@@ -56,6 +56,32 @@ def test_bad_second_mutation_keeps_caller_program_unchanged() -> None:
     assert program == before
 
 
+def test_mutation_v2_transposes_all_five_generator_dimensions() -> None:
+    program = _program()
+    program["schema_version"] = "0.2.0"
+    program["lattice"]["generators"] = ["3/1", "5/1", "7/1", "11/1", "13/1"]
+    program["lattice"]["coordinate_bounds"] = [[-2, 2]] * 5
+    program["form"][0]["tonal_center"] = [0] * 5
+    program["materials"][1]["vectors"] = [[0] * 5]
+    mutation = {
+        "schema": "cps.mutation",
+        "schema_version": "2.0.0",
+        "mutation_id": "mut_aaaaaaaaaaaaaaaaaaaa",
+        "base_program_hash": program_hash(program),
+        "operation": "transpose_material_vector",
+        "declared_scope": [{"kind": "material", "id": "pitch_a"}],
+        "parameters": {
+            "kind": "transpose_material_vector",
+            "material_id": "pitch_a",
+            "vector_delta": [1, 0, -1, 1, -1],
+        },
+    }
+
+    changed, _ = apply_mutations(program, [mutation], [], {"entries": []}, {"entries": []}, "act_x")
+
+    assert changed["materials"][1]["vectors"] == [[1, 0, -1, 1, -1]]
+
+
 def test_application_request_matches_every_checked_in_mutation_fixture() -> None:
     """The fixture suite is the read-only, byte-derived contract authority."""
     suite = json.loads((PACK / "mutation" / "cases.json").read_text())

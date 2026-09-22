@@ -14,6 +14,7 @@ from app.songprogram.compiler import (
     CompileError,
     CompilerIdentity,
     build_lineage_index,
+    compile_connected_gen0b,
     compile_direct_sp0,
     compile_sp0,
     compile_gen0b,
@@ -22,6 +23,7 @@ from app.songprogram.compiler import (
 )
 from app.songprogram.renderer import render_reference
 from app.songprogram.search import canonical_bytes
+from songprogram_conformance.identifiers import budget_profile_digest, compiler_build_id
 
 
 PACK = Path(__file__).resolve().parents[1] / "songprogram_conformance" / "fixtures" / "pack"
@@ -51,6 +53,50 @@ def test_texture_role_uses_direct_pitch_lowering_semantics() -> None:
     project = compile_sp0(program, IDENTITY)
     assert project["tracks"][0]["role"] == "texture"
     assert project["events"]
+
+
+def test_song_program_0_2_compiles_a_five_dimension_variable_generator_domain() -> None:
+    program = _load("minimal_direct_song_program.json")
+    program["schema_version"] = "0.2.0"
+    program["lattice"]["generators"] = ["3/1", "5/1", "7/1", "11/1", "13/1"]
+    program["lattice"]["coordinate_bounds"] = [[0, 0]] * 5
+    program["lattice"]["pitch_exploration"]["maximum_domain_points"] = 1
+    program["form"][0]["tonal_center"] = [0] * 5
+    program["materials"][1]["vectors"] = [[0] * 5]
+
+    project = compile_sp0(program, IDENTITY)
+
+    assert project["schema_version"] == "1.3.0"
+    assert project["source_program"]["schema_version"] == "0.2.0"
+    assert len(project["events"][0]["pitch_provenance"]["final_vector"]) == 5
+
+
+def test_lineage_project_hash_is_version_separated() -> None:
+    legacy = _load("minimal_direct_song_program.json")
+    modern = json.loads(json.dumps(legacy))
+    modern["schema_version"] = "0.2.0"
+    legacy_project = compile_sp0(legacy, IDENTITY)
+    modern_project = compile_sp0(modern, IDENTITY)
+
+    assert build_lineage_index(legacy, legacy_project)["project_hash"] != build_lineage_index(
+        modern, modern_project
+    )["project_hash"]
+
+
+def test_lattice_dimension_and_cardinality_fail_before_resolution() -> None:
+    program = _load("minimal_direct_song_program.json")
+    program["schema_version"] = "0.2.0"
+    program["lattice"]["generators"] = ["3/1"] * 6
+    program["lattice"]["coordinate_bounds"] = [[0, 0]] * 6
+    program["form"][0]["tonal_center"] = [0] * 6
+    program["materials"][1]["vectors"] = [[0] * 6]
+    with pytest.raises(CompileError, match="VECTOR_DIMENSION_MISMATCH"):
+        compile_sp0(program, IDENTITY)
+
+    program = _load("minimal_direct_song_program.json")
+    program["lattice"]["pitch_exploration"]["maximum_domain_points"] = 1
+    with pytest.raises(CompileError, match="LATTICE_DOMAIN_TOO_LARGE"):
+        compile_sp0(program, IDENTITY)
 
 
 def test_direct_compiler_is_cross_process_and_hash_seed_invariant() -> None:
@@ -156,6 +202,29 @@ def test_single_harmony_matches_authoritative_triad_golden() -> None:
     assert actual == _load("resolved_triad_project.json")
 
 
+def test_five_dimension_harmony_uses_project_1_3_progression_path() -> None:
+    manifest = _load("compiler_manifest_sp0.json")
+    identity = CompilerIdentity(manifest["build_id"], manifest["resolver"]["build_id"], manifest["resolver"]["profile_hash"], manifest["budget_profile"]["digest"], manifest["instrument_catalog_digest"])
+    program = _load("minimal_triad_song_program.json")
+    program["schema_version"] = "0.2.0"
+    program["lattice"]["generators"] += ["7/1", "11/1", "13/1"]
+    program["lattice"]["coordinate_bounds"] += [[0, 0], [0, 0], [0, 0]]
+    program["form"][0]["tonal_center"] += [0, 0, 0]
+    for material in program["materials"]:
+        if "root_anchors" in material:
+            material["root_anchors"] = [vector + [0, 0, 0] for vector in material["root_anchors"]]
+
+    project = compile_sp0(program, identity)
+
+    assert project["schema_version"] == "1.3.0"
+    assert all(len(chord["anchor_vector"]) == 5 for chord in project["resolved_chords"])
+    assert all(
+        len(offset) == 5
+        for chord in project["resolved_chords"]
+        for offset in chord["voice_offsets"]
+    )
+
+
 def test_gen0b_lowers_top_k_progression_and_chord_member_melody() -> None:
     manifest = json.loads((COMPILER_FIXTURES / "gen0b_compiler_manifest.json").read_text())
     identity = CompilerIdentity(
@@ -165,6 +234,55 @@ def test_gen0b_lowers_top_k_progression_and_chord_member_melody() -> None:
     program = json.loads((COMPILER_FIXTURES / "gen0b_melody_song_program.json").read_text())
     expected = json.loads((COMPILER_FIXTURES / "gen0b_melody_project.json").read_text())
     assert compile_direct_sp0(program, identity) == expected
+
+
+def _gen0b_v2_inputs() -> tuple[dict[str, Any], dict[str, Any]]:
+    manifest = json.loads((COMPILER_FIXTURES / "gen0b_compiler_manifest.json").read_text())
+    program = json.loads((COMPILER_FIXTURES / "gen0b_melody_song_program.json").read_text())
+    manifest.update(
+        schema_version="2.0.0",
+        song_program_schema_versions=["0.2.0"],
+        project_schema_version="1.3.0",
+        progression_query_schema_version="2.0.0",
+        gen0b_evidence_schema_version="2.0.0",
+        melody_report_schema_version="2.0.0",
+    )
+    manifest["budget_profile"]["id"] = "gen0-progression-exact-v2"
+    manifest["budget_profile"]["domain_limits"]["dimensions"] = 5
+    manifest["budget_profile"]["digest"] = budget_profile_digest(manifest["budget_profile"])
+    manifest["build_id"] = compiler_build_id(manifest)
+    program["schema_version"] = "0.2.0"
+    program["lattice"]["generators"] += ["7/1", "11/1", "13/1"]
+    program["lattice"]["coordinate_bounds"] += [[0, 0], [0, 0], [0, 0]]
+    for section in program["form"]:
+        section["tonal_center"] += [0, 0, 0]
+    for material in program["materials"]:
+        if "vectors" in material:
+            material["vectors"] = [vector + [0, 0, 0] for vector in material["vectors"]]
+        if "root_anchors" in material:
+            material["root_anchors"] = [
+                vector + [0, 0, 0] for vector in material["root_anchors"]
+            ]
+    return program, manifest
+
+
+def test_gen0b_v2_emits_five_dimension_evidence_and_melody_report() -> None:
+    program, manifest = _gen0b_v2_inputs()
+
+    connected = compile_connected_gen0b(program, manifest)
+
+    assert connected["status"] == "success"
+    assert connected["project"]["schema_version"] == "1.3.0"
+    assert connected["compiler_evidence"]["schema_version"] == "2.0.0"
+    assert connected["melody_report"]["schema_version"] == "2.0.0"
+    assert all(
+        run["query"]["schema_version"] == "2.0.0"
+        for run in connected["compiler_evidence"]["progression_runs"]
+    )
+    assert all(
+        len(binding["source_vector"]) == 5
+        for binding in connected["melody_report"]["bindings"]
+    )
 
 
 def test_gen0b_chord_member_requires_one_active_member() -> None:

@@ -84,14 +84,15 @@ def validate_project(project: dict[str, Any]) -> None:
             _fail("SCHEMA_UNKNOWN_FIELD", "schema", "/" + key)
     if not required <= set(project):
         _fail("SCHEMA_REQUIRED_FIELD", "schema", "")
-    if project["schema"] != "cps.arrangement-project" or project["schema_version"] != "1.2.0":
+    if project["schema"] != "cps.arrangement-project" or project["schema_version"] not in {"1.2.0", "1.3.0"}:
         _fail("SCHEMA_VERSION_UNSUPPORTED", "schema", "/schema_version")
     lattice = project["lattice"]
     if lattice["domain_hash"] != _sha(b"cps.lattice-domain/v1\0", {key: value for key, value in lattice.items() if key != "domain_hash"}):
         _fail("HASH_MISMATCH", "hash", "/lattice/domain_hash")
     equave = _ratio(lattice["equave"], "/lattice/equave")
     generators = [_ratio(value, f"/lattice/generators/{index}") for index, value in enumerate(lattice["generators"])]
-    if len(generators) != len(lattice["coordinate_bounds"]):
+    version_limit = 3 if project["schema_version"] == "1.2.0" else 5
+    if not 1 <= len(generators) <= version_limit or len(generators) != len(lattice["coordinate_bounds"]):
         _fail("VECTOR_DIMENSION_MISMATCH", "numeric", "/lattice/coordinate_bounds")
     tracks = _unique(project["tracks"], "/tracks")
     instances = _unique(project["material_instances"], "/material_instances")

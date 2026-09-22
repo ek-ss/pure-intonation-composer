@@ -1,0 +1,239 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cps.local/schemas/compiler_budget_contract_2_0.schema.json",
+  "title": "CPS dimension-parametric exact compiler budget contract 2.0",
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "counters": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "structural_items",
+        "placed_domain_points",
+        "exact_arithmetic_units",
+        "numeric_eval_units",
+        "chord_search_nodes",
+        "pair_relations",
+        "ordering_units",
+        "validation_items",
+        "emitted_events",
+        "total_logical_units"
+      ],
+      "properties": {
+        "structural_items": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 18446744073709552000
+        },
+        "placed_domain_points": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 18446744073709552000
+        },
+        "exact_arithmetic_units": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 18446744073709552000
+        },
+        "numeric_eval_units": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 18446744073709552000
+        },
+        "chord_search_nodes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 18446744073709552000
+        },
+        "pair_relations": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 18446744073709552000
+        },
+        "ordering_units": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 18446744073709552000
+        },
+        "validation_items": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 18446744073709552000
+        },
+        "emitted_events": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 18446744073709552000
+        },
+        "progression_states": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 18446744073709552000
+        },
+        "progression_edges": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 18446744073709552000
+        },
+        "total_logical_units": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 18446744073709552000
+        }
+      }
+    },
+    "budgetProfile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "digest",
+        "root_ceilings",
+        "child_ceilings",
+        "domain_limits",
+        "shape_limits"
+      ],
+      "properties": {
+        "id": {
+          "const": "gen0-progression-exact-v2"
+        },
+        "digest": {
+          "$ref": "#/$defs/sha256"
+        },
+        "root_ceilings": {
+          "$ref": "#/$defs/counters"
+        },
+        "child_ceilings": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "chord_search_nodes",
+            "pair_relations",
+            "numeric_eval_units",
+            "maximum_depth"
+          ],
+          "properties": {
+            "chord_search_nodes": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "pair_relations": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "numeric_eval_units": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "exact_arithmetic_units": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "ordering_units": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "progression_states": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "progression_edges": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "maximum_depth": {
+              "const": 1
+            }
+          }
+        },
+        "domain_limits": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "dimensions",
+            "coordinate_cardinality",
+            "axis_width",
+            "register_width",
+            "placed_cardinality",
+            "arithmetic_result_bits"
+          ],
+          "properties": {
+            "dimensions": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 5
+            },
+            "coordinate_cardinality": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1024
+            },
+            "axis_width": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 7
+            },
+            "register_width": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 8
+            },
+            "placed_cardinality": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 4096
+            },
+            "arithmetic_result_bits": {
+              "const": 4096
+            }
+          }
+        },
+        "shape_limits": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "voices",
+            "intents",
+            "rhythm_steps_per_material",
+            "repeats",
+            "sections",
+            "bars",
+            "events"
+          ],
+          "properties": {
+            "voices": {
+              "const": 4
+            },
+            "intents": {
+              "const": 8
+            },
+            "rhythm_steps_per_material": {
+              "const": 64
+            },
+            "repeats": {
+              "const": 8
+            },
+            "sections": {
+              "const": 4
+            },
+            "bars": {
+              "const": 8
+            },
+            "events": {
+              "const": 2048
+            },
+            "progression_occurrences": {
+              "const": 512
+            },
+            "progression_candidates_per_occurrence": {
+              "const": 24
+            }
+          }
+        }
+      }
+    }
+  }
+}

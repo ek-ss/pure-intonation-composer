@@ -11,13 +11,25 @@ seed-addressed choices use SHA-256 domain
 `cps.exploration-authority/v1` and are therefore independent of process order
 and worker count. Every successful seed directory persists both manifests.
 
-The sampler uses weighted `2/1` (`3/1`, `5/1`) and `3/1` (`2/1`, `5/1`)
-domains, their compatible 12-EDO or 13-EDT triad reference, two rhythm grids,
-two density levels, and the existing broad structural role/material tables.
-The lowering authority selects tempo, tonal center, a four-point signed vector
-walk, note duration, and accent. A candidate is rejected before compilation
-when its chord reference equave differs from its lattice equave, or when any
-melody rhythm cannot be contained by the section's single harmony rhythm.
+The sampler uses weighted 7-limit domains: `2/1` with generators (`3/1`,
+`5/1`, `7/1`) and `3/1` with generators (`2/1`, `5/1`, `7/1`). In the latter,
+the equave itself supplies prime 3, so both domains span primes 2, 3, 5, and 7.
+Each coordinate axis is `[-4,4]`; equave placement is `[-8,8]`. The full raw
+domain is 12,393 placed coordinates before odd-limit and duplicate filtering.
+
+Navigation is not limited to adjacent lattice moves. The manifest declares
+12-TET pitch-class targets, and `nearest-12tet-vector/v1` searches the centered
+half-domain `[-2,2]` on every axis. It retains candidates within 50,000
+millicents, then orders by absolute-register displacement, approximation error,
+lattice L1, maximum coordinate magnitude, and vector lexicographic order. The
+half-domain reserve guarantees that adding a selected tonal center to a walk or
+root vector remains inside the full domain.
+
+Tonal centers, six non-adjacent four-point walks, and harmony root anchors all
+come from this derivation. Root anchors are no longer fixed at the origin. The
+selected equave is fixed before structural sampling and only compatible chord
+references remain eligible: 12-EDO for `2/1`, and 19-EDT (approximately one
+12-TET semitone per step) for `3/1`.
 
 ## Audible identity and admission
 
@@ -111,11 +123,13 @@ default is `backend/songprogram_conformance/profiles/full_song_generation_v1.jso
 another self-hashed manifest may be supplied with `--generation-manifest`.
 
 The manifest is the authority for the equave/generator domains, chord-reference
-tables, rhythm grid and density, tempo, tonal centres, vector walks, rhythm
+tables, rhythm grid and density, tempo, 12-TET-derived tonal centres, vector walks,
 duration/accent choices, lattice/chord budgets, production range/polyphony, and
 the role-specific deterministic trial timbres. Choices use
 `seed-domain-sha256-mod/v1`; worker count and scheduling never enter a choice
 preimage. Every equave must have at least one chord reference and vice versa.
+Every domain must include primes 3, 5, and 7 across its equave plus generator
+list and must satisfy the manifest's 12-TET approximation error ceiling.
 
 The manifest hash is:
 

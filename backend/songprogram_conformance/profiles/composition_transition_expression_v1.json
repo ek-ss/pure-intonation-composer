@@ -1,0 +1,125 @@
+{
+  "algorithm": "pair-conditioned-three-phase-bundle/v1",
+  "pre_boundary_window_q": 5000,
+  "post_boundary_window_q": 5000,
+  "pair_class_map": [
+    {"from_function": "opening", "to_function": "statement", "transition_class_id": "establish"},
+    {"from_function": "opening", "to_function": "arrival", "transition_class_id": "establish"},
+    {"from_function": "statement", "to_function": "preparation", "transition_class_id": "intensify"},
+    {"from_function": "statement", "to_function": "arrival", "transition_class_id": "release"},
+    {"from_function": "preparation", "to_function": "arrival", "transition_class_id": "release"},
+    {"from_function": "preparation", "to_function": "return", "transition_class_id": "recall"},
+    {"from_function": "arrival", "to_function": "statement", "transition_class_id": "reduce"},
+    {"from_function": "arrival", "to_function": "contrast", "transition_class_id": "reduce"},
+    {"from_function": "arrival", "to_function": "return", "transition_class_id": "recall"},
+    {"from_function": "arrival", "to_function": "closure", "transition_class_id": "close"},
+    {"from_function": "contrast", "to_function": "preparation", "transition_class_id": "intensify"},
+    {"from_function": "contrast", "to_function": "return", "transition_class_id": "recall"},
+    {"from_function": "return", "to_function": "preparation", "transition_class_id": "intensify"},
+    {"from_function": "return", "to_function": "closure", "transition_class_id": "close"}
+  ],
+  "classes": [
+    {
+      "transition_class_id": "establish",
+      "expressions": [
+        {
+          "expression_id": "melody_pickup_entry", "weight": 2,
+          "pre_boundary": [{"op": "pickup", "role": "melody", "source": "destination_hook"}],
+          "boundary": [{"op": "unison_attack", "roles": ["drums", "bass"], "gate_q": 2500}],
+          "post_boundary": [{"op": "role_entry", "roles": ["bass", "melody"], "stagger_q": 1250}, {"op": "hook_statement", "variant": "root"}]
+        },
+        {
+          "expression_id": "restrained_fill_entry", "weight": 1,
+          "pre_boundary": [{"op": "drum_fill", "subdivision": 8, "intensity_q": 5000}],
+          "boundary": [{"op": "impact", "drum_notes": [36, 49], "gain_q": 6500}],
+          "post_boundary": [{"op": "groove_variant", "variant_id": "groove_statement_a"}]
+        }
+      ]
+    },
+    {
+      "transition_class_id": "intensify",
+      "expressions": [
+        {
+          "expression_id": "subdivision_ramp", "weight": 2,
+          "pre_boundary": [{"op": "density_ramp", "roles": ["drums"], "from_q": 5000, "to_q": 10000}, {"op": "drum_fill", "subdivision": 16, "intensity_q": 7500}],
+          "boundary": [{"op": "impact", "drum_notes": [38], "gain_q": 7000}],
+          "post_boundary": [{"op": "groove_variant", "variant_id": "groove_build_a"}]
+        },
+        {
+          "expression_id": "bass_gate_lift", "weight": 1,
+          "pre_boundary": [{"op": "density_ramp", "roles": ["bass", "harmony"], "from_q": 4000, "to_q": 8500}],
+          "boundary": [{"op": "unison_attack", "roles": ["bass", "harmony"], "gate_q": 3750}],
+          "post_boundary": [{"op": "role_entry", "roles": ["melody", "texture"], "stagger_q": 1250}]
+        }
+      ]
+    },
+    {
+      "transition_class_id": "release",
+      "expressions": [
+        {
+          "expression_id": "silence_impact_drop", "weight": 2,
+          "pre_boundary": [{"op": "drum_fill", "subdivision": 16, "intensity_q": 9000}],
+          "boundary": [{"op": "silence", "duration_q": 1250}, {"op": "harmonic_resolution", "target": "arrival"}, {"op": "impact", "drum_notes": [36, 38, 49], "gain_q": 10000}],
+          "post_boundary": [{"op": "role_entry", "roles": ["drums", "bass", "harmony", "melody"], "stagger_q": 0}, {"op": "hook_statement", "variant": "root"}]
+        },
+        {
+          "expression_id": "sustain_unison_drop", "weight": 1,
+          "pre_boundary": [{"op": "sustain", "roles": ["harmony"], "gate_q": 10000}, {"op": "role_dropout", "roles": ["bass"]}],
+          "boundary": [{"op": "harmonic_resolution", "target": "home"}, {"op": "unison_attack", "roles": ["drums", "bass", "harmony"], "gate_q": 5000}],
+          "post_boundary": [{"op": "groove_variant", "variant_id": "groove_arrival_a"}, {"op": "hook_statement", "variant": "developed"}]
+        }
+      ]
+    },
+    {
+      "transition_class_id": "reduce",
+      "expressions": [
+        {
+          "expression_id": "rhythm_dropout_tail", "weight": 2,
+          "pre_boundary": [{"op": "role_dropout", "roles": ["drums", "bass"]}],
+          "boundary": [{"op": "none"}],
+          "post_boundary": [{"op": "tail_overlap", "roles": ["harmony", "texture"], "duration_q": 5000}, {"op": "role_entry", "roles": ["bass"], "stagger_q": 2500}]
+        },
+        {
+          "expression_id": "harmony_sustain_reset", "weight": 1,
+          "pre_boundary": [{"op": "sustain", "roles": ["harmony"], "gate_q": 10000}],
+          "boundary": [{"op": "impact", "drum_notes": [49], "gain_q": 5000}],
+          "post_boundary": [{"op": "groove_variant", "variant_id": "groove_reduced_a"}]
+        }
+      ]
+    },
+    {
+      "transition_class_id": "recall",
+      "expressions": [
+        {
+          "expression_id": "motif_pickup_recall", "weight": 2,
+          "pre_boundary": [{"op": "pickup", "role": "melody", "source": "source_motif"}],
+          "boundary": [{"op": "harmonic_resolution", "target": "home"}, {"op": "impact", "drum_notes": [36, 49], "gain_q": 8000}],
+          "post_boundary": [{"op": "hook_statement", "variant": "answer"}]
+        },
+        {
+          "expression_id": "fragmented_return", "weight": 1,
+          "pre_boundary": [{"op": "role_dropout", "roles": ["bass"]}, {"op": "drum_fill", "subdivision": 8, "intensity_q": 6500}],
+          "boundary": [{"op": "unison_attack", "roles": ["bass", "melody"], "gate_q": 3750}],
+          "post_boundary": [{"op": "hook_statement", "variant": "developed"}, {"op": "groove_variant", "variant_id": "groove_return_a"}]
+        }
+      ]
+    },
+    {
+      "transition_class_id": "close",
+      "expressions": [
+        {
+          "expression_id": "cadence_tail", "weight": 2,
+          "pre_boundary": [{"op": "role_dropout", "roles": ["drums"]}, {"op": "sustain", "roles": ["harmony"], "gate_q": 10000}],
+          "boundary": [{"op": "harmonic_resolution", "target": "home"}],
+          "post_boundary": [{"op": "tail_overlap", "roles": ["harmony", "melody"], "duration_q": 7500}, {"op": "hook_statement", "variant": "root"}]
+        },
+        {
+          "expression_id": "final_hit_release", "weight": 1,
+          "pre_boundary": [{"op": "density_ramp", "roles": ["drums", "bass"], "from_q": 7500, "to_q": 2500}],
+          "boundary": [{"op": "harmonic_resolution", "target": "home"}, {"op": "unison_attack", "roles": ["drums", "bass", "harmony"], "gate_q": 5000}],
+          "post_boundary": [{"op": "tail_overlap", "roles": ["harmony"], "duration_q": 10000}]
+        }
+      ]
+    }
+  ]
+}

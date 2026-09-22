@@ -23,6 +23,23 @@ for the SP0 conformance pack.
 
 - `arrangement_project_1_2.schema.json`: immutable playable Project, including
   pitch-provenance unions and inline exact resolved chords.
+- `song_program_0_2.schema.json` and `arrangement_project_1_3.schema.json`:
+  forward-compatible lattice envelopes with one through five variable
+  generators. The 0.1/1.2 schemas and their authoritative fixture hashes remain
+  frozen at their original three-dimensional ceiling.
+- `structural_song_program_1_1.schema.json`: five-dimensional structural
+  generation envelope used before production lowering to SongProgram 0.2.
+- `progression_query_2_0.schema.json`: Project 1.3 candidate payload and vectors
+  up to five dimensions. The authoritative GEN0-B 1.1 compiler remains bound
+  to ProgressionQuery 1.2 until a new independent-oracle fixture suite is
+  promoted.
+- `compiler_budget_contract_2_0.schema.json`, `compiler_manifest_2_0.schema.json`,
+  `gen0b_compiler_evidence_2_0.schema.json`, and
+  `chord_member_melody_report_2_0.schema.json`: five-dimensional exact
+  compiler authority, sealed by the separate `compiler_v2_5d` oracle suite.
+- `mutation_2_0.schema.json` and `mutation_application_request_2_0.schema.json`:
+  SongProgram 0.2 mutation envelope with five-dimensional vector operations.
+  Mutation 1.0 remains the only valid mutation version for SongProgram 0.1.
 - `compiler_manifest.schema.json`: compiler identity, exact resolver identity,
   and the SP0 operation-budget profile.
 - `charge_receipt.schema.json`: deterministic root and child logical charges.
@@ -141,6 +158,13 @@ for the SP0 conformance pack.
 - `native_ji_evaluation_manifest.schema.json` and
   `native_ji_evaluation_report.schema.json`: minimal versioned, Project-bound
   `native_ji.coherence` authority used only as hash correlation by PIL.
+- `affective_interpretation_manifest.schema.json` and
+  `affective_interpretation_report.schema.json`: deterministic symbolic
+  valence, arousal, majorness, tension, and explicitly nullable timbral
+  brightness evidence, parallel to and independent from Native JI and PIL.
+- `parallel_evaluation_authority_1_1.schema.json` and
+  `parallel_evaluation_report_1_1.schema.json`: additive affective branch
+  binding with the existing five-component search quality tuple unchanged.
 - `unscored_generation_receipt.schema.json`: evaluation-free
   SongProgram-to-Project-to-WAV artifact binding and output inventory.
 - `render_determinism_matrix_manifest.schema.json` and

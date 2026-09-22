@@ -14,7 +14,7 @@
       "type": "object", "additionalProperties": false,
       "required": ["equave_domain", "chord_reference", "rhythm_grid", "rhythm_density"],
       "properties": {
-        "equave_domain": {"$ref": "sampler_manifest_1_1.schema.json#/properties/tables/properties/equave_domain"},
+        "equave_domain": {"$ref": "#/$defs/domainTable"},
         "chord_reference": {"$ref": "sampler_manifest_1_1.schema.json#/properties/tables/properties/chord_reference"},
         "rhythm_grid": {"$ref": "sampler_manifest_1_1.schema.json#/properties/tables/properties/rhythm_grid"},
         "rhythm_density": {"$ref": "sampler_manifest_1_1.schema.json#/properties/tables/properties/rhythm_density"}
@@ -22,15 +22,29 @@
     },
     "lowering_choices": {
       "type": "object", "additionalProperties": false,
-      "required": ["tempo_milli_bpm", "tonal_centers", "vector_walks", "rhythm_duration_ticks", "rhythm_accent_q", "maximum_domain_points", "chord_complexity_budget"],
+      "required": ["tempo_milli_bpm", "tonal_centers", "vector_walks", "rhythm_duration_ticks", "rhythm_accent_q", "maximum_domain_points", "maximum_odd_limit", "chord_complexity_budget", "lattice_navigation"],
       "properties": {
         "tempo_milli_bpm": {"type": "array", "minItems": 1, "items": {"type": "integer", "minimum": 1000, "maximum": 1000000}},
-        "tonal_centers": {"type": "array", "minItems": 1, "items": {"$ref": "song_program_0_1.schema.json#/$defs/vector"}},
-        "vector_walks": {"type": "array", "minItems": 1, "items": {"type": "array", "minItems": 1, "maxItems": 64, "items": {"$ref": "song_program_0_1.schema.json#/$defs/vector"}}},
+        "tonal_centers": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/vector"}},
+        "vector_walks": {"type": "array", "minItems": 1, "items": {"type": "array", "minItems": 1, "maxItems": 64, "items": {"$ref": "#/$defs/vector"}}},
         "rhythm_duration_ticks": {"type": "array", "minItems": 1, "items": {"type": "integer", "minimum": 1}},
         "rhythm_accent_q": {"type": "array", "minItems": 1, "items": {"type": "integer", "minimum": 0, "maximum": 10000}},
         "maximum_domain_points": {"type": "integer", "minimum": 1, "maximum": 65535},
-        "chord_complexity_budget": {"type": "integer", "minimum": 0, "maximum": 65535}
+        "maximum_odd_limit": {"type": "integer", "minimum": 7, "maximum": 65535},
+        "chord_complexity_budget": {"type": "integer", "minimum": 0, "maximum": 65535},
+        "lattice_navigation": {
+          "type":"object","additionalProperties":false,
+          "required":["algorithm","target_divisions","maximum_error_millicents","maximum_navigation_points","required_prime_factors","tonal_center_steps","walk_step_patterns","harmony_root_steps"],
+          "properties":{
+            "algorithm":{"const":"nearest-12tet-vector/v1"},"target_divisions":{"const":12},
+            "maximum_error_millicents":{"type":"integer","minimum":1,"maximum":100000},
+            "maximum_navigation_points":{"type":"integer","minimum":1,"maximum":65535},
+            "required_prime_factors":{"type":"array","minItems":1,"uniqueItems":true,"items":{"type":"integer","minimum":2,"maximum":65535}},
+            "tonal_center_steps":{"type":"array","minItems":1,"uniqueItems":true,"items":{"type":"integer","minimum":0,"maximum":11}},
+            "walk_step_patterns":{"type":"array","minItems":1,"items":{"type":"array","minItems":1,"maxItems":64,"items":{"type":"integer","minimum":0,"maximum":11}}},
+            "harmony_root_steps":{"type":"array","minItems":1,"items":{"type":"integer","minimum":0,"maximum":11}}
+          }
+        }
       }
     },
     "production_policy": {
@@ -59,6 +73,10 @@
     "manifest_hash": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
   },
   "$defs": {
+    "ratio": {"type":"string","pattern":"^[1-9][0-9]*/[1-9][0-9]*$"},
+    "vector": {"type":"array","minItems":1,"maxItems":5,"items":{"type":"integer","minimum":-32,"maximum":32}},
+    "bounds": {"type":"array","prefixItems":[{"type":"integer","minimum":-32,"maximum":32},{"type":"integer","minimum":-32,"maximum":32}],"items":false,"minItems":2,"maxItems":2},
+    "domainTable": {"type":"array","minItems":1,"items":{"type":"object","additionalProperties":false,"required":["value","weight"],"properties":{"value":{"type":"object","additionalProperties":false,"required":["equave","generators","coordinate_bounds","register_bounds"],"properties":{"equave":{"$ref":"#/$defs/ratio"},"generators":{"type":"array","minItems":1,"maxItems":5,"items":{"$ref":"#/$defs/ratio"}},"coordinate_bounds":{"type":"array","minItems":1,"maxItems":5,"items":{"$ref":"#/$defs/bounds"}},"register_bounds":{"$ref":"#/$defs/bounds"}}},"weight":{"type":"integer","minimum":1}}}},
     "increasingPair": {"type": "array", "prefixItems": [{"type": "integer"}, {"type": "integer"}], "items": false},
     "timbre": {"type": "object", "additionalProperties": false, "required": ["partials", "partial_gains_q31", "gain_q14", "release_frames"], "properties": {"partials": {"type": "array", "minItems": 1, "maxItems": 8, "items": {"type": "integer", "minimum": 1, "maximum": 64}}, "partial_gains_q31": {"type": "array", "minItems": 1, "maxItems": 8, "items": {"type": "integer", "minimum": 1, "maximum": 2147483647}}, "gain_q14": {"type": "integer", "minimum": 1, "maximum": 16384}, "release_frames": {"type": "integer", "minimum": 0, "maximum": 480000}}}
   }

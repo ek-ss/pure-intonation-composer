@@ -1,5 +1,12 @@
 # Full-song生成・完成楽曲hard gate・指標比較手順
 
+> **2026-09-19 scope correction:** この文書の`完成楽曲hard gate`は、実測上、
+> 曲としての知覚的成立性を保証しない。以後は互換名としてのみ残し、意味上は
+> `G0 renderable skeleton gate`として扱う。phrase、formal arc、harmonic motion、
+> audible recall、part coordinationを扱うG1/G2再設計は
+> [development_plan_composition_viability.md](development_plan_composition_viability.md)
+> を参照する。G1/G2合格前にgenre指標でproduction候補を選別しない。
+
 ## 1. 目的
 
 この手順は、決定論的なfull-song profileで複数seedを生成し、次の処理を一括して検証するためのものです。

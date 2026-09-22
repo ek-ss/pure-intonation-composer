@@ -1,0 +1,1 @@
+{"cases":[{"expected_error":"MELODY_HARMONY_CONFLICT","id":"member_absent","mutation":{"points":[{"contour":"hold","member":7,"relation":"chord_member"}]}},{"expected_error":"MELODY_HARMONY_CONFLICT","id":"boundary_crossing","interval":{"duration_ticks":80,"start_tick":600}}],"schema":"cps.chord-member-melody-failure-cases","schema_version":"1.0.0"}

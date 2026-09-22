@@ -2,11 +2,20 @@
 
 ## Purpose
 
-The parallel evaluation harness connects a compiled Project to three separate
+The 1.0 parallel evaluation harness connects a compiled Project to three separate
 evaluation branches: Native JI lattice coherence, PIL Phase 1–5 interpretation,
-and calibrated genre-reference similarity. PIL is an additional interpretation
+and calibrated genre-reference similarity. Version 1.1 additionally carries the
+Affective Interpretation Layer as a third interpretation authority beside
+Native JI and PIL; genre similarity remains a reference-comparison branch. PIL is an additional interpretation
 layer. It does not replace, recompute, gate, or provide fallback values for the
 Native JI branch.
+
+ParallelEvaluationAuthority 1.1 adds a closed `affective_manifest`, and its
+report adds the independently hash-bound `affective_report`. This addition does
+not change the existing five-element SearchLoop quality tuple. The affective
+metrics are audit-only until listener calibration promotes an explicit later
+decision version. Authority/report 1.0 remain accepted without synthesized
+affective values.
 
 ## Authority and hashing
 

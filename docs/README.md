@@ -1,5 +1,7 @@
 # Documentation
 
+- [Lattice dimension and variable-generator policy](lattice_dimension_and_generator_policy.md)
+
 This directory separates current behavior from design proposals and historical
 roadmaps. Start with the first table rather than treating every specification
 as implemented.
@@ -62,6 +64,7 @@ as implemented.
 | [motif_vital_arrangement.md](motif_vital_arrangement.md) | Implemented G14-to-Vital arrangement boundary and follow-up roadmap |
 | [development_plan_rhythm.md](development_plan_rhythm.md) | Original rhythm milestone plan; retained as design history |
 | [development_plan_llm_lattice_music_loop.md](development_plan_llm_lattice_music_loop.md) | Proposed quality-diversity and LLM-guided lattice-music generation loop |
+| [development_plan_composition_viability.md](development_plan_composition_viability.md) | Pre-genre composition viability redesign, baseline diagnosis, next-generation profile, and listening calibration plan |
 | [song_program_gen0_cohort_gate_contract.md](song_program_gen0_cohort_gate_contract.md) | Normative 1,000-seed GEN0 viability/diversity cohort measurement contract |
 | [song_program_render_determinism_matrix_contract.md](song_program_render_determinism_matrix_contract.md) | Normative GEN0-C 100-render/process/block parity acceptance extension |
 

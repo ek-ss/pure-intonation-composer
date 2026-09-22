@@ -615,8 +615,12 @@ _SHA256 = re.compile(r"^sha256:[0-9a-f]{64}$")
 
 def structural_program_hash(program: dict[str, Any]) -> str:
     """Return the domain-separated CAS identity of a structural payload."""
+    version = program.get("schema_version")
+    if version not in {"1.0.0", "1.1.0"}:
+        raise FallbackError("SAMPLER_RESULT_INVALID")
+    hash_version = version.rsplit(".", 1)[0]
     return "sha256:" + hashlib.sha256(
-        b"cps.structural-song-program/1.0\0" + canonical_bytes(program)
+        f"cps.structural-song-program/{hash_version}\0".encode() + canonical_bytes(program)
     ).hexdigest()
 
 
@@ -711,7 +715,10 @@ def _validate_v11_request_shape(request: dict[str, Any]) -> None:
 
 def _validate_v11_structural_program(request: dict[str, Any]) -> list[str]:
     program = request["structural_program"]
-    if program.get("schema") != "cps.structural-song-program" or program.get("schema_version") != "1.0.0":
+    if (
+        program.get("schema") != "cps.structural-song-program"
+        or program.get("schema_version") not in {"1.0.0", "1.1.0"}
+    ):
         raise FallbackError("SAMPLER_RESULT_INVALID")
     if "tracks" in program or "production" in program:
         raise FallbackError("SAMPLER_RESULT_INVALID")
@@ -752,7 +759,10 @@ def apply_structural_broad_prior_production(structural_program: dict[str, Any], 
         raise FallbackError("SAMPLER_RESULT_INVALID")
     result = copy.deepcopy(structural_program)
     result["schema"] = "cps.song-program"
-    result["schema_version"] = "0.1.0"
+    dimension = len(result.get("lattice", {}).get("generators", []))
+    if not 1 <= dimension <= 5:
+        raise FallbackError("SAMPLER_RESULT_INVALID")
+    result["schema_version"] = "0.2.0" if dimension > 3 else "0.1.0"
     tracks: list[dict[str, Any]] = []
     mix: dict[str, dict[str, int]] = {}
     role_to_track = {role: f"trk_{role}" for role in active}

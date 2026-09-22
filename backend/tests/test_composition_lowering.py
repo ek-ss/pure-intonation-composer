@@ -23,6 +23,9 @@ BACKEND = Path(__file__).resolve().parents[1]
 PROFILE = (
     BACKEND / "songprogram_conformance" / "profiles" / "composition_generation_v2.json"
 )
+REALIZATION_PROFILE = (
+    BACKEND / "songprogram_conformance" / "profiles" / "composition_realization_v2_1.json"
+)
 
 
 def _inputs(seed: int = 0) -> tuple[dict, dict]:
@@ -114,3 +117,46 @@ def test_lowering_rejects_tampered_plan_before_mutation() -> None:
     tampered["sections"][0]["bars"] = 5
     with pytest.raises(CompositionLoweringError, match="COMPOSITION_PLAN_INVALID"):
         lower_composition_plan(structural, tampered)
+
+
+def test_realization_profile_activates_role_masks_and_density() -> None:
+    structural, plan = _inputs()
+    profile = json.loads(REALIZATION_PROFILE.read_text(encoding="utf-8"))
+    lowered = lower_composition_plan(structural, plan, profile)
+    assert lowered == lower_composition_plan(structural, plan, profile)
+    materials = {material["id"]: material for material in lowered["materials"]}
+    by_section: dict[str, list[dict]] = {}
+    for row in lowered["realizations"]:
+        by_section.setdefault(row["section_id"], []).append(row)
+    role_masks = {section_id: {row["role"] for row in rows} for section_id, rows in by_section.items()}
+    assert len(set(map(frozenset, role_masks.values()))) >= 2
+    texture_rows = [
+        row for rows in by_section.values() for row in rows if row["role"] == "texture"
+    ]
+    assert texture_rows
+    assert all("mat_cmp_tex_" in row["material_id"] for row in texture_rows)
+    assert any("noise_riser" in row["material_id"] for row in texture_rows)
+    assert any("transition_tail" in row["material_id"] for row in texture_rows)
+    for section in plan["sections"]:
+        rows = by_section[section["section_id"]]
+        expected_velocity = 8500 + round(section["energy_q"] * 1500 / 10000)
+        assert all(row["velocity_scale_q"] == expected_velocity for row in rows)
+        assert 8500 <= expected_velocity <= 10000
+        for role in ("drums", "bass", "harmony"):
+            ordinary = [
+                row for row in rows
+                if row["role"] == role and row["repeat"] == section["bars"]
+            ]
+            if not ordinary:
+                continue
+            material = materials[ordinary[0]["material_id"]]
+            helper = materials[material["rhythm_id"]] if "rhythm_id" in material else material
+            policy = profile["density_policy_by_role"][role]
+            expected = policy["minimum_events_per_bar"] + round(
+                section["density_q"]
+                * (policy["maximum_events_per_bar"] - policy["minimum_events_per_bar"])
+                / 10000
+            )
+            assert len(helper["steps"]) == expected
+            expected_accent = 10000 if role == "harmony" else expected_velocity
+            assert all(step["accent_q"] == expected_accent for step in helper["steps"])

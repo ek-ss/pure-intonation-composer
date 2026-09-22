@@ -278,6 +278,27 @@ def test_v11_production_creates_canonical_tracks_and_rebinds_structural_realizat
     assert result["output"]["program_hash"] == program_hash(program)
 
 
+def test_v11_production_promotes_five_dimension_program_to_schema_0_2() -> None:
+    request, manifest, catalog, structural_manifest = _production_v11_request()
+    structural = request["structural_program"]
+    structural["lattice"]["generators"] = ["3/1", "5/1", "7/1", "11/1", "13/1"]
+    structural["schema_version"] = "1.1.0"
+    structural["lattice"]["coordinate_bounds"] = [[0, 0]] * 5
+    structural["form"][0]["tonal_center"] = [0] * 5
+    for material in structural["materials"]:
+        if "vectors" in material:
+            material["vectors"] = [[0] * 5 for _ in material["vectors"]]
+        if "root_anchors" in material:
+            material["root_anchors"] = [[0] * 5 for _ in material["root_anchors"]]
+    request["structural_program_hash"] = structural_program_hash(structural)
+    request["request_hash"] = fallback._search_decision_hash(request, "request_hash")
+
+    result = execute_broad_prior_production(request, manifest, catalog, structural_manifest)
+
+    assert result["status"] == "success"
+    assert result["output"]["program"]["schema_version"] == "0.2.0"
+
+
 def test_v11_production_closes_null_drum_lanes_from_selected_map() -> None:
     from tests.test_songprogram_structural_sampler import _authorities
     from app.songprogram.structural_sampler import _hash, execute_structural_sampler

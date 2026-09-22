@@ -17,8 +17,13 @@ from app.songprogram.composition_lowering import (  # noqa: E402
     lower_composition_plan,
 )
 from app.songprogram.composition_viability import extract_composition_viability  # noqa: E402
+from app.songprogram.composition_realization import (  # noqa: E402
+    realization_profile_hash,
+    validate_realization_profile,
+)
 from app.songprogram.fallback import execute_broad_prior_production  # noqa: E402
 from app.songprogram.mutation import program_hash  # noqa: E402
+from app.songprogram.midi_export import export_evaluation_midi  # noqa: E402
 from app.songprogram.perceptual import project_hash  # noqa: E402
 from app.songprogram.renderer import render_reference  # noqa: E402
 from app.songprogram.search import canonical_bytes  # noqa: E402
@@ -37,6 +42,9 @@ from tools.run_fixture_generation_cohort import (  # noqa: E402
 DEFAULT_PROFILE = (
     BACKEND / "songprogram_conformance" / "profiles" / "composition_generation_v2.json"
 )
+DEFAULT_REALIZATION_PROFILE = (
+    BACKEND / "songprogram_conformance" / "profiles" / "composition_realization_v2_1.json"
+)
 
 
 def _object(path: Path) -> dict:
@@ -50,17 +58,20 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--seed", type=int, required=True)
     parser.add_argument("--profile", type=Path, default=DEFAULT_PROFILE)
+    parser.add_argument("--realization-profile", type=Path, default=DEFAULT_REALIZATION_PROFILE)
     parser.add_argument("--generation-manifest", type=Path, default=DEFAULT_GENERATION_MANIFEST)
     parser.add_argument("--output", type=Path, required=True)
     arguments = parser.parse_args()
     if not 0 <= arguments.seed < 2**64:
         parser.error("--seed must fit uint64")
-    for option in ("profile", "generation_manifest"):
+    for option in ("profile", "realization_profile", "generation_manifest"):
         path = getattr(arguments, option)
         if not path.is_file():
             parser.error(f"--{option.replace('_', '-')} is not a file: {path}")
     try:
         profile = _object(arguments.profile)
+        realization_profile = _object(arguments.realization_profile)
+        validate_realization_profile(realization_profile)
         generation_manifest = _object(arguments.generation_manifest)
         plan = generate_composition_plan(profile, arguments.seed)
         structural = None
@@ -73,7 +84,9 @@ def main() -> None:
             if sampled["result"]["status"] != "success":
                 continue
             try:
-                structural = lower_composition_plan(sampled["structural_program"], plan)
+                structural = lower_composition_plan(
+                    sampled["structural_program"], plan, realization_profile
+                )
                 break
             except CompositionLoweringError as error:
                 if error.code != "COMPOSITION_LOWERING_CORE_ROLE_UNAVAILABLE":
@@ -139,6 +152,7 @@ def main() -> None:
             pcm_continuity=pcm_continuity(rendered.wav),
         )
         g1_features = extract_composition_viability(program, project)
+        evaluation_midi, evaluation_midi_manifest = export_evaluation_midi(project)
     except (OSError, json.JSONDecodeError, KeyError, TypeError, ValueError) as error:
         parser.error(str(error))
 
@@ -148,7 +162,10 @@ def main() -> None:
         "structural_program.json": canonical_bytes(structural),
         "program.json": canonical_bytes(program),
         "project.json": canonical_bytes(project),
-        "preview.wav": rendered.wav,
+        "reference.wav": rendered.wav,
+        "perceptual_preview.wav": rendered.wav,
+        "evaluation_reference.mid": evaluation_midi,
+        "evaluation_reference_midi.json": canonical_bytes(evaluation_midi_manifest),
         "song_validity.json": canonical_bytes(validity),
         "g1_features.json": canonical_bytes(g1_features),
     }
@@ -156,15 +173,18 @@ def main() -> None:
         (arguments.output / name).write_bytes(payload)
     receipt = {
         "schema": "cps.composition-song-generation-receipt",
-        "schema_version": "1.0.0",
+        "schema_version": "1.2.0",
         "seed": arguments.seed,
         "structural_seed": structural_seed,
         "structural_rejection_ordinal": structural_rejection_ordinal,
         "profile_hash": profile["profile_hash"],
+        "realization_profile_hash": realization_profile_hash(realization_profile),
         "plan_hash": plan["plan_hash"],
         "program_hash": program_hash(program),
         "project_hash": project_hash(project),
         "wav_hash": rendered.report["wav_hash"],
+        "midi_hash": evaluation_midi_manifest["midi_hash"],
+        "midi_manifest_hash": evaluation_midi_manifest["manifest_hash"],
         "song_validity_hash": validity["assessment_hash"],
         "g1_feature_report_hash": g1_features["report_hash"],
         "archive_eligible": validity["archive_eligible"],

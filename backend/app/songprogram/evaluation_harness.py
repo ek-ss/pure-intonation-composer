@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from fractions import Fraction
 from typing import Any, Callable, Mapping, Sequence
 
+from .affective import evaluate_affective
 from .compiler import _canonical, _rhe
 from .native_ji import evaluate_native_ji
 from .perceptual import project_hash, run_perceptual_interpretation
@@ -174,6 +175,9 @@ def _evaluate_parallel(
         "genre_reference_feature_records",
         "authority_hash",
     }
+    authority_version = authority.get("schema_version") if isinstance(authority, Mapping) else None
+    if authority_version == "1.1.0" and not mock:
+        required.add("affective_manifest")
     if mock:
         required |= {"mock_policy", "genre_discrimination_report"}
     expected_schema = (
@@ -185,7 +189,7 @@ def _evaluate_parallel(
         not isinstance(authority, Mapping)
         or set(authority) != required
         or authority.get("schema") != expected_schema
-        or authority.get("schema_version") != "1.0.0"
+        or authority_version not in ({"1.0.0"} if mock else {"1.0.0", "1.1.0"})
         or authority.get("authority_hash") != parallel_evaluation_authority_hash(authority)
     ):
         raise ParallelEvaluationError("EVALUATION_AUTHORITY_INVALID")
@@ -222,6 +226,11 @@ def _evaluate_parallel(
         raise ParallelEvaluationError("GENRE_EXTRACTOR_BINDING_MISMATCH")
 
     native = evaluate_native_ji(project, authority["native_ji_manifest"])
+    affective = (
+        evaluate_affective(project, authority["affective_manifest"])
+        if authority_version == "1.1.0"
+        else None
+    )
     pil = run_perceptual_interpretation(
         project,
         authority["pil_manifest"],
@@ -263,7 +272,7 @@ def _evaluate_parallel(
             if mock
             else "cps.parallel-evaluation-report"
         ),
-        "schema_version": "1.0.0",
+        "schema_version": authority_version,
         "project_hash": project_hash(project),
         "authority_hash": authority["authority_hash"],
         "genre_intent_hash": authority["genre_intent"]["intent_hash"],
@@ -281,6 +290,8 @@ def _evaluate_parallel(
         "quality": quality,
         "report_hash": "",
     }
+    if affective is not None:
+        report["affective_report"] = affective
     if mock:
         report.update(
             {

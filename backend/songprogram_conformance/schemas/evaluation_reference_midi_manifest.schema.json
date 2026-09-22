@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cps.local/schemas/evaluation_reference_midi_manifest.schema.json",
+  "title": "Evaluation Reference MIDI Manifest 1.0",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema", "schema_version", "algorithm", "numeric_contract", "pitch_bend_range_semitones", "program_by_role", "midi_hash", "manifest_hash"],
+  "properties": {
+    "schema": {"const": "cps.evaluation-reference-midi-manifest"},
+    "schema_version": {"const": "1.0.0"},
+    "algorithm": {"const": "smf0-per-note-channel-pitch-bend/v1"},
+    "numeric_contract": {"const": "cps-numeric/decimal-log2-rhe-v1"},
+    "pitch_bend_range_semitones": {"const": 2},
+    "program_by_role": {
+      "type": "object", "additionalProperties": false,
+      "required": ["bass", "harmony", "melody", "texture"],
+      "properties": {
+        "bass": {"type": "integer", "minimum": 0, "maximum": 127},
+        "harmony": {"type": "integer", "minimum": 0, "maximum": 127},
+        "melody": {"type": "integer", "minimum": 0, "maximum": 127},
+        "texture": {"type": "integer", "minimum": 0, "maximum": 127}
+      }
+    },
+    "midi_hash": {"$ref": "#/$defs/sha256"},
+    "manifest_hash": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {"sha256": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}}
+}

@@ -32,9 +32,25 @@ def artifact_hash(domain: str, value: Any) -> str:
 
 
 def program_hash(program: dict[str, Any]) -> str:
+    version = program.get("schema_version")
+    if version not in {"0.1.0", "0.2.0"}:
+        raise MutationError("MUTATION_PROGRAM_SCHEMA_UNSUPPORTED")
+    hash_version = version.rsplit(".", 1)[0]
     return "sha256:" + hashlib.sha256(
-        b"cps.song-program/0.1\0" + _canon({key: value for key, value in program.items() if key != "program_id"})
+        f"cps.song-program/{hash_version}\0".encode()
+        + _canon({key: value for key, value in program.items() if key != "program_id"})
     ).hexdigest()
+
+
+def _validate_mutation_version(program: dict[str, Any], mutation: dict[str, Any], ordinal: int) -> None:
+    expected = "2.0.0" if program.get("schema_version") == "0.2.0" else "1.0.0"
+    if mutation.get("schema") != "cps.mutation" or mutation.get("schema_version") != expected:
+        raise MutationError("MUTATION_SCHEMA_VERSION_MISMATCH", "mutation", ordinal)
+
+
+def _mutation_hash(mutation: dict[str, Any]) -> str:
+    version = mutation.get("schema_version", "1.0.0").split(".", 1)[0]
+    return artifact_hash(f"cps.mutation/v{version}", mutation)
 
 
 def _derived(prefix: bytes, mutation_id: str, source_id: str) -> str:
@@ -200,7 +216,7 @@ def _error(exc: MutationError) -> dict[str, Any]:
 
 
 def _failed_step(mutation: dict[str, Any], ordinal: int, input_hash: str, actual: list[dict[str, str]] | None, error: dict[str, Any]) -> dict[str, Any]:
-    return {"ordinal": ordinal, "mutation_id": mutation.get("mutation_id"), "mutation_hash": artifact_hash("cps.mutation/v1", mutation), "input_program_hash": input_hash, "status": "failed", "identity": None, "actual_roots": actual, "scope_hash": artifact_hash("cps.mutation-scope/v1", actual) if actual is not None else None, "closure_before": None, "closure_after": None, "closure_hash": None, "output_program_hash": None, "impact_hash": None, "error": error}
+    return {"ordinal": ordinal, "mutation_id": mutation.get("mutation_id"), "mutation_hash": _mutation_hash(mutation), "input_program_hash": input_hash, "status": "failed", "identity": None, "actual_roots": actual, "scope_hash": artifact_hash("cps.mutation-scope/v1", actual) if actual is not None else None, "closure_before": None, "closure_after": None, "closure_hash": None, "output_program_hash": None, "impact_hash": None, "error": error}
 
 
 def apply_mutation_request(request: dict[str, Any]) -> dict[str, Any]:
@@ -212,6 +228,7 @@ def apply_mutation_request(request: dict[str, Any]) -> dict[str, Any]:
     try:
         for ordinal, mutation in enumerate(request["mutations"]):
             before = copy.deepcopy(current); before_hash = program_hash(before); actual = None
+            _validate_mutation_version(before, mutation, ordinal)
             if mutation.get("operation") != mutation.get("parameters", {}).get("kind"): raise MutationError("MUTATION_OPERATION_MISMATCH", "mutation", ordinal)
             if mutation.get("base_program_hash") != before_hash: raise MutationError("MUTATION_BASE_HASH_MISMATCH", "mutation", ordinal)
             try:
@@ -226,7 +243,7 @@ def apply_mutation_request(request: dict[str, Any]) -> dict[str, Any]:
             song, project, downstream = _components(mutation["operation"], mutation["parameters"], before, trial)
             entry = {"ordinal": ordinal, "mutation_id": mutation["mutation_id"], "operation": mutation["operation"], "before_program_hash": before_hash, "after_program_hash": after_hash, "identity": before_hash == after_hash, "actual_roots": actual, "closure_before": closure_before, "closure_after": closure_after, "song_program_components": song, "project_components": project, "downstream_components": downstream}
             entries.append(entry)
-            steps.append({"ordinal": ordinal, "mutation_id": mutation["mutation_id"], "mutation_hash": artifact_hash("cps.mutation/v1", mutation), "input_program_hash": before_hash, "status": "complete", "identity": before_hash == after_hash, "actual_roots": actual, "scope_hash": artifact_hash("cps.mutation-scope/v1", actual), "closure_before": closure_before, "closure_after": closure_after, "closure_hash": artifact_hash("cps.mutation-closure/v1", {"closure_before": closure_before, "closure_after": closure_after}), "output_program_hash": after_hash, "impact_hash": artifact_hash("cps.mutation-impact/v1", entry), "error": None})
+            steps.append({"ordinal": ordinal, "mutation_id": mutation["mutation_id"], "mutation_hash": _mutation_hash(mutation), "input_program_hash": before_hash, "status": "complete", "identity": before_hash == after_hash, "actual_roots": actual, "scope_hash": artifact_hash("cps.mutation-scope/v1", actual), "closure_before": closure_before, "closure_after": closure_after, "closure_hash": artifact_hash("cps.mutation-closure/v1", {"closure_before": closure_before, "closure_after": closure_after}), "output_program_hash": after_hash, "impact_hash": artifact_hash("cps.mutation-impact/v1", entry), "error": None})
             current = trial
     except MutationError as exc:
         error = _error(exc); steps.append(_failed_step(request["mutations"][exc.ordinal], exc.ordinal, program_hash(current), actual, error))
@@ -249,6 +266,7 @@ def apply_mutations(program: dict[str, Any], mutations: list[dict[str, Any]], lo
     current, impacts = copy.deepcopy(program), []
     locks = {(item["kind"], item["id"]) for item in locked_roots}
     for ordinal, mutation in enumerate(mutations):
+        _validate_mutation_version(current, mutation, ordinal)
         if mutation.get("operation") != mutation.get("parameters", {}).get("kind"): raise MutationError("MUTATION_OPERATION_MISMATCH", "mutation", ordinal)
         if mutation.get("base_program_hash") != program_hash(current): raise MutationError("MUTATION_BASE_HASH_MISMATCH", "mutation", ordinal)
         trial = _apply_one(current, mutation, choice_catalog, catalog, ordinal); roots = _roots(mutation["parameters"], ordinal)

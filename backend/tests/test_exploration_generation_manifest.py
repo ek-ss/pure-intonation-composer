@@ -8,6 +8,7 @@ import pytest
 
 from app.songprogram.exploration_generation import (
     ExplorationGenerationManifestError,
+    derive_lattice_navigation,
     exploration_generation_manifest_hash,
     validate_exploration_generation_manifest,
 )
@@ -63,3 +64,60 @@ def test_manifest_requires_chord_reference_for_every_equave() -> None:
         match="GENERATION_CHORD_EQUAVE_COVERAGE_INVALID",
     ):
         validate_exploration_generation_manifest(manifest)
+
+
+def test_every_domain_is_357_limit_and_derives_non_fixed_navigation() -> None:
+    manifest = _manifest()
+    policy = manifest["lowering_choices"]["lattice_navigation"]
+    for row in manifest["sampler_tables"]["equave_domain"]:
+        domain = row["value"]
+        primes = {int(domain["equave"].split("/")[0])}
+        primes.update(int(value.split("/")[0]) for value in domain["generators"])
+        assert {3, 5, 7}.issubset(primes)
+        navigation = derive_lattice_navigation(domain, policy)
+        assert len(navigation["tonal_centers"]) > 1
+        assert navigation["harmony_root_anchors"] != [[0, 0, 0]]
+        assert any(
+            sum(abs(value) for value in right) > 1
+            for walk in navigation["vector_walks"]
+            for left, right in zip(walk, walk[1:])
+        )
+        for family in ("tonal_centers", "harmony_root_anchors"):
+            assert all(len(vector) == 3 for vector in navigation[family])
+
+
+def test_navigation_rejects_domain_without_prime_seven() -> None:
+    manifest = _manifest()
+    domain = copy.deepcopy(manifest["sampler_tables"]["equave_domain"][0]["value"])
+    domain["generators"][-1] = "11/1"
+    with pytest.raises(
+        ExplorationGenerationManifestError,
+        match="GENERATION_GENERATOR_COVERAGE_INVALID",
+    ):
+        derive_lattice_navigation(domain, manifest["lowering_choices"]["lattice_navigation"])
+
+
+def test_navigation_accepts_five_variable_generators_without_materializing_domain() -> None:
+    manifest = _manifest()
+    domain = {
+        "equave": "2/1",
+        "generators": ["3/1", "5/1", "7/1", "11/1", "13/1"],
+        "coordinate_bounds": [[-4, 4], [-4, 4], [-4, 4], [0, 0], [0, 0]],
+        "register_bounds": [-2, 2],
+    }
+    result = derive_lattice_navigation(
+        domain, manifest["lowering_choices"]["lattice_navigation"]
+    )
+    assert all(len(vector) == 5 for vector in result["tonal_centers"])
+
+
+def test_navigation_rejects_more_than_five_dimensions() -> None:
+    manifest = _manifest()
+    domain = copy.deepcopy(manifest["sampler_tables"]["equave_domain"][0]["value"])
+    domain["generators"] += ["11/1", "13/1", "17/1"]
+    domain["coordinate_bounds"] += [[0, 0], [0, 0], [0, 0]]
+    with pytest.raises(
+        ExplorationGenerationManifestError,
+        match="GENERATION_GENERATOR_COVERAGE_INVALID",
+    ):
+        derive_lattice_navigation(domain, manifest["lowering_choices"]["lattice_navigation"])

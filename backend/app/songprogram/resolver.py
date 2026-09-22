@@ -192,7 +192,10 @@ def _matching(left: list[dict[str, Any]], right: list[dict[str, Any]], equave_mc
 
 def resolve_progression(query: dict[str, Any]) -> dict[str, Any]:
     """Exact layered Viterbi over self-contained GEN0-B candidate cores."""
-    if query.get("schema_version") != "1.2.0" or query.get("numeric_contract") != NUMERIC_CONTRACT:
+    if (
+        query.get("schema_version") not in {"1.2.0", "2.0.0"}
+        or query.get("numeric_contract") != NUMERIC_CONTRACT
+    ):
         raise ValueError("PROGRESSION_QUERY_CONTEXT_INVALID")
     equave_mc = _mc(_ratio(query["domain_equave"]))
     layers = [sorted(item["candidate_cores"], key=lambda core: (core["local_pair_rms_millicents"], core["local_pair_max_millicents"], core["local_complexity"], core["core_hash"])) for item in query["occurrences"]]

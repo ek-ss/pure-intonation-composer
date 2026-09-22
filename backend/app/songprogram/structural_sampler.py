@@ -60,7 +60,10 @@ def _hash(domain: str, value: Any, *, omit: str | None = None) -> str:
 
 
 def structural_program_hash(program: Mapping[str, Any]) -> str:
-    return _hash("cps.structural-song-program/1.0", dict(program))
+    version = program.get("schema_version")
+    if version not in {"1.0.0", "1.1.0"}:
+        raise StructuralSamplerError("SAMPLER_RESULT_INVALID")
+    return _hash(f"cps.structural-song-program/{version.rsplit('.', 1)[0]}", dict(program))
 
 
 def structural_rejection_evidence_hash(evidence: Mapping[str, Any]) -> str:
@@ -582,9 +585,12 @@ def _lower(
     program_id = ids["program_prefix"] + _b32(
         hashlib.sha256(b"cps.structural-program-id/v1\0" + _raw_sha(attempt_seed_hash)).digest(), 26
     )
+    dimension = len(lattice["generators"])
+    if not 1 <= dimension <= 5:
+        raise StructuralSamplerError("SAMPLER_RESULT_INVALID")
     result = {
         "schema": "cps.structural-song-program",
-        "schema_version": "1.0.0",
+        "schema_version": "1.1.0" if dimension > 3 else "1.0.0",
         "program_id": program_id,
         "seed": request["root_seed"],
         "clock": copy.deepcopy(clock),

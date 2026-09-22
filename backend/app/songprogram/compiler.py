@@ -5,6 +5,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import json
+import math
 from copy import deepcopy
 from dataclasses import dataclass
 from decimal import Decimal, ROUND_HALF_EVEN, localcontext
@@ -19,6 +20,55 @@ class CompileError(ValueError):
         super().__init__(code)
         self.code = code
         self.pointer = pointer
+
+
+_PROGRAM_PROJECT_VERSIONS = {"0.1.0": "1.2.0", "0.2.0": "1.3.0"}
+_MAX_LATTICE_DIMENSIONS = 5
+
+
+def _validate_lattice_dimensions(program: dict[str, Any]) -> None:
+    """Reject ambiguous vector lengths and unbounded Cartesian domains early."""
+    lattice = program.get("lattice", {})
+    generators = lattice.get("generators")
+    bounds = lattice.get("coordinate_bounds")
+    if not isinstance(generators, list) or not isinstance(bounds, list):
+        raise CompileError("LATTICE_DOMAIN_INVALID", "/lattice")
+    dimension = len(generators)
+    version_limit = 3 if program.get("schema_version") == "0.1.0" else _MAX_LATTICE_DIMENSIONS
+    if not 1 <= dimension <= version_limit or len(bounds) != dimension:
+        raise CompileError("VECTOR_DIMENSION_MISMATCH", "/lattice")
+    try:
+        generator_values = [_ratio(value) for value in generators]
+        equave = _ratio(lattice.get("equave"))
+    except (CompileError, TypeError) as error:
+        raise CompileError("LATTICE_DOMAIN_INVALID", "/lattice/generators") from error
+    if len(set(generator_values)) != dimension or equave in generator_values:
+        raise CompileError("LATTICE_GENERATORS_DEGENERATE", "/lattice/generators")
+    if any(
+        not isinstance(bound, list)
+        or len(bound) != 2
+        or type(bound[0]) is not int
+        or type(bound[1]) is not int
+        or bound[0] > bound[1]
+        for bound in bounds
+    ):
+        raise CompileError("LATTICE_DOMAIN_INVALID", "/lattice/coordinate_bounds")
+    cardinality = math.prod(high - low + 1 for low, high in bounds)
+    maximum = lattice.get("pitch_exploration", {}).get("maximum_domain_points")
+    if type(maximum) is not int or cardinality > maximum:
+        raise CompileError("LATTICE_DOMAIN_TOO_LARGE", "/lattice/coordinate_bounds")
+
+    vectors: list[tuple[str, Any]] = []
+    vectors.extend((f"/form/{index}/tonal_center", row.get("tonal_center")) for index, row in enumerate(program.get("form", [])))
+    for material_index, material in enumerate(program.get("materials", [])):
+        for field in ("vectors", "root_anchors"):
+            vectors.extend(
+                (f"/materials/{material_index}/{field}/{index}", vector)
+                for index, vector in enumerate(material.get(field, []))
+            )
+    for pointer, vector in vectors:
+        if not isinstance(vector, list) or len(vector) != dimension:
+            raise CompileError("VECTOR_DIMENSION_MISMATCH", pointer)
 
 
 @dataclass(frozen=True)
@@ -352,9 +402,13 @@ def _place_exponent(
 
 
 def compile_sp0(program: dict[str, Any], identity: CompilerIdentity) -> dict[str, Any]:
-    """Compile the implemented drum/direct/harmony subset to Project 1.2."""
-    if program.get("schema") != "cps.song-program" or program.get("schema_version") != "0.1.0":
+    """Compile SP 0.1/0.2 to its matching Project 1.2/1.3 envelope."""
+    if (
+        program.get("schema") != "cps.song-program"
+        or program.get("schema_version") not in _PROGRAM_PROJECT_VERSIONS
+    ):
         raise CompileError("SCHEMA_VERSION_UNSUPPORTED")
+    _validate_lattice_dimensions(program)
     if any(
         material.get("kind")
         not in {"rhythm_cell", "direct_vector_cell", "harmony_intent_cell", "melody_intent"}
@@ -410,14 +464,14 @@ def compile_sp0(program: dict[str, Any], identity: CompilerIdentity) -> dict[str
     )
     project: dict[str, Any] = {
         "schema": "cps.arrangement-project",
-        "schema_version": "1.2.0",
+        "schema_version": _PROGRAM_PROJECT_VERSIONS[program["schema_version"]],
         "source_program": {
             "hash": _sha(
-                b"cps.song-program/0.1\0",
+                f"cps.song-program/{program['schema_version'].rsplit('.', 1)[0]}\0".encode(),
                 {key: value for key, value in program.items() if key != "program_id"},
             ),
             "schema": "cps.song-program",
-            "schema_version": "0.1.0",
+            "schema_version": program["schema_version"],
         },
         "compiler": {
             "build_id": identity.build_id,
@@ -830,7 +884,9 @@ def compile_sp0(program: dict[str, Any], identity: CompilerIdentity) -> dict[str
         )
         query = {
             "schema": "cps.progression-query",
-            "schema_version": "1.2.0",
+            "schema_version": (
+                "2.0.0" if program["schema_version"] == "0.2.0" else "1.2.0"
+            ),
             "algorithm": "gen0-progression-exact/v1",
             "numeric_contract": identity.numeric_contract,
             "budget_profile": "gen0-progression-exact-v1",
@@ -1111,7 +1167,9 @@ def build_lineage_index(
     project_hash = (
         "sha256:"
         + hashlib.sha256(
-            project["compiler"]["build_id"].encode() + b"\0project/1.2.0\0" + project_bytes
+            project["compiler"]["build_id"].encode()
+            + f"\0project/{project['schema_version']}\0".encode()
+            + project_bytes
         ).hexdigest()
     )
     return {
@@ -1170,19 +1228,46 @@ def _gen0b_validate_manifest(manifest: dict[str, Any]) -> None:
         progression = manifest["progression_resolver"]
         required_root = {"progression_states", "progression_edges"}
         required_child = {"progression_states", "progression_edges"}
+        version = manifest.get("schema_version")
+        is_v2 = version == "2.0.0"
         if (
             manifest.get("schema") != "cps.compiler-manifest"
-            or manifest.get("schema_version") != "1.1.0"
+            or version not in {"1.1.0", "2.0.0"}
             or progression.get("algorithm") != "gen0-progression-exact/v1"
             or progression.get("search_completeness") != "exact"
             or not 1 <= progression["candidates_per_intent"] <= 24
-            or profile.get("id") != "gen0-progression-exact-v1"
+            or profile.get("id")
+            != ("gen0-progression-exact-v2" if is_v2 else "gen0-progression-exact-v1")
             or not required_root <= set(profile["root_ceilings"])
             or not required_child <= set(profile["child_ceilings"])
             or not {"progression_occurrences", "progression_candidates_per_occurrence"}
             <= set(profile["shape_limits"])
+            or (
+                is_v2
+                and (
+                    manifest.get("song_program_schema_versions") != ["0.2.0"]
+                    or manifest.get("project_schema_version") != "1.3.0"
+                    or manifest.get("progression_query_schema_version") != "2.0.0"
+                    or manifest.get("gen0b_evidence_schema_version") != "2.0.0"
+                    or manifest.get("melody_report_schema_version") != "2.0.0"
+                )
+            )
         ):
             raise KeyError
+        if is_v2:
+            limits = profile["domain_limits"]
+            if (
+                not 1 <= limits["dimensions"] <= 5
+                or not 1 <= limits["axis_width"] <= 7
+                or not 1 <= limits["coordinate_cardinality"] <= 1024
+                or not 1 <= limits["register_width"] <= 8
+                or not 1 <= limits["placed_cardinality"] <= 4096
+                or profile["digest"] != _sha(
+                    b"cps.budget-profile/v1\0",
+                    {key: value for key, value in profile.items() if key != "digest"},
+                )
+            ):
+                raise KeyError
         computed_build = "cb_" + _b32(
             b"cps.compiler-build/v1\0"
             + _canonical({key: value for key, value in manifest.items() if key != "build_id"}),
@@ -1328,12 +1413,32 @@ def compile_gen0b(program: dict[str, Any], manifest: dict[str, Any]) -> Gen0BCom
     )
 
     _gen0b_validate_manifest(manifest)
+    manifest_version = manifest["schema_version"]
+    expected_program_version = "0.2.0" if manifest_version == "2.0.0" else "0.1.0"
+    if program.get("schema_version") != expected_program_version:
+        raise CompileError("GEN0B_SCHEMA_VERSION_UNSUPPORTED")
+    _validate_lattice_dimensions(program)
+    limits = manifest["budget_profile"]["domain_limits"]
+    coordinate_bounds = program["lattice"]["coordinate_bounds"]
+    coordinate_cardinality = math.prod(high - low + 1 for low, high in coordinate_bounds)
+    register_width = program["lattice"]["register_bounds"][1] - program["lattice"]["register_bounds"][0] + 1
+    if (
+        len(coordinate_bounds) > limits["dimensions"]
+        or max(high - low + 1 for low, high in coordinate_bounds) > limits["axis_width"]
+        or coordinate_cardinality > limits["coordinate_cardinality"]
+        or register_width > limits["register_width"]
+        or coordinate_cardinality * register_width > limits["placed_cardinality"]
+    ):
+        raise CompileError("GEN0B_DOMAIN_LIMIT_EXCEEDED")
     identity = _manifest_identity(manifest)
+    program_hash_version = program["schema_version"].rsplit(".", 1)[0]
     source_hash = _sha(
-        b"cps.song-program/0.1\0",
+        f"cps.song-program/{program_hash_version}\0".encode(),
         {key: value for key, value in program.items() if key != "program_id"},
     )
-    manifest_hash = _artifact_hash("cps.compiler-manifest/v1.1", manifest)
+    manifest_hash = _artifact_hash(
+        f"cps.compiler-manifest/v{manifest_version.rsplit('.', 1)[0]}", manifest
+    )
     request = {
         "song_program": program,
         "compiler_manifest": manifest,
@@ -1420,7 +1525,9 @@ def compile_gen0b(program: dict[str, Any], manifest: dict[str, Any]) -> Gen0BCom
         for ordinal, (track_id, run) in enumerate(runs):
             query = {
                 "schema": "cps.progression-query",
-                "schema_version": "1.2.0",
+                "schema_version": (
+                    manifest.get("progression_query_schema_version", "1.2.0")
+                ),
                 "algorithm": manifest["progression_resolver"]["algorithm"],
                 "numeric_contract": identity.numeric_contract,
                 "budget_profile": manifest["budget_profile"]["id"],
@@ -1449,7 +1556,9 @@ def compile_gen0b(program: dict[str, Any], manifest: dict[str, Any]) -> Gen0BCom
                         ],
                     }
                 )
-            query_hash = _artifact_hash("cps.progression-query/v1", query)
+            query_hash = _artifact_hash(
+                f"cps.progression-query/v{query['schema_version'].split('.', 1)[0]}", query
+            )
             child_id = "progression_" + query_hash[7:23]
             emitter.progression(
                 [item["candidate_cores"] for item in query["occurrences"]], child_id
@@ -1531,11 +1640,13 @@ def compile_gen0b(program: dict[str, Any], manifest: dict[str, Any]) -> Gen0BCom
             "opcode_stream_hash": root["stream_hash"],
         }
         project_hash = _sha(
-            project["compiler"]["build_id"].encode() + b"\0project/1.2.0\0", project
+            project["compiler"]["build_id"].encode()
+            + f"\0project/{project['schema_version']}\0".encode(),
+            project,
         )
         evidence = {
             "schema": "cps.gen0b-compiler-evidence",
-            "schema_version": "1.0.0",
+            "schema_version": manifest.get("gen0b_evidence_schema_version", "1.0.0"),
             "source_program_hash": source_hash,
             "compiler_manifest_hash": manifest_hash,
             "occurrences": occurrences,
@@ -1574,7 +1685,10 @@ def compile_gen0b(program: dict[str, Any], manifest: dict[str, Any]) -> Gen0BCom
                 {key: value for key, value in run.items() if not key.startswith("_")}
                 | {"selected": selected}
             )
-        evidence["evidence_hash"] = _artifact_hash("cps.gen0b-compiler-evidence/v1", evidence)
+        evidence_version = evidence["schema_version"].split(".", 1)[0]
+        evidence["evidence_hash"] = _artifact_hash(
+            f"cps.gen0b-compiler-evidence/v{evidence_version}", evidence
+        )
         report = {
             "schema": "cps.compile-report",
             "schema_version": "1.1.0",
@@ -1721,15 +1835,18 @@ def _gen0b_melody_report(
                 "event_id": event["id"],
             }
         )
+    report_version = "2.0.0" if project["schema_version"] == "1.3.0" else "1.0.0"
     report = {
         "schema": "cps.chord-member-melody-report",
-        "schema_version": "1.0.0",
+        "schema_version": report_version,
         "source_program_hash": evidence["source_program_hash"],
         "gen0b_evidence_hash": evidence["evidence_hash"],
         "project_hash": evidence["project_hash"],
         "bindings": bindings,
     }
-    report["report_hash"] = _artifact_hash("cps.chord-member-melody-report/v1", report)
+    report["report_hash"] = _artifact_hash(
+        f"cps.chord-member-melody-report/v{report_version.split('.', 1)[0]}", report
+    )
     return report
 
 

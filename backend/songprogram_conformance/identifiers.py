@@ -25,7 +25,11 @@ def _base32(payload: bytes, length: int) -> str:
 def program_hash(program: dict[str, Any]) -> str:
     core = deepcopy(program)
     core.pop("program_id", None)
-    return _hex(b"cps.song-program/0.1\0" + canonical_bytes(core))
+    version = program.get("schema_version")
+    if version not in {"0.1.0", "0.2.0"}:
+        raise ValueError("unsupported SongProgram schema version")
+    hash_version = version.rsplit(".", 1)[0]
+    return _hex(f"cps.song-program/{hash_version}\0".encode() + canonical_bytes(core))
 
 
 def lattice_domain_hash(lattice: dict[str, Any]) -> str:
@@ -135,9 +139,12 @@ def event_id(event: dict[str, Any]) -> str:
 
 def project_artifact_hash(project: dict[str, Any]) -> str:
     build_id = project["compiler"]["build_id"]
+    version = project.get("schema_version")
+    if version not in {"1.2.0", "1.3.0"}:
+        raise ValueError("unsupported Project schema version")
     preimage = (
         build_id.encode("utf-8")
-        + b"\0project/1.2.0\0"
+        + f"\0project/{version}\0".encode()
         + canonical_bytes(project)
     )
     return _hex(preimage)

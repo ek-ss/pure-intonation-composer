@@ -27,6 +27,7 @@ from app.songprogram.exploration_profile import (  # noqa: E402
     validate_profile,
 )
 from app.songprogram.exploration_generation import (  # noqa: E402
+    derive_lattice_navigation,
     validate_exploration_generation_manifest,
 )
 from app.songprogram.fallback import (  # noqa: E402
@@ -87,6 +88,20 @@ def _exploration_authorities(
     validate_exploration_generation_manifest(generation_manifest)
     configured_tables = generation_manifest["sampler_tables"]
     lowering_choices = generation_manifest["lowering_choices"]
+    weighted_domains = [
+        item["value"]
+        for item in configured_tables["equave_domain"]
+        for _ in range(item["weight"])
+    ]
+    selected_domain = _seed_choice(seed, "equave-domain", weighted_domains)
+    matching_chords = [
+        item
+        for item in configured_tables["chord_reference"]
+        if item["value"]["equave"] == selected_domain["equave"]
+    ]
+    navigation = derive_lattice_navigation(
+        selected_domain, lowering_choices["lattice_navigation"]
+    )
     sampler["tables"].update(
         section_count=[{"value": 3, "weight": 1}],
         section_bars=[{"value": 8, "weight": 1}],
@@ -96,6 +111,8 @@ def _exploration_authorities(
         transform_type=[{"value": "rotate", "weight": 1}],
         **json.loads(json.dumps(configured_tables)),
     )
+    sampler["tables"]["equave_domain"] = [{"value": selected_domain, "weight": 1}]
+    sampler["tables"]["chord_reference"] = matching_chords
     if profile is not None:
         layout = selected_layout(profile, seed)
         sampler["tables"].update(
@@ -147,20 +164,17 @@ def _exploration_authorities(
     lowering["clock"]["tempo_milli_bpm"] = _seed_choice(
         seed, "tempo", lowering_choices["tempo_milli_bpm"]
     )
-    lowering["lattice_constants"]["pitch_exploration"]["maximum_domain_points"] = lowering_choices[
-        "maximum_domain_points"
-    ]
+    lowering["lattice_constants"]["maximum_odd_limit"] = lowering_choices["maximum_odd_limit"]
+    lowering["lattice_constants"]["pitch_exploration"]["maximum_domain_points"] = lowering_choices["maximum_domain_points"]
     lowering["chord_constants"]["complexity_budget"] = lowering_choices["chord_complexity_budget"]
-    lowering["section_templates"]["tonal_center"] = _seed_choice(
-        seed, "tonal-center", lowering_choices["tonal_centers"]
-    )
+    lowering["section_templates"]["tonal_center"] = _seed_choice(seed, "tonal-center", navigation["tonal_centers"])
     walk = _seed_choice(
         seed,
         "vector-walk",
-        lowering_choices["vector_walks"],
+        navigation["vector_walks"],
     )
     lowering["material_builders"]["direct_vectors"] = walk
-    lowering["material_builders"]["harmony_root_anchors"] = [[0, 0]]
+    lowering["material_builders"]["harmony_root_anchors"] = navigation["harmony_root_anchors"]
     lowering["material_builders"]["melody_members"] = [0, 1]
     lowering["material_builders"]["rhythm_duration_ticks"] = _seed_choice(
         seed, "rhythm-duration", lowering_choices["rhythm_duration_ticks"]
@@ -209,6 +223,15 @@ def _production_authorities(
         entry["maximum_polyphony"] = policy["maximum_polyphony"]
         if entry["role"] != "drums":
             entry["allowed_frequency_millihz"] = policy["pitched_frequency_millihz"]
+    drum_map = {
+        lane: row["drum_note"]
+        for lane, row in generation_manifest["render_catalog_policy"]["drum_lanes"].items()
+    }
+    drum_entry = next(entry for entry in catalog["entries"] if entry["role"] == "drums")
+    source_mapping = drum_entry["note_map"][0]
+    drum_entry["note_map"] = [
+        {**source_mapping, "drum_note": note} for note in sorted(drum_map.values())
+    ]
     catalog_digest = (
         "sha256:"
         + hashlib.sha256(b"cps.instrument-catalog/v1\0" + canonical_bytes(catalog)).hexdigest()
@@ -221,11 +244,10 @@ def _production_authorities(
     manifest["polyphony_by_role"] = {
         role: [{"value": policy["maximum_polyphony"], "weight": 1}] for role in ROLE_ORDER
     }
-    drum_map = {"kick": 36}
     manifest["drum_map_profiles"] = [
         {
             "value": {
-                "drum_map_id": "exploration-kick",
+                "drum_map_id": "composition-multilane-v1",
                 "drum_map": drum_map,
                 "drum_map_payload_hash": _hash("cps.drum-map-profile/v1", drum_map),
             },
@@ -291,7 +313,10 @@ def _trial_catalog(
         assets[descriptor["uri"]] = payload
         return descriptor
 
-    drum_asset = asset([policy["drum_impulse_q31"] if index == 0 else 0 for index in range(256)])
+    drum_assets = {
+        lane: asset(row["samples_q31"])
+        for lane, row in policy["drum_lanes"].items()
+    }
     entries: list[dict[str, Any]] = [
         {
             "engine": "sample-linear-q31/v1",
@@ -299,7 +324,16 @@ def _trial_catalog(
             "instrument_id": "drum_fixture_kit",
             "kind": "drum_kit",
             "maximum_polyphony": generation_manifest["production_policy"]["maximum_polyphony"],
-            "note_map": [{"asset": drum_asset, "drum_note": 36, "gain_q14": 16384}],
+            "note_map": [
+                {
+                    "asset": drum_assets[lane],
+                    "drum_note": row["drum_note"],
+                    "gain_q14": 16384,
+                }
+                for lane, row in sorted(
+                    policy["drum_lanes"].items(), key=lambda item: item[1]["drum_note"]
+                )
+            ],
             "role": "drums",
         }
     ]
