@@ -110,20 +110,41 @@ def artifact_hash(domain: str, value: Any, *, omit: str | None = None) -> str:
     return "sha256:" + hashlib.sha256(domain.encode() + b"\0" + canonical_lf(core)).hexdigest()
 
 
+def _envelope_domain(base: str, version: object) -> str:
+    if version == "1.0.0":
+        return f"{base}/v1"
+    if version == "2.0.0":
+        return f"{base}/v2"
+    raise ConnectedExecutionError("CONNECTED_VERSION_UNSUPPORTED", "envelope")
+
+
 def connected_request_hash(request: dict[str, Any]) -> str:
-    return artifact_hash("cps.connected-request/v1", request)
+    return artifact_hash(
+        _envelope_domain("cps.connected-request", request.get("schema_version")), request
+    )
 
 
 def executor_manifest_digest(manifest: dict[str, Any]) -> str:
-    return artifact_hash("cps.connected-executor-manifest/v1", manifest)
+    return artifact_hash(
+        _envelope_domain("cps.connected-executor-manifest", manifest.get("schema_version")),
+        manifest,
+    )
 
 
 def logical_output_hash(output: dict[str, Any]) -> str:
-    return artifact_hash("cps.connected-logical-output/v1", output, omit="logical_output_hash")
+    return artifact_hash(
+        _envelope_domain("cps.connected-logical-output", output.get("schema_version")),
+        output,
+        omit="logical_output_hash",
+    )
 
 
 def cache_entry_hash(entry: dict[str, Any]) -> str:
-    return artifact_hash("cps.connected-cache-entry/v1", entry, omit="entry_hash")
+    return artifact_hash(
+        _envelope_domain("cps.connected-cache-entry", entry.get("schema_version")),
+        entry,
+        omit="entry_hash",
+    )
 
 
 def opcode_bundle_hash(bundle: dict[str, Any]) -> str:
@@ -250,14 +271,20 @@ def _validate_logical_output(output: dict[str, Any], request: dict[str, Any]) ->
             "sha256:"
             + hashlib.sha256(
                 project["compiler"]["build_id"].encode()
-                + b"\0project/1.2.0\0"
+                + f"\0project/{project['schema_version']}\0".encode()
                 + canonical_bytes(project)
             ).hexdigest()
         )
         evidence_hash = artifact_hash(
-            "cps.gen0b-compiler-evidence/v1", evidence, omit="evidence_hash"
+            f"cps.gen0b-compiler-evidence/v{evidence['schema_version'].split('.', 1)[0]}",
+            evidence,
+            omit="evidence_hash",
         )
-        melody_hash = artifact_hash("cps.chord-member-melody-report/v1", melody, omit="report_hash")
+        melody_hash = artifact_hash(
+            f"cps.chord-member-melody-report/v{melody['schema_version'].split('.', 1)[0]}",
+            melody,
+            omit="report_hash",
+        )
         if (
             project_hash != report["project_hash"]
             or project_hash != evidence["project_hash"]
@@ -294,7 +321,7 @@ def build_cache_entry(
         _validate_bundle(bundle, report["receipt"])
     entry = {
         "schema": "cps.connected-cache-entry",
-        "schema_version": "1.0.0",
+        "schema_version": output["schema_version"],
         "key": key,
         "logical_output": deepcopy(output),
         "logical_output_hash": output["logical_output_hash"],
@@ -436,7 +463,7 @@ def _mutation_output(request: dict[str, Any], result: dict[str, Any]) -> dict[st
     error = result["error"]
     output = {
         "schema": "cps.connected-logical-output",
-        "schema_version": "1.0.0",
+        "schema_version": request["schema_version"],
         "request_hash": connected_request_hash(request),
         "status": "mutation_failure",
         "resulting_program": None,
@@ -463,7 +490,7 @@ def _complete_output(
     error = stage.get("error")
     output = {
         "schema": "cps.connected-logical-output",
-        "schema_version": "1.0.0",
+        "schema_version": request["schema_version"],
         "request_hash": connected_request_hash(request),
         "status": status,
         "resulting_program": mutation["program"],
@@ -514,9 +541,11 @@ def validate_connected_request(request: dict[str, Any]) -> None:
             "compiler_manifest",
         }
         or request.get("schema") != "cps.connected-request"
-        or request.get("schema_version") != "1.0.0"
+        or request.get("schema_version") not in ("1.0.0", "2.0.0")
     ):
         raise ConnectedExecutionError("CONNECTED_REQUEST_INVALID", "request")
+    if request["executor_manifest"].get("schema_version") != request["schema_version"]:
+        raise ConnectedExecutionError("EXECUTOR_MANIFEST_VERSION_MISMATCH", "request")
     if request["executor_manifest_digest"] != executor_manifest_digest(
         request["executor_manifest"]
     ):

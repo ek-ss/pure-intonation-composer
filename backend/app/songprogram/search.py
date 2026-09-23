@@ -698,8 +698,14 @@ class ProductionSearchLoop:
         run = self.run_manifest
         if run.get("schema") != "cps.search-run-manifest" or run.get("schema_version") != "1.2.0":
             raise SearchLoopError("RUN_MANIFEST_INVALID")
+        manifest_version = self.compiler_manifest.get("schema_version")
+        if manifest_version not in ("1.1.0", "2.0.0"):
+            raise SearchLoopError("COMPILER_MANIFEST_VERSION_UNSUPPORTED")
         expected = {
-            "compiler_manifest_hash": manifest_digest("cps.compiler-manifest/v1.1", self.compiler_manifest),
+            "compiler_manifest_hash": manifest_digest(
+                f"cps.compiler-manifest/v{manifest_version.rsplit('.', 1)[0]}",
+                self.compiler_manifest,
+            ),
             "qd_manifest_hash": manifest_digest("cps.qd-manifest/v1", self.qd_manifest),
             "planner_manifest_hash": manifest_digest("cps.planner-manifest/v1", self.planner_manifest),
         }
@@ -868,7 +874,7 @@ class ProductionSearchLoop:
                 self._record_failure(error.code, round_index, 1, candidate_ordinal); continue
             if proposal is None:
                 self._record_failure("PLANNER_FAILURE", round_index, 1, candidate_ordinal); continue
-            connected = {"schema": "cps.connected-request", "schema_version": "1.0.0", "executor_manifest_digest": self.executor_manifest_digest, "executor_manifest": self.executor_manifest, "mutation_request": proposal, "compiler_manifest": self.compiler_manifest}
+            connected = {"schema": "cps.connected-request", "schema_version": self.executor_manifest.get("schema_version"), "executor_manifest_digest": self.executor_manifest_digest, "executor_manifest": self.executor_manifest, "mutation_request": proposal, "compiler_manifest": self.compiler_manifest}
             try: execution = execute_connected(connected, self.seams.compiler, cache)
             except Exception:
                 self._record_failure("CONNECTED_EXECUTION_FAILURE", round_index, 3, candidate_ordinal); continue

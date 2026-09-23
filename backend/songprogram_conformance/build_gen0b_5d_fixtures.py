@@ -39,7 +39,7 @@ def _child_receipt(child: dict) -> str:
     return artifact_hash("cps.charge-receipt-child/v1.1",child)
 
 
-def main() -> None:
+def build_5d_inputs() -> tuple[dict, dict, dict, dict]:
     OUT.mkdir(parents=True, exist_ok=True)
     base_program = json.loads((PACK / "minimal_triad_song_program.json").read_text())
     base_project = json.loads((PACK / "resolved_triad_project.json").read_text())
@@ -96,6 +96,9 @@ def main() -> None:
     program["realizations"].append({"id":"real_melody","section_id":"sec_a","track_id":"melody","material_id":"melody_a","at_tick":0,"repeat":1,"every_ticks":1920,"rhythm_transforms":[],"pitch_transforms":[],"velocity_scale_q":10000,"gate_scale_q":10000})
     program["production"]["tracks"]["melody"] = {"gain_q":8000,"pan_q":0}
 
+    return program, manifest, base_project, resolver_profile
+def compile_pipeline(program: dict, manifest: dict, base_project: dict) -> dict:
+    profile = manifest["budget_profile"]
     chord = deepcopy(base_project["resolved_chords"][0])
     chord["resolver_build_id"]=manifest["resolver"]["build_id"]
     chord["id"]=""; chord["id"]=resolved_chord_id(chord)
@@ -213,12 +216,44 @@ def main() -> None:
         "search_statistics":{"chord_query_count":1,"chord_candidates_examined":stats["complete_nodes"],
             "chord_eligible_candidates":stats["eligible"],"progression_query_count":1,
             "progression_states":3,"progression_edges":2},"error":None}
-    _write("gen0b_root_opcode_stream.json",root_stream); _write("gen0b_chord_opcode_stream.json",chord_stream)
-    _write("gen0b_progression_opcode_stream.json",progression_stream); _write("gen0b_charge_receipt.json",receipt)
-    _write("gen0b_compiler_evidence.json",evidence); _write("gen0b_compile_report.json",compile_report)
-    _write("chord_member_melody_report.json",melody_report)
+    return {
+        "project": project,
+        "evidence": evidence,
+        "melody_report": melody_report,
+        "compile_report": compile_report,
+        "root_stream": root_stream,
+        "chord_stream": chord_stream,
+        "progression_stream": progression_stream,
+        "receipt": receipt,
+        "query": query,
+        "result": result,
+        "chord": chord,
+        "bindings": bindings,
+        "occurrences": occurrences,
+        "manifest_hash": manifest_hash,
+        "input_hash": input_hash,
+        "binding_expected": binding_expected,
+        "failure": failure,
+    }
+def main() -> None:
+    OUT.mkdir(parents=True, exist_ok=True)
+    program, manifest, base_project, resolver_profile = build_5d_inputs()
+    artifacts = compile_pipeline(program, manifest, base_project)
+    project = artifacts["project"]
+    evidence = artifacts["evidence"]
+    melody_report = artifacts["melody_report"]
+    compile_report = artifacts["compile_report"]
+    root_stream = artifacts["root_stream"]
+    query = artifacts["query"]
+    result = artifacts["result"]
+    binding_expected = artifacts["binding_expected"]
+    failure = artifacts["failure"]
+    _write("gen0b_root_opcode_stream.json",artifacts["root_stream"]); _write("gen0b_chord_opcode_stream.json",artifacts["chord_stream"])
+    _write("gen0b_progression_opcode_stream.json",artifacts["progression_stream"]); _write("gen0b_charge_receipt.json",artifacts["receipt"])
+    _write("gen0b_compiler_evidence.json",artifacts["evidence"]); _write("gen0b_compile_report.json",artifacts["compile_report"])
+    _write("chord_member_melody_report.json",artifacts["melody_report"])
     _write("resolver_profile_gen0a_bnb.json",resolver_profile); _write("gen0b_compiler_manifest.json",manifest); _write("gen0b_melody_song_program.json",program); _write("gen0b_progression_query.json",query); _write("gen0b_progression_result.json",result)
-    _write("gen0b_melody_project.json",project); _write("chord_member_melody_bindings.json",binding_expected); _write("chord_member_melody_failures.json",failure)
+    _write("gen0b_melody_project.json",artifacts["project"]); _write("chord_member_melody_bindings.json",binding_expected); _write("chord_member_melody_failures.json",failure)
     negative_cases={"schema":"cps.gen0b-5d-negative-cases","schema_version":"1.0.0","cases":[
         {"id":"dimension_6_rejected","domain":{"dimensions":6,"axis_width":1,"coordinate_cardinality":1,"register_width":1,"placed_cardinality":1},"expected_error":"VECTOR_DIMENSION_MISMATCH"},
         {"id":"coordinate_cardinality_1050_rejected","domain":{"dimensions":5,"axis_width":7,"coordinate_cardinality":1050,"register_width":1,"placed_cardinality":1050},"expected_error":"GEN0B_DOMAIN_LIMIT_EXCEEDED"},
@@ -233,12 +268,14 @@ def main() -> None:
         "coverage":["golden.success","negative.dimension_over_5","boundary.dimension_5","boundary.coordinate_cardinality","process.pythonhashseed","parallel.workers_1_2_4_8"],
         "files":files,
         "file_sha256":{name:"sha256:"+hashlib.sha256((OUT/name).read_bytes()).hexdigest() for name in files},
-        "expected_hashes":{"project_hash":phash,"evidence_hash":evidence["evidence_hash"],"melody_report_hash":melody_report["report_hash"],"root_opcode_stream_hash":root_stream["stream_hash"]},
+        "expected_hashes":{"project_hash":project_artifact_hash(artifacts["project"]),"evidence_hash":artifacts["evidence"]["evidence_hash"],"melody_report_hash":artifacts["melody_report"]["report_hash"],"root_opcode_stream_hash":artifacts["root_stream"]["stream_hash"]},
         "schema_sha256":{
             name:"sha256:"+hashlib.sha256((ROOT/"schemas"/name).read_bytes()).hexdigest()
             for name in (
                 "song_program_0_2.schema.json",
-                "arrangement_project_1_3.schema.json",
+                "arrangement_project_1_3_5d.schema.json",
+                "compile_report_1_1_5d.schema.json",
+                "charge_receipt_1_1_5d.schema.json",
                 "compiler_budget_contract_2_0.schema.json",
                 "compiler_manifest_2_0.schema.json",
                 "progression_query_2_0.schema.json",

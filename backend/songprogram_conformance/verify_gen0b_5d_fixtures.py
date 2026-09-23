@@ -27,6 +27,9 @@ def _load(name: str) -> dict:
 
 
 def verify() -> None:
+    from jsonschema import Draft202012Validator
+    from referencing import Registry, Resource
+
     suite = _load("gen0b_melody_fixture_set.json")
     assert suite["authority_status"] == "authoritative"
     assert suite["generator_identity"] == "cps-independent-gen0b-5d-oracle/1.0.0"
@@ -43,6 +46,24 @@ def verify() -> None:
     assert suite["suite_hash"] == artifact_hash(
         "cps.gen0b-5d-fixture-suite-index/v1", core
     )
+
+    registry = Registry().with_resources(
+        (schema["$id"], Resource.from_contents(schema))
+        for path in (ROOT / "schemas").glob("*.schema.json")
+        if (schema := json.loads(path.read_text(encoding="utf-8")))
+    )
+    for name, schema_name in {
+        "gen0b_melody_project.json": "arrangement_project_1_3_5d.schema.json",
+        "gen0b_charge_receipt.json": "charge_receipt_1_1_5d.schema.json",
+        "gen0b_compile_report.json": "compile_report_1_1_5d.schema.json",
+    }.items():
+        assert schema_name in suite["schema_sha256"]
+        validator = Draft202012Validator(
+            json.loads((ROOT / "schemas" / schema_name).read_text(encoding="utf-8")),
+            registry=registry,
+        )
+        errors = list(validator.iter_errors(_load(name)))
+        assert not errors, [(list(error.path), error.message) for error in errors]
 
     program = _load("gen0b_melody_song_program.json")
     project = _load("gen0b_melody_project.json")

@@ -27,6 +27,23 @@ these bindings and progression result. Production tests compare Project,
 evidence, melody report, and opcode hashes, execute dimension/cardinality
 negative cases, and confirm 1/2/4/8 worker and cross-process parity.
 
-Connected executor cache keys and SearchLoop13 RunContext still bind older
-schema hashes. They require a separate versioned fixture promotion before
-this five-dimensional suite can authorize connected-search runs.
+The versioned fixture promotion is sealed in
+[`connected_v2_5d`](../backend/songprogram_conformance/fixtures/connected_v2_5d).
+Its independent [builder](../backend/songprogram_conformance/build_connected_v2_5d_fixtures.py)
+and [read-only verifier](../backend/songprogram_conformance/verify_connected_v2_5d_fixtures.py)
+bind a v2 executor manifest, connected request/output/cache entry, SearchRunManifest
+1.3, and SearchLoop13 RunContext 2.0 to the five-dimensional compiler manifest.
+Nine context schema bindings are promoted to v2; unchanged bindings retain
+their previous raw bytes. Connected envelopes use version-separated hash
+domains, while the cache-key, opcode-bundle, charge-receipt, and mutation-receipt
+formats keep their existing domains. The identity rhythm mutation makes the
+connected cold output's compiler artifacts byte-identical to the sealed 5D
+goldens; production cold, cache hit, and corrupt-cache recomputation are tested
+against the independent oracle. This closes the connected-cache and context
+schema-hash promotion gate for the 5D authority suite.
+
+The 5D-specific Project 1.3 schema accepts RFC 6901 paths such as
+`/realizations/0`; the 5D-specific ChargeReceipt 1.1 schema binds the v2
+budget profile ID. CompileReport 1.1 and connected logical output v2 refer
+to those schemas. Their raw hashes are sealed in the 5D and connected suite
+indexes, while the earlier schema bytes and legacy fixtures remain intact.

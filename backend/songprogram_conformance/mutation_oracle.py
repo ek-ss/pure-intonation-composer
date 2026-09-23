@@ -32,7 +32,18 @@ def artifact_hash(domain: str, value: Any) -> str:
 
 def program_hash(program: dict[str, Any]) -> str:
     core = {key: value for key, value in program.items() if key != "program_id"}
-    return "sha256:" + hashlib.sha256(b"cps.song-program/0.1\0" + canonical_lf(core)[:-1]).hexdigest()
+    version = program.get("schema_version")
+    if version not in {"0.1.0", "0.2.0"}:
+        raise OracleMutationError("MUTATION_PROGRAM_SCHEMA_UNSUPPORTED", "mutation", 0)
+    hash_version = version.rsplit(".", 1)[0]
+    return "sha256:" + hashlib.sha256(
+        f"cps.song-program/{hash_version}\0".encode() + canonical_lf(core)[:-1]
+    ).hexdigest()
+
+
+def mutation_hash(mutation: dict[str, Any]) -> str:
+    version = mutation.get("schema_version", "1.0.0").split(".", 1)[0]
+    return artifact_hash(f"cps.mutation/v{version}", mutation)
 
 
 def _find(items: list[dict[str, Any]], ident: str, ordinal: int) -> dict[str, Any]:
@@ -207,14 +218,14 @@ def evaluate(program: dict[str, Any], mutation: dict[str, Any], locks: list[dict
         entry={"ordinal":0,"mutation_id":mutation["mutation_id"],"operation":mutation["operation"],"before_program_hash":input_hash,"after_program_hash":after_hash,"identity":input_hash==after_hash,"actual_roots":actual,"closure_before":cb,"closure_after":ca,"song_program_components":song,"project_components":project,"downstream_components":downstream}
         impact={"schema":"cps.mutation-impact-report","schema_version":"1.0.0","request_hash":request_hash,"base_program_hash":input_hash,"result_program_hash":after_hash,"identity":input_hash==after_hash,"entries":[entry]}
         impact_hash=artifact_hash("cps.mutation-impact-report/v1",impact)
-        step={"ordinal":0,"mutation_id":mutation["mutation_id"],"mutation_hash":artifact_hash("cps.mutation/v1",mutation),"input_program_hash":input_hash,"status":"complete","identity":input_hash==after_hash,"actual_roots":actual,"scope_hash":artifact_hash("cps.mutation-scope/v1",actual),"closure_before":cb,"closure_after":ca,"closure_hash":artifact_hash("cps.mutation-closure/v1",{"closure_before":cb,"closure_after":ca}),"output_program_hash":after_hash,"impact_hash":artifact_hash("cps.mutation-impact/v1",entry),"error":None}
+        step={"ordinal":0,"mutation_id":mutation["mutation_id"],"mutation_hash":mutation_hash(mutation),"input_program_hash":input_hash,"status":"complete","identity":input_hash==after_hash,"actual_roots":actual,"scope_hash":artifact_hash("cps.mutation-scope/v1",actual),"closure_before":cb,"closure_after":ca,"closure_hash":artifact_hash("cps.mutation-closure/v1",{"closure_before":cb,"closure_after":ca}),"output_program_hash":after_hash,"impact_hash":artifact_hash("cps.mutation-impact/v1",entry),"error":None}
         receipt={"schema":"cps.mutation-application-receipt","schema_version":"1.0.0","request_hash":request_hash,"status":"complete","base_program_hash":input_hash,"result_program_hash":after_hash,"impact_report_hash":impact_hash,"steps":[step],"error":None,"receipt_hash":""}
         receipt["receipt_hash"]=artifact_hash("cps.mutation-application-receipt/v1",{k:v for k,v in receipt.items() if k!="receipt_hash"})
         return {"status":"success","program":after,"impact":impact,"receipt":receipt,"error":None}
     except OracleMutationError as error:
         err={"code":error.code,"stage":error.stage,"pointer":"","mutation_ordinal":error.ordinal}
-        mutation_hash=artifact_hash("cps.mutation/v1",mutation)
-        step={"ordinal":0,"mutation_id":mutation.get("mutation_id"),"mutation_hash":mutation_hash,"input_program_hash":input_hash,"status":"failed","identity":None,"actual_roots":actual,"scope_hash":artifact_hash("cps.mutation-scope/v1",actual) if actual is not None else None,"closure_before":None,"closure_after":None,"closure_hash":None,"output_program_hash":None,"impact_hash":None,"error":err}
+        mhash=mutation_hash(mutation)
+        step={"ordinal":0,"mutation_id":mutation.get("mutation_id"),"mutation_hash":mhash,"input_program_hash":input_hash,"status":"failed","identity":None,"actual_roots":actual,"scope_hash":artifact_hash("cps.mutation-scope/v1",actual) if actual is not None else None,"closure_before":None,"closure_after":None,"closure_hash":None,"output_program_hash":None,"impact_hash":None,"error":err}
         receipt={"schema":"cps.mutation-application-receipt","schema_version":"1.0.0","request_hash":request_hash,"status":"failed","base_program_hash":input_hash,"result_program_hash":None,"impact_report_hash":None,"steps":[step],"error":err,"receipt_hash":""}
         receipt["receipt_hash"]=artifact_hash("cps.mutation-application-receipt/v1",{k:v for k,v in receipt.items() if k!="receipt_hash"})
         return {"status":"failure","program":None,"impact":None,"receipt":receipt,"error":err}

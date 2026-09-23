@@ -36,16 +36,33 @@ def raw_hash(payload: bytes) -> str:
     return "sha256:" + hashlib.sha256(payload).hexdigest()
 
 
+def _envelope_domain(base: str, version: object) -> str:
+    if version == "1.0.0":
+        return f"{base}/v1"
+    if version == "2.0.0":
+        return f"{base}/v2"
+    raise ConnectedOracleError("unsupported connected envelope version")
+
+
 def connected_request_hash(request: dict[str, Any]) -> str:
-    return artifact_hash("cps.connected-request/v1", request)
+    return artifact_hash(
+        _envelope_domain("cps.connected-request", request.get("schema_version")), request
+    )
 
 
 def executor_manifest_digest(manifest: dict[str, Any]) -> str:
-    return artifact_hash("cps.connected-executor-manifest/v1", manifest)
+    return artifact_hash(
+        _envelope_domain("cps.connected-executor-manifest", manifest.get("schema_version")),
+        manifest,
+    )
 
 
 def logical_output_hash(output: dict[str, Any]) -> str:
-    return artifact_hash("cps.connected-logical-output/v1", output, omit="logical_output_hash")
+    return artifact_hash(
+        _envelope_domain("cps.connected-logical-output", output.get("schema_version")),
+        output,
+        omit="logical_output_hash",
+    )
 
 
 def opcode_bundle_hash(bundle: dict[str, Any]) -> str:
@@ -58,7 +75,11 @@ def cache_key(request_hash: str, manifest_digest: str) -> dict[str, str]:
 
 
 def cache_entry_hash(entry: dict[str, Any]) -> str:
-    return artifact_hash("cps.connected-cache-entry/v1", entry, omit="entry_hash")
+    return artifact_hash(
+        _envelope_domain("cps.connected-cache-entry", entry.get("schema_version")),
+        entry,
+        omit="entry_hash",
+    )
 
 
 def mutation_receipt_hash(receipt: dict[str, Any]) -> str:
@@ -99,7 +120,7 @@ def build_cache_entry(
             raise ConnectedOracleError("opcode bundle hash mismatch")
     entry = {
         "schema": "cps.connected-cache-entry",
-        "schema_version": "1.0.0",
+        "schema_version": output["schema_version"],
         "key": cache_key(request_digest, manifest_digest),
         "logical_output": deepcopy(output),
         "logical_output_hash": output_digest,
