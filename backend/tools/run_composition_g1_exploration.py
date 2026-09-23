@@ -33,15 +33,16 @@ OBJECTIVES = (
 )
 
 
-def frontier(rows: list[dict]) -> list[str]:
+def frontier(rows: list[dict], *, lattice_target_q: int | None = None) -> list[str]:
     """Return nondominated eligible candidates, collapsing identical vectors by seed."""
     eligible = [row for row in rows if row["status"] == "g0_eligible"]
+    keys = (*OBJECTIVES, "lattice_target_proximity_q") if lattice_target_q is not None else OBJECTIVES
     winners = []
     for candidate in eligible:
         vector = candidate["g1_objectives_q"]
         if any(
-            all(other["g1_objectives_q"][key] >= vector[key] for key in OBJECTIVES)
-            and (any(other["g1_objectives_q"][key] > vector[key] for key in OBJECTIVES)
+            all(other["g1_objectives_q"][key] >= vector[key] for key in keys)
+            and (any(other["g1_objectives_q"][key] > vector[key] for key in keys)
                  or other["seed"] < candidate["seed"])
             for other in eligible if other is not candidate
         ):
@@ -72,6 +73,7 @@ def explore(
     profile: Path = DEFAULT_PROFILE,
     realization_profile: Path = DEFAULT_REALIZATION_PROFILE,
     generation_manifest: Path = DEFAULT_GENERATION_MANIFEST,
+    lattice_target_q: int | None = None,
     repository: Path = REPO,
 ) -> dict:
     repository = repository.resolve()
@@ -82,6 +84,8 @@ def explore(
             or seed_offset + rounds * candidates_per_round > 2**64
             or piano_style not in PIANO_STYLES):
         raise ValueError("invalid exploration budget, seed range, or piano style")
+    if lattice_target_q is not None and not 0 <= lattice_target_q <= 10000:
+        raise ValueError("lattice target must be in 0..10000")
     source = source_cohort.resolve() if source_cohort is not None else output / "candidates"
     if output == source or (source.is_relative_to(output) and source != output / "candidates"):
         raise ValueError("source cohort must not overlap exploration output")
@@ -97,6 +101,9 @@ def explore(
         "seed_offset": seed_offset, "candidates_per_round": candidates_per_round,
         "objectives": list(OBJECTIVES), "selection": "g0-eligible-g1-pareto/v1",
     }
+    if lattice_target_q is not None:
+        configuration["lattice_target_q"] = lattice_target_q
+        configuration["objectives"].append("lattice_target_proximity_q")
     expected_profile_hash = json.loads(profile.read_text(encoding="utf-8"))["profile_hash"] if source_cohort is None else None
     expected_realization_hash = None
     if source_cohort is None:
@@ -137,18 +144,26 @@ def explore(
                     raise ValueError(f"cached generation profile/style differs for seed {seed}")
             candidate, diagnostic = _candidate("generated", directory, seed, repository)
             metrics = diagnostic["g1_metrics_q"]
+            lattice = diagnostic["lattice_pitch"]
+            objectives = {key: metrics[key] for key in OBJECTIVES}
+            if lattice_target_q is not None:
+                objectives["lattice_target_proximity_q"] = 10000 - abs(
+                    lattice["exposed_duration_share_q"] - lattice_target_q
+                )
             batch.append({
                 "candidate_id": candidate["candidate_id"], "seed": seed,
                 "status": "g0_eligible" if diagnostic["g0_archive_eligible"] else "g0_ineligible",
                 "g0_failure_codes": diagnostic["g0_failure_codes"],
                 "g1_metrics_q": metrics,
-                "g1_objectives_q": {key: metrics[key] for key in OBJECTIVES},
+                "g1_objectives_q": objectives,
+                "lattice_pitch": lattice,
                 "g1_feature_report_hash": candidate["g1_feature_report_hash"],
                 "audio_hash": candidate["audio_hash"],
                 "artifact_directory": str(directory.relative_to(repository)),
             })
         rows.extend(batch)
-        round_result = {"index": round_index, "candidates": batch, "frontier": frontier(rows)}
+        round_result = {"index": round_index, "candidates": batch,
+                        "frontier": frontier(rows, lattice_target_q=lattice_target_q)}
         if previous and round_index < len(previous["rounds"]):
             if round_result != previous["rounds"][round_index]:
                 raise ValueError(f"existing exploration artifacts differ at round {round_index}")
@@ -170,6 +185,8 @@ def main() -> None:
     parser.add_argument("--profile", type=Path, default=DEFAULT_PROFILE)
     parser.add_argument("--realization-profile", type=Path, default=DEFAULT_REALIZATION_PROFILE)
     parser.add_argument("--generation-manifest", type=Path, default=DEFAULT_GENERATION_MANIFEST)
+    parser.add_argument("--lattice-target-q", type=int,
+                        help="optional target (0..10000) for >=10-cent pitched voice-time share")
     args = parser.parse_args()
     try:
         result = explore(
@@ -178,6 +195,7 @@ def main() -> None:
             piano_style=args.piano_style, profile=args.profile,
             realization_profile=args.realization_profile,
             generation_manifest=args.generation_manifest,
+            lattice_target_q=args.lattice_target_q,
         )
     except (ValueError, KeyError, OSError, json.JSONDecodeError) as error:
         parser.error(str(error))

@@ -93,6 +93,10 @@ role によって変える。cadence の root、終端の共通音、motif ident
 
 `G0` / Native JI / PIL の成立、exact ratio と event provenance の検証を保つ。
 G1 v1 は form や motif の診断であり、**格子音の知覚可能性を測る尺度ではない**。
+12-EDO から 10¢ 以上離れた音のイベント数・distinct pitch class 数・声部時間比と
+ギャップを Project の exact ratio から計算する独立診断を導入した。
+この値は高いほど良いスコアではなく、探索に使用する場合だけ外部指定の目標比率へ
+近づける（`docs/composition_g1_exploration.md`）。
 追加の非権威的診断として、(a) 12-EDO から十分離れた音の実際の発音時間と
 foreground 露出、(b) chord tone 以外の前後関係と解決率、(c) 7-limit 等の
 pitch-collection 利用率、(d) 経路の共通音・移動量・帰着、(e) 低音域の粗さと

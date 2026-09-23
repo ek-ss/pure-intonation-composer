@@ -17,6 +17,7 @@ from app.songprogram.composition_lowering import (  # noqa: E402
     lower_composition_plan,
 )
 from app.songprogram.composition_viability import extract_composition_viability  # noqa: E402
+from app.songprogram.lattice_pitch_diagnostic import lattice_pitch_diagnostic  # noqa: E402
 from app.songprogram.composition_realization import (  # noqa: E402
     realization_profile_hash,
     validate_realization_profile,
@@ -189,6 +190,7 @@ def main() -> None:
         "evaluation_reference_midi.json": canonical_bytes(evaluation_midi_manifest),
         "song_validity.json": canonical_bytes(validity),
         "g1_features.json": canonical_bytes(g1_features),
+        "lattice_pitch.json": canonical_bytes(lattice_pitch_diagnostic(project)),
     }
     for name, payload in artifacts.items():
         (arguments.output / name).write_bytes(payload)

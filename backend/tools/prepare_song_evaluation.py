@@ -19,6 +19,7 @@ from app.songprogram.composition_calibration import build_blind_assignment, spli
 from app.songprogram.composition_viability import (  # noqa: E402
     composition_viability_report_hash, extract_composition_viability,
 )
+from app.songprogram.lattice_pitch_diagnostic import lattice_pitch_diagnostic  # noqa: E402
 from app.songprogram.mutation import program_hash  # noqa: E402
 from app.songprogram.perceptual import project_hash  # noqa: E402
 from app.songprogram.search import canonical_bytes  # noqa: E402
@@ -80,6 +81,7 @@ def _candidate(label: str, directory: Path, seed: int, repository: Path) -> tupl
         "g0_archive_eligible": validity["archive_eligible"],
         "g0_failure_codes": validity["failure_codes"],
         "g1_metrics_q": features["metrics_q"],
+        "lattice_pitch": lattice_pitch_diagnostic(project),
         "g1_feature_report_hash": features["report_hash"],
     }
     return candidate, diagnostic
@@ -118,6 +120,15 @@ def prepare(
             label: {key: round(mean(row["g1_metrics_q"][key] for row in diagnostics
                                     if row["cohort"] == label))
                     for key in diagnostics[0]["g1_metrics_q"]}
+            for label in sorted(cohorts)
+        },
+        "mean_lattice_pitch_by_cohort": {
+            label: {
+                key: round(mean(row["lattice_pitch"][key] for row in diagnostics
+                                if row["cohort"] == label))
+                for key in ("exposed_note_share_q", "exposed_duration_share_q",
+                            "duration_weighted_mean_gap_millicents")
+            }
             for label in sorted(cohorts)
         },
         "g0_eligible_by_cohort": {

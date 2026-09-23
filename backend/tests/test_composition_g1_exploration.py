@@ -24,6 +24,33 @@ def test_frontier_requires_g0_and_keeps_tradeoffs_without_scalar_score() -> None
     assert frontier(rows) == ["candidate-1", "candidate-2"]
 
 
+def test_lattice_target_only_affects_frontier_when_explicitly_requested() -> None:
+    rows = [_row(0, (5, 5, 5, 5, 5)), _row(1, (6, 6, 6, 6, 6))]
+    rows[0]["g1_objectives_q"]["lattice_target_proximity_q"] = 10000
+    rows[1]["g1_objectives_q"]["lattice_target_proximity_q"] = 6000
+    assert frontier(rows) == ["candidate-1"]
+    assert frontier(rows, lattice_target_q=4000) == ["candidate-0", "candidate-1"]
+
+
+def test_explicit_lattice_target_is_sealed_and_resumed(tmp_path) -> None:
+    cohorts = _cohorts(tmp_path)
+    output = tmp_path / "local_authority" / "lattice_target"
+    result = explore(output, rounds=1, candidates_per_round=1,
+                     source_cohort=cohorts["first"], repository=tmp_path,
+                     lattice_target_q=3000)
+    row = result["rounds"][0]["candidates"][0]
+    assert row["g1_objectives_q"]["lattice_target_proximity_q"] == 10000 - abs(
+        row["lattice_pitch"]["exposed_duration_share_q"] - 3000
+    )
+    assert result == explore(output, rounds=1, candidates_per_round=1,
+                             source_cohort=cohorts["first"], repository=tmp_path,
+                             lattice_target_q=3000)
+    with pytest.raises(ValueError, match="different configuration"):
+        explore(output, rounds=1, candidates_per_round=1,
+                source_cohort=cohorts["first"], repository=tmp_path,
+                lattice_target_q=5000)
+
+
 def test_rounds_resume_existing_cohort_and_detect_changed_artifacts(tmp_path) -> None:
     cohorts = _cohorts(tmp_path)
     output = tmp_path / "local_authority" / "exploration"
@@ -36,6 +63,8 @@ def test_rounds_resume_existing_cohort_and_detect_changed_artifacts(tmp_path) ->
                              source_cohort=cohorts["first"], repository=tmp_path)
     assert second["report_hash"] == json.loads((output / "g1_exploration.json").read_text())["report_hash"]
     assert all(row["g1_feature_report_hash"].startswith("sha256:")
+               for round_result in second["rounds"] for row in round_result["candidates"])
+    assert all("exposed_duration_share_q" in row["lattice_pitch"]
                for round_result in second["rounds"] for row in round_result["candidates"])
     before = (output / "g1_exploration.json").read_bytes()
     with pytest.raises(ValueError, match="different configuration"):
