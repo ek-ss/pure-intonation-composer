@@ -67,6 +67,7 @@ as implemented.
 | [development_plan_rhythm.md](development_plan_rhythm.md) | Original rhythm milestone plan; retained as design history |
 | [development_plan_llm_lattice_music_loop.md](development_plan_llm_lattice_music_loop.md) | Proposed quality-diversity and LLM-guided lattice-music generation loop |
 | [development_plan_composition_viability.md](development_plan_composition_viability.md) | Pre-genre composition viability redesign, baseline diagnosis, next-generation profile, and listening calibration plan |
+| [lattice_microtonal_composition_exploration.md](lattice_microtonal_composition_exploration.md) | JI lattice pitch collections, non-12-EDO progression, and part-level non-chord-tone design |
 | [composition_g1_exploration.md](composition_g1_exploration.md) | Local G0/G1-only generated-song exploration loop, Pareto feedback, and resume workflow |
 | [generated_song_g1_g2_evaluation.md](generated_song_g1_g2_evaluation.md) | Optional blind G2 listening preparation and response aggregation for generated cohorts |
 | [song_program_gen0_cohort_gate_contract.md](song_program_gen0_cohort_gate_contract.md) | Normative 1,000-seed GEN0 viability/diversity cohort measurement contract |
