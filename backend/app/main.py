@@ -228,6 +228,11 @@ def blind_evaluation() -> FileResponse:
     return FileResponse(STATIC_DIR / "blind_evaluation.html")
 
 
+@app.get("/song-harmony-visualizer", include_in_schema=False)
+def song_harmony_visualizer() -> FileResponse:
+    return FileResponse(STATIC_DIR / "song_harmony_visualizer.html")
+
+
 @app.get("/favicon.ico", include_in_schema=False, status_code=204)
 def favicon() -> Response:
     return Response(status_code=204)

@@ -97,3 +97,49 @@ textarea { width:100%; padding:9px 10px; color:var(--text); border:1px solid var
 .kfp-table tbody tr:hover { background:#98e7ca12; }
 @media (max-width:1100px) { .kfp-page .kfp-main { grid-template-columns:280px minmax(0,1fr); } .kfp-form-panel,.kfp-progression-panel,.kfp-roll-panel,.kfp-parts-panel { grid-column:2; } .kfp-concept-panel,.kfp-circle-panel { grid-column:2; grid-row:auto; } }
 @media (max-width:720px) { .kfp-page .kfp-main { display:flex; flex-direction:column; } .kfp-controls { position:static; max-height:none; overflow:visible; } .kfp-controls,.kfp-form-panel,.kfp-circle-panel,.kfp-concept-panel,.kfp-progression-panel,.kfp-roll-panel,.kfp-parts-panel { width:100%; } .kfp-layer-map { grid-template-columns:1fr; } }
+.shv-page .shv-main { grid-template-columns:280px minmax(0,1.35fr) minmax(290px,1fr); align-items:start; }
+.shv-controls { grid-column:1; grid-row:1 / span 2; position:sticky; top:16px; }
+.shv-timeline { grid-column:2 / -1; min-width:0; }
+.shv-projection { grid-column:2; min-width:0; }
+.shv-details { grid-column:3; min-width:0; }
+.shv-controls hr { border:0; border-top:1px solid var(--line); margin:18px 0; }
+.shv-field-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+#shv-status { color:var(--muted); font-size:.77rem; } #shv-status.error { color:#ffb0ad; } #shv-status.loading { color:#ffe8a0; }
+#shv-dropzone { border:1px dashed var(--line); border-radius:8px; padding:14px; text-align:center; color:var(--muted); font-size:.78rem; margin-bottom:15px; }
+#shv-dropzone.drag { border-color:var(--accent); color:var(--text); }
+#shv-timeline,#shv-projection { display:block; width:100%; height:auto; background:#111622; border:1px solid var(--line); }
+.shv-legend { display:flex; flex-wrap:wrap; gap:8px 14px; margin-top:10px; color:var(--muted); font-size:.72rem; }
+.shv-legend span::before { content:""; display:inline-block; width:8px; height:8px; margin-right:5px; border-radius:50%; background:currentColor; }
+.shv-table-wrap { max-height:320px; }
+.shv-table tbody tr { cursor:pointer; }
+.shv-table tbody tr:hover { background:#98e7ca12; }
+.shv-table tbody tr.selected { background:#ffd47e1f; }
+.shv-table-heading { margin-top:18px; }
+.shv-placeholder { fill:var(--muted); font:14px system-ui; }
+.shv-grid { stroke:#232b3d; stroke-width:1; }
+.shv-axis-line { stroke:var(--line); stroke-width:1; }
+.shv-axis-label { fill:var(--muted); font:10px system-ui; }
+.shv-tl-label { fill:var(--muted); font:9px system-ui; }
+.shv-plan-band { fill:#caa8ff26; stroke:#caa8ff; stroke-width:1; stroke-dasharray:4 3; }
+.shv-plan-label { fill:#caa8ff; font:9px system-ui; }
+.shv-section-band { fill:#34405766; stroke:var(--line); stroke-width:1; }
+.shv-section-label { fill:var(--muted); font:9px system-ui; }
+.shv-occ { stroke:#10131c; stroke-width:1; cursor:pointer; }
+.shv-occ.selected { stroke:#fff4cf; stroke-width:2.5; }
+.shv-occ.dimmed { opacity:.18; }
+.shv-occ-label { fill:#10131c; font:700 8px system-ui; pointer-events:none; }
+.shv-ring { fill:none; stroke:var(--line); stroke-width:3; }
+.shv-circle-title { fill:var(--text); font:700 16px system-ui; }
+.shv-circle-subtitle { fill:var(--muted); font:11px system-ui; }
+.shv-root { stroke:#10131c; stroke-width:2; cursor:pointer; }
+.shv-root.selected { stroke:#fff4cf; stroke-width:3; }
+.shv-root.dimmed { opacity:.18; }
+.shv-root-label { fill:var(--text); font:700 10px system-ui; pointer-events:none; }
+.shv-voice { opacity:.55; }
+.shv-voice.selected { opacity:1; stroke:#fff4cf; stroke-width:2; }
+.shv-voice-label { fill:var(--muted); font:10px system-ui; pointer-events:none; }
+.shv-root-line { stroke:#ffd47e88; stroke-width:1.5; }
+.shv-root-line.dimmed { opacity:.18; }
+.shv-delta-label { fill:#ffd47e; font:9px system-ui; pointer-events:none; }
+@media (max-width:1100px) { .shv-page .shv-main { grid-template-columns:280px minmax(0,1fr); } .shv-timeline { grid-column:2; } .shv-projection { grid-column:2; } .shv-details { grid-column:2; } }
+@media (max-width:720px) { .shv-page .shv-main { display:flex; flex-direction:column; } .shv-controls { position:static; grid-row:auto; } .shv-controls,.shv-timeline,.shv-projection,.shv-details { width:100%; } }

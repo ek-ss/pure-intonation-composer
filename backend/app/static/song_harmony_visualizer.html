@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Song Harmony Visualizer | Pure Intonation Workbench</title>
+    <link rel="stylesheet" href="/static/style.css?v=20260923-song-harmony-visualizer-1">
+  </head>
+  <body class="shv-page">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">GENERATED SONG INSPECTION</p>
+        <h1>Song Harmony Visualizer</h1>
+        <p class="page-subtitle">project.json / composition_plan.json の読み取り専用ビューア</p>
+      </div>
+      <span class="topbar-links"><a href="/">Workbench</a><a href="/lattice">Lattice Lab</a><a href="/harmonic-pitch-circle">Harmonic Pitch Circle</a><a href="/compose/bohlen-pierce">Bohlen-Pierce</a><a href="/docs" target="_blank" rel="noreferrer">API docs ↗</a></span>
+    </header>
+    <main class="shv-main">
+      <section class="panel shv-controls">
+        <div class="section-heading"><h2>Input</h2><span id="shv-status" role="status"></span></div>
+        <label>project.json<input type="file" id="shv-project-file" accept=".json,application/json"></label>
+        <label>composition_plan.json<input type="file" id="shv-plan-file" accept=".json,application/json"></label>
+        <div id="shv-dropzone">JSON をドロップ（ファイル名または中身の schema で識別）</div>
+        <hr>
+        <div class="section-heading"><h2>View</h2></div>
+        <div id="shv-view-toggle" class="segmented" role="group" aria-label="Projection view">
+          <button id="shv-view-lattice" class="active" type="button">Lattice 射影</button>
+          <button id="shv-view-circle" type="button">Pitch circle</button>
+        </div>
+        <div class="shv-field-grid">
+          <label>X 軸<select id="shv-axis-x"></select></label>
+          <label>Y 軸<select id="shv-axis-y"></select></label>
+        </div>
+        <label>Section フィルタ<select id="shv-section-filter"></select></label>
+        <label class="check inline"><input type="checkbox" id="shv-collapse" checked> 同じコードの連続出現を折りたたむ</label>
+        <div class="button-row">
+          <button id="shv-prev" class="quiet" type="button">← 前</button>
+          <button id="shv-next" class="quiet" type="button">次 →</button>
+        </div>
+        <p class="hint">キーボード: ← / → で選択を移動</p>
+      </section>
+
+      <section class="panel shv-timeline">
+        <div class="section-heading"><h2>Timeline</h2><span id="shv-timeline-summary"></span></div>
+        <svg id="shv-timeline" role="img" aria-label="和声出現のタイムライン"></svg>
+      </section>
+
+      <section class="panel shv-projection">
+        <div class="section-heading"><h2 id="shv-projection-title">Lattice 射影</h2><span id="shv-projection-summary"></span></div>
+        <svg id="shv-projection" role="img" aria-label="lattice 射影"></svg>
+        <div id="shv-legend" class="shv-legend"></div>
+      </section>
+
+      <section class="panel shv-details">
+        <div class="section-heading"><h2>選択詳細</h2></div>
+        <dl id="shv-details" class="chord-detail"></dl>
+        <div class="section-heading shv-table-heading"><h2>Occurrences</h2><span id="shv-table-summary"></span></div>
+        <div class="table-wrap shv-table-wrap">
+          <table class="shv-table">
+            <thead><tr><th>#</th><th>Section</th><th>Bar</th><th>参照</th><th>Ratios</th></tr></thead>
+            <tbody id="shv-table-body"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+    <script src="/static/song_harmony_visualizer.js?v=20260923-song-harmony-visualizer-1"></script>
+  </body>
+</html>

@@ -35,6 +35,7 @@ as implemented.
 | [bohlen_pierce_workbench.md](bohlen_pierce_workbench.md) | Implemented 3:1-equave scale, chord, progression, composition, and export workbench |
 | [mixed_meter_drums.md](mixed_meter_drums.md) | Implemented mixed-meter drum form, density, phase, playback, and export workbench |
 | [midi_creator_toolkit.md](midi_creator_toolkit.md) | Web MIDI performance capture, exact-ratio motif processing, export, and composer handoff |
+| [song_program_harmony_lattice_visualizer_spec.md](song_program_harmony_lattice_visualizer_spec.md) | Implemented read-only viewer for generated-song harmony timeline, lattice transitions, and pitch circle |
 | [development_plan_motif_development_engine.md](development_plan_motif_development_engine.md) | Proposed G14 motif generation, variation, and formal-development specification |
 | [song_program_spec.md](song_program_spec.md) | Draft searchable composition genotype and deterministic compiler contract |
 | [song_program_numeric_contract.md](song_program_numeric_contract.md) | Normative SP0 pitch arithmetic, chord error, complexity, and ranking |

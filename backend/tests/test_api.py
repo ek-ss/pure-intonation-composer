@@ -389,6 +389,34 @@ def test_harmonic_pitch_circle_page() -> None:
     assert "rootFrequency" in script.text
 
 
+def test_song_harmony_visualizer_page() -> None:
+    response = client.get("/song-harmony-visualizer")
+    assert response.status_code == 200
+    assert "Song Harmony Visualizer" in response.text
+    assert 'id="shv-project-file"' in response.text
+    assert 'id="shv-plan-file"' in response.text
+    assert 'id="shv-dropzone"' in response.text
+    assert 'id="shv-timeline"' in response.text
+    assert 'id="shv-projection"' in response.text
+    assert 'id="shv-view-lattice"' in response.text
+    assert 'id="shv-view-circle"' in response.text
+    assert 'id="shv-axis-x"' in response.text
+    assert 'id="shv-section-filter"' in response.text
+    assert (
+        'src="/static/song_harmony_visualizer.js?v=20260923-song-harmony-visualizer-1"'
+        in response.text
+    )
+    script = client.get("/static/song_harmony_visualizer.js")
+    assert script.status_code == 200
+    assert "validateProject" in script.text
+    assert "validatePlan" in script.text
+    assert "cps.arrangement-project" in script.text
+    assert "cps.composition-plan" in script.text
+    assert "rootRatio" in script.text
+    assert "circleAngle" in script.text
+    assert "equaveCents" in script.text
+
+
 def test_minimal_functional_composer_page_and_generation() -> None:
     response = client.get("/minimal-functional-composer")
     assert response.status_code == 200
