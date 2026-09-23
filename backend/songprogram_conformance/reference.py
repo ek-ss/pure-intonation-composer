@@ -141,8 +141,11 @@ def validate_query(query: dict[str, Any]) -> None:
         raise ValueError("invalid coordinate bounds")
     if any(not low <= coordinate <= high for coordinate, (low, high) in zip(vector, bounds)):
         raise ValueError("anchor outside domain")
-    canonical_steps = [step % intent["reference_divisions"] for step in intent["steps"]]
-    phases = [edo_phase_mc(parse_ratio(intent["reference_equave"]), intent["reference_divisions"], step) for step in canonical_steps]
+    if intent.get("ratios"):
+        phases = [ratio_mc(_equave_reduce(parse_ratio(value), parse_ratio(intent["reference_equave"]))) for value in intent["ratios"]]
+    else:
+        canonical_steps = [step % intent["reference_divisions"] for step in intent["steps"]]
+        phases = [edo_phase_mc(parse_ratio(intent["reference_equave"]), intent["reference_divisions"], step) for step in canonical_steps]
     if len(set(phases)) != len(phases):
         raise ValueError("duplicate target phase")
     if intent["bass_policy"] == "preserve_target" and intent["bass_target_ordinal"] != 0:
@@ -162,9 +165,15 @@ def resolve_exact(query: dict[str, Any]) -> dict[str, Any]:
     reference_equave = parse_ratio(intent["reference_equave"])
     period = ratio_mc(reference_equave)
 
-    targets = sorted(
-        ((edo_phase_mc(reference_equave, intent["reference_divisions"], step), step % intent["reference_divisions"]) for step in intent["steps"])
-    )
+    if intent.get("ratios"):
+        targets = sorted(
+            (ratio_mc(_equave_reduce(parse_ratio(value), reference_equave)), index)
+            for index, value in enumerate(intent["ratios"])
+        )
+    else:
+        targets = sorted(
+            ((edo_phase_mc(reference_equave, intent["reference_divisions"], step), step % intent["reference_divisions"]) for step in intent["steps"])
+        )
     canonical_steps = [step for _, step in targets]
     target_phases = [phase for phase, _ in targets]
     voice_count = len(targets)

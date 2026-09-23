@@ -36,3 +36,31 @@ def test_millicent_conversion_reuses_exact_ratio_result() -> None:
     info = _mc.cache_info()
     assert info.misses == 1
     assert info.hits == 1
+
+
+def test_joint_bnb_matches_oracle_for_exact_ratio_collection() -> None:
+    query = {
+        "schema": "cps.sp0-oracle-query/v1",
+        "numeric_contract": "cps-numeric/decimal-log2-rhe-v1",
+        "domain": {
+            "equave": "2/1",
+            "generators": ["3/1", "5/1", "7/1"],
+            "coordinate_bounds": [[-1, 1], [-1, 1], [-1, 1]],
+            "register_bounds": [-2, 2],
+            "maximum_odd_limit": 63,
+            "maximum_reduced_complexity_bits": 12,
+        },
+        "intent": {
+            "reference_equave": "2/1",
+            "bass_policy": "preserve_target",
+            "bass_target_ordinal": 0,
+            "minimum_spacing_millicents": 50000,
+            "maximum_span_millicents": 2400000,
+            "maximum_pair_error_millicents": 60000,
+            "maximum_pair_rms_millicents": 40000,
+            "complexity_budget": 24,
+        },
+        "anchor": {"vector": [0, 0, 0], "equave_exponent": 0},
+    }
+    query["intent"]["ratios"] = ["1/1", "5/4", "3/2"]
+    assert resolve_joint_bnb(query, 1) == [resolve_exact(query)]

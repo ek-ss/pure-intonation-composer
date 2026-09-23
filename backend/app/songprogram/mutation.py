@@ -179,9 +179,13 @@ def _apply_one(program: dict[str, Any], mutation: dict[str, Any], choices: dict[
         quantum = math.gcd(target["length_ticks"], *(item["duration_ticks"] for item in target["steps"]), *(item for item in gaps if item))
         target["steps"] = [item for _, item in sorted(enumerate(({**item, "at_tick": (item["at_tick"] + p["steps"] * quantum) % target["length_ticks"]} for item in target["steps"])), key=lambda pair: (pair[1]["at_tick"], pair[0]))]
     elif op == "replace_chord_intent_reference":
-        target = _find(result["chord_intents"], p["chord_intent_id"], ordinal); values = sorted(p["steps"])
-        if len(values) != len(set(values)) or any(value < 0 or value >= p["divisions"] for value in values): raise MutationError("MUTATION_PARAMETER_INVALID", "mutation", ordinal)
-        ratio = Fraction(p["reference_equave"]); target["reference"] = {"temperament": "edo", "equave": f"{ratio.numerator}/{ratio.denominator}", "divisions": p["divisions"], "steps": values}
+        target = _find(result["chord_intents"], p["chord_intent_id"], ordinal)
+        if p.get("ratios") is not None:
+            target["reference"] = {"temperament": "ji", "equave": p["reference_equave"], "ratios": list(p["ratios"])}
+        else:
+            values = sorted(p["steps"])
+            if len(values) != len(set(values)) or any(value < 0 or value >= p["divisions"] for value in values): raise MutationError("MUTATION_PARAMETER_INVALID", "mutation", ordinal)
+            ratio = Fraction(p["reference_equave"]); target["reference"] = {"temperament": "edo", "equave": f"{ratio.numerator}/{ratio.denominator}", "divisions": p["divisions"], "steps": values}
     elif op == "replace_root_anchor_item":
         target = _find(result["materials"], p["material_id"], ordinal)
         if target["kind"] != "harmony_intent_cell" or p["index"] >= len(target["root_anchors"]) or len(p["vector"]) != len(result["lattice"]["generators"]): raise MutationError("MUTATION_PARAMETER_INVALID", "mutation", ordinal)

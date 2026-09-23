@@ -227,7 +227,7 @@ def enumerate_fallback_rows(program: dict[str, Any], manifest: dict[str, Any],
             reference = choice["value"]
             if chord["reference"] == {"temperament": "edo", **reference}:
                 continue
-            parameter = {"kind": "replace_chord_intent_reference", "chord_intent_id": chord["id"], "reference_equave": reference["equave"], "divisions": reference["divisions"], "steps": reference["steps"]}
+            parameter = {"kind": "replace_chord_intent_reference", "chord_intent_id": chord["id"], "reference_equave": reference["equave"], "divisions": reference.get("divisions"), "steps": reference.get("steps"), "ratios": reference.get("ratios")}
             rows.append(_row("replace_chord_intent_reference", "chord_intent", chord["id"], "reference", parameter, choice["weight"], _roots(parameter, 0)))
     for material in program["materials"]:
         if material["kind"] != "harmony_intent_cell":

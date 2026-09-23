@@ -32,7 +32,9 @@
       {"value": {"divisions": 19, "equave": "3/1", "steps": [0, 3, 7, 10]}, "weight": 1},
       {"value": {"divisions": 19, "equave": "3/1", "steps": [0, 3, 6, 9]}, "weight": 1},
       {"value": {"divisions": 19, "equave": "3/1", "steps": [0, 4, 8, 11]}, "weight": 1},
-      {"value": {"divisions": 19, "equave": "3/1", "steps": [0, 4, 8, 10]}, "weight": 1}
+      {"value": {"divisions": 19, "equave": "3/1", "steps": [0, 4, 8, 10]}, "weight": 1},
+      {"value": {"equave": "2/1", "temperament": "ji", "ratios": ["1/1", "5/4", "3/2", "7/4"]}, "weight": 1},
+      {"value": {"equave": "2/1", "temperament": "ji", "ratios": ["1/1", "8/7", "7/6", "3/2"]}, "weight": 1}
     ],
     "rhythm_grid": [{"value": 240, "weight": 2}, {"value": 480, "weight": 1}],
     "rhythm_density": [{"value": 2500, "weight": 1}, {"value": 4000, "weight": 2}]
@@ -82,5 +84,5 @@
     }
   },
   "evaluation_policy": {"mode": "none"},
-  "manifest_hash": "sha256:883a8d35ed9a9d800c9769b3e2d3d29d1cf1eece95671f5fecb892399362f378"
+  "manifest_hash": "sha256:4cb7724e1a27fb776229725b08ce62b370c8c297ada33e045f72d7ac1e04963d"
 }

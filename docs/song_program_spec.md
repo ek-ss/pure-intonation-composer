@@ -370,6 +370,26 @@ to the first voice, independent of the SongProgram domain equave. Thus a
 come from ordinary 12-TET; it must fail explicitly if its generators/bounds
 cannot realize the requested tolerance.
 
+A second reference temperament, `ji`, targets an exact-ratio collection
+instead of an EDO grid:
+
+```yaml
+chord_intents:
+  - id: ci_harmonic_slice
+    reference:
+      temperament: ji
+      equave: 2/1
+      ratios: [1/1, 5/4, 3/2, 7/4]
+```
+
+For `temperament: ji`, `reference.ratios` is a list of exact ratios (each
+reduced into `[1, equave)` before comparison). `divisions` and `steps` are
+absent. The resolver targets each ratio's cent value relative to the root and
+searches for lattice voices that realize the collection within the same
+tolerance/complexity constraints as the EDO path. This expresses lattice-native
+harmonic content (e.g. 7-limit colors such as `8/7`, `7/6`, `7/4`) that has no
+exact 12-EDO counterpart.
+
 Canonical step is `s mod divisions`. Targets sort by `(edo_phase_mc,
 canonical_step)` and receive canonical ordinals after sorting. `bass_policy` is
 `any` or `preserve_target`; the latter requires `bass_target_ordinal` in

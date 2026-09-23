@@ -116,7 +116,15 @@ def resolve_joint_bnb(query: dict[str, Any], requested_k: int = 24) -> list[dict
     anchor_vector, anchor_exponent = tuple(anchor["vector"]), anchor["equave_exponent"]
     reference = _ratio(intent["reference_equave"])
     period = _mc(reference)
-    targets = sorted((_edo(reference, intent["reference_divisions"], step), step % intent["reference_divisions"]) for step in intent["steps"])
+    if intent.get("ratios"):
+        # Exact-ratio collection (JI): targets are the reduced ratios' cent
+        # values relative to the root, preserving the collection's ordering.
+        targets = sorted(
+            (_mc(_reduce(_ratio(ratio_text), reference)), index)
+            for index, ratio_text in enumerate(intent["ratios"])
+        )
+    else:
+        targets = sorted((_edo(reference, intent["reference_divisions"], step), step % intent["reference_divisions"]) for step in intent["steps"])
     if len({phase for phase, _ in targets}) != len(targets):
         raise ValueError("duplicate target phase")
     count = len(targets)

@@ -105,8 +105,9 @@ def resolve_single_harmony(
         },
         "intent": {
             "reference_equave": intent["reference"]["equave"],
-            "reference_divisions": intent["reference"]["divisions"],
-            "steps": intent["reference"]["steps"],
+            "reference_divisions": intent["reference"].get("divisions"),
+            "steps": intent["reference"].get("steps"),
+            **({"ratios": intent["reference"]["ratios"]} if intent["reference"].get("ratios") else {}),
             "bass_policy": intent["voicing"]["bass_policy"],
             "bass_target_ordinal": intent["voicing"]["bass_target_ordinal"],
             "minimum_spacing_millicents": intent["voicing"]["minimum_spacing_millicents"],
@@ -143,8 +144,9 @@ def _harmony_query(
         },
         "intent": {
             "reference_equave": intent["reference"]["equave"],
-            "reference_divisions": intent["reference"]["divisions"],
-            "steps": intent["reference"]["steps"],
+            "reference_divisions": intent["reference"].get("divisions"),
+            "steps": intent["reference"].get("steps"),
+            **({"ratios": intent["reference"]["ratios"]} if intent["reference"].get("ratios") else {}),
             "bass_policy": intent["voicing"]["bass_policy"],
             "bass_target_ordinal": intent["voicing"]["bass_target_ordinal"],
             "minimum_spacing_millicents": intent["voicing"]["minimum_spacing_millicents"],
@@ -287,7 +289,7 @@ def _chord_from_core(
         "numeric_contract": identity.numeric_contract,
         "search_completeness": "exact",
         "reference_equave": intent["reference"]["equave"],
-        "reference_divisions": intent["reference"]["divisions"],
+        "reference_divisions": intent["reference"].get("divisions"),
         "canonical_steps": core["canonical_steps"],
         "eligibility_contract": {
             **intent["voicing"],
