@@ -11,6 +11,7 @@ as implemented.
 | Document | Purpose |
 | --- | --- |
 | [status.md](status.md) | Canonical implementation status, known gaps, and next priorities |
+| [song_generation_process_status_2026-09-23.md](song_generation_process_status_2026-09-23.md) | Snapshot of the current full-song generation pipeline (CompositionPlan 2.0) and implementation status, 2026-09-23 |
 | [usage_ja.md](usage_ja.md) | Japanese workbench and workflow guide |
 | [usage.md](usage.md) | English workbench and workflow guide |
 | [examples.md](examples.md) | Runnable API examples |
