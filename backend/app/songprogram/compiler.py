@@ -157,6 +157,29 @@ def _harmony_query(
     }
 
 
+# Fraction of the 256 hash values that select the dissonant (second-closest)
+# realization over the pure (closest) one. 128 gives a 50/50 split.
+_DISSONANT_HASH_THRESHOLD = 128
+
+
+def _select_realization(
+    query_key: bytes, candidates: list[dict[str, Any]]
+) -> dict[str, Any]:
+    """Hash-addressed choice between the pure and dissonant realizations.
+
+    The closest lattice chord is the pure-just realization; the second-closest
+    is a near-miss that sounds slightly dissonant. Selecting between them by a
+    hash of the query keeps the choice deterministic per (intent, anchor) while
+    varying across chords, so both cases appear in the output. In progression
+    handling both realizations carry the same intent identity, so switching
+    between them is not a chord change.
+    """
+    if len(candidates) < 2:
+        return candidates[0]
+    digest = hashlib.sha256(b"cps.harmony-realization/v1\0" + query_key).digest()
+    return candidates[1] if digest[0] < _DISSONANT_HASH_THRESHOLD else candidates[0]
+
+
 def _canonical(value: Any) -> bytes:
     return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()
 
@@ -401,8 +424,21 @@ def _place_exponent(
     return min(candidates, key=lambda exponent: (abs(exponent - requested), exponent))
 
 
-def compile_sp0(program: dict[str, Any], identity: CompilerIdentity) -> dict[str, Any]:
-    """Compile SP 0.1/0.2 to its matching Project 1.2/1.3 envelope."""
+def compile_sp0(
+    program: dict[str, Any],
+    identity: CompilerIdentity,
+    stochastic_realization: bool = True,
+) -> dict[str, Any]:
+    """Compile SP 0.1/0.2 to its matching Project 1.2/1.3 envelope.
+
+    The progression resolver always runs over the full candidate set so that
+    voice-leading validity is preserved. When ``stochastic_realization`` is
+    true (the production default), the emitted realization of each occurrence
+    is then chosen by a hash of the harmony query between the pure (closest)
+    and the dissonant (second-closest) lattice core, so both cases appear in
+    the output. The GEN0-B conformance path passes ``False`` to retain the
+    exact top-K contract and emit the resolver's own selection.
+    """
     if (
         program.get("schema") != "cps.song-program"
         or program.get("schema_version") not in _PROGRAM_PROJECT_VERSIONS
@@ -644,7 +680,7 @@ def compile_sp0(program: dict[str, Any], identity: CompilerIdentity) -> dict[str
                         cores = resolve_joint_bnb(query, 24)
                         if not cores:
                             raise CompileError("NO_JOINT_CHORD_SOLUTION")
-                        harmony_cache[query_key] = [
+                        chords = [
                             _chord_from_core(
                                 core,
                                 lattice=lattice,
@@ -654,6 +690,7 @@ def compile_sp0(program: dict[str, Any], identity: CompilerIdentity) -> dict[str
                             )
                             for core in cores
                         ]
+                        harmony_cache[query_key] = chords
                     onset = instance_tick + (step["at_tick"] + rotations) % rhythm["length_ticks"]
                     duration = max(
                         1,
@@ -695,6 +732,7 @@ def compile_sp0(program: dict[str, Any], identity: CompilerIdentity) -> dict[str
                             "velocity": velocity,
                             "anchor": anchor,
                             "candidates": harmony_cache[query_key],
+                            "query_key": query_key,
                         }
                     )
             continue
@@ -923,6 +961,11 @@ def compile_sp0(program: dict[str, Any], identity: CompilerIdentity) -> dict[str
             )
             if selected is None:  # Defensive: resolver output is always a candidate core.
                 raise CompileError("PROGRESSION_NO_PATH")
+            if stochastic_realization:
+                # The resolver ran over the full candidate set for voice-leading
+                # validity; the emitted realization is then chosen stochastically
+                # between the pure (closest) and dissonant (second-closest) core.
+                selected = _select_realization(draft["query_key"], draft["candidates"])
             selected_drafts.append((draft, selected))
 
     selected_drafts.sort(
@@ -1453,7 +1496,9 @@ def compile_gen0b(program: dict[str, Any], manifest: dict[str, Any]) -> Gen0BCom
     evidence: dict[str, Any] | None = None
     project: dict[str, Any] | None = None
     try:
-        project = compile_sp0(program, identity)
+        # The GEN0-B conformance path retains the exact top-K contract; the
+        # stochastic pure/dissonant realization is a production-only choice.
+        project = compile_sp0(program, identity, stochastic_realization=False)
         occurrences, expanded, distinct = _gen0b_harmony_expansion(
             program, project, identity, manifest["progression_resolver"]["candidates_per_intent"]
         )

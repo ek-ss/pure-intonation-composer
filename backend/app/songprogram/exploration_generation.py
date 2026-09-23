@@ -93,12 +93,35 @@ def derive_lattice_navigation(domain: dict[str, Any], policy: dict[str, Any]) ->
             raise ExplorationGenerationManifestError("GENERATION_12TET_COVERAGE_INSUFFICIENT")
         return list(selected)
 
+    def generator_adjacent():
+        # Re-adjacent lattice points: one step in each generator direction and
+        # its inverse (e.g. 3/1, 5/1, 7/1 and their reciprocals). These are the
+        # pure prime intervals and are added to the navigation vocabulary so
+        # tonal centres and harmony roots may use them.
+        for axis in range(dimension):
+            for sign in (1, -1):
+                vector = [0] * dimension
+                vector[axis] = sign
+                if all(
+                    low <= value <= high
+                    for value, (low, high) in zip(vector, navigation_bounds)
+                ):
+                    yield vector
+
+    tonal_centers = [nearest(step) for step in policy["tonal_center_steps"]]
+    harmony_root_anchors = [nearest(step) for step in policy["harmony_root_steps"]]
+    for vector in generator_adjacent():
+        if vector not in tonal_centers:
+            tonal_centers.append(vector)
+        if vector not in harmony_root_anchors:
+            harmony_root_anchors.append(vector)
+
     return {
-        "tonal_centers": [nearest(step) for step in policy["tonal_center_steps"]],
+        "tonal_centers": tonal_centers,
         "vector_walks": [
             [nearest(step) for step in pattern] for pattern in policy["walk_step_patterns"]
         ],
-        "harmony_root_anchors": [nearest(step) for step in policy["harmony_root_steps"]],
+        "harmony_root_anchors": harmony_root_anchors,
     }
 
 

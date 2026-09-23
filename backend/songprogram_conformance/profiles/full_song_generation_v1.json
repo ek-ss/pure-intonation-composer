@@ -12,9 +12,27 @@
       {"value": {"divisions": 12, "equave": "2/1", "steps": [0, 4, 7]}, "weight": 2},
       {"value": {"divisions": 12, "equave": "2/1", "steps": [0, 3, 7]}, "weight": 2},
       {"value": {"divisions": 12, "equave": "2/1", "steps": [0, 5, 7]}, "weight": 1},
+      {"value": {"divisions": 12, "equave": "2/1", "steps": [0, 4, 8]}, "weight": 1},
+      {"value": {"divisions": 12, "equave": "2/1", "steps": [0, 3, 6]}, "weight": 1},
+      {"value": {"divisions": 12, "equave": "2/1", "steps": [0, 2, 7]}, "weight": 1},
+      {"value": {"divisions": 12, "equave": "2/1", "steps": [0, 4, 7, 11]}, "weight": 1},
+      {"value": {"divisions": 12, "equave": "2/1", "steps": [0, 4, 7, 10]}, "weight": 1},
+      {"value": {"divisions": 12, "equave": "2/1", "steps": [0, 3, 7, 10]}, "weight": 1},
+      {"value": {"divisions": 12, "equave": "2/1", "steps": [0, 3, 6, 9]}, "weight": 1},
+      {"value": {"divisions": 12, "equave": "2/1", "steps": [0, 4, 8, 11]}, "weight": 1},
+      {"value": {"divisions": 12, "equave": "2/1", "steps": [0, 4, 8, 10]}, "weight": 1},
       {"value": {"divisions": 19, "equave": "3/1", "steps": [0, 4, 7]}, "weight": 2},
       {"value": {"divisions": 19, "equave": "3/1", "steps": [0, 3, 7]}, "weight": 2},
-      {"value": {"divisions": 19, "equave": "3/1", "steps": [0, 5, 7]}, "weight": 1}
+      {"value": {"divisions": 19, "equave": "3/1", "steps": [0, 5, 7]}, "weight": 1},
+      {"value": {"divisions": 19, "equave": "3/1", "steps": [0, 4, 8]}, "weight": 1},
+      {"value": {"divisions": 19, "equave": "3/1", "steps": [0, 3, 6]}, "weight": 1},
+      {"value": {"divisions": 19, "equave": "3/1", "steps": [0, 2, 7]}, "weight": 1},
+      {"value": {"divisions": 19, "equave": "3/1", "steps": [0, 4, 7, 11]}, "weight": 1},
+      {"value": {"divisions": 19, "equave": "3/1", "steps": [0, 4, 7, 10]}, "weight": 1},
+      {"value": {"divisions": 19, "equave": "3/1", "steps": [0, 3, 7, 10]}, "weight": 1},
+      {"value": {"divisions": 19, "equave": "3/1", "steps": [0, 3, 6, 9]}, "weight": 1},
+      {"value": {"divisions": 19, "equave": "3/1", "steps": [0, 4, 8, 11]}, "weight": 1},
+      {"value": {"divisions": 19, "equave": "3/1", "steps": [0, 4, 8, 10]}, "weight": 1}
     ],
     "rhythm_grid": [{"value": 240, "weight": 2}, {"value": 480, "weight": 1}],
     "rhythm_density": [{"value": 2500, "weight": 1}, {"value": 4000, "weight": 2}]
@@ -64,5 +82,5 @@
     }
   },
   "evaluation_policy": {"mode": "none"},
-  "manifest_hash": "sha256:dd4371f998f632f35ee2ea30911e59b748075a22fd777d01ff8c240f6577ed01"
+  "manifest_hash": "sha256:883a8d35ed9a9d800c9769b3e2d3d29d1cf1eece95671f5fecb892399362f378"
 }
