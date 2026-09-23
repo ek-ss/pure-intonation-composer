@@ -168,6 +168,8 @@ def test_realized_harmony_uses_phrase_roots_and_bar_level_rhythms() -> None:
     lowered = lower_composition_plan(structural, plan, profile)
     materials = {row["id"]: row for row in lowered["materials"]}
     section_roots = []
+    section_rhythms = []
+    shifted = 0
     for section in plan["sections"]:
         rows = [row for row in lowered["realizations"]
                 if row["role"] == "harmony" and row["section_id"] == section["section_id"]]
@@ -178,9 +180,13 @@ def test_realized_harmony_uses_phrase_roots_and_bar_level_rhythms() -> None:
         ]
         roots = {tuple(materials[row["material_id"]]["root_anchors"][0]) for row in rows}
         section_roots.append(roots)
-        assert {len(materials[materials[row["material_id"]]["rhythm_id"]]["steps"])
-                for row in rows} == {1, 2}
+        section_rhythms.append({len(materials[materials[row["material_id"]]["rhythm_id"]]["steps"])
+                                for row in rows})
+        shifted += sum(bool(row["rhythm_transforms"]) for row in rows)
     assert any(len(roots) >= 3 for roots in section_roots)
+    assert {1, 2} in section_rhythms
+    assert {1} in section_rhythms
+    assert shifted > 0
 
 
 def test_plan_coordination_prior_changes_realized_onsets() -> None:

@@ -183,7 +183,8 @@ def lower_composition_plan(
                 "length_ticks": ticks_per_bar,
                 "steps": [{**copy.deepcopy(harmony_helper["steps"][0]),
                            "at_tick": position * ticks_per_bar // 10000,
-                           "duration_ticks": ticks_per_bar // len(positions)}
+                           "duration_ticks": (ticks_per_bar if pattern == 0
+                                              else ticks_per_bar // 4)}
                           for position in positions],
             }
             for index, anchor in enumerate(anchors):
@@ -358,6 +359,7 @@ def lower_composition_plan(
         harmony_positions_by_bar = [[0] for _ in range(section["bars"])]
         if varied_harmony and "harmony" in active_roles:
             mode = _section_draw(composition_seed, section["section_id"], "root-mode") % 4
+            rhythm_mode = _section_draw(composition_seed, section["section_id"], "rhythm-mode") % 4
             first_base = trajectory[first_phrase]["root_degree_ordinal"] % 3
             for bar in range(section["bars"]):
                 phrase = next(row for row in reversed(section["phrases"])
@@ -369,9 +371,18 @@ def lower_composition_plan(
                     (first_base + (0, 1, 2, 1)[bar % 4]) % 3 if mode == 2 else
                     (phrase_base + bar % 2) % 3
                 )
-                pattern = (bar + _section_draw(composition_seed, section["section_id"],
-                                               "rhythm-phase")) % 2
-                harmony_positions_by_bar[bar] = [0] if pattern == 0 else [0, 5000]
+                pattern = (
+                    0 if rhythm_mode == 0 else
+                    bar % 2 if rhythm_mode == 1 else
+                    (0, 1, 1, 0)[bar % 4] if rhythm_mode == 2 else
+                    _section_draw(composition_seed, section["section_id"], f"rhythm/{bar}") % 2
+                )
+                shifted = pattern == 1 and rhythm_mode == 3 and bool(
+                    _section_draw(composition_seed, section["section_id"], f"offbeat/{bar}") % 2
+                )
+                harmony_positions_by_bar[bar] = (
+                    [2500, 7500] if shifted else [0, 5000] if pattern else [0]
+                )
                 if pattern not in emitted_harmony_rhythms:
                     result["materials"].append(harmony_rhythms[pattern])
                     emitted_harmony_rhythms.add(pattern)
@@ -383,7 +394,9 @@ def lower_composition_plan(
                     "section_id": section["section_id"], "role": "harmony",
                     "material_id": varied_harmony[pattern, index],
                     "at_tick": bar * ticks_per_bar, "repeat": 1,
-                    "every_ticks": ticks_per_bar, "rhythm_transforms": [],
+                    "every_ticks": ticks_per_bar,
+                    "rhythm_transforms": ([{"op": "rotate", "ticks": ticks_per_bar // 4}]
+                                          if shifted else []),
                     "pitch_transforms": [], "velocity_scale_q": audible_velocity_q,
                     "gate_scale_q": 10000,
                 })
