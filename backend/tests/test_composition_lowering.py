@@ -201,3 +201,12 @@ def test_plan_coordination_prior_changes_realized_onsets() -> None:
         ]
 
     assert onsets(baseline) != onsets(alternative)
+
+
+def test_flexible_section_roles_stay_within_material_budget() -> None:
+    profile = json.loads((BACKEND / "songprogram_conformance/profiles/g1_experiments/role_flexible.json").read_text())
+    for seed in (0, 7):
+        structural, plan = _inputs(seed)
+        lowered = lower_composition_plan(structural, plan, profile)
+        assert len(lowered["materials"]) <= structural["limits"]["max_materials"]
+        assert len(lowered["realizations"]) <= structural["limits"]["max_realizations"]

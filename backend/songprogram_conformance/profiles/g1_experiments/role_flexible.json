@@ -308,49 +308,57 @@
     "opening": [
       {
         "mode": "pad",
-        "weight": 3
+        "weight": 2
       },
       {
         "mode": "pluck",
-        "weight": 1
+        "weight": 2
+      },
+      {
+        "mode": "arp",
+        "weight": 2
       }
     ],
     "statement": [
       {
+        "mode": "pad",
+        "weight": 2
+      },
+      {
         "mode": "pluck",
         "weight": 2
       },
       {
-        "mode": "counterline",
-        "weight": 1
-      },
-      {
-        "mode": "vocal_chop",
-        "weight": 1
+        "mode": "arp",
+        "weight": 2
       }
     ],
     "preparation": [
       {
-        "mode": "noise_riser",
-        "weight": 3
+        "mode": "pad",
+        "weight": 2
+      },
+      {
+        "mode": "pluck",
+        "weight": 2
       },
       {
         "mode": "arp",
-        "weight": 1
+        "weight": 2
       }
     ],
     "arrival": [
       {
-        "mode": "fx_impact",
+        "mode": "pad",
         "weight": 2
       },
       {
-        "mode": "vocal_chop",
-        "weight": 1
+        "mode": "pluck",
+        "weight": 2
       },
       {
         "mode": "arp",
-        "weight": 1
+        "weight": 2
       }
     ],
     "contrast": [
@@ -359,32 +367,40 @@
         "weight": 2
       },
       {
-        "mode": "counterline",
-        "weight": 1
+        "mode": "pluck",
+        "weight": 2
+      },
+      {
+        "mode": "arp",
+        "weight": 2
       }
     ],
     "return": [
       {
-        "mode": "arp",
-        "weight": 1
-      },
-      {
-        "mode": "vocal_chop",
-        "weight": 1
+        "mode": "pad",
+        "weight": 2
       },
       {
         "mode": "pluck",
-        "weight": 1
+        "weight": 2
+      },
+      {
+        "mode": "arp",
+        "weight": 2
       }
     ],
     "closure": [
       {
-        "mode": "transition_tail",
-        "weight": 3
+        "mode": "pad",
+        "weight": 2
       },
       {
-        "mode": "pad",
-        "weight": 1
+        "mode": "pluck",
+        "weight": 2
+      },
+      {
+        "mode": "arp",
+        "weight": 2
       }
     ]
   },
@@ -442,5 +458,5 @@
       "mandatory_positions_q": []
     }
   },
-  "profile_hash": "sha256:911d9d83a98f04e34d953a3adcb10f1f6eb57a86155878aefd467986c532b7bf"
+  "profile_hash": "sha256:4fd8e2af169111e00e47a012b37e2286fc2e4ec18e7e5b74c3a38626dc0314b6"
 }

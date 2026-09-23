@@ -84,6 +84,12 @@ def build_realization_profile(base: dict) -> dict:
         ):
             if tuple(roles) not in existing:
                 rows.append({"roles": roles, "weight": 2})
+    for function in result["texture_modes_by_function"]:
+        result["texture_modes_by_function"][function] = [
+            {"mode": "pad", "weight": 2},
+            {"mode": "pluck", "weight": 2},
+            {"mode": "arp", "weight": 2},
+        ]
     result["profile_hash"] = realization_profile_hash(result)
     validate_realization_profile(result)
     return result

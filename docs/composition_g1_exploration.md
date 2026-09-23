@@ -58,6 +58,7 @@ G2 の収集を後で再開する場合の割当作成と集計方法は
 全案で `role_flexible.json` という共通の realization profile を使う。これは
 opening / arrival / closure などの section function を単一の編成に結び付けず、
 同じ function でも複数の drums・bass・harmony・melody・texture の組合せを選べる。
+texture は全 function 共通の pad / pluck / arp から選び、素材数の上限を守る。
 
 | 案 | 基準との主な差 |
 | --- | --- |
@@ -65,7 +66,8 @@ opening / arrival / closure などの section function を単一の編成に結�
 | `motif_recall` | 上昇形モチーフと statement / recall / answer の選択重みを上げる |
 | `rhythm_dialogue` | drum と bass の onset 候補を増やし、境界 gesture の位置を変更 |
 
-実音化では phrase ごとの和声状態を参照し、section ごとに「root 保持」「2 root 往復」
+実音化では曲ごとに既存 lattice anchor から home と追加 2 root を選び、
+phrase ごとの和声状態を参照して、section ごとに「root 保持」「2 root 往復」
 「3 root の巡回」「phrase 状態に追従」のいずれかを選ぶ。和音は bar ごとに配置し、
 1 回／2 回の発音位置を交互に使う。drums と bass の onset 選択には各 CompositionPlan
 の part coordination を優先候補として渡すため、`rhythm_dialogue` の変更も実音に反映する。
