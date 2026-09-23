@@ -162,13 +162,16 @@ def density_target_count(policy: Mapping[str, Any], density_q: int) -> int:
 
 
 def choose_density_positions(
-    profile: Mapping[str, Any], role: str, density_q: int, seed: int, domain: str
+    profile: Mapping[str, Any], role: str, density_q: int, seed: int, domain: str,
+    preferred_positions: Sequence[int] = (),
 ) -> list[int]:
     policy = profile["density_policy_by_role"][role]
     count = density_target_count(policy, density_q)
     mandatory = list(policy["mandatory_positions_q"])
     remaining = [value for value in policy["candidate_positions_q"] if value not in mandatory]
-    remaining.sort(key=lambda value: (_digest(seed, domain, str(value)), value))
+    preferred = set(preferred_positions)
+    remaining.sort(key=lambda value: (value not in preferred,
+                                      _digest(seed, domain, str(value)), value))
     return sorted(mandatory + remaining[: max(0, count - len(mandatory))])
 
 

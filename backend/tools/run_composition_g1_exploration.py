@@ -13,8 +13,11 @@ REPO = BACKEND.parent
 sys.path.insert(0, str(BACKEND))
 
 from app.songprogram.piano_part import PIANO_STYLES  # noqa: E402
+from app.songprogram.composition_realization import (  # noqa: E402
+    realization_profile_hash, validate_realization_profile,
+)
 from app.songprogram.search import canonical_bytes  # noqa: E402
-from tools.generate_composition_song import DEFAULT_PROFILE  # noqa: E402
+from tools.generate_composition_song import DEFAULT_PROFILE, DEFAULT_REALIZATION_PROFILE  # noqa: E402
 from tools.prepare_song_evaluation import _candidate, _sha  # noqa: E402
 from tools.run_composition_generation_cohort import _generate  # noqa: E402
 from tools.run_fixture_generation_cohort import DEFAULT_GENERATION_MANIFEST  # noqa: E402
@@ -67,6 +70,7 @@ def explore(
     output: Path, *, rounds: int, candidates_per_round: int, seed_offset: int = 0,
     source_cohort: Path | None = None, piano_style: str = "mixed",
     profile: Path = DEFAULT_PROFILE,
+    realization_profile: Path = DEFAULT_REALIZATION_PROFILE,
     generation_manifest: Path = DEFAULT_GENERATION_MANIFEST,
     repository: Path = REPO,
 ) -> dict:
@@ -87,11 +91,18 @@ def explore(
         "source_cohort": str(source) if source_cohort is not None else None,
         "piano_style": piano_style if source_cohort is None else None,
         "profile_hash": _sha(profile) if source_cohort is None else None,
+        **({"realization_profile_hash": _sha(realization_profile)}
+           if source_cohort is None else {}),
         "generation_manifest_hash": _sha(generation_manifest) if source_cohort is None else None,
         "seed_offset": seed_offset, "candidates_per_round": candidates_per_round,
         "objectives": list(OBJECTIVES), "selection": "g0-eligible-g1-pareto/v1",
     }
     expected_profile_hash = json.loads(profile.read_text(encoding="utf-8"))["profile_hash"] if source_cohort is None else None
+    expected_realization_hash = None
+    if source_cohort is None:
+        realized = json.loads(realization_profile.read_text(encoding="utf-8"))
+        validate_realization_profile(realized)
+        expected_realization_hash = realization_profile_hash(realized)
     output.mkdir(parents=True, exist_ok=True)
     saved = output / "g1_exploration.json"
     previous = None
@@ -115,11 +126,13 @@ def explore(
             seed = seed_offset + round_index * candidates_per_round + ordinal
             directory = source / f"seed-{seed:04d}"
             if source_cohort is None:
-                result = _generate(seed, str(source), str(profile), str(generation_manifest), piano_style)
+                result = _generate(seed, str(source), str(profile), str(generation_manifest),
+                                   piano_style, str(realization_profile))
                 if result["status"] != "success":
                     raise ValueError(f"generation failed for seed {seed}: {result['error']}")
                 receipt = json.loads((directory / "receipt.json").read_text(encoding="utf-8"))
                 if (receipt.get("profile_hash") != expected_profile_hash
+                        or receipt.get("realization_profile_hash") != expected_realization_hash
                         or receipt.get("piano_style", "none") != piano_style):
                     raise ValueError(f"cached generation profile/style differs for seed {seed}")
             candidate, diagnostic = _candidate("generated", directory, seed, repository)
@@ -155,6 +168,7 @@ def main() -> None:
     parser.add_argument("--source-cohort", type=Path, help="evaluate existing songs instead of generating")
     parser.add_argument("--piano-style", choices=PIANO_STYLES, default="mixed")
     parser.add_argument("--profile", type=Path, default=DEFAULT_PROFILE)
+    parser.add_argument("--realization-profile", type=Path, default=DEFAULT_REALIZATION_PROFILE)
     parser.add_argument("--generation-manifest", type=Path, default=DEFAULT_GENERATION_MANIFEST)
     args = parser.parse_args()
     try:
@@ -162,6 +176,7 @@ def main() -> None:
             args.output, rounds=args.rounds, candidates_per_round=args.candidates_per_round,
             seed_offset=args.seed_offset, source_cohort=args.source_cohort,
             piano_style=args.piano_style, profile=args.profile,
+            realization_profile=args.realization_profile,
             generation_manifest=args.generation_manifest,
         )
     except (ValueError, KeyError, OSError, json.JSONDecodeError) as error:

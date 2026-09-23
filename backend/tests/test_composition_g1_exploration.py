@@ -61,13 +61,14 @@ def test_generated_mode_uses_existing_receipts_on_resume(tmp_path, monkeypatch) 
     output = tmp_path / "local_authority" / "generated_exploration"
     calls = []
 
-    def generate(seed, destination, profile, manifest, piano_style):
+    def generate(seed, destination, profile, manifest, piano_style, realization_profile):
         calls.append(seed)
         directory = tmp_path / "local_authority" / "generated_exploration" / "candidates" / f"seed-{seed:04d}"
         if not (directory / "receipt.json").exists():
             shutil.copytree(cohorts["first"] / f"seed-{seed:04d}", directory)
             receipt = json.loads((directory / "receipt.json").read_text())
             receipt["profile_hash"] = json.loads(Path(profile).read_text())["profile_hash"]
+            receipt["realization_profile_hash"] = json.loads(Path(realization_profile).read_text())["profile_hash"]
             receipt["piano_style"] = piano_style
             _write(directory / "receipt.json", receipt)
         return {"status": "success"}

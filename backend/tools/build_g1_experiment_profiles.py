@@ -14,8 +14,12 @@ sys.path.insert(0, str(BACKEND))
 from app.songprogram.composition_generation import (  # noqa: E402
     composition_profile_hash, validate_composition_profile,
 )
+from app.songprogram.composition_realization import (  # noqa: E402
+    realization_profile_hash, validate_realization_profile,
+)
 
 SOURCE = BACKEND / "songprogram_conformance/profiles/composition_generation_v2.json"
+REALIZATION_SOURCE = BACKEND / "songprogram_conformance/profiles/composition_realization_v2_1.json"
 DESTINATION = BACKEND / "songprogram_conformance/profiles/g1_experiments"
 
 
@@ -66,14 +70,34 @@ def build_profiles(base: dict) -> dict[str, dict]:
     return profiles
 
 
+def build_realization_profile(base: dict) -> dict:
+    validate_realization_profile(base)
+    result = copy.deepcopy(base)
+    result["profile_id"] = "g1-experiment-flexible-section-roles-v1"
+    for rows in result["role_masks_by_function"].values():
+        existing = {tuple(row["roles"]) for row in rows}
+        for roles in (
+            ["drums", "bass", "harmony", "melody"],
+            ["bass", "harmony", "melody", "texture"],
+            ["harmony", "melody", "texture"],
+            ["drums", "bass", "harmony", "melody", "texture"],
+        ):
+            if tuple(roles) not in existing:
+                rows.append({"roles": roles, "weight": 2})
+    result["profile_hash"] = realization_profile_hash(result)
+    validate_realization_profile(result)
+    return result
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check", action="store_true", help="verify committed profiles without writing")
     args = parser.parse_args()
     profiles = build_profiles(json.loads(SOURCE.read_text(encoding="utf-8")))
+    realization = build_realization_profile(json.loads(REALIZATION_SOURCE.read_text(encoding="utf-8")))
     if not args.check:
         DESTINATION.mkdir(parents=True, exist_ok=True)
-    for name, profile in profiles.items():
+    for name, profile in (*profiles.items(), ("role_flexible", realization)):
         path = DESTINATION / f"{name}.json"
         payload = (json.dumps(profile, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
         if args.check:

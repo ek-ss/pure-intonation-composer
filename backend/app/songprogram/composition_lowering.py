@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import hashlib
 from typing import Any, Mapping
 
 from .composition_generation import composition_plan_hash
@@ -87,6 +88,13 @@ def _bounded_vector(function: str, bounds: list[list[int]]) -> list[int]:
     return [max(low, min(high, value)) for value, (low, high) in zip(vector, bounds)]
 
 
+def _section_draw(seed: int, section_id: str, domain: str) -> int:
+    return int.from_bytes(hashlib.sha256(
+        b"cps.composition-section-realization/v1\0" + seed.to_bytes(8, "big")
+        + section_id.encode() + b"\0" + domain.encode()
+    ).digest()[:8], "big")
+
+
 def lower_composition_plan(
     structural_program: Mapping[str, Any],
     plan: Mapping[str, Any],
@@ -153,8 +161,30 @@ def lower_composition_plan(
     realizations = []
     realization_ordinal = 0
     emitted_texture_modes: set[str] = set()
-    emitted_harmony_patterns: set[tuple[int, ...]] = set()
     composition_seed = plan["seed"]
+    varied_harmony: dict[tuple[int, int], str] = {}
+    if realization_profile is not None:
+        anchors = harmony_primary["root_anchors"][:3]
+        if len(anchors) < 3:
+            raise CompositionLoweringError("COMPOSITION_HARMONY_ROOTS_UNAVAILABLE")
+        for pattern, positions in enumerate(((0,), (0, 5000))):
+            rhythm_id = f"rhy_cmp_har_var_{pattern}"
+            result["materials"].append({
+                **copy.deepcopy(harmony_helper), "id": rhythm_id,
+                "length_ticks": ticks_per_bar,
+                "steps": [{**copy.deepcopy(harmony_helper["steps"][0]),
+                           "at_tick": position * ticks_per_bar // 10000,
+                           "duration_ticks": ticks_per_bar // len(positions)}
+                          for position in positions],
+            })
+            for index, anchor in enumerate(anchors):
+                material_id = f"mat_cmp_har_var_{pattern}_{index}"
+                result["materials"].append({
+                    **copy.deepcopy(harmony_primary), "id": material_id,
+                    "rhythm_id": rhythm_id,
+                    "root_anchors": [copy.deepcopy(anchor) for _ in positions],
+                })
+                varied_harmony[pattern, index] = material_id
     for section in plan["sections"]:
         first_phrase = section["phrases"][0]["phrase_id"]
         harmonic = trajectory[first_phrase]
@@ -207,6 +237,7 @@ def lower_composition_plan(
                 section["density_q"],
                 composition_seed,
                 f"density/{section['section_id']}/drums",
+                coordination["drum_onsets_q"],
             )
             if realization_profile is not None
             else coordination["drum_onsets_q"]
@@ -218,6 +249,7 @@ def lower_composition_plan(
                 section["density_q"],
                 composition_seed,
                 f"density/{section['section_id']}/bass",
+                coordination["bass_onsets_q"],
             )
             if realization_profile is not None
             else coordination["bass_onsets_q"]
@@ -314,36 +346,33 @@ def lower_composition_plan(
             emitted_texture_modes.add(texture_mode)
         result["materials"].extend(section_materials)
         harmony_material_id = harmony_primary["id"]
-        harmony_positions = [0]
-        if realization_profile is not None and "harmony" in active_roles:
-            harmony_positions = choose_density_positions(
-                realization_profile,
-                "harmony",
-                section["density_q"],
-                composition_seed,
-                f"density/{section['section_id']}/harmony",
-            )
-            section_harmony_rhythm = copy.deepcopy(harmony_helper)
-            harmony_pattern = tuple(harmony_positions)
-            pattern_suffix = "_".join(str(position) for position in harmony_pattern)
-            section_harmony_rhythm["id"] = f"rhy_cmp_har_{pattern_suffix}"
-            section_harmony_rhythm["length_ticks"] = ticks_per_bar
-            section_harmony_rhythm["steps"] = [
-                {
-                    **harmony_helper["steps"][0],
-                    "at_tick": position * ticks_per_bar // 10000,
-                    "duration_ticks": max(1, ticks_per_bar // len(harmony_positions)),
-                    "accent_q": 10000,
-                }
-                for position in harmony_positions
-            ]
-            section_harmony = copy.deepcopy(harmony_primary)
-            section_harmony["id"] = f"mat_cmp_har_{pattern_suffix}"
-            section_harmony["rhythm_id"] = section_harmony_rhythm["id"]
-            harmony_material_id = section_harmony["id"]
-            if harmony_pattern not in emitted_harmony_patterns:
-                result["materials"].extend([section_harmony_rhythm, section_harmony])
-                emitted_harmony_patterns.add(harmony_pattern)
+        harmony_positions_by_bar = [[0] for _ in range(section["bars"])]
+        if varied_harmony and "harmony" in active_roles:
+            mode = _section_draw(composition_seed, section["section_id"], "root-mode") % 4
+            first_base = trajectory[first_phrase]["root_degree_ordinal"] % 3
+            for bar in range(section["bars"]):
+                phrase = next(row for row in reversed(section["phrases"])
+                              if row["start_bar"] <= bar)
+                phrase_base = trajectory[phrase["phrase_id"]]["root_degree_ordinal"] % 3
+                index = (
+                    first_base if mode == 0 else
+                    (first_base + bar % 2) % 3 if mode == 1 else
+                    (first_base + (0, 1, 2, 1)[bar % 4]) % 3 if mode == 2 else
+                    (phrase_base + bar % 2) % 3
+                )
+                pattern = (bar + _section_draw(composition_seed, section["section_id"],
+                                               "rhythm-phase")) % 2
+                harmony_positions_by_bar[bar] = [0] if pattern == 0 else [0, 5000]
+                realizations.append({
+                    "id": f"rea_cmp_{realization_ordinal:03d}",
+                    "section_id": section["section_id"], "role": "harmony",
+                    "material_id": varied_harmony[pattern, index],
+                    "at_tick": bar * ticks_per_bar, "repeat": 1,
+                    "every_ticks": ticks_per_bar, "rhythm_transforms": [],
+                    "pitch_transforms": [], "velocity_scale_q": audible_velocity_q,
+                    "gate_scale_q": 10000,
+                })
+                realization_ordinal += 1
         rows = [
             ("drums", drum_id, 0, section["bars"], []),
             (
@@ -365,7 +394,7 @@ def lower_composition_plan(
             ),
         ]
         for role, material_id, at_tick, repeat, transforms in rows:
-            if role not in active_roles:
+            if role not in active_roles or (varied_harmony and role == "harmony"):
                 continue
             realizations.append(
                 {
@@ -409,6 +438,8 @@ def lower_composition_plan(
                     at_tick = event["position_q"] * phrase_ticks // 10000
                     duration = max(1, event["duration_q"] * phrase_ticks // 10000)
                     within_bar = at_tick % ticks_per_bar
+                    bar_index = phrase["start_bar"] + at_tick // ticks_per_bar
+                    harmony_positions = harmony_positions_by_bar[bar_index]
                     harmony_boundaries = [
                         position * ticks_per_bar // 10000
                         for position in harmony_positions

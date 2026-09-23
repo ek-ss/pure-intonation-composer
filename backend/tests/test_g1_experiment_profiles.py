@@ -5,7 +5,10 @@ import subprocess
 from pathlib import Path
 
 from app.songprogram.composition_generation import generate_composition_plan
-from tools.build_g1_experiment_profiles import DESTINATION, SOURCE, build_profiles
+from app.songprogram.composition_realization import choose_role_mask
+from tools.build_g1_experiment_profiles import (
+    DESTINATION, REALIZATION_SOURCE, SOURCE, build_profiles, build_realization_profile,
+)
 
 
 def test_experiment_profiles_are_frozen_valid_and_change_same_seed_plans() -> None:
@@ -35,3 +38,13 @@ def test_shell_dry_run_covers_four_isolated_profile_runs(tmp_path: Path) -> None
                     if line.startswith(f"{name}: ") and " --output " in line)
         assert f"--output {root}/local_authority/g1_profile_experiments_v1/{name}" in line
         assert "--seed-offset 0 --rounds 1 --candidates-per-round 2 --piano-style none" in line
+        assert f"--realization-profile {root}/backend/songprogram_conformance/profiles/g1_experiments/role_flexible.json" in line
+
+
+def test_flexible_role_profile_allows_multiple_masks_per_section_function() -> None:
+    base = json.loads(REALIZATION_SOURCE.read_text(encoding="utf-8"))
+    variant = build_realization_profile(base)
+    assert json.loads((DESTINATION / "role_flexible.json").read_text(encoding="utf-8")) == variant
+    for function in variant["role_masks_by_function"]:
+        choices = {choose_role_mask(variant, seed, "sec_000", function) for seed in range(64)}
+        assert len(choices) >= 3

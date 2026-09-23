@@ -15,6 +15,7 @@ ROUNDS="${ROUNDS:-1}"
 CANDIDATES_PER_ROUND="${CANDIDATES_PER_ROUND:-2}"
 PIANO_STYLE="${PIANO_STYLE:-none}"
 GENERATION_MANIFEST="${GENERATION_MANIFEST:-$PROFILES/full_song_generation_v1.json}"
+REALIZATION_PROFILE="${REALIZATION_PROFILE:-$PROFILES/g1_experiments/role_flexible.json}"
 
 "$PYTHON" "$ROOT/backend/tools/build_g1_experiment_profiles.py" --check
 
@@ -28,6 +29,7 @@ for name in baseline contrast_arc motif_recall rhythm_dialogue; do
     "$PYTHON" "$ROOT/backend/tools/run_composition_g1_exploration.py"
     --profile "$profile"
     --generation-manifest "$GENERATION_MANIFEST"
+    --realization-profile "$REALIZATION_PROFILE"
     --seed-offset "$SEED_OFFSET"
     --rounds "$ROUNDS"
     --candidates-per-round "$CANDIDATES_PER_ROUND"

@@ -160,3 +160,44 @@ def test_realization_profile_activates_role_masks_and_density() -> None:
             assert len(helper["steps"]) == expected
             expected_accent = 10000 if role == "harmony" else expected_velocity
             assert all(step["accent_q"] == expected_accent for step in helper["steps"])
+
+
+def test_realized_harmony_uses_phrase_roots_and_bar_level_rhythms() -> None:
+    structural, plan = _inputs()
+    profile = json.loads(REALIZATION_PROFILE.read_text(encoding="utf-8"))
+    lowered = lower_composition_plan(structural, plan, profile)
+    materials = {row["id"]: row for row in lowered["materials"]}
+    section_roots = []
+    for section in plan["sections"]:
+        rows = [row for row in lowered["realizations"]
+                if row["role"] == "harmony" and row["section_id"] == section["section_id"]]
+        assert len(rows) == section["bars"]
+        assert [row["at_tick"] for row in rows] == [
+            bar * structural["clock"]["beats_per_bar"] * structural["clock"]["ticks_per_beat"]
+            for bar in range(section["bars"])
+        ]
+        roots = {tuple(materials[row["material_id"]]["root_anchors"][0]) for row in rows}
+        section_roots.append(roots)
+        assert {len(materials[materials[row["material_id"]]["rhythm_id"]]["steps"])
+                for row in rows} == {1, 2}
+    assert any(len(roots) >= 3 for roots in section_roots)
+
+
+def test_plan_coordination_prior_changes_realized_onsets() -> None:
+    structural, baseline = _inputs()
+    variant_profile = json.loads((BACKEND / "songprogram_conformance/profiles/g1_experiments/rhythm_dialogue.json").read_text())
+    alternative = generate_composition_plan(variant_profile, 0)
+    realization = json.loads(REALIZATION_PROFILE.read_text())
+
+    def onsets(plan: dict) -> list[tuple[str, tuple[int, ...]]]:
+        lowered = lower_composition_plan(structural, plan, realization)
+        materials = {row["id"]: row for row in lowered["materials"]}
+        return [
+            (row["role"], tuple(step["at_tick"] for step in materials[
+                materials[row["material_id"]]["rhythm_id"]
+            ]["steps"]))
+            for row in lowered["realizations"]
+            if row["role"] == "bass"
+        ]
+
+    assert onsets(baseline) != onsets(alternative)

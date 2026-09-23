@@ -18,7 +18,8 @@ from app.songprogram.search import canonical_bytes  # noqa: E402
 from app.songprogram.piano_part import PIANO_STYLES  # noqa: E402
 
 
-def _generate(seed: int, output: str, profile: str, generation_manifest: str, piano_style: str) -> dict:
+def _generate(seed: int, output: str, profile: str, generation_manifest: str, piano_style: str,
+              realization_profile: str | None = None) -> dict:
     directory = Path(output) / f"seed-{seed:04d}"
     receipt_path = directory / "receipt.json"
     if receipt_path.is_file():
@@ -46,6 +47,8 @@ def _generate(seed: int, output: str, profile: str, generation_manifest: str, pi
         "--piano-style",
         piano_style,
     ]
+    if realization_profile is not None:
+        command.extend(("--realization-profile", realization_profile))
     completed = subprocess.run(command, check=False, capture_output=True, text=True)
     if completed.returncode:
         return {"seed": seed, "status": "failed", "error": completed.stderr.strip()}

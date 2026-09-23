@@ -1,0 +1,446 @@
+{
+  "schema": "cps.composition-realization-profile",
+  "schema_version": "2.1.0",
+  "profile_id": "g1-experiment-flexible-section-roles-v1",
+  "choice_algorithm": "seed-domain-sha256-weighted/v1",
+  "role_masks_by_function": {
+    "opening": [
+      {
+        "roles": [
+          "harmony",
+          "melody",
+          "texture"
+        ],
+        "weight": 2
+      },
+      {
+        "roles": [
+          "drums",
+          "harmony",
+          "melody"
+        ],
+        "weight": 1
+      },
+      {
+        "roles": [
+          "drums",
+          "bass",
+          "harmony",
+          "melody"
+        ],
+        "weight": 2
+      },
+      {
+        "roles": [
+          "bass",
+          "harmony",
+          "melody",
+          "texture"
+        ],
+        "weight": 2
+      },
+      {
+        "roles": [
+          "drums",
+          "bass",
+          "harmony",
+          "melody",
+          "texture"
+        ],
+        "weight": 2
+      }
+    ],
+    "statement": [
+      {
+        "roles": [
+          "bass",
+          "harmony",
+          "melody",
+          "texture"
+        ],
+        "weight": 1
+      },
+      {
+        "roles": [
+          "drums",
+          "bass",
+          "harmony",
+          "melody"
+        ],
+        "weight": 2
+      },
+      {
+        "roles": [
+          "harmony",
+          "melody",
+          "texture"
+        ],
+        "weight": 2
+      },
+      {
+        "roles": [
+          "drums",
+          "bass",
+          "harmony",
+          "melody",
+          "texture"
+        ],
+        "weight": 2
+      }
+    ],
+    "preparation": [
+      {
+        "roles": [
+          "drums",
+          "harmony",
+          "melody",
+          "texture"
+        ],
+        "weight": 1
+      },
+      {
+        "roles": [
+          "drums",
+          "bass",
+          "harmony",
+          "melody",
+          "texture"
+        ],
+        "weight": 2
+      },
+      {
+        "roles": [
+          "drums",
+          "bass",
+          "harmony",
+          "melody"
+        ],
+        "weight": 2
+      },
+      {
+        "roles": [
+          "bass",
+          "harmony",
+          "melody",
+          "texture"
+        ],
+        "weight": 2
+      },
+      {
+        "roles": [
+          "harmony",
+          "melody",
+          "texture"
+        ],
+        "weight": 2
+      }
+    ],
+    "arrival": [
+      {
+        "roles": [
+          "drums",
+          "bass",
+          "harmony",
+          "melody",
+          "texture"
+        ],
+        "weight": 1
+      },
+      {
+        "roles": [
+          "drums",
+          "bass",
+          "harmony",
+          "melody"
+        ],
+        "weight": 2
+      },
+      {
+        "roles": [
+          "bass",
+          "harmony",
+          "melody",
+          "texture"
+        ],
+        "weight": 2
+      },
+      {
+        "roles": [
+          "harmony",
+          "melody",
+          "texture"
+        ],
+        "weight": 2
+      }
+    ],
+    "contrast": [
+      {
+        "roles": [
+          "harmony",
+          "melody",
+          "texture"
+        ],
+        "weight": 2
+      },
+      {
+        "roles": [
+          "drums",
+          "harmony",
+          "melody",
+          "texture"
+        ],
+        "weight": 1
+      },
+      {
+        "roles": [
+          "drums",
+          "bass",
+          "harmony",
+          "melody"
+        ],
+        "weight": 2
+      },
+      {
+        "roles": [
+          "bass",
+          "harmony",
+          "melody",
+          "texture"
+        ],
+        "weight": 2
+      },
+      {
+        "roles": [
+          "drums",
+          "bass",
+          "harmony",
+          "melody",
+          "texture"
+        ],
+        "weight": 2
+      }
+    ],
+    "return": [
+      {
+        "roles": [
+          "bass",
+          "harmony",
+          "melody",
+          "texture"
+        ],
+        "weight": 1
+      },
+      {
+        "roles": [
+          "drums",
+          "bass",
+          "harmony",
+          "melody"
+        ],
+        "weight": 2
+      },
+      {
+        "roles": [
+          "harmony",
+          "melody",
+          "texture"
+        ],
+        "weight": 2
+      },
+      {
+        "roles": [
+          "drums",
+          "bass",
+          "harmony",
+          "melody",
+          "texture"
+        ],
+        "weight": 2
+      }
+    ],
+    "closure": [
+      {
+        "roles": [
+          "harmony",
+          "texture"
+        ],
+        "weight": 1
+      },
+      {
+        "roles": [
+          "harmony",
+          "melody",
+          "texture"
+        ],
+        "weight": 2
+      },
+      {
+        "roles": [
+          "drums",
+          "bass",
+          "harmony",
+          "melody"
+        ],
+        "weight": 2
+      },
+      {
+        "roles": [
+          "bass",
+          "harmony",
+          "melody",
+          "texture"
+        ],
+        "weight": 2
+      },
+      {
+        "roles": [
+          "drums",
+          "bass",
+          "harmony",
+          "melody",
+          "texture"
+        ],
+        "weight": 2
+      }
+    ]
+  },
+  "texture_modes_by_function": {
+    "opening": [
+      {
+        "mode": "pad",
+        "weight": 3
+      },
+      {
+        "mode": "pluck",
+        "weight": 1
+      }
+    ],
+    "statement": [
+      {
+        "mode": "pluck",
+        "weight": 2
+      },
+      {
+        "mode": "counterline",
+        "weight": 1
+      },
+      {
+        "mode": "vocal_chop",
+        "weight": 1
+      }
+    ],
+    "preparation": [
+      {
+        "mode": "noise_riser",
+        "weight": 3
+      },
+      {
+        "mode": "arp",
+        "weight": 1
+      }
+    ],
+    "arrival": [
+      {
+        "mode": "fx_impact",
+        "weight": 2
+      },
+      {
+        "mode": "vocal_chop",
+        "weight": 1
+      },
+      {
+        "mode": "arp",
+        "weight": 1
+      }
+    ],
+    "contrast": [
+      {
+        "mode": "pad",
+        "weight": 2
+      },
+      {
+        "mode": "counterline",
+        "weight": 1
+      }
+    ],
+    "return": [
+      {
+        "mode": "arp",
+        "weight": 1
+      },
+      {
+        "mode": "vocal_chop",
+        "weight": 1
+      },
+      {
+        "mode": "pluck",
+        "weight": 1
+      }
+    ],
+    "closure": [
+      {
+        "mode": "transition_tail",
+        "weight": 3
+      },
+      {
+        "mode": "pad",
+        "weight": 1
+      }
+    ]
+  },
+  "density_policy_by_role": {
+    "drums": {
+      "minimum_events_per_bar": 1,
+      "maximum_events_per_bar": 8,
+      "candidate_positions_q": [
+        0,
+        1250,
+        2500,
+        3750,
+        5000,
+        6250,
+        7500,
+        8750
+      ],
+      "mandatory_positions_q": [
+        0
+      ]
+    },
+    "bass": {
+      "minimum_events_per_bar": 1,
+      "maximum_events_per_bar": 4,
+      "candidate_positions_q": [
+        0,
+        2500,
+        5000,
+        7500
+      ],
+      "mandatory_positions_q": [
+        0
+      ]
+    },
+    "harmony": {
+      "minimum_events_per_bar": 1,
+      "maximum_events_per_bar": 2,
+      "candidate_positions_q": [
+        0,
+        5000
+      ],
+      "mandatory_positions_q": [
+        0
+      ]
+    },
+    "melody": {
+      "minimum_events_per_bar": 1,
+      "maximum_events_per_bar": 4,
+      "candidate_positions_q": [
+        0,
+        2500,
+        5000,
+        7500
+      ],
+      "mandatory_positions_q": []
+    }
+  },
+  "profile_hash": "sha256:911d9d83a98f04e34d953a3adcb10f1f6eb57a86155878aefd467986c532b7bf"
+}
