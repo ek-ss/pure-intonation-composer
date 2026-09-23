@@ -1,0 +1,576 @@
+{
+  "schema": "cps.composition-generation-profile",
+  "schema_version": "2.0.0",
+  "profile_id": "g1-experiment-rhythm-dialogue-v1",
+  "generator": "ordered-form-phrase/v1",
+  "choice_algorithm": "seed-domain-sha256-weighted/v1",
+  "form_templates": [
+    {
+      "template_id": "intro-verse-build-drop-return-final-outro",
+      "weight": 3,
+      "sections": [
+        {
+          "section_key": "intro",
+          "function": "opening",
+          "bars": 4,
+          "energy_q": 3000,
+          "density_q": 3000,
+          "cadence_target": "continuation",
+          "foreground_state": "introduce"
+        },
+        {
+          "section_key": "verse_a",
+          "function": "statement",
+          "bars": 4,
+          "energy_q": 5000,
+          "density_q": 5000,
+          "cadence_target": "continuation",
+          "foreground_state": "present"
+        },
+        {
+          "section_key": "build_a",
+          "function": "preparation",
+          "bars": 4,
+          "energy_q": 7500,
+          "density_q": 7000,
+          "cadence_target": "arrival",
+          "foreground_state": "develop"
+        },
+        {
+          "section_key": "drop_a",
+          "function": "arrival",
+          "bars": 4,
+          "energy_q": 10000,
+          "density_q": 9000,
+          "cadence_target": "home",
+          "foreground_state": "present"
+        },
+        {
+          "section_key": "verse_b",
+          "function": "return",
+          "bars": 4,
+          "energy_q": 6000,
+          "density_q": 5500,
+          "cadence_target": "continuation",
+          "foreground_state": "recall"
+        },
+        {
+          "section_key": "build_b",
+          "function": "preparation",
+          "bars": 4,
+          "energy_q": 8500,
+          "density_q": 8000,
+          "cadence_target": "arrival",
+          "foreground_state": "develop"
+        },
+        {
+          "section_key": "final",
+          "function": "return",
+          "bars": 4,
+          "energy_q": 9500,
+          "density_q": 8500,
+          "cadence_target": "home",
+          "foreground_state": "recall"
+        },
+        {
+          "section_key": "outro",
+          "function": "closure",
+          "bars": 4,
+          "energy_q": 2500,
+          "density_q": 2500,
+          "cadence_target": "home",
+          "foreground_state": "release"
+        }
+      ]
+    },
+    {
+      "template_id": "intro-statement-arrival-contrast-build-final-outro",
+      "weight": 2,
+      "sections": [
+        {
+          "section_key": "intro",
+          "function": "opening",
+          "bars": 4,
+          "energy_q": 3000,
+          "density_q": 3000,
+          "cadence_target": "continuation",
+          "foreground_state": "introduce"
+        },
+        {
+          "section_key": "verse_a",
+          "function": "statement",
+          "bars": 4,
+          "energy_q": 5500,
+          "density_q": 5000,
+          "cadence_target": "continuation",
+          "foreground_state": "present"
+        },
+        {
+          "section_key": "drop_a",
+          "function": "arrival",
+          "bars": 4,
+          "energy_q": 9500,
+          "density_q": 8500,
+          "cadence_target": "home",
+          "foreground_state": "present"
+        },
+        {
+          "section_key": "break",
+          "function": "contrast",
+          "bars": 4,
+          "energy_q": 4000,
+          "density_q": 3500,
+          "cadence_target": "continuation",
+          "foreground_state": "develop"
+        },
+        {
+          "section_key": "build",
+          "function": "preparation",
+          "bars": 4,
+          "energy_q": 8000,
+          "density_q": 7500,
+          "cadence_target": "arrival",
+          "foreground_state": "develop"
+        },
+        {
+          "section_key": "final",
+          "function": "return",
+          "bars": 4,
+          "energy_q": 10000,
+          "density_q": 9000,
+          "cadence_target": "home",
+          "foreground_state": "recall"
+        },
+        {
+          "section_key": "outro",
+          "function": "closure",
+          "bars": 4,
+          "energy_q": 2500,
+          "density_q": 2500,
+          "cadence_target": "home",
+          "foreground_state": "release"
+        }
+      ]
+    }
+  ],
+  "phrase_policy": {
+    "algorithm": "ordered-exact-section-partition/v1",
+    "length_choices_by_function": {
+      "opening": [
+        {
+          "length_bars": 2,
+          "weight": 1
+        }
+      ],
+      "statement": [
+        {
+          "length_bars": 4,
+          "weight": 3
+        },
+        {
+          "length_bars": 2,
+          "weight": 1
+        }
+      ],
+      "preparation": [
+        {
+          "length_bars": 4,
+          "weight": 2
+        },
+        {
+          "length_bars": 2,
+          "weight": 1
+        }
+      ],
+      "arrival": [
+        {
+          "length_bars": 4,
+          "weight": 3
+        },
+        {
+          "length_bars": 2,
+          "weight": 1
+        }
+      ],
+      "contrast": [
+        {
+          "length_bars": 2,
+          "weight": 2
+        },
+        {
+          "length_bars": 4,
+          "weight": 1
+        }
+      ],
+      "return": [
+        {
+          "length_bars": 4,
+          "weight": 3
+        },
+        {
+          "length_bars": 2,
+          "weight": 1
+        }
+      ],
+      "closure": [
+        {
+          "length_bars": 2,
+          "weight": 1
+        }
+      ]
+    },
+    "slots_by_length_bars": {
+      "2": [
+        "body",
+        "cadence"
+      ],
+      "4": [
+        "pickup",
+        "body",
+        "answer",
+        "cadence"
+      ]
+    }
+  },
+  "harmonic_trajectory_policy": {
+    "algorithm": "seeded-function-constrained-state-path/v1",
+    "home_state_id": "harm_home",
+    "states": [
+      {
+        "state_id": "harm_home",
+        "harmonic_function": "home",
+        "root_degree_ordinal": 0
+      },
+      {
+        "state_id": "harm_departure",
+        "harmonic_function": "departure",
+        "root_degree_ordinal": 4
+      },
+      {
+        "state_id": "harm_preparation",
+        "harmonic_function": "preparation",
+        "root_degree_ordinal": 1
+      },
+      {
+        "state_id": "harm_arrival",
+        "harmonic_function": "arrival",
+        "root_degree_ordinal": 0
+      },
+      {
+        "state_id": "harm_return",
+        "harmonic_function": "return",
+        "root_degree_ordinal": 0
+      }
+    ],
+    "eligible_state_ids_by_section_function": {
+      "opening": [
+        "harm_home"
+      ],
+      "statement": [
+        "harm_home",
+        "harm_departure"
+      ],
+      "preparation": [
+        "harm_departure",
+        "harm_preparation"
+      ],
+      "arrival": [
+        "harm_arrival",
+        "harm_home"
+      ],
+      "contrast": [
+        "harm_departure",
+        "harm_preparation"
+      ],
+      "return": [
+        "harm_return",
+        "harm_home",
+        "harm_departure"
+      ],
+      "closure": [
+        "harm_return",
+        "harm_home"
+      ]
+    },
+    "terminal_state_ids_by_cadence_target": {
+      "none": [
+        "harm_home",
+        "harm_departure",
+        "harm_preparation",
+        "harm_arrival",
+        "harm_return"
+      ],
+      "continuation": [
+        "harm_home",
+        "harm_departure",
+        "harm_preparation",
+        "harm_arrival",
+        "harm_return"
+      ],
+      "arrival": [
+        "harm_preparation"
+      ],
+      "home": [
+        "harm_home",
+        "harm_arrival",
+        "harm_return"
+      ],
+      "open": [
+        "harm_departure"
+      ]
+    },
+    "transitions": [
+      {
+        "from_state_id": "harm_home",
+        "to_state_id": "harm_home",
+        "weight": 2
+      },
+      {
+        "from_state_id": "harm_home",
+        "to_state_id": "harm_departure",
+        "weight": 2
+      },
+      {
+        "from_state_id": "harm_home",
+        "to_state_id": "harm_preparation",
+        "weight": 1
+      },
+      {
+        "from_state_id": "harm_home",
+        "to_state_id": "harm_arrival",
+        "weight": 1
+      },
+      {
+        "from_state_id": "harm_home",
+        "to_state_id": "harm_return",
+        "weight": 1
+      },
+      {
+        "from_state_id": "harm_departure",
+        "to_state_id": "harm_home",
+        "weight": 1
+      },
+      {
+        "from_state_id": "harm_departure",
+        "to_state_id": "harm_departure",
+        "weight": 1
+      },
+      {
+        "from_state_id": "harm_departure",
+        "to_state_id": "harm_preparation",
+        "weight": 3
+      },
+      {
+        "from_state_id": "harm_preparation",
+        "to_state_id": "harm_preparation",
+        "weight": 1
+      },
+      {
+        "from_state_id": "harm_preparation",
+        "to_state_id": "harm_arrival",
+        "weight": 3
+      },
+      {
+        "from_state_id": "harm_preparation",
+        "to_state_id": "harm_return",
+        "weight": 2
+      },
+      {
+        "from_state_id": "harm_preparation",
+        "to_state_id": "harm_home",
+        "weight": 1
+      },
+      {
+        "from_state_id": "harm_arrival",
+        "to_state_id": "harm_arrival",
+        "weight": 1
+      },
+      {
+        "from_state_id": "harm_arrival",
+        "to_state_id": "harm_home",
+        "weight": 2
+      },
+      {
+        "from_state_id": "harm_arrival",
+        "to_state_id": "harm_departure",
+        "weight": 2
+      },
+      {
+        "from_state_id": "harm_arrival",
+        "to_state_id": "harm_return",
+        "weight": 1
+      },
+      {
+        "from_state_id": "harm_return",
+        "to_state_id": "harm_return",
+        "weight": 1
+      },
+      {
+        "from_state_id": "harm_return",
+        "to_state_id": "harm_home",
+        "weight": 2
+      },
+      {
+        "from_state_id": "harm_return",
+        "to_state_id": "harm_departure",
+        "weight": 2
+      },
+      {
+        "from_state_id": "harm_return",
+        "to_state_id": "harm_preparation",
+        "weight": 2
+      }
+    ]
+  },
+  "motif_policy": {
+    "algorithm": "seeded-normalized-motif-lineage/v1",
+    "templates": [
+      {
+        "template_id": "ascending-answerable-v1",
+        "weight": 2,
+        "events": [
+          {
+            "position_q": 1250,
+            "duration_q": 1000,
+            "degree_delta": 0
+          },
+          {
+            "position_q": 3750,
+            "duration_q": 1000,
+            "degree_delta": 1
+          },
+          {
+            "position_q": 6250,
+            "duration_q": 1000,
+            "degree_delta": 2
+          },
+          {
+            "position_q": 8125,
+            "duration_q": 1000,
+            "degree_delta": 1
+          }
+        ]
+      },
+      {
+        "template_id": "arch-answerable-v1",
+        "weight": 1,
+        "events": [
+          {
+            "position_q": 625,
+            "duration_q": 1250,
+            "degree_delta": 0
+          },
+          {
+            "position_q": 3125,
+            "duration_q": 1250,
+            "degree_delta": 2
+          },
+          {
+            "position_q": 5625,
+            "duration_q": 1250,
+            "degree_delta": 3
+          },
+          {
+            "position_q": 8125,
+            "duration_q": 1250,
+            "degree_delta": 0
+          }
+        ]
+      }
+    ],
+    "operation_choices_by_foreground_state": {
+      "absent": [
+        {
+          "operation": "rest",
+          "weight": 1
+        }
+      ],
+      "introduce": [
+        {
+          "operation": "statement",
+          "weight": 1
+        },
+        {
+          "operation": "recall",
+          "weight": 1
+        }
+      ],
+      "present": [
+        {
+          "operation": "recall",
+          "weight": 2
+        },
+        {
+          "operation": "answer",
+          "weight": 1
+        }
+      ],
+      "develop": [
+        {
+          "operation": "answer",
+          "weight": 1
+        },
+        {
+          "operation": "rhythmic_displacement",
+          "weight": 2
+        },
+        {
+          "operation": "fragmentation",
+          "weight": 1
+        }
+      ],
+      "recall": [
+        {
+          "operation": "answer",
+          "weight": 1
+        },
+        {
+          "operation": "rhythmic_displacement",
+          "weight": 2
+        },
+        {
+          "operation": "fragmentation",
+          "weight": 1
+        }
+      ],
+      "release": [
+        {
+          "operation": "cadential_release",
+          "weight": 1
+        }
+      ]
+    },
+    "rhythmic_displacement_q_choices": [
+      625,
+      1250
+    ]
+  },
+  "part_coordination_policy": {
+    "algorithm": "kick-bass-harmony-foreground/v1",
+    "drum_onsets_q": [
+      0,
+      1250,
+      2500,
+      3750,
+      5000,
+      6250,
+      7500,
+      8750
+    ],
+    "bass_onsets_q": [
+      0,
+      2500,
+      5000,
+      7500
+    ],
+    "drum_duration_q": 625,
+    "bass_duration_q": 3750,
+    "boundary_gesture_onset_q": 7500,
+    "melody_chord_member_cycle": [
+      0,
+      1,
+      2
+    ]
+  },
+  "profile_hash": "sha256:62486a22d3a444f8d335f96cb3fe137ca8bd1876aa0a06c39441bf188799886d"
+}

@@ -50,3 +50,40 @@ backend/.venv/bin/python backend/tools/run_composition_g1_exploration.py \
 
 G2 の収集を後で再開する場合の割当作成と集計方法は
 `docs/generated_song_g1_g2_evaluation.md` を参照する。
+
+## 異なる構成プロファイルの比較試験
+
+`backend/songprogram_conformance/profiles/composition_generation_v2.json` を共通の基準
+とし、`backend/songprogram_conformance/profiles/g1_experiments/` に次の 3 案を固定する。
+
+| 案 | 基準との主な差 |
+| --- | --- |
+| `contrast_arc` | 対比区間を持つ form の選択重みを上げ、対比・到達・終止の energy と density の差を拡大 |
+| `motif_recall` | 上昇形モチーフと statement / recall / answer の選択重みを上げる |
+| `rhythm_dialogue` | drum と bass の onset 候補を増やし、境界 gesture の位置を変更 |
+
+これらは改善済みプロファイルではなく、G1 が特徴の差をどう観測するか調べるための
+実験条件。プロファイルの再生成・内容とハッシュの検証には
+`backend/tools/build_g1_experiment_profiles.py` を使う。実験中はプロファイルを
+書き換えず、各案について同じ seed・generation manifest・編成を使用する。
+
+```sh
+backend/tools/run_g1_profile_experiments.sh --dry-run
+backend/tools/run_g1_profile_experiments.sh
+```
+
+既定値は `SEED_OFFSET=0`、`ROUNDS=1`、`CANDIDATES_PER_ROUND=2`、
+`PIANO_STYLE=none`。基準を含む 4 プロファイル × 2 seed = **8 曲**を生成する。
+`OUTPUT_ROOT` の既定値は `local_authority/g1_profile_experiments_v1/` で、案ごとに
+`candidates/` と `g1_exploration.json` を分離する。たとえば 8 seed へ延長する場合:
+
+```sh
+ROUNDS=4 backend/tools/run_g1_profile_experiments.sh
+```
+
+再実行時は既存の seed を検証して利用する。`ROUNDS` だけを増やして延長できる。
+`SEED_OFFSET`、`CANDIDATES_PER_ROUND`、編成、生成 manifest、プロファイルを
+変える試験は **別の `OUTPUT_ROOT`** を使う。全案を別の seed 範囲で試す場合も
+`SEED_OFFSET=8 OUTPUT_ROOT=local_authority/g1_profile_experiments_seed8` のように
+独立させる。G1 非劣解集合は各案の内部で計算されるため、案同士の比較には同じ
+seed の `g1_metrics_q` と G0 失敗を並べて確認する。
