@@ -456,3 +456,32 @@ Section-specific bass-pattern vocabulary, expanded harmony templates, new melody
 relation types, complete composite energy curves and the instrumented preview backend
 remain later milestones. Multi-lane drums and the functional texture subroles are now
 implemented in the deterministic reference path.
+
+## Full-song piano voice
+
+`backend/tools/generate_composition_song.py` adds a separate `trk_piano` voice by
+default. Its `--piano-style` option accepts `mixed` (default), `ostinato`,
+`obbligato`, and `none`. In `mixed`, statement/arrival/return sections use a
+two-bar answering obbligato (resting for the first bar); other sections use a
+one-bar repeating ostinato. Obbligato sections must have an even bar count. Both
+patterns resolve their pitches from the active chord, rather than copying
+the melody's fixed pitches. Each section gets its own piano realization and
+the dedicated `trial_piano` reference timbre. The existing SongProgram role
+vocabulary represents the piano track as a pitched `texture` role; the
+`trk_piano` track ID preserves its independent identity in Project, MIDI, and
+render output. The timbre is a deterministic synthetic piano-like reference
+sound, not an acoustic piano recording. Evaluation MIDI assigns the piano track
+General MIDI acoustic piano program 0 in a named SMF format 1 MIDI track;
+other texture tracks keep their existing program. The song receipt uses schema
+1.3 when piano is enabled and binds the chosen style.
+
+For example:
+
+```bash
+backend/.venv/bin/python backend/tools/generate_composition_song.py \
+  --seed 0 --piano-style mixed --output local_authority/piano_full_song_seed0
+```
+
+`run_composition_generation_cohort.py` accepts the same `--piano-style` option.
+It rejects a saved seed receipt made with a different piano style instead of
+silently treating the old artifact as a cache hit.

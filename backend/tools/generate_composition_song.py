@@ -24,6 +24,10 @@ from app.songprogram.composition_realization import (  # noqa: E402
 from app.songprogram.fallback import execute_broad_prior_production  # noqa: E402
 from app.songprogram.mutation import program_hash  # noqa: E402
 from app.songprogram.midi_export import export_evaluation_midi  # noqa: E402
+from app.songprogram.piano_part import (  # noqa: E402
+    PIANO_STYLES, add_piano_part, catalog_digest as catalog_digest_for_piano,
+    piano_catalog_entry, piano_samples,
+)
 from app.songprogram.perceptual import project_hash  # noqa: E402
 from app.songprogram.renderer import render_reference  # noqa: E402
 from app.songprogram.search import canonical_bytes  # noqa: E402
@@ -35,6 +39,7 @@ from tools.run_fixture_generation_cohort import (  # noqa: E402
     _exploration_authorities,
     _production_authorities,
     _trial_catalog,
+    _wav_asset,
     pcm_continuity,
 )
 
@@ -61,6 +66,7 @@ def main() -> None:
     parser.add_argument("--realization-profile", type=Path, default=DEFAULT_REALIZATION_PROFILE)
     parser.add_argument("--generation-manifest", type=Path, default=DEFAULT_GENERATION_MANIFEST)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--piano-style", choices=PIANO_STYLES, default="mixed")
     arguments = parser.parse_args()
     if not 0 <= arguments.seed < 2**64:
         parser.error("--seed must fit uint64")
@@ -108,13 +114,25 @@ def main() -> None:
         )
         if produced["status"] != "success":
             raise ValueError(produced["error"])
-        program = produced["output"]["program"]
+        program = add_piano_part(produced["output"]["program"], plan, arguments.piano_style)
         catalog, catalog_bytes, catalog_digest, assets = _trial_catalog(generation_manifest)
+        if arguments.piano_style != "none":
+            piano_asset, piano_bytes = _wav_asset(piano_samples())
+            assets[piano_asset["uri"]] = piano_bytes
+            catalog["entries"].append(piano_catalog_entry(
+                piano_asset,
+                generation_manifest["production_policy"]["maximum_polyphony"],
+                generation_manifest["production_policy"]["pitched_frequency_millihz"],
+            ))
+            catalog["entries"].sort(key=lambda entry: entry["instrument_id"].encode())
+            catalog_bytes = canonical_bytes(catalog)
+            catalog_digest = catalog_digest_for_piano(catalog)
         program["production"]["catalog_digest"] = catalog_digest
         for track in program["tracks"]:
-            track["instrument_id"] = (
-                "drum_fixture_kit" if track["role"] == "drums" else f"trial_{track['role']}"
-            )
+            if track["id"] != "trk_piano":
+                track["instrument_id"] = (
+                    "drum_fixture_kit" if track["role"] == "drums" else f"trial_{track['role']}"
+                )
         identity = CompilerIdentity(
             "composition-generation-v2/v1",
             "fixture-resolver",
@@ -152,7 +170,10 @@ def main() -> None:
             pcm_continuity=pcm_continuity(rendered.wav),
         )
         g1_features = extract_composition_viability(program, project)
-        evaluation_midi, evaluation_midi_manifest = export_evaluation_midi(project)
+        evaluation_midi, evaluation_midi_manifest = export_evaluation_midi(
+            project,
+            program_by_track={"trk_piano": 0} if arguments.piano_style != "none" else None,
+        )
     except (OSError, json.JSONDecodeError, KeyError, TypeError, ValueError) as error:
         parser.error(str(error))
 
@@ -173,7 +194,7 @@ def main() -> None:
         (arguments.output / name).write_bytes(payload)
     receipt = {
         "schema": "cps.composition-song-generation-receipt",
-        "schema_version": "1.2.0",
+        "schema_version": "1.3.0" if arguments.piano_style != "none" else "1.2.0",
         "seed": arguments.seed,
         "structural_seed": structural_seed,
         "structural_rejection_ordinal": structural_rejection_ordinal,
@@ -191,6 +212,8 @@ def main() -> None:
         "artifact_names": sorted(artifacts),
         "non_authoritative": True,
     }
+    if arguments.piano_style != "none":
+        receipt["piano_style"] = arguments.piano_style
     (arguments.output / "receipt.json").write_bytes(canonical_bytes(receipt))
     sys.stdout.buffer.write(canonical_bytes(receipt) + b"\n")
 

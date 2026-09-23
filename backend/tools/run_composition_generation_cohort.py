@@ -15,13 +15,16 @@ GENERATOR = BACKEND / "tools" / "generate_composition_song.py"
 sys.path.insert(0, str(BACKEND))
 
 from app.songprogram.search import canonical_bytes  # noqa: E402
+from app.songprogram.piano_part import PIANO_STYLES  # noqa: E402
 
 
-def _generate(seed: int, output: str, profile: str, generation_manifest: str) -> dict:
+def _generate(seed: int, output: str, profile: str, generation_manifest: str, piano_style: str) -> dict:
     directory = Path(output) / f"seed-{seed:04d}"
     receipt_path = directory / "receipt.json"
     if receipt_path.is_file():
         receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+        if receipt.get("piano_style", "none") != piano_style:
+            return {"seed": seed, "status": "failed", "error": "PIANO_STYLE_RECEIPT_MISMATCH"}
         return {
             "seed": seed,
             "status": "success",
@@ -40,6 +43,8 @@ def _generate(seed: int, output: str, profile: str, generation_manifest: str) ->
         generation_manifest,
         "--output",
         str(directory),
+        "--piano-style",
+        piano_style,
     ]
     completed = subprocess.run(command, check=False, capture_output=True, text=True)
     if completed.returncode:
@@ -70,6 +75,7 @@ def main() -> None:
         default=BACKEND / "songprogram_conformance/profiles/full_song_generation_v1.json",
     )
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--piano-style", choices=PIANO_STYLES, default="mixed")
     arguments = parser.parse_args()
     if arguments.seeds < 1 or arguments.workers < 1:
         parser.error("--seeds and --workers must be positive")
@@ -83,6 +89,7 @@ def main() -> None:
                 [str(arguments.output)] * len(seeds),
                 [str(arguments.profile)] * len(seeds),
                 [str(arguments.generation_manifest)] * len(seeds),
+                [arguments.piano_style] * len(seeds),
             )
         )
     report = {
@@ -91,6 +98,7 @@ def main() -> None:
         "seed_offset": arguments.seed_offset,
         "seed_count": arguments.seeds,
         "workers": arguments.workers,
+        "piano_style": arguments.piano_style,
         "success_count": sum(row["status"] == "success" for row in rows),
         "failure_count": sum(row["status"] == "failed" for row in rows),
         "rows": rows,
