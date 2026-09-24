@@ -112,3 +112,27 @@ PCM check and full G0. The widened preview is not archive-eligible.
 The 16 WAVs show differences to listen for; cluster separation is not a
 perceptual score. Compare each medoid to another member of a large cluster
 after listening to test whether the feature distance is musically useful.
+
+## Cluster distribution visualization
+
+```sh
+backend/.venv/bin/python backend/tools/visualize_symbolic_clusters.py \
+  --clusters local_authority/section_variation_symbolic_1000/clusters_16.json \
+  --listening-report local_authority/section_variation_listening_16/listening_report.json \
+  --output local_authority/section_variation_listening_16
+```
+
+Open `local_authority/section_variation_listening_16/distribution.html`
+or `distribution.svg`. The upper-left plot shows all **245** symbolically
+valid Projects, colored by their 16 clusters; outlined points mark medoids.
+The upper-right legend links each cluster to its listening WAV. Lower panels
+show valid Project counts for the 4 × 4 opening/closure combinations and
+cluster sizes with median ≥10¢ lattice-pitch voice-time exposure.
+
+The 2D plot uses PCA of each song's **distances to the 16 medoids** using the
+same feature-distance function as clustering. Its axes explain 48.2% and
+22.9% of the landmark-distance variance, respectively. This projection
+may collapse or stretch pairwise distances; cluster membership still comes
+from the full feature distance. The heatmap counts omit 708 generation
+failures and 47 symbolic-check failures, so it must not be interpreted as
+the distribution of all attempted seeds.
