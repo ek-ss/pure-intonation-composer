@@ -69,6 +69,7 @@ as implemented.
 | [development_plan_composition_viability.md](development_plan_composition_viability.md) | Pre-genre composition viability redesign, baseline diagnosis, next-generation profile, and listening calibration plan |
 | [lattice_microtonal_composition_exploration.md](lattice_microtonal_composition_exploration.md) | JI lattice pitch collections, non-12-EDO progression, and part-level non-chord-tone design |
 | [section_seed_clustering.md](section_seed_clustering.md) | 1,000-seed plan prescreen, measured WAV-skip bottleneck, and Project-stage clustering design |
+| [composition_seed_finetuning_spec.md](composition_seed_finetuning_spec.md) | Seed-derived local harmony variation, actual-impact audit, paired evaluation, and shortlist contract |
 | [composition_g1_exploration.md](composition_g1_exploration.md) | Local G0/G1-only generated-song exploration loop, Pareto feedback, and resume workflow |
 | [generated_song_g1_g2_evaluation.md](generated_song_g1_g2_evaluation.md) | Optional blind G2 listening preparation and response aggregation for generated cohorts |
 | [song_program_gen0_cohort_gate_contract.md](song_program_gen0_cohort_gate_contract.md) | Normative 1,000-seed GEN0 viability/diversity cohort measurement contract |
