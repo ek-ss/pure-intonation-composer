@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cps.local/schemas/song_validity_assessment_1_1.schema.json",
+  "title": "Symbolic Song Validity Assessment v1.1",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema", "schema_version", "status", "archive_eligible", "hard_checks", "diagnostics", "failure_codes", "unchecked_checks", "assessment_hash"],
+  "properties": {
+    "schema": {"const": "cps.song-validity-assessment"},
+    "schema_version": {"const": "1.1.0"},
+    "status": {"const": "incomplete"},
+    "archive_eligible": {"const": false},
+    "hard_checks": {"$ref": "song_validity_assessment.schema.json#/properties/hard_checks"},
+    "diagnostics": {"$ref": "song_validity_assessment.schema.json#/properties/diagnostics"},
+    "failure_codes": {"$ref": "song_validity_assessment.schema.json#/properties/failure_codes"},
+    "unchecked_checks": {"const": ["no_fully_silent_one_second_window"]},
+    "assessment_hash": {"$ref": "song_validity_assessment.schema.json#/properties/assessment_hash"}
+  }
+}

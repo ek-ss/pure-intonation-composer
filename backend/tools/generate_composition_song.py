@@ -68,9 +68,13 @@ def main() -> None:
     parser.add_argument("--generation-manifest", type=Path, default=DEFAULT_GENERATION_MANIFEST)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--piano-style", choices=PIANO_STYLES, default="mixed")
+    parser.add_argument("--skip-wav", action="store_true",
+                        help="generate symbolic/MIDI diagnostics without rendering; G0 remains incomplete")
     arguments = parser.parse_args()
     if not 0 <= arguments.seed < 2**64:
         parser.error("--seed must fit uint64")
+    if arguments.skip_wav and arguments.output.exists() and any(arguments.output.iterdir()):
+        parser.error("--skip-wav requires a new or empty output directory")
     for option in ("profile", "realization_profile", "generation_manifest"):
         path = getattr(arguments, option)
         if not path.is_file():
@@ -142,14 +146,16 @@ def main() -> None:
             catalog_digest,
         )
         project = compile_sp0(program, identity)
-        render_manifest = _object(RENDER_FIXTURE / "render_manifest.json")
-        rendered = render_reference(
-            project,
-            catalog_bytes,
-            assets.__getitem__,
-            render_manifest_digest=render_manifest["render_manifest_digest"],
-            project_artifact_hash=project_hash(project),
-        )
+        rendered = None
+        if not arguments.skip_wav:
+            render_manifest = _object(RENDER_FIXTURE / "render_manifest.json")
+            rendered = render_reference(
+                project,
+                catalog_bytes,
+                assets.__getitem__,
+                render_manifest_digest=render_manifest["render_manifest_digest"],
+                project_artifact_hash=project_hash(project),
+            )
         roles_by_track = {track["id"]: track["role"] for track in project["tracks"]}
         masks = {
             tuple(
@@ -168,7 +174,7 @@ def main() -> None:
             project,
             symbolic_coverage={"overall_coverage_basis_points": 10000},
             arrangement={"status": "passed", "distinct_role_mask_count": len(masks)},
-            pcm_continuity=pcm_continuity(rendered.wav),
+            pcm_continuity=pcm_continuity(rendered.wav) if rendered is not None else None,
         )
         g1_features = extract_composition_viability(program, project)
         evaluation_midi, evaluation_midi_manifest = export_evaluation_midi(
@@ -184,19 +190,21 @@ def main() -> None:
         "structural_program.json": canonical_bytes(structural),
         "program.json": canonical_bytes(program),
         "project.json": canonical_bytes(project),
-        "reference.wav": rendered.wav,
-        "perceptual_preview.wav": rendered.wav,
         "evaluation_reference.mid": evaluation_midi,
         "evaluation_reference_midi.json": canonical_bytes(evaluation_midi_manifest),
         "song_validity.json": canonical_bytes(validity),
         "g1_features.json": canonical_bytes(g1_features),
         "lattice_pitch.json": canonical_bytes(lattice_pitch_diagnostic(project)),
     }
+    if rendered is not None:
+        artifacts["reference.wav"] = rendered.wav
+        artifacts["perceptual_preview.wav"] = rendered.wav
     for name, payload in artifacts.items():
         (arguments.output / name).write_bytes(payload)
     receipt = {
         "schema": "cps.composition-song-generation-receipt",
-        "schema_version": "1.3.0" if arguments.piano_style != "none" else "1.2.0",
+        "schema_version": ("1.4.0" if arguments.skip_wav else
+                           "1.3.0" if arguments.piano_style != "none" else "1.2.0"),
         "seed": arguments.seed,
         "structural_seed": structural_seed,
         "structural_rejection_ordinal": structural_rejection_ordinal,
@@ -205,7 +213,6 @@ def main() -> None:
         "plan_hash": plan["plan_hash"],
         "program_hash": program_hash(program),
         "project_hash": project_hash(project),
-        "wav_hash": rendered.report["wav_hash"],
         "midi_hash": evaluation_midi_manifest["midi_hash"],
         "midi_manifest_hash": evaluation_midi_manifest["manifest_hash"],
         "song_validity_hash": validity["assessment_hash"],
@@ -214,6 +221,10 @@ def main() -> None:
         "artifact_names": sorted(artifacts),
         "non_authoritative": True,
     }
+    if rendered is not None:
+        receipt["wav_hash"] = rendered.report["wav_hash"]
+    else:
+        receipt["render_status"] = "skipped"
     if arguments.piano_style != "none":
         receipt["piano_style"] = arguments.piano_style
     (arguments.output / "receipt.json").write_bytes(canonical_bytes(receipt))

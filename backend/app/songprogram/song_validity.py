@@ -17,7 +17,8 @@ class SongValidityError(ValueError):
 
 def _hash(assessment: Mapping[str, Any]) -> str:
     body = {key: value for key, value in assessment.items() if key != "assessment_hash"}
-    prefix = b"cps-artifact-hash/v1\0cps.song-validity-assessment\0" b"1.0.0\0"
+    prefix = (b"cps-artifact-hash/v1\0cps.song-validity-assessment\0"
+              + assessment["schema_version"].encode() + b"\0")
     return "sha256:" + hashlib.sha256(prefix + _canonical(body)).hexdigest()
 
 
@@ -46,7 +47,7 @@ def assess_completed_song(
     *,
     symbolic_coverage: Mapping[str, Any],
     arrangement: Mapping[str, Any],
-    pcm_continuity: Mapping[str, Any],
+    pcm_continuity: Mapping[str, Any] | None,
 ) -> dict[str, Any]:
     """Apply the frozen GEN0 completed-song hard checks without preference scores."""
     try:
@@ -83,7 +84,7 @@ def assess_completed_song(
         )
         is not None
         and symbolic_coverage["overall_coverage_basis_points"] >= 8500,
-        "no_fully_silent_one_second_window": pcm_continuity.get(
+        "no_fully_silent_one_second_window": (pcm_continuity or {}).get(
             "fully_silent_one_second_window_count"
         )
         == 0,
@@ -91,10 +92,11 @@ def assess_completed_song(
         "polyphony_within_track_limits": _polyphony_within_track_limits(project),
         "non_identity_transformed_recall_across_sections": transformed_recall,
     }
+    unchecked = ["no_fully_silent_one_second_window"] if pcm_continuity is None else []
     assessment = {
         "schema": "cps.song-validity-assessment",
-        "schema_version": "1.0.0",
-        "status": "passed" if all(checks.values()) else "failed",
+        "schema_version": "1.1.0" if unchecked else "1.0.0",
+        "status": "incomplete" if unchecked else "passed" if all(checks.values()) else "failed",
         "archive_eligible": all(checks.values()),
         "hard_checks": checks,
         "diagnostics": {
@@ -105,13 +107,15 @@ def assess_completed_song(
             "overall_coverage_basis_points": symbolic_coverage.get(
                 "overall_coverage_basis_points"
             ),
-            "fully_silent_one_second_window_count": pcm_continuity.get(
+            "fully_silent_one_second_window_count": (pcm_continuity or {}).get(
                 "fully_silent_one_second_window_count"
             ),
             "distinct_role_mask_count": arrangement.get("distinct_role_mask_count"),
         },
-        "failure_codes": [key for key, passed in checks.items() if not passed],
+        "failure_codes": [key for key, passed in checks.items() if not passed and key not in unchecked],
         "assessment_hash": "",
     }
+    if unchecked:
+        assessment["unchecked_checks"] = unchecked
     assessment["assessment_hash"] = _hash(assessment)
     return assessment

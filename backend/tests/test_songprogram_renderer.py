@@ -3,10 +3,12 @@ from __future__ import annotations
 import hashlib
 import json
 from pathlib import Path
+from fractions import Fraction
 from typing import Any
 
 import pytest
 
+from app.songprogram import renderer
 from app.songprogram.renderer import RenderError, RenderResult, render_reference
 
 
@@ -58,6 +60,30 @@ def test_pitched_reference_render_is_stable_and_reports_pcm() -> None:
     assert result.report["pcm_hash"] == "sha256:" + hashlib.sha256(result.wav[44:]).hexdigest()
     assert result.report["track_hashes"][0]["pcm_byte_length"] == 310 * 8
     assert _render(_project("pitched_fixture_2_1")) == result
+
+
+def test_repeated_notes_decode_one_shared_asset(monkeypatch) -> None:
+    project = _project("pitched_fixture_2_1")
+    project["events"].append(dict(project["events"][0], id="ev_b", start_tick=1))
+    original = renderer._asset
+    seen = []
+
+    def counted(meta, resolve):
+        seen.append(meta["uri"])
+        return original(meta, resolve)
+
+    monkeypatch.setattr(renderer, "_asset", counted)
+    _render(project)
+    assert len(seen) == 1
+
+
+def test_integer_gain_rounding_matches_fraction_contract() -> None:
+    for value in (-32769, -3, -1, 0, 1, 3, 32769):
+        for numerator in (-127, -1, 0, 1, 127):
+            for denominator in (-16, -3, -2, 2, 3, 16):
+                assert renderer._mul(value, numerator, denominator) == renderer._rhe(
+                    Fraction(value * numerator, denominator)
+                )
 
 
 def test_drum_ignores_duration_and_uses_mapped_asset() -> None:

@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cps.local/schemas/composition_song_generation_receipt_1_4.schema.json",
+  "title": "Symbolic Composition Song Generation Receipt 1.4",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema", "schema_version", "seed", "structural_seed", "structural_rejection_ordinal", "profile_hash", "realization_profile_hash", "plan_hash", "program_hash", "project_hash", "midi_hash", "midi_manifest_hash", "song_validity_hash", "g1_feature_report_hash", "archive_eligible", "artifact_names", "non_authoritative", "render_status"],
+  "properties": {
+    "schema": {"const": "cps.composition-song-generation-receipt"},
+    "schema_version": {"const": "1.4.0"},
+    "seed": {"$ref": "composition_song_generation_receipt_1_3.schema.json#/properties/seed"},
+    "structural_seed": {"$ref": "composition_song_generation_receipt_1_3.schema.json#/properties/structural_seed"},
+    "structural_rejection_ordinal": {"$ref": "composition_song_generation_receipt_1_3.schema.json#/properties/structural_rejection_ordinal"},
+    "piano_style": {"$ref": "composition_song_generation_receipt_1_3.schema.json#/properties/piano_style"},
+    "profile_hash": {"$ref": "composition_song_generation_receipt_1_3.schema.json#/$defs/sha256"},
+    "realization_profile_hash": {"$ref": "composition_song_generation_receipt_1_3.schema.json#/$defs/sha256"},
+    "plan_hash": {"$ref": "composition_song_generation_receipt_1_3.schema.json#/$defs/sha256"},
+    "program_hash": {"$ref": "composition_song_generation_receipt_1_3.schema.json#/$defs/sha256"},
+    "project_hash": {"$ref": "composition_song_generation_receipt_1_3.schema.json#/$defs/sha256"},
+    "midi_hash": {"$ref": "composition_song_generation_receipt_1_3.schema.json#/$defs/sha256"},
+    "midi_manifest_hash": {"$ref": "composition_song_generation_receipt_1_3.schema.json#/$defs/sha256"},
+    "song_validity_hash": {"$ref": "composition_song_generation_receipt_1_3.schema.json#/$defs/sha256"},
+    "g1_feature_report_hash": {"$ref": "composition_song_generation_receipt_1_3.schema.json#/$defs/sha256"},
+    "archive_eligible": {"const": false},
+    "artifact_names": {"const": ["composition_plan.json", "evaluation_reference.mid", "evaluation_reference_midi.json", "g1_features.json", "lattice_pitch.json", "program.json", "project.json", "song_validity.json", "structural_program.json"]},
+    "non_authoritative": {"const": true},
+    "render_status": {"const": "skipped"}
+  }
+}

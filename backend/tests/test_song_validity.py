@@ -47,3 +47,14 @@ def test_completed_song_hard_gate_exposes_recall_failure() -> None:
     result = assess_completed_song(invalid, project, symbolic_coverage=coverage, arrangement=arrangement, pcm_continuity=continuity)
     assert result["archive_eligible"] is False
     assert result["failure_codes"] == ["non_identity_transformed_recall_across_sections"]
+
+
+def test_missing_pcm_check_is_incomplete_and_not_archive_eligible() -> None:
+    program, project, coverage, arrangement, _ = _inputs()
+    result = assess_completed_song(program, project, symbolic_coverage=coverage,
+                                   arrangement=arrangement, pcm_continuity=None)
+    assert result["status"] == "incomplete"
+    assert result["archive_eligible"] is False
+    assert result["unchecked_checks"] == ["no_fully_silent_one_second_window"]
+    assert result["failure_codes"] == []
+    assert result["diagnostics"]["fully_silent_one_second_window_count"] is None

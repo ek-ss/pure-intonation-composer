@@ -4,6 +4,21 @@
 これは G1 の校正済み合否判定ではなく、候補発見用の診断ループ。
 既存の archive admission や `ProductionSearchLoop` の品質・権威契約は変更しない。
 
+和声・パートのコンパイルだけを確認する場合は単曲 CLI で
+`--skip-wav --output local_authority/<new-directory>` を指定できる。
+Project・MIDI・G1・格子音高指標は保存するが、PCM 無音チェックは未評価となり、
+`song_validity.json` は `incomplete`、receipt は `render_status: skipped`、
+`archive_eligible: false` を記録する。WAV とそのハッシュは作らない。
+この出力は WAV を要する G1 探索・G2 試聴への入力ではなく、完成曲として
+扱う場合は別ディレクトリに通常生成する。
+WAV を要する通常生成では、参照レンダラが同じ sample asset を複数 note で
+利用するとき、その asset の検証・デコード結果を 1 回のレンダリング内で再利用する。
+サンプルごとの gain 計算も Fraction の一時オブジェクトを作らない同値の
+整数・ties-to-even 演算にした。PCM の混合順序や出力ハッシュの方式は変えない。
+残る主要コストは 48 kHz の
+各発音フレームの純 Python 演算、トラック別バスの確保・エンコードと、
+`reference.wav` / `perceptual_preview.wav` の二重書き込み。
+
 `run_composition_g1_exploration.py` はラウンドごとに指定数の seed を生成
 （または完成済みコホートから読む）し、receipt・音声・Project・G1 report を照合する。
 G0 不成立候補は理由を残し、G1 探索集合から除外する。G0 成立候補では次の

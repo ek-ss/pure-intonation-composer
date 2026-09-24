@@ -39,7 +39,14 @@ def _rhe(x: Fraction) -> int:
 
 
 def _mul(x: int, n: int, d: int) -> int:
-    return _rhe(Fraction(x * n, d))
+    # Integer equivalent of _rhe(Fraction(x * n, d)): avoid allocating a
+    # Fraction for every gain/interpolation operation of every audio frame.
+    if d == 0:
+        raise ZeroDivisionError("Fraction(x * n, 0)")
+    value = x * n
+    sign = -1 if (value < 0) != (d < 0) else 1
+    q, r = divmod(abs(value), abs(d))
+    return sign * (q + int(r * 2 > abs(d) or (r * 2 == abs(d) and q % 2)))
 
 
 def _gain(value: int, factors: tuple[tuple[int, int], ...]) -> int:
@@ -140,6 +147,16 @@ def render_reference(
     clk = project["clock"]
     base = int(project["lattice"]["base_frequency_millihz"])
     voices = []
+    decoded_assets: dict[str, tuple[tuple[tuple[int, ...], ...], int]] = {}
+
+    def decoded(meta: Mapping[str, Any]) -> tuple[tuple[tuple[int, ...], ...], int]:
+        # Cache by the complete asset declaration: even if two entries share
+        # a URI, a differing hash or WAV metadata must still be validated.
+        key = json.dumps(meta, sort_keys=True, separators=(",", ":"))
+        if key not in decoded_assets:
+            decoded_assets[key] = _asset(meta, resolve_asset)
+        return decoded_assets[key]
+
     for e in project["events"]:
         t = tracks[e["track_id"]]
         en = entries.get(t["instrument_id"])
@@ -162,7 +179,7 @@ def render_reference(
             m = next((x for x in en["note_map"] if x["drum_note"] == e["drum_note"]), None)
             if not m:
                 raise RenderError("DRUM_NOTE_UNMAPPED")
-            sm, ch = _asset(m["asset"], resolve_asset)
+            sm, ch = decoded(m["asset"])
             voices.append((e, t, en, m, sm, ch, start, start + len(sm), end, 0))
         else:
             if en["kind"] != "pitched":
@@ -171,7 +188,7 @@ def render_reference(
             lo, hi = en["allowed_frequency_millihz"]
             if not lo <= base * ratio <= hi:
                 raise RenderError("CATALOG_ENTRY_INVALID")
-            sm, ch = _asset(en["asset"], resolve_asset)
+            sm, ch = decoded(en["asset"])
             inc = _rhe(Fraction(base, en["root_frequency_millihz"]) * ratio * 48000 * Q32 / 48000)
             finish = end + en["release_frames"]
             if en["loop"]["mode"] == "none":
