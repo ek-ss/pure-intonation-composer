@@ -81,6 +81,28 @@ G2 の収集を後で再開する場合の割当作成と集計方法は
 
 ## 異なる構成プロファイルの比較試験
 
+intro/outro を含む section 全体の広い探索には、独立した
+`g1_experiments/section_variation.json` と `section_variation_roles.json` を使う。
+既存 2 form に対して導入 4 形（ambient・pickup・groove・bloom）と
+終止 4 形（tail・cut・echo・full circle）を交差させ、**32 通り**の form template
+を seed で選ぶ。導入／終止は 2・4・6 小節、強さ・密度・foreground が異なる。
+中間の各 function でも 2・4・6 小節と強さ・密度をずらし、編成と texture 候補も
+function 別に追加した。cadence と form の許容順序は保つ。入力 profile の構築・
+照合は `backend/tools/build_section_variation_profiles.py --check` で行う。
+基準との同 seed の探索コマンドは次の通り（G0 と WAV を含むため時間がかかる）:
+
+```sh
+backend/tools/run_section_variation_experiment.sh --dry-run
+backend/tools/run_section_variation_experiment.sh
+```
+
+`OUTPUT_ROOT`、`SEED_OFFSET`、`ROUNDS`、`CANDIDATES_PER_ROUND`、`PIANO_STYLE`
+で試験条件を変えられる。形式・編成の選択は plan/Project に残るため、
+単に候補表を増やすだけでなく、同 seed の section ごとの音符と G1 指標で
+実際の差を確認する。
+
+## 既存の G1 構成プロファイル比較
+
 `backend/songprogram_conformance/profiles/composition_generation_v2.json` を共通の基準
 とし、`backend/songprogram_conformance/profiles/g1_experiments/` に次の 3 案を固定する。
 全案で `role_flexible.json` という共通の realization profile を使う。これは
