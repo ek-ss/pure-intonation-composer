@@ -186,7 +186,16 @@ def test_realized_harmony_uses_phrase_roots_and_bar_level_rhythms() -> None:
     assert any(len(roots) >= 3 for roots in section_roots)
     assert {1, 2} in section_rhythms
     assert {1} in section_rhythms
-    assert shifted > 0
+    assert shifted == 0  # active melody requires continuous chord coverage
+    for section in plan["sections"]:
+        rows = [row for row in lowered["realizations"]
+                if row["role"] == "harmony" and row["section_id"] == section["section_id"]]
+        for row in rows:
+            rhythm = materials[materials[row["material_id"]]["rhythm_id"]]
+            if len(rhythm["steps"]) == 2:
+                assert all(step["duration_ticks"] == structural["clock"]["beats_per_bar"]
+                           * structural["clock"]["ticks_per_beat"] // 2
+                           for step in rhythm["steps"])
 
 
 def test_plan_coordination_prior_changes_realized_onsets() -> None:
@@ -207,6 +216,20 @@ def test_plan_coordination_prior_changes_realized_onsets() -> None:
         ]
 
     assert onsets(baseline) != onsets(alternative)
+
+
+def test_ambient_intro_keeps_offbeat_harmony_without_melody_conflict() -> None:
+    structural, _ = _inputs(19)
+    folder = BACKEND / "songprogram_conformance/profiles/g1_experiments"
+    plan = generate_composition_plan(json.loads((folder / "section_variation.json").read_text()), 19)
+    assert plan["sections"][0]["foreground_state"] == "absent"
+    profile = json.loads((folder / "section_variation_roles.json").read_text())
+    lowered = lower_composition_plan(structural, plan, profile)
+    intro = plan["sections"][0]["section_id"]
+    assert any(row["rhythm_transforms"] for row in lowered["realizations"]
+               if row["role"] == "harmony" and row["section_id"] == intro)
+    assert not any(row["role"] == "melody" and row["section_id"] == intro
+                   for row in lowered["realizations"])
 
 
 def test_flexible_section_roles_stay_within_material_budget() -> None:

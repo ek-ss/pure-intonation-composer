@@ -7,11 +7,12 @@ is the independent oracle used to test this implementation.
 from __future__ import annotations
 
 import hashlib
+from bisect import insort
 from decimal import Decimal, DivisionByZero, InvalidOperation, Overflow, ROUND_HALF_EVEN, localcontext
 from fractions import Fraction
 from functools import lru_cache
 from itertools import combinations, permutations
-from math import gcd
+from math import gcd, perm
 from typing import Any, Iterable
 
 NUMERIC_CONTRACT = "cps-numeric/decimal-log2-rhe-v1"
@@ -138,31 +139,105 @@ def resolve_joint_bnb(query: dict[str, Any], requested_k: int = 24) -> list[dict
     anchor_ratio = _vector_ratio(generators, anchor_vector, equave, anchor_exponent)
     anchor_pitch = (anchor_vector, anchor_exponent, anchor_ratio)
     pitches = [item for ratio, item in sorted(placed.items(), key=lambda item: (item[1][0], item[1][1])) if ratio != anchor_ratio]
+    examined = perm(len(pitches), count - 1) if len(pitches) >= count - 1 else 0
+    pair_count = count * (count - 1) // 2
+    anchor_mc = _mc(anchor_ratio)
+    maximum_error = intent["maximum_pair_error_millicents"]
+    maximum_span = intent["maximum_span_millicents"]
+    spacing = intent["minimum_spacing_millicents"]
+    # Each surviving voice must pass its pair constraint with the anchor.
+    # Keep the original assignment enumeration count in the returned core:
+    # pruning here only avoids evaluating provably ineligible assignments.
+    pools: list[list[tuple[tuple[int, ...], int, Fraction, int, int]]] = []
+    for target_index in range(1, count):
+        target_delta = _wrap(targets[target_index][0] - targets[0][0], period)
+        pool = []
+        for vector, exponent, ratio in pitches:
+            pitch_mc = _mc(ratio)
+            if abs(pitch_mc - anchor_mc) > maximum_span or abs(pitch_mc - anchor_mc) < spacing:
+                continue
+            error = _wrap(_wrap(_mc(ratio / anchor_ratio), period) - target_delta, period)
+            if abs(error) <= maximum_error:
+                pool.append((vector, exponent, ratio, pitch_mc, error))
+        pool.sort(key=lambda item: (abs(item[4]), item[4], item[0], item[1]))
+        pools.append(pool)
+
     results: list[tuple[tuple[Any, ...], dict[str, Any]]] = []
-    examined = 0
-    for selected in combinations(pitches, count - 1):
-        for tail in permutations(selected):
-            examined += 1
-            voices = (anchor_pitch, *tail)
-            ratios = tuple(item[2] for item in voices)
-            absolute = tuple(_mc(item) for item in ratios)
-            order = sorted(range(count), key=lambda index: (absolute[index], ratios[index].numerator, ratios[index].denominator, voices[index][0], voices[index][1]))
-            if min(absolute[order[index + 1]] - absolute[order[index]] for index in range(count - 1)) < intent["minimum_spacing_millicents"] or absolute[order[-1]] - absolute[order[0]] > intent["maximum_span_millicents"]:
+    selected = [(*anchor_pitch, anchor_mc, 0)]
+    total_error_limit = pair_count * (intent["maximum_pair_rms_millicents"] + 1) ** 2
+
+    def visit(index: int, partial_errors: dict[tuple[int, int], int], squared: int, complexity: int) -> None:
+        nonlocal total_error_limit
+        for candidate in pools[index - 1]:
+            vector, exponent, ratio, pitch_mc, anchor_error = candidate
+            if any(
+                previous[2] == ratio or abs(pitch_mc - previous[3]) < spacing
+                or abs(pitch_mc - previous[3]) > maximum_span
+                for previous in selected
+            ):
                 continue
-            if intent["bass_policy"] == "preserve_target" and order[0] != intent["bass_target_ordinal"]:
+            if intent["bass_policy"] == "preserve_target" and intent["bass_target_ordinal"] == 0 and pitch_mc < anchor_mc:
                 continue
-            errors = tuple(_wrap(_wrap(_mc(ratios[right] / ratios[left]), period) - _wrap(targets[right][0] - targets[left][0], period), period) for left, right in combinations(range(count), 2))
-            maximum, rms, complexity = max(map(abs, errors)), _rms(errors), _complexity(ratios, reference)
-            if maximum > intent["maximum_pair_error_millicents"] or rms > intent["maximum_pair_rms_millicents"] or complexity > intent["complexity_budget"]:
+            new_errors = dict(partial_errors)
+            new_errors[0, index] = anchor_error
+            new_squared = squared + anchor_error * anchor_error
+            if new_squared > total_error_limit:
                 continue
-            assignment = tuple((absolute[index] % period, ratios[index].numerator, ratios[index].denominator, voices[index][0], voices[index][1]) for index in range(count))
-            shape = tuple((tuple(value - anchor_vector[axis] for axis, value in enumerate(voice[0])), voice[1] - anchor_exponent, ratio.numerator, ratio.denominator) for voice, ratio in zip(voices, ratios))
-            core = {"schema": "cps.sp0-oracle-result/v1", "search_completeness": "exact", "canonical_steps": [step for _, step in targets], "vectors": [list(voice[0]) for voice in voices], "equave_exponents": [voice[1] for voice in voices], "exact_ratios": [_ratio_text(ratio) for ratio in ratios], "pair_errors_millicents": list(errors), "pair_max_millicents": maximum, "pair_rms_millicents": rms, "complexity_score": complexity, "score_prefix": [rms, maximum, complexity], "examined_assignments": 0}
-            results.append(((rms, maximum, complexity, assignment, shape), core))
-    ordered = [core for _, core in sorted(results, key=lambda item: item[0])[:requested_k]]
-    for core in ordered:
-        core["examined_assignments"] = examined
-    return ordered
+            new_complexity = complexity
+            valid = True
+            for left in range(1, index):
+                previous = selected[left]
+                target_delta = _wrap(targets[index][0] - targets[left][0], period)
+                error = _wrap(_wrap(_mc(ratio / previous[2]), period) - target_delta, period)
+                if abs(error) > maximum_error:
+                    valid = False
+                    break
+                new_errors[left, index] = error
+                new_squared += error * error
+                if new_squared > total_error_limit:
+                    valid = False
+                    break
+            if not valid:
+                continue
+            # Complexity consists of nonnegative pair contributions; the
+            # partial score is an exact lower bound on the complete chord.
+            for previous in selected:
+                distance = _reduce(max(ratio, previous[2]) / min(ratio, previous[2]), reference)
+                new_complexity += distance.numerator.bit_length() + distance.denominator.bit_length() - 2
+            if new_complexity > intent["complexity_budget"]:
+                continue
+            selected.append(candidate)
+            if index + 1 < count:
+                visit(index + 1, new_errors, new_squared, new_complexity)
+            else:
+                voices = tuple((item[0], item[1], item[2]) for item in selected)
+                ratios = tuple(item[2] for item in selected)
+                absolute = tuple(item[3] for item in selected)
+                order = sorted(range(count), key=lambda ordinal: (absolute[ordinal], ratios[ordinal].numerator, ratios[ordinal].denominator, voices[ordinal][0], voices[ordinal][1]))
+                if intent["bass_policy"] == "preserve_target" and order[0] != intent["bass_target_ordinal"]:
+                    selected.pop()
+                    continue
+                errors = tuple(new_errors[left, right] for left, right in combinations(range(count), 2))
+                rms = _rms(errors)
+                if rms > intent["maximum_pair_rms_millicents"]:
+                    selected.pop()
+                    continue
+                maximum = max(map(abs, errors))
+                assignment = tuple((absolute[ordinal] % period, ratios[ordinal].numerator, ratios[ordinal].denominator, voices[ordinal][0], voices[ordinal][1]) for ordinal in range(count))
+                shape = tuple((tuple(value - anchor_vector[axis] for axis, value in enumerate(voice[0])), voice[1] - anchor_exponent, ratio.numerator, ratio.denominator) for voice, ratio in zip(voices, ratios))
+                core = {"schema": "cps.sp0-oracle-result/v1", "search_completeness": "exact", "canonical_steps": [step for _, step in targets], "vectors": [list(voice[0]) for voice in voices], "equave_exponents": [voice[1] for voice in voices], "exact_ratios": [_ratio_text(ratio) for ratio in ratios], "pair_errors_millicents": list(errors), "pair_max_millicents": maximum, "pair_rms_millicents": rms, "complexity_score": new_complexity, "score_prefix": [rms, maximum, new_complexity], "examined_assignments": examined}
+                key = (rms, maximum, new_complexity, assignment, shape)
+                insort(results, (key, core))
+                if len(results) > requested_k:
+                    results.pop()
+                if len(results) == requested_k:
+                    worst_rms = results[-1][0][0]
+                    total_error_limit = min(total_error_limit, pair_count * (worst_rms + 1) ** 2)
+            selected.pop()
+
+    if all(pools):
+        visit(1, {}, 0, 0)
+    return [core for _, core in results]
 
 
 def _matching(left: list[dict[str, Any]], right: list[dict[str, Any]], equave_mc: int) -> tuple[Any, ...] | None:

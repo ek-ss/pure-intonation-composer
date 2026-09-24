@@ -19,13 +19,18 @@ from app.songprogram.piano_part import PIANO_STYLES  # noqa: E402
 
 
 def _generate(seed: int, output: str, profile: str, generation_manifest: str, piano_style: str,
-              realization_profile: str | None = None) -> dict:
+              realization_profile: str | None = None, skip_wav: bool = False) -> dict:
     directory = Path(output) / f"seed-{seed:04d}"
     receipt_path = directory / "receipt.json"
     if receipt_path.is_file():
         receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
-        if receipt.get("piano_style", "none") != piano_style:
-            return {"seed": seed, "status": "failed", "error": "PIANO_STYLE_RECEIPT_MISMATCH"}
+        if (receipt.get("piano_style", "none") != piano_style
+                or (receipt.get("render_status") == "skipped") != skip_wav):
+            return {"seed": seed, "status": "failed", "error": "GENERATION_RECEIPT_MODE_MISMATCH"}
+        if (receipt.get("profile_hash") != json.loads(Path(profile).read_text())["profile_hash"]
+                or (realization_profile is not None and receipt.get("realization_profile_hash")
+                    != json.loads(Path(realization_profile).read_text())["profile_hash"])):
+            return {"seed": seed, "status": "failed", "error": "GENERATION_RECEIPT_PROFILE_MISMATCH"}
         return {
             "seed": seed,
             "status": "success",
@@ -49,6 +54,8 @@ def _generate(seed: int, output: str, profile: str, generation_manifest: str, pi
     ]
     if realization_profile is not None:
         command.extend(("--realization-profile", realization_profile))
+    if skip_wav:
+        command.append("--skip-wav")
     completed = subprocess.run(command, check=False, capture_output=True, text=True)
     if completed.returncode:
         return {"seed": seed, "status": "failed", "error": completed.stderr.strip()}
@@ -79,6 +86,8 @@ def main() -> None:
     )
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--piano-style", choices=PIANO_STYLES, default="mixed")
+    parser.add_argument("--realization-profile", type=Path)
+    parser.add_argument("--skip-wav", action="store_true")
     arguments = parser.parse_args()
     if arguments.seeds < 1 or arguments.workers < 1:
         parser.error("--seeds and --workers must be positive")
@@ -93,6 +102,8 @@ def main() -> None:
                 [str(arguments.profile)] * len(seeds),
                 [str(arguments.generation_manifest)] * len(seeds),
                 [arguments.piano_style] * len(seeds),
+                [str(arguments.realization_profile) if arguments.realization_profile else None] * len(seeds),
+                [arguments.skip_wav] * len(seeds),
             )
         )
     report = {
@@ -107,6 +118,10 @@ def main() -> None:
         "rows": rows,
         "report_hash": "",
     }
+    if arguments.skip_wav or arguments.realization_profile is not None:
+        report["skip_wav"] = arguments.skip_wav
+        report["realization_profile"] = (str(arguments.realization_profile)
+                                         if arguments.realization_profile else None)
     report["report_hash"] = "sha256:" + hashlib.sha256(
         b"cps.composition-generation-cohort-report/v1\0"
         + canonical_bytes({key: value for key, value in report.items() if key != "report_hash"})

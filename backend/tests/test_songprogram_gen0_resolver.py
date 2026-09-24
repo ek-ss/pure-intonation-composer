@@ -38,6 +38,17 @@ def test_millicent_conversion_reuses_exact_ratio_result() -> None:
     assert info.hits == 1
 
 
+def test_four_voice_pruning_matches_independent_exhaustive_oracle() -> None:
+    query = json.loads((GOLDENS / "major_query.json").read_text(encoding="utf-8"))
+    query["domain"]["coordinate_bounds"] = [[-1, 1], [-1, 1]]
+    query["domain"]["register_bounds"] = [-1, 1]
+    query["intent"]["steps"] = [0, 4, 7, 11]
+    query["intent"]["maximum_pair_error_millicents"] = 200_000
+    query["intent"]["maximum_pair_rms_millicents"] = 200_000
+    query["intent"]["complexity_budget"] = 96
+    assert resolve_joint_bnb(query, 1) == [resolve_exact(query)]
+
+
 def test_joint_bnb_matches_oracle_for_exact_ratio_collection() -> None:
     query = {
         "schema": "cps.sp0-oracle-query/v1",

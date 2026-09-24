@@ -176,15 +176,16 @@ def lower_composition_plan(
             key=lambda index: (_section_draw(composition_seed, "song", f"root/{index}"), index),
         )
         anchors = [source_anchors[0], *(source_anchors[index] for index in alternatives[:2])]
-        for pattern, positions in enumerate(((0,), (0, 5000))):
+        for pattern, positions in enumerate(((0,), (0, 5000), (0, 5000))):
             rhythm_id = f"rhy_cmp_har_var_{pattern}"
             harmony_rhythms[pattern] = {
                 **copy.deepcopy(harmony_helper), "id": rhythm_id,
                 "length_ticks": ticks_per_bar,
                 "steps": [{**copy.deepcopy(harmony_helper["steps"][0]),
                            "at_tick": position * ticks_per_bar // 10000,
-                           "duration_ticks": (ticks_per_bar if pattern == 0
-                                              else ticks_per_bar // 4)}
+                            "duration_ticks": (ticks_per_bar if pattern == 0
+                                               else ticks_per_bar // 2 if pattern == 1
+                                               else ticks_per_bar // 4)}
                           for position in positions],
             }
             for index, anchor in enumerate(anchors):
@@ -377,9 +378,13 @@ def lower_composition_plan(
                     (0, 1, 1, 0)[bar % 4] if rhythm_mode == 2 else
                     _section_draw(composition_seed, section["section_id"], f"rhythm/{bar}") % 2
                 )
-                shifted = pattern == 1 and rhythm_mode == 3 and bool(
+                shifted = (pattern == 1 and rhythm_mode == 3
+                           and (section["foreground_state"] == "absent" or "melody" not in active_roles)
+                           and bool(
                     _section_draw(composition_seed, section["section_id"], f"offbeat/{bar}") % 2
-                )
+                ))
+                if shifted:
+                    pattern = 2
                 harmony_positions_by_bar[bar] = (
                     [2500, 7500] if shifted else [0, 5000] if pattern else [0]
                 )
