@@ -316,10 +316,11 @@ Plan の `harmonic_trajectory` にある `home`／`departure`／`preparation`／
 `arrival`／`return` はそのまま T／S／D ラベルではない。
 phrase ごとに `harmonic_role`（`tonic_stable`, `predominant`,
 `dominant_tension`, `resolution`, `transitional`）を別途導出・記録する。
-初期対応は home→tonic_stable、departure→predominant、
-preparation→dominant_tension、arrival／return→resolution。
-ただし実際の chord/root と**次 phrase の cadence**に矛盾する場合は
-`transitional` として扱い、ドミナントなどの機能を断定しない。
+当初の仮対応 home→tonic_stable、departure→predominant、
+preparation→dominant_tension、arrival／return→resolution は、
+**格子上の実音からは保証されない**（[機能と聴取の診断](lattice_harmony_cadence_listening_review.md)）。
+実際の chord/root、参照する tonic、前後の声部と**次 phrase の cadence**を
+照合できるまで `unknown` を許し、ドミナント等の伴奏 pattern を強制しない。
 section function でなく phrase で決め、境界 bar は次の着地点も参照する。
 
 | 役割 | 和音発音（4/4、一小節の候補） | phrase の扱い |
