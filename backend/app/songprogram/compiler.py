@@ -81,6 +81,31 @@ class CompilerIdentity:
     numeric_contract: str = "cps-numeric/decimal-log2-rhe-v1"
 
 
+def _reduced_anchor_exponent(lattice: dict[str, Any], anchor: list[int]) -> int:
+    """Equave exponent that keeps the anchor within one octave of 1/1.
+
+    A lattice anchor is a sum of (possibly distant) tonal-center and root
+    coordinates; left unreduced its absolute pitch can drift many octaves from
+    the reference and push every voice of the chord out of register.  Reducing
+    it mod equave pins the chord to the reference register while preserving the
+    exact intervallic content (the voices keep their lattice vectors).
+    """
+    if not lattice.get("reduce_anchor_mod_equave"):
+        return 0
+    equave = Fraction(lattice["equave"])
+    value = Fraction(1)
+    for generator, power in zip(lattice["generators"], anchor):
+        value *= Fraction(generator) ** power
+    exponent = 0
+    while value >= equave:
+        value /= equave
+        exponent -= 1
+    while value < 1:
+        value *= equave
+        exponent += 1
+    return exponent
+
+
 def resolve_single_harmony(
     program: dict[str, Any], intent: dict[str, Any], anchor: list[int]
 ) -> dict[str, Any]:
@@ -116,7 +141,10 @@ def resolve_single_harmony(
             "maximum_pair_rms_millicents": intent["recognition"]["maximum_pair_rms_millicents"],
             "complexity_budget": intent["complexity_budget"],
         },
-        "anchor": {"vector": anchor, "equave_exponent": 0},
+        "anchor": {
+            "vector": anchor,
+            "equave_exponent": _reduced_anchor_exponent(lattice, anchor),
+        },
     }
     results = resolve_joint_bnb(query, 1)
     if not results:
@@ -155,7 +183,10 @@ def _harmony_query(
             "maximum_pair_rms_millicents": intent["recognition"]["maximum_pair_rms_millicents"],
             "complexity_budget": intent["complexity_budget"],
         },
-        "anchor": {"vector": anchor, "equave_exponent": 0},
+        "anchor": {
+            "vector": anchor,
+            "equave_exponent": _reduced_anchor_exponent(lattice, anchor),
+        },
     }
 
 
@@ -345,6 +376,221 @@ def _progression_candidate(chord: dict[str, Any]) -> dict[str, Any]:
         "local_pair_rms_millicents": chord["pair_rms_error_millicents"],
         "local_pair_max_millicents": chord["maximum_pair_error_millicents"],
         "local_complexity": chord["complexity_score"],
+    }
+
+
+# Piano-solo harmony instrument: the only chord part that gets humanized.
+_PIANO_HARMONY_INSTRUMENT = "piano_solo_harmony"
+# Rolled-chord timing: base step (ticks) between successive voices plus the
+# jitter range. Kept small so the per-measure rest-count rule still holds.
+_HUMANIZE_ROLL_STEP = 2
+_HUMANIZE_JITTER_RANGE = 3
+# A voice is dropped (a rest) with this probability; rare enough that the
+# melody line keeps every measure sounding.
+_HUMANIZE_DROP_NUMERATOR = 12
+_HUMANIZE_DROP_DENOMINATOR = 256
+
+
+def _humanize_chord_onsets(draft_id: str, voice_count: int) -> list[tuple[int, bool]]:
+    """Per-voice ``(onset_offset_ticks, dropped)`` for a humanized chord.
+
+    Seeded by the draft identity so the humanization is deterministic per
+    program but varies across chords.  Voices are rolled (lower voices start
+    first) with a small jitter, and a rare voice is dropped to insert rests.
+    """
+    digest = hashlib.sha256(
+        b"cps.piano-humanize/v1\0" + draft_id.encode("utf-8")
+    ).digest()
+    result: list[tuple[int, bool]] = []
+    for index in range(voice_count):
+        roll = index * _HUMANIZE_ROLL_STEP
+        jitter = digest[(index * 7 + 1) % 32] % _HUMANIZE_JITTER_RANGE
+        dropped = digest[(index * 7 + 2) % 32] < _HUMANIZE_DROP_NUMERATOR
+        result.append((roll + jitter, dropped))
+    return result
+
+
+# Piano-solo melody instrument: the only melody part that gets figuration.
+_PIANO_MELODY_INSTRUMENT = "piano_solo_melody"
+# Melody figuration relation types and their selection weights (out of 256).
+# chord_member keeps the arpeggiated core; passing/neighbor add stepwise
+# figuration; scale_degree adds tonal-scale motion.
+_MELODY_FIGURATION = (
+    ("chord_member", 128),
+    ("passing", 64),
+    ("neighbor", 32),
+    ("scale_degree", 32),
+)
+# A whole tone (9/8 ≈ 204 cents) is the default step for passing/neighbor.
+_MELODY_STEP_MC = 204_000
+# 12-TET step for scale-degree figuration.
+_MELODY_TET_STEP_MC = 100_000
+# Search window (± millicents) around the previous note for figuration.  One
+# octave is wide enough that the sparse lattice always has a candidate inside,
+# yet the nearest-point search keeps consecutive notes close (a flowing line).
+_MELODY_WINDOW_MC = 1_200_000
+
+
+def _lattice_points(lattice: dict[str, Any]) -> list[tuple[list[int], int, str, int]]:
+    """Precompute every lattice point as ``(vector, exponent, ratio_text, mc)``.
+
+    Enumerating the full coordinate domain across the register bounds gives a
+    small table (a few thousand rows for the piano lattice) that the melody
+    figuration resolves against by nearest-cent search.
+    """
+    equave = _ratio(lattice["equave"])
+    generators = [_ratio(item) for item in lattice["generators"]]
+    bounds = lattice["coordinate_bounds"]
+
+    def axes(index: int) -> list[tuple[int, ...]]:
+        if index == len(bounds):
+            return [()]
+        return [
+            (value, *tail)
+            for value in range(bounds[index][0], bounds[index][1] + 1)
+            for tail in axes(index + 1)
+        ]
+
+    points: list[tuple[list[int], int, str, int]] = []
+    for vector in axes(0):
+        for exponent in range(
+            lattice["register_bounds"][0], lattice["register_bounds"][1] + 1
+        ):
+            ratio = _vector_ratio(generators, list(vector), equave, exponent)
+            points.append((list(vector), exponent, _ratio_text(ratio), _mc(ratio)))
+    return points
+
+
+def _nearest_lattice_point(
+    points: list[tuple[list[int], int, str, int]],
+    target_mc: int,
+    register_millicents: list[int],
+) -> tuple[list[int], int, str] | None:
+    """The precomputed lattice point nearest ``target_mc`` inside the register."""
+    best: tuple[list[int], int, str] | None = None
+    best_error: int | None = None
+    for vector, exponent, ratio_text, mc in points:
+        if not register_millicents[0] <= mc <= register_millicents[1]:
+            continue
+        error = abs(mc - target_mc)
+        if best_error is None or error < best_error:
+            best = (vector, exponent, ratio_text)
+            best_error = error
+    return best
+
+
+def _melody_figuration_relation(seed: int) -> str:
+    """Weighted deterministic choice of a figuration relation."""
+    value = seed % 256
+    cumulative = 0
+    for relation, weight in _MELODY_FIGURATION:
+        cumulative += weight
+        if value < cumulative:
+            return relation
+    return _MELODY_FIGURATION[0][0]
+
+
+def _resolve_melody_pitch(
+    lattice: dict[str, Any],
+    points: list[tuple[list[int], int, str, int]],
+    chord: dict[str, Any],
+    point: dict[str, Any],
+    track: dict[str, Any],
+    seed: int,
+    anchor_mc: int | None = None,
+) -> dict[str, Any]:
+    """Resolve one melody point to a pitch based on its figuration relation.
+
+    ``chord_member`` keeps the point on its target chord voice; when an
+    ``anchor_mc`` (the previous note's pitch) is given the voice is re-octaved
+    to the octave nearest the anchor so the line stays in one register.  The
+    other relations search the lattice for a nearby pitch: ``passing``/
+    ``neighbor`` step a whole tone from the reference voice, and
+    ``scale_degree`` targets a 12-TET degree of the reference.  With an
+    ``anchor_mc`` the search is confined to a window around it so consecutive
+    notes move by small intervals (a flowing melodic line).  The nearest
+    in-register lattice point realizes each target as an exact ratio.
+    """
+    member = point["member"]
+    try:
+        shape = chord["target_voice_ordinals"].index(member)
+    except ValueError:
+        shape = 0
+    ref_offset = chord["voice_offsets"][shape]
+    ref_exponent = chord["equave_exponents"][shape]
+    ref_ratio = Fraction(chord["exact_ratios"][shape])
+    ref_mc = _mc(ref_ratio)
+    anchor = chord["anchor_vector"]
+    register = track["register_millicents"]
+
+    relation = _melody_figuration_relation(seed)
+    if relation == "chord_member":
+        exponent = ref_exponent
+        ratio_text = chord["exact_ratios"][shape]
+        if anchor_mc is not None:
+            # Re-octave the chord voice to the octave nearest the anchor.
+            equave_mc = _mc(_ratio(lattice["equave"]))
+            if equave_mc > 0:
+                exponent = ref_exponent + round((anchor_mc - ref_mc) / equave_mc)
+                low, high = lattice["register_bounds"]
+                exponent = max(low, min(high, exponent))
+            ratio = _vector_ratio(
+                [_ratio(item) for item in lattice["generators"]],
+                [a + o for a, o in zip(anchor, ref_offset)],
+                _ratio(lattice["equave"]),
+                exponent,
+            )
+            ratio_text = _ratio_text(ratio)
+        else:
+            ratio = ref_ratio
+        vector = [a + o for a, o in zip(anchor, ref_offset)]
+        return {
+            "source_vector": ref_offset,
+            "final_vector": vector,
+            "equave_exponent": exponent,
+            "final_ratio": ratio_text,
+            "relation": relation,
+        }
+
+    direction = 1 if (seed >> 8) % 2 else -1
+    if relation == "passing":
+        target_mc = ref_mc + direction * _MELODY_STEP_MC
+    elif relation == "neighbor":
+        target_mc = ref_mc - direction * _MELODY_STEP_MC
+    else:  # scale_degree
+        degree = 1 + (seed >> 4) % 4
+        target_mc = ref_mc + direction * degree * _MELODY_TET_STEP_MC
+
+    if anchor_mc is not None:
+        # Flowing line: search a window around the previous note, biased by
+        # the figuration direction, instead of jumping to the reference voice.
+        target_mc = anchor_mc + direction * _MELODY_STEP_MC
+        window_lo = anchor_mc - _MELODY_WINDOW_MC
+        window_hi = anchor_mc + _MELODY_WINDOW_MC
+    else:
+        window_lo, window_hi = register[0], register[1]
+
+    found = _nearest_lattice_point(
+        points, target_mc, [max(window_lo, register[0]), min(window_hi, register[1])]
+    )
+    if found is None:
+        found = _nearest_lattice_point(points, target_mc, register)
+    if found is None:
+        return {
+            "source_vector": ref_offset,
+            "final_vector": [a + o for a, o in zip(anchor, ref_offset)],
+            "equave_exponent": ref_exponent,
+            "final_ratio": chord["exact_ratios"][shape],
+            "relation": "chord_member",
+        }
+    final_vector, exponent, ratio_text = found
+    source_vector = [fv - av for fv, av in zip(final_vector, anchor)]
+    return {
+        "source_vector": source_vector,
+        "final_vector": final_vector,
+        "equave_exponent": exponent,
+        "final_ratio": ratio_text,
+        "relation": relation,
     }
 
 
@@ -985,6 +1231,11 @@ def compile_sp0(
                 "resolved_chord_id": chord["id"],
             }
         )
+        humanized = (
+            _humanize_chord_onsets(draft["id"], len(chord["voice_offsets"]))
+            if draft["track"]["instrument_id"] == _PIANO_HARMONY_INSTRUMENT
+            else None
+        )
         for shape, (offset, exponent, ratio, target) in enumerate(
             zip(
                 chord["voice_offsets"],
@@ -994,6 +1245,14 @@ def compile_sp0(
                 strict=True,
             )
         ):
+            onset_offset = 0
+            duration = draft["duration"]
+            if humanized is not None:
+                onset_offset, dropped = humanized[shape]
+                if dropped:
+                    continue
+                # Roll the chord in without extending it past the draft's end.
+                duration = max(1, draft["duration"] - onset_offset)
             vector = [
                 left + right for left, right in zip(chord["anchor_vector"], offset, strict=True)
             ]
@@ -1010,8 +1269,8 @@ def compile_sp0(
                 "kind": "note",
                 "track_id": draft["track"]["id"],
                 "section_id": draft["section"]["id"],
-                "start_tick": draft["onset"],
-                "duration_ticks": draft["duration"],
+                "start_tick": draft["onset"] + onset_offset,
+                "duration_ticks": duration,
                 "velocity": draft["velocity"],
                 "articulation": "normal",
                 "drum_note": None,
@@ -1039,6 +1298,19 @@ def compile_sp0(
             project["events"].append(event)
 
     chords_by_id = {chord["id"]: chord for chord in project["resolved_chords"]}
+    melody_points = (
+        _lattice_points(lattice)
+        if any(
+            draft["track"]["instrument_id"] == _PIANO_MELODY_INSTRUMENT
+            for draft in melody_drafts
+        )
+        else None
+    )
+    # Process in time order so the figuration can anchor on the previous note.
+    melody_drafts.sort(
+        key=lambda item: (item["onset"], item["track"]["id"].encode(), item["step_index"])
+    )
+    previous_note_mc: dict[str, int] = {}
     for draft in melody_drafts:
         end = draft["onset"] + draft["duration"]
         active = [
@@ -1053,16 +1325,45 @@ def compile_sp0(
         occurrence = active[0]
         chord = chords_by_id[occurrence["resolved_chord_id"]]
         member = draft["point"]["member"]
-        try:
-            shape = chord["target_voice_ordinals"].index(member)
-        except ValueError as error:
-            raise CompileError("MELODY_HARMONY_CONFLICT") from error
-        offset, exponent, ratio = (
-            chord["voice_offsets"][shape],
-            chord["equave_exponents"][shape],
-            chord["exact_ratios"][shape],
-        )
-        vector = [left + right for left, right in zip(chord["anchor_vector"], offset, strict=True)]
+        if (
+            melody_points is not None
+            and draft["track"]["instrument_id"] == _PIANO_MELODY_INSTRUMENT
+        ):
+            seed = int.from_bytes(
+                hashlib.sha256(
+                    b"cps.piano-melody/v1\0"
+                    + draft["instance_id"].encode()
+                    + b"\0"
+                    + str(draft["step_index"]).encode()
+                    + b"\0"
+                    + str(draft["repeat"]).encode()
+                ).digest()[:8],
+                "big",
+            )
+            resolved = _resolve_melody_pitch(
+                lattice, melody_points, chord, draft["point"], draft["track"], seed,
+                anchor_mc=previous_note_mc.get(draft["track"]["id"]),
+            )
+            offset = resolved["source_vector"]
+            vector = resolved["final_vector"]
+            exponent = resolved["equave_exponent"]
+            ratio = resolved["final_ratio"]
+            relation = resolved["relation"]
+            previous_note_mc[draft["track"]["id"]] = _mc(_ratio(ratio))
+        else:
+            try:
+                shape = chord["target_voice_ordinals"].index(member)
+            except ValueError as error:
+                raise CompileError("MELODY_HARMONY_CONFLICT") from error
+            offset, exponent, ratio = (
+                chord["voice_offsets"][shape],
+                chord["equave_exponents"][shape],
+                chord["exact_ratios"][shape],
+            )
+            vector = [
+                left + right for left, right in zip(chord["anchor_vector"], offset, strict=True)
+            ]
+            relation = "chord_member"
         address = _semantic_address(
             draft["section"]["id"],
             draft["realization"]["id"],
@@ -1085,7 +1386,7 @@ def compile_sp0(
             "pitch_provenance": {
                 "kind": "resolved_melody",
                 "melody_intent_id": draft["material"]["id"],
-                "relation": "chord_member",
+                "relation": relation,
                 "active_resolved_chord_id": chord["id"],
                 "active_target_voice_ordinal": member,
                 "next_resolved_chord_id": None,

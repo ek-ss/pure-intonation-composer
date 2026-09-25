@@ -1,7 +1,9 @@
 # ピアノ独奏（2部構成）楽曲生成仕様 v1
 
-Status: **設計案・未実装**。CompositionPlan 2.0、SongProgram 0.2、Project、
+Status: **実装済み**。CompositionPlan 2.0、SongProgram 0.2、Project、
 既存 G0 と exact-ratio authority の上に追加するピアノ専用探索契約。
+§3–§5 の設計は実装に反映済み（`reduce_anchor_mod_equave` による
+`PROGRESSION_NO_PATH` 解消、compiler 内 figuration、hash seed ヒューマナイゼーション）。
 
 ## 1. 目的と対象
 
@@ -55,45 +57,71 @@ BnB 和声探索が速度と失敗率（`PROGRESSION_NO_PATH`）のボトルネ�
 
 ピアノ専用パイプラインは探索空間を縮小し、速度と成功率を同時に改善する。
 
-- **格子**: 2D `[3/1, 5/1]`、equave `2/1`、bounds `[-2,2]^2`（5^2=25 点）。
+- **格子**: 2D `[3/1, 5/1]`、equave `2/1`、bounds `[-4,4]^2`（9^2=81 点）。
   長音階・短音階の triad／7th は `[3/1,5/1]` で解決可能。
-- **register**: `[-1200000, 3600000]` millicents（既存 piano_part と同一）。
+- **register**: `[-3600000, 3600000]` millicents（±3 octave）。
 - **WAV skip**: 1000seed 試験は `--skip-wav`（symbolic/MIDI のみ）。代表抽出の
   少数曲だけ WAV 化して試聴する。
-- **目標**: seed あたり数秒〜数十秒、1000seed が現実的。`PROGRESSION_NO_PATH`
-  失敗率を既存 70% から大幅に下げる（2D・小 bounds で探索空間が 1/29）。
+
+### `PROGRESSION_NO_PATH` の根本原因と修正（`reduce_anchor_mod_equave`）
+
+2D 化だけでは `PROGRESSION_NO_PATH` は解消しなかった。根本原因は
+**anchor の octave 未削減**だった:
+
+- anchor = `material["root_anchors"][i] + section["tonal_center"]`、
+  `equave_exponent: 0`。`[3/1,5/1]` の未削減和は 1/1 から最大 +8.5 octave
+  まで漂移する（例: `[-2,2]+[0,1]=[-2,3]`）。
+- すると voice が register（±3 octave）と MIDI 範囲（note 154 > 127）を
+  超過し、Viterbi が path を見つけられなくなる。
+
+修正は compiler 側で **anchor を equave mod で削減**する
+（`_reduced_anchor_exponent`）。lattice の新フィールド
+`reduce_anchor_mod_equave: true`（デフォルト `false`、フルバンド影響なし）で
+条件分岐する。register／motion 制限は変更しない。
+
+- **結果**: seed あたり数秒、20/20 成功（フルバンド cohort は 29%）。
+  `PROGRESSION_NO_PATH` は解消。
 
 ## 4. コードパートのヒューマナイゼーション
 
-機械的な同時発音・完全規則リズムを避け、人間的な演奏にする。全て seed 由来の
-決定論的オフセット（再現可能）。
+機械的な同時発音・完全規則リズムを避け、人間的な演奏にする。全て
+`sha256("cps.piano-humanize/v1\0" + draft_id)` 由来の決定論的オフセット
+（program ごとに再現可能、和音ごとに異なる）。`piano_solo_harmony`
+トラックのみに適用。
 
-- **rolled chord**: 各和音の voice を onset 順に微小オフセット（例: voice0 `+0`,
-  voice1 `+Δ`, voice2 `+2Δ`、Δ は seed 由来の 5〜20ms 相当 tick）。style brisé
-  の破弦効果。`harmony_intent_cell` の voice 発音に per-voice onset offset を追加。
-- **休符挿入**: 和音の一部 voice を確率的に欠落（短休符）。小節内の無音時間を
-  制御し、G0 の休符数ルール（§6）と整合させる。
-- 旋律パートにも同様の微小 onset 揺らぎを適用可能（v1 はコードパート中心）。
+- **rolled chord**: 各 voice を onset 順に微小オフセット。voice `i` は
+  `i * 2 tick + jitter(0..2)`（roll step 2 tick、jitter は digest 由来）。
+  style brisé の破弦効果。duration をオフセット分短縮し、on-time で終音する。
+- **休符挿入**: 各 voice を `12/256` の確率で欠落（短休符）。稀なので
+  旋律ラインの小節は常に鳴る（§6 の休符数ルールと整合）。
+- 旋律パートのタイミングは v1 では決定論的（`_rhe` grid）のまま。
+  揺らぎはコードパート中心。
 
 ## 5. 主旋律のフィギュレーション
 
 旋律を `chord_member` のみから解放し、flowing な旋律表現を広げる。
-SP0 `melodyPoint` の `relation` を enum 化し、compiler が各 relation を
-格子比に解決する。
+**compiler 内**で `piano_solo_melody` トラックの各 note に seed 由来の
+relation を割り当て、各 relation を格子比に解決する（SP0 schema は変更せず、
+`pitch_provenance.relation` に実際の relation を記録）。
 
-| relation | 解決方法 | 表現 |
-| --- | --- | --- |
-| `chord_member` | `exact_ratios[member]`（既存） | 和音音のアンカー |
-| `passing` | 隣接和音音間の step 比を最近接格子点に解決 | 経過音（stepwise） |
-| `neighbor` | 和音音の上下 step 比を最近接格子点に解決 | 装飾音（返り音） |
-| `scale_degree` | 現行 key の diatonic 音階の格子点 | scale run |
+| relation | 重み | 解決方法 | 表現 |
+| --- | --- | --- | --- |
+| `chord_member` | 128/256 | `exact_ratios[member]`。前音 anchor がある場合、その octave に re-octave | 和音音のアンカー |
+| `passing` | 64/256 | 前音 anchor 周辺（±1 octave）を全音 step 方向に最近接格子点探索 | 経過音（stepwise） |
+| `neighbor` | 32/256 | 前音 anchor 周辺を全音 step（逆方向）に最近接格子点探索 | 装飾音（返り音） |
+| `scale_degree` | 32/256 | 前音 anchor 周辺を 12-TET degree（1〜4）方向に最近接格子点探索 | scale run |
 
-- **Arpeggiation**: 同一 chord occurrence 内に `chord_member` 点を上/下順に
-  複数配置（root→3rd→5th→octave 等）。新 relation 不要（順序で表現）。
-- **Scale runs**: `scale_degree` 点を連続配置（上行/下行）。
-- **double stop**: 同一 onset に `chord_member` 2 点（3度/6度）。
-- 探索（sampling）は section の function/energy/density に基づき figure を選択。
-  `passing`／`neighbor` は「最近接格子点」探索が必要（2D 格子では低コスト）。
+- **flowing 化の鍵（前音 anchor）**: 各 note を独立に解決すると chord voice が
+  複数 octave に散らばり跳躍する。そこで**前音の mc を anchor** にし、
+  figuration はその周辺（±1 octave）で最近接格子点を探索する。`chord_member`
+  も前音に最も近い octave に re-octave する。結果、中央値 step は全音
+  （204c）、旋律範囲は約 2 octave に収まる（seed 1–5 で検証済み）。
+- **最近接格子点探索**: 81 点 × register の全 lattice 点を事前計算
+  （`_lattice_points`）し、target mc に最も近い in-register 点を線形探索。
+  2D 格子では低コスト（note あたり数 ms）。
+- **Arpeggiation**: `chord_member` 点を上/下順に配置（root→3rd→5th）。
+  re-octave により同一 register 内で破弦になる。
+- seed は `sha256("cps.piano-melody/v1\0" + instance_id + step + repeat)` 由来。
 
 ## 6. G0 の修正（休符数ルール）
 
@@ -133,45 +161,62 @@ SP0 `melodyPoint` の `relation` を enum 化し、compiler が各 relation を
 
 ## 8. 実装計画
 
-### 新規ファイル
+### 新規ファイル（実装済み）
 
 1. `docs/piano_solo_generation_spec.md` — 本仕様。
-2. `backend/app/songprogram/piano_solo.py` — ピアノ専用ロジック。
-   - `build_piano_program(plan, lattice)`: 2トラック（harmony+melody）の SP0 program。
-   - `humanize_chord_voices(...)`: rolled chord（per-voice onset offset）＋休符。
-   - `melody_figuration(...)`: arpeggio/scale run/passing/neighbor/double stop。
-3. `backend/tools/generate_piano_solo.py` — ピアノ専用生成ツール
-   （`--seed --profile --output --skip-wav`）。plan 生成→2トラック program→
-   compile（高速格子+figuration+humanization）→`assess_piano_solo`→MIDI。
-4. `backend/tools/run_piano_solo_cohort.py` — 1000seed cohort runner
-   （`run_composition_generation_cohort.py` のピアノ版）。
-5. `backend/songprogram_conformance/profiles/piano_solo.json` — ピアノ profile
-   （2D 格子・小 bounds、harmony+melody の part coordination）。
+2. `backend/tools/build_piano_solo_profiles.py` — 3 つの sealed profile を生成
+   （`piano_solo.json`／`piano_solo_roles.json`／`piano_solo_generation.json`）。
+   `PIANO_DOMAIN`（2D 格子・`reduce_anchor_mod_equave: true`）を定義。
+   `--check` で再現可能。
+3. `backend/tools/build_piano_solo_production.py` — `piano_solo_production.json`
+   ＋ `piano_solo_catalog.json`（両 role → ピアノ音色）。
+4. `backend/tools/generate_piano_solo.py` — ピアノ専用生成ツール
+   （`--seed --profile --output --skip-wav`）。plan 生成→structural sampler→
+   lowering→production→compile（高速格子+figuration+humanization）→
+   `assess_piano_solo`→MIDI。
+5. `backend/tools/run_piano_solo_cohort.py` — 1000seed cohort runner。
+6. `backend/songprogram_conformance/profiles/g1_experiments/piano_solo*.json` —
+   5 つの sealed piano ファイル（profile/roles/generation/production/catalog）。
 
-### 変更ファイル
+### 変更ファイル（実装済み）
 
-1. `backend/app/songprogram/compiler.py` — melody resolution を新 relation
-   （passing/neighbor/scale_degree）に対応、harmony に per-voice onset offset。
-2. `backend/app/songprogram/song_validity.py` — `assess_piano_solo` 新設
-   （§6 の check 表）。
-3. `backend/songprogram_conformance/schemas/song_program_0_2.schema.json` —
-   `melodyPoint.relation` を enum 化（chord_member/passing/neighbor/scale_degree）、
-   `scale_degree` 用の `degree` フィールド追加。
+1. `backend/app/songprogram/compiler.py` —
+   - `_reduced_anchor_exponent`: anchor を equave mod で削減（`reduce_anchor_mod_equave`
+     条件分岐）。`PROGRESSION_NO_PATH` の根本修正。
+   - `_humanize_chord_onsets`: rolled chord（per-voice onset offset）＋休符。
+   - `_lattice_points`／`_nearest_lattice_point`／`_resolve_melody_pitch`:
+     melody figuration（passing/neighbor/scale_degree）＋前音 anchor による
+     flowing 化。`pitch_provenance.relation` に実際の relation を記録。
+2. `backend/app/songprogram/structural_sampler.py` — lattice dict に
+   `reduce_anchor_mod_equave` を追加。
+3. `backend/app/songprogram/midi_export.py` — 2 ピアノトラック対応
+   （override 複数許可、`piano_span` を動的化）。
+4. `backend/app/songprogram/song_validity.py` — `assess_piano_solo` 新設
+   （§6 の check 表、`rest_count_rule`）。
+5. `backend/app/songprogram/composition_realization.py` — "arrival" の full-band
+   制約を `uses_band`（drums/bass を含む role mask）条件化。ピアノ専用 profile
+   が通るよう修正。
 
 ### テスト
 
-1. `backend/tests/test_piano_solo.py` — 2トラック program の schema 検証、
-   figuration の格子解決、humanization の決定論性、`assess_piano_solo` の
-   休符数ルール（四分上限・全休符禁止）、2D 格子の `PROGRESSION_NO_PATH` 低減。
+1. `backend/tests/test_piano_solo.py` — anchor の octave 削減、MIDI multi-override、
+   humanization の決定論性（rolled onset）、figuration の格子解決、
+   `assess_piano_solo` の休符数ルール（四分上限・全休符禁止）。
+2. 既存 `backend/tests/test_piano_part.py` の stale receipt-mode 期待値を修正
+   （`PIANO_STYLE_RECEIPT_MISMATCH` → `GENERATION_RECEIPT_MODE_MISMATCH`、
+   commit `a391cdfc` 由来の bug）。
 
-### 実装順序
+### 実装順序（完了）
 
-1. **2トラック program＋高速格子**: `build_piano_program`＋`piano_solo.json`。
-   単一 seed で compile→MIDI が通ることを確認（既存フルバンドと独立）。
-2. **G0**: `assess_piano_solo`（休符数ルール）＋テスト。
-3. **figuration**: SP0 schema 拡張→compiler の relation 解決→テスト。
-4. **humanization**: per-voice onset offset＋休符→テスト。
-5. **cohort**: `run_piano_solo_cohort.py` で 1000seed（WAV skip）→clustering→
+1. **2トラック program＋高速格子**: profile/production 生成→単一 seed で
+   compile→MIDI が通ることを確認（既存フルバンドと独立）。
+2. **`PROGRESSION_NO_PATH` 修正**: `reduce_anchor_mod_equave`（anchor 削減）。
+   20/20 成功を確認。
+3. **G0**: `assess_piano_solo`（休符数ルール）＋テスト。
+4. **humanization**: rolled chord＋休符→テスト（38/38 和音が roll）。
+5. **figuration**: compiler 内 relation 解決＋前音 anchor→flowing 化を確認
+   （中央値 step 204c）。
+6. **cohort**: `run_piano_solo_cohort.py` で 1000seed（WAV skip）→clustering→
    代表抽出（WAV）→可視化。
 
 ## 9. 調査: ピアノ主旋律表現の技法（実装への反映）
@@ -200,14 +245,15 @@ SP0 `melodyPoint` の `relation` を enum 化し、compiler が各 relation を
 
 ## 10. リスクと未決事項
 
-- **最近接格子点の解決コスト**: `passing`／`neighbor` は target 比に最も近い
-  格子点を探索する。2D・小 bounds では低コストだが、bounds 拡大時は注意。
-- **`PROGRESSION_NO_PATH` の残存**: 2D・小 bounds で大幅減を見込むが、
-  0% とは限らない。cohort report で失敗率を必ず報告する。
+- **最近接格子点の解決コスト**: figuration は 81 点 × register の全 lattice
+  点を事前計算し線形探索。2D・小 bounds では低コスト（note あたり数 ms）だが、
+  bounds 拡大時は注意。
+- **`PROGRESSION_NO_PATH` の残存**: `reduce_anchor_mod_equave` で根本解消
+  （20/20 成功）。cohort report で失敗率を必ず報告する。
 - **2トラックの polyphony**: G0 の polyphony sweep はトラック単位。2 つの
   ピアノトラックの同時音数を `maximum_polyphony` で合計管理する。
-- **SP0 schema 変更の保護**: `song_program_0_2.schema.json` は oracle 管理の
-  保護ファイル。relation enum 化は契約変更として commit（oracle-maintainer 手順）。
+- **SP0 schema 変更の保護**: figuration は SP0 schema を変更せず（compiler 内
+  で relation を割り当て、`pitch_provenance.relation` に記録）。契約変更なし。
 - **代表抽出の WAV 化**: 1000seed は WAV skip だが、代表（少数）は WAV 化して
   試聴する。stock catalog の周波数 envelope に収まらない曲は preview と明記。
 

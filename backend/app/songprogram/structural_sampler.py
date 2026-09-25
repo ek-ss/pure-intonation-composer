@@ -466,6 +466,7 @@ def _lower(
         "generators": copy.deepcopy(domain["generators"]),
         "coordinate_bounds": copy.deepcopy(domain["coordinate_bounds"]),
         "register_bounds": copy.deepcopy(domain["register_bounds"]),
+        "reduce_anchor_mod_equave": bool(domain.get("reduce_anchor_mod_equave", False)),
         "maximum_odd_limit": lowering["lattice_constants"]["maximum_odd_limit"],
         "pitch_exploration": copy.deepcopy(lowering["lattice_constants"]["pitch_exploration"]),
     }

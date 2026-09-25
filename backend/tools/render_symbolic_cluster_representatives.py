@@ -23,6 +23,7 @@ from tools.run_fixture_generation_cohort import (  # noqa: E402
     DEFAULT_GENERATION_MANIFEST, RENDER_FIXTURE, _trial_catalog, pcm_continuity,
 )
 from tools.cluster_symbolic_songs import distance_symbolic  # noqa: E402
+from tools.generate_piano_solo import _piano_catalog  # noqa: E402
 
 
 def _load(path: Path) -> dict:
@@ -43,8 +44,9 @@ def _renderable(project: dict, catalog: dict) -> bool:
     return True
 
 
-def _select_renderable(clusters: dict, cohort: Path, manifest: Path, limit: int | None) -> list[tuple[int, int]]:
-    catalog, _, _, _ = _trial_catalog(_load(manifest))
+def _select_renderable(clusters: dict, cohort: Path, manifest: Path, limit: int | None,
+                       catalog_source: str = "trial") -> list[tuple[int, int]]:
+    catalog, _, _, _ = _build_catalog(_load(manifest), catalog_source)
     by_seed = {row["seed"]: row["features"] for row in clusters["rows"]}
     selected = []
     for group in clusters["clusters"][:limit]:
@@ -64,7 +66,14 @@ def _select_renderable(clusters: dict, cohort: Path, manifest: Path, limit: int 
     return selected
 
 
-def _render(seed: int, cohort: str, output: str, manifest_path: str) -> dict:
+def _build_catalog(generation_manifest: dict, catalog_source: str):
+    if catalog_source == "piano":
+        return _piano_catalog(generation_manifest)
+    return _trial_catalog(generation_manifest)
+
+
+def _render(seed: int, cohort: str, output: str, manifest_path: str,
+            catalog_source: str = "trial") -> dict:
     source = Path(cohort) / f"seed-{seed:04d}"
     destination = Path(output) / f"seed-{seed:04d}"
     existing = destination / "render_receipt.json"
@@ -82,7 +91,9 @@ def _render(seed: int, cohort: str, output: str, manifest_path: str) -> dict:
                 or symbolic["project_hash"] != project_hash(project)):
             raise ValueError("SYMBOLIC_SOURCE_MISMATCH")
         generation_manifest = _load(Path(manifest_path))
-        catalog, catalog_bytes, digest, assets = _trial_catalog(generation_manifest)
+        catalog, catalog_bytes, digest, assets = _build_catalog(
+            generation_manifest, catalog_source
+        )
         if project["compiler"]["instrument_catalog_digest"] != digest:
             raise ValueError("CATALOG_MISMATCH")
         expanded = not _renderable(project, catalog)
@@ -144,15 +155,17 @@ def _render(seed: int, cohort: str, output: str, manifest_path: str) -> dict:
 
 
 def run(clusters_path: Path, cohort: Path, output: Path, *, workers: int = 2,
-        generation_manifest: Path = DEFAULT_GENERATION_MANIFEST, limit: int | None = None) -> dict:
+        generation_manifest: Path = DEFAULT_GENERATION_MANIFEST, limit: int | None = None,
+        catalog_source: str = "trial") -> dict:
     clusters = _load(clusters_path)
-    selected = _select_renderable(clusters, cohort, generation_manifest, limit)
+    selected = _select_renderable(clusters, cohort, generation_manifest, limit, catalog_source)
     if not selected or workers < 1:
         raise ValueError("empty representatives or invalid workers")
     seeds = [seed for _, seed in selected]
     with ProcessPoolExecutor(max_workers=workers) as pool:
         rows = list(pool.map(_render, seeds, [str(cohort)] * len(seeds), [str(output)] * len(seeds),
-                             [str(generation_manifest)] * len(seeds)))
+                             [str(generation_manifest)] * len(seeds),
+                             [catalog_source] * len(seeds)))
     for row, (original, _) in zip(rows, selected, strict=True):
         row["cluster_medoid_seed"] = original
     report = {"schema": "cps.symbolic-cluster-listening-cohort", "schema_version": "1.0.0",
@@ -193,13 +206,16 @@ def main() -> None:
     parser.add_argument("--cohort", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--generation-manifest", type=Path, default=DEFAULT_GENERATION_MANIFEST)
+    parser.add_argument("--catalog-source", choices=("trial", "piano"), default="trial",
+                        help="instrument catalog for the listening render")
     parser.add_argument("--workers", type=int, default=2)
     parser.add_argument("--limit", type=int, help="render only the first N medoids for a pilot")
     args = parser.parse_args()
     if not args.output.resolve().is_relative_to(REPO / "local_authority"):
         parser.error("output must be in local_authority")
     report = run(args.clusters, args.cohort, args.output, workers=args.workers,
-                 generation_manifest=args.generation_manifest, limit=args.limit)
+                 generation_manifest=args.generation_manifest, limit=args.limit,
+                 catalog_source=args.catalog_source)
     print(json.dumps({"success": report["success_count"], "failed": report["failure_count"],
                       "seeds": [row["seed"] for row in report["rows"]]}, sort_keys=True))
     if report["failure_count"]:

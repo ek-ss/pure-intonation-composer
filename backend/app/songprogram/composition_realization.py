@@ -58,6 +58,13 @@ def validate_realization_profile(profile: Mapping[str, Any]) -> None:
         raise CompositionRealizationError("COMPOSITION_REALIZATION_PROFILE_INVALID")
     if not isinstance(texture_modes, Mapping) or set(texture_modes) != _FUNCTIONS:
         raise CompositionRealizationError("COMPOSITION_REALIZATION_PROFILE_INVALID")
+    uses_band = any(
+        "drums" in row["roles"] or "bass" in row["roles"]
+        for rows in masks.values()
+        if isinstance(rows, list)
+        for row in rows
+        if isinstance(row, Mapping) and isinstance(row.get("roles"), list)
+    )
     for function, rows in masks.items():
         if not isinstance(rows, list) or not rows:
             raise CompositionRealizationError("COMPOSITION_REALIZATION_PROFILE_INVALID")
@@ -75,7 +82,10 @@ def validate_realization_profile(profile: Mapping[str, Any]) -> None:
             ):
                 raise CompositionRealizationError("COMPOSITION_REALIZATION_PROFILE_INVALID")
             seen.add(tuple(roles))
-        if function == "arrival" and not any(
+        # The full-band arrival constraint only applies when the profile uses a
+        # drum or bass role at all.  A piano-solo profile (harmony + melody only)
+        # has no band, so its arrival section is not required to carry one.
+        if function == "arrival" and uses_band and not any(
             {"drums", "bass", "harmony", "melody"}.issubset(row["roles"]) for row in rows
         ):
             raise CompositionRealizationError("COMPOSITION_REALIZATION_PROFILE_INVALID")

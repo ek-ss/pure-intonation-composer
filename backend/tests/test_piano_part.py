@@ -75,4 +75,4 @@ def test_cohort_does_not_reuse_a_different_piano_style(tmp_path) -> None:
     directory.mkdir()
     (directory / "receipt.json").write_text(json.dumps({"seed": 0, "piano_style": "none"}))
     result = _generate(0, str(tmp_path), "unused", "unused", "mixed")
-    assert result == {"seed": 0, "status": "failed", "error": "PIANO_STYLE_RECEIPT_MISMATCH"}
+    assert result == {"seed": 0, "status": "failed", "error": "GENERATION_RECEIPT_MODE_MISMATCH"}

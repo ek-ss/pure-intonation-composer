@@ -1,0 +1,484 @@
+{
+  "schema": "cps.exploration-generation-manifest",
+  "schema_version": "1.0.0",
+  "manifest_id": "piano-solo-generation-v1",
+  "choice_algorithm": "seed-domain-sha256-mod/v1",
+  "sampler_tables": {
+    "equave_domain": [
+      {
+        "value": {
+          "equave": "2/1",
+          "generators": [
+            "3/1",
+            "5/1"
+          ],
+          "coordinate_bounds": [
+            [
+              -4,
+              4
+            ],
+            [
+              -4,
+              4
+            ]
+          ],
+          "register_bounds": [
+            -8,
+            8
+          ],
+          "reduce_anchor_mod_equave": true
+        },
+        "weight": 1
+      }
+    ],
+    "chord_reference": [
+      {
+        "value": {
+          "divisions": 12,
+          "equave": "2/1",
+          "steps": [
+            0,
+            4,
+            7
+          ]
+        },
+        "weight": 2
+      },
+      {
+        "value": {
+          "divisions": 12,
+          "equave": "2/1",
+          "steps": [
+            0,
+            3,
+            7
+          ]
+        },
+        "weight": 2
+      },
+      {
+        "value": {
+          "divisions": 12,
+          "equave": "2/1",
+          "steps": [
+            0,
+            5,
+            7
+          ]
+        },
+        "weight": 1
+      },
+      {
+        "value": {
+          "divisions": 12,
+          "equave": "2/1",
+          "steps": [
+            0,
+            4,
+            8
+          ]
+        },
+        "weight": 1
+      },
+      {
+        "value": {
+          "divisions": 12,
+          "equave": "2/1",
+          "steps": [
+            0,
+            3,
+            6
+          ]
+        },
+        "weight": 1
+      },
+      {
+        "value": {
+          "divisions": 12,
+          "equave": "2/1",
+          "steps": [
+            0,
+            2,
+            7
+          ]
+        },
+        "weight": 1
+      },
+      {
+        "value": {
+          "divisions": 12,
+          "equave": "2/1",
+          "steps": [
+            0,
+            4,
+            7,
+            11
+          ]
+        },
+        "weight": 1
+      },
+      {
+        "value": {
+          "divisions": 12,
+          "equave": "2/1",
+          "steps": [
+            0,
+            4,
+            7,
+            10
+          ]
+        },
+        "weight": 1
+      },
+      {
+        "value": {
+          "divisions": 12,
+          "equave": "2/1",
+          "steps": [
+            0,
+            3,
+            7,
+            10
+          ]
+        },
+        "weight": 1
+      },
+      {
+        "value": {
+          "divisions": 12,
+          "equave": "2/1",
+          "steps": [
+            0,
+            3,
+            6,
+            9
+          ]
+        },
+        "weight": 1
+      },
+      {
+        "value": {
+          "divisions": 12,
+          "equave": "2/1",
+          "steps": [
+            0,
+            4,
+            8,
+            11
+          ]
+        },
+        "weight": 1
+      },
+      {
+        "value": {
+          "divisions": 12,
+          "equave": "2/1",
+          "steps": [
+            0,
+            4,
+            8,
+            10
+          ]
+        },
+        "weight": 1
+      },
+      {
+        "value": {
+          "equave": "2/1",
+          "temperament": "ji",
+          "ratios": [
+            "1/1",
+            "5/4",
+            "3/2",
+            "7/4"
+          ]
+        },
+        "weight": 1
+      },
+      {
+        "value": {
+          "equave": "2/1",
+          "temperament": "ji",
+          "ratios": [
+            "1/1",
+            "8/7",
+            "7/6",
+            "3/2"
+          ]
+        },
+        "weight": 1
+      }
+    ],
+    "rhythm_grid": [
+      {
+        "value": 240,
+        "weight": 2
+      },
+      {
+        "value": 480,
+        "weight": 1
+      }
+    ],
+    "rhythm_density": [
+      {
+        "value": 2500,
+        "weight": 1
+      },
+      {
+        "value": 4000,
+        "weight": 2
+      }
+    ]
+  },
+  "lowering_choices": {
+    "tempo_milli_bpm": [
+      128000,
+      140000,
+      150000,
+      160000
+    ],
+    "tonal_centers": [
+      [
+        0,
+        0,
+        0
+      ]
+    ],
+    "vector_walks": [
+      [
+        [
+          0,
+          0,
+          0
+        ]
+      ]
+    ],
+    "rhythm_duration_ticks": [
+      60,
+      120,
+      180,
+      240
+    ],
+    "rhythm_accent_q": [
+      6500,
+      8000,
+      9500,
+      10000
+    ],
+    "maximum_domain_points": 16384,
+    "maximum_odd_limit": 1024,
+    "chord_complexity_budget": 96,
+    "lattice_navigation": {
+      "algorithm": "nearest-12tet-vector/v1",
+      "target_divisions": 12,
+      "maximum_error_millicents": 50000,
+      "maximum_navigation_points": 16384,
+      "required_prime_factors": [
+        3,
+        5
+      ],
+      "tonal_center_steps": [
+        0,
+        2,
+        4,
+        6,
+        10
+      ],
+      "walk_step_patterns": [
+        [
+          0,
+          2,
+          4,
+          6
+        ],
+        [
+          0,
+          10,
+          6,
+          2
+        ],
+        [
+          0,
+          4,
+          10,
+          2
+        ],
+        [
+          0,
+          6,
+          2,
+          10
+        ],
+        [
+          0,
+          10,
+          4,
+          6
+        ],
+        [
+          0,
+          2,
+          10,
+          4
+        ]
+      ],
+      "harmony_root_steps": [
+        0,
+        2,
+        4,
+        6,
+        10
+      ]
+    }
+  },
+  "production_policy": {
+    "maximum_polyphony": 64,
+    "pitched_frequency_millihz": [
+      20000,
+      4000000
+    ],
+    "register_millicents": [
+      -3600000,
+      3600000
+    ]
+  },
+  "render_catalog_policy": {
+    "algorithm": "deterministic-harmonic-trial-catalog/v1",
+    "drum_lanes": {
+      "kick": {
+        "drum_note": 36,
+        "samples_q31": [
+          900000000,
+          600000000,
+          300000000,
+          100000000,
+          -50000000,
+          -80000000,
+          -30000000,
+          0
+        ]
+      },
+      "snare": {
+        "drum_note": 38,
+        "samples_q31": [
+          700000000,
+          -500000000,
+          400000000,
+          -300000000,
+          200000000,
+          -120000000,
+          50000000,
+          0
+        ]
+      },
+      "clap": {
+        "drum_note": 39,
+        "samples_q31": [
+          600000000,
+          -350000000,
+          0,
+          450000000,
+          -250000000,
+          0,
+          200000000,
+          0
+        ]
+      },
+      "closed_hat": {
+        "drum_note": 42,
+        "samples_q31": [
+          350000000,
+          -330000000,
+          280000000,
+          -220000000,
+          150000000,
+          -90000000,
+          30000000,
+          0
+        ]
+      },
+      "open_hat": {
+        "drum_note": 46,
+        "samples_q31": [
+          300000000,
+          -280000000,
+          250000000,
+          -220000000,
+          190000000,
+          -150000000,
+          110000000,
+          -70000000,
+          30000000,
+          0
+        ]
+      },
+      "fill": {
+        "drum_note": 45,
+        "samples_q31": [
+          650000000,
+          400000000,
+          100000000,
+          -180000000,
+          -220000000,
+          -100000000,
+          0,
+          0
+        ]
+      }
+    },
+    "pitched_roles": {
+      "bass": {
+        "partials": [
+          1,
+          2
+        ],
+        "partial_gains_q31": [
+          280000000,
+          90000000
+        ],
+        "gain_q14": 16384,
+        "release_frames": 240
+      },
+      "harmony": {
+        "partials": [
+          1,
+          3
+        ],
+        "partial_gains_q31": [
+          280000000,
+          90000000
+        ],
+        "gain_q14": 16384,
+        "release_frames": 240
+      },
+      "melody": {
+        "partials": [
+          1,
+          5
+        ],
+        "partial_gains_q31": [
+          280000000,
+          90000000
+        ],
+        "gain_q14": 16384,
+        "release_frames": 240
+      },
+      "texture": {
+        "partials": [
+          2,
+          7
+        ],
+        "partial_gains_q31": [
+          280000000,
+          90000000
+        ],
+        "gain_q14": 12288,
+        "release_frames": 240
+      }
+    }
+  },
+  "evaluation_policy": {
+    "mode": "none"
+  },
+  "manifest_hash": "sha256:d5e57f1f37946aab87c851ef2b230ab174e96e466b5ce70cad2465567e7ac524"
+}

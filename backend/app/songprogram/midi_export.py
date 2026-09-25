@@ -69,11 +69,11 @@ def export_evaluation_midi(
         raise MidiExportError("MIDI_TEMPO_INVALID")
     tracks = {track["id"]: track for track in project["tracks"]}
     overrides = dict(program_by_track or {})
-    if (len(overrides) > 1 or any(
+    if any(
         track_id not in tracks or tracks[track_id]["role"] == "drums"
         or type(program) is not int or not 0 <= program <= 127
         for track_id, program in overrides.items()
-    )):
+    ):
         raise MidiExportError("MIDI_PROGRAM_OVERRIDE_INVALID")
     scheduled: dict[int, list[tuple[int, bytes]]] = {0: []}
     separate_tracks = bool(overrides)
@@ -89,8 +89,18 @@ def export_evaluation_midi(
         not 0 <= channel <= 15 or channel == 9 for channel in pitched_channels
     ):
         raise MidiExportError("MIDI_CHANNEL_SET_INVALID")
-    piano_channels = pitched_channels[:4] if separate_tracks else ()
-    accompaniment_channels = pitched_channels[4:] if separate_tracks else pitched_channels
+    # Each overridden (featured) track gets its own channel block so a
+    # multi-track piano part can voice every note; the remainder is shared by
+    # the non-overridden accompaniment tracks.
+    piano_span = (
+        min(len(pitched_channels) - 1, max(4, 4 * len(overrides)))
+        if separate_tracks
+        else 0
+    )
+    piano_channels = pitched_channels[:piano_span] if separate_tracks else ()
+    accompaniment_channels = (
+        pitched_channels[piano_span:] if separate_tracks else pitched_channels
+    )
     if separate_tracks and (not piano_channels or not accompaniment_channels):
         raise MidiExportError("MIDI_CHANNEL_SET_INVALID")
     for channel in pitched_channels:
