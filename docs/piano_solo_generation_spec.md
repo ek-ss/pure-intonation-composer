@@ -1,6 +1,6 @@
-# ピアノ独奏（2部構成）楽曲生成仕様 v1 ＋ポップス寄り v2 再検討
+# ピアノ独奏（2部構成）楽曲生成仕様 v1 ＋ポップス寄り v2/v3 再検討
 
-Status: **§1–§10 は実装済み v1 の記録、§11 以降は未実装の v2 仕様案**。CompositionPlan 2.0、SongProgram 0.2、Project、
+Status: **§1–§10 は実装済み v1 の記録、§11 は未実装の v2、§12 は未実装の v3 仕様案**。CompositionPlan 2.0、SongProgram 0.2、Project、
 既存 G0 と exact-ratio authority の上に追加するピアノ専用探索契約。
 §3–§5 の設計は実装に反映済み（`reduce_anchor_mod_equave` による
 `PROGRESSION_NO_PATH` 解消、compiler 内 figuration、hash seed ヒューマナイゼーション）。
@@ -421,3 +421,128 @@ intro/outro・和声音型・テンポが偏らないよう選んで WAV の A/B
   同 seed の v1/v2 の再現性。短音／休符だけ増やして和声機能が消える
   変更、単なる一律 160 BPM 化、極端に狭い音域への収束は受け入れない。
 
+## 12. v3 再検討: 進行とグルーヴの反復による予測可能性
+
+**仮説**: 2～4 小節の進行と伴奏リズムを意図して戻すと、motif の反復だけより
+「今どの場所にいるか」が分かりやすくなる。特に verse の安定した循環と
+drop/final の既知パターンへの回帰はポップスらしさの手掛かりとなり得る。
+一方、全 section を同じループにすると build の上昇や drop の到来が弱まり、
+同じ和音を単に打ち直すだけでは進行の反復ではない。**進行・打鍵リズム・
+旋律 motif の三層を別々に設計し、どれを再利用するかを section ごとに指定する**。
+これは v2 の音域・声部連結・和声束縛・2-track piano を前提にした追加案で、
+v1 の既存成果物を書き換える指示ではない。
+
+### 12.1 反復単位と section の役割
+
+- `harmonic_cycle`: bar 相対位置ごとの root 移動、chord reference／和声機能、
+  **和音が変わる位置**を持つ 2 bar 又は 4 bar の単位。
+  同じコード名の連続だけでなく、少なくとも二つの**異なる和声状態**を含む。
+  曲中で同じ `cycle_id` を使うとき、相対 root と進行順を保つ。
+  resolved chord の転回形や exact-ratio の近接解は声部連結のために変えてよい。
+- `comping_cell`: 拍内の低音と内声の onset、gate、強弱、休符を記述する
+  2 bar 又は 4 bar の単位。再打鍵は chord change と数えない。
+  同じ cell を繰り返しても rolled chord の数 tick の揺らぎは許す。
+- `melody_phrase`: 既存 motif の statement/recall/answer との対応を保持する。
+  進行と伴奏を再利用したときも旋律は 2 回目に応答・休符・終止音を変えてよい。
+  「3 層完全一致」を常態化せず、**少なくとも一層に違い**を残す。
+
+既存の piano form は大半が 4 bar section で、phrase は 2 又は 4 bar。
+初期 v3 は **4 bar section を 2 bar × 2 回**に分け、例えば verse の
+`I → vi | IV → V` のような 4 bar 全体を「一回の循環」とは呼ばない。
+2 bar cycle なら `I → vi` を 2 回と数える。4 bar cycle を二回聴かせたい
+場合は同じ役割の後続 section（例: verse_a → verse_b）へまたがる回帰、
+又は 8 bar section の別 form template が必要。4 bar section 内で 4 bar
+cycle が二回繰り返されたと主張しない。上のローマ数字は**説明用の機能例**で、
+現行 `home/departure/preparation/arrival/return` や格子上の exact chord と
+自動的に同義ではない。v2 の `harmonic_role` と chord/root を照合する。
+
+| section | 反復の設計例 | 意図した差分 |
+| --- | --- | --- |
+| verse / return | 2-bar cycle を 2 回。打鍵 cell も概ね再利用 | 2 回目の melody は answer、最後の打鍵／cadence のみ小変化。別の verse では同じ cycle を回収 |
+| build / buildup | root または bass ostinato とリズム輪郭を保持。前半 2 bar を後半で高密度に変形 | 後半で gate を短く、弱拍を追加し、**最終 cadence は一回だけ** drop に向けて未解決にする |
+| drop / final | 親しんだ cycle と強拍の輪郭を回収し、配置／velocity／旋律高音を変える | build と対比して解決を聴かせる。全く別の進行にする seed も残す |
+| break / intro / outro | 低音や冒頭の 1 和音を引用、必要なときだけ簡略版 cell を使用 | 休止・導入・終止の機能を守り、全 section に同じループを強制しない |
+
+特に build の反復は **`T → SD → D → T` を二回閉じる**ことではない。
+同じ root リフを反復しても 2 回目は D の保持／遅延で drop の強拍に解決し、
+前半の `arrival` を安易にコピーしない。drop/final も両方同じ 4 bar を
+完全複製するのでなく、聴き慣れた和声的輪郭を異なる強さで提示する。
+
+### 12.2 計画・実音化の契約
+
+v1 の `harmonic_trajectory` は phrase ごとに独立した状態選択、
+lowering の `root-mode`／`rhythm-mode` は section seed で選ばれる。
+同じ `state_id` が偶然再出現しても **和音列と伴奏 onset の再現は保証しない**。
+v3 では seed から先に `repetition_plan` を確定し、次の明示した参照を持たせる:
+
+```json
+{
+  "schema": "cps.piano-repetition-plan",
+  "schema_version": "1.0.0",
+  "cycles": [
+    {"cycle_id": "cyc_verse", "length_bars": 2,
+     "harmonic_slots": [{"bar": 0, "root_role": "tonic_stable", "change_at_q": 0},
+                        {"bar": 1, "root_role": "predominant", "change_at_q": 0}]}
+  ],
+  "cells": [{"cell_id": "comp_verse", "length_bars": 2,
+             "pattern_id": "steady_eighth_response"}],
+  "uses": [{"section_id": "sec_001", "start_bar": 0, "repeat_count": 2,
+            "cycle_id": "cyc_verse", "cell_id": "comp_verse",
+            "variation": "second_pass_cadence"}]
+}
+```
+
+これは verse 部分のみを示した**提案 schema の抜粋**であり、完全な曲では
+他 section の use も必要。現在の CompositionPlan 2.0 に
+`repetition_plan` は無い。実装時は version を上げた Plan、又は
+parent plan hash に紐づく sealed sidecar を選ぶ。`pattern_id` は beats・
+gate・accent を指定する versioned table の鍵とし、曖昧な自由文字列にしない。
+`harmonic_slots` は最終的に参照する root anchor／chord intent と
+cadence の解決先まで確定し、`root_role` のみで和音を推定しない。
+cycle と cell の長さは section の小節に正確に分割できること、
+全 use は重複・欠落せず bar を覆うこと、最後の use が section の
+`cadence_target` に適合することを検証する。intro／outro の非反復 use は
+`repeat_count: 1` を許す。偶然の同名 ID ではなく hash と `source_cycle_id`
+で再利用関係を結び、同 seed なら byte 単位で決定的に生成する。
+
+lowering は `cycle_id` を基に **同じ和声変更の時刻と相対 root 列**を複製し、
+`cell_id` を基に拍グリッドの打鍵配置を複製する。`second_pass_cadence` 等の
+variation は変更する bar／onset／voice を明示し、残りを同一に保つ。
+v2 の和声 occurrence と打鍵分離を維持し、再打鍵で melody を切り詰めない。
+solver は再実行で転回形を変え得るので、Plan の意図した反復と Project の
+**実際に聴こえる反復**の両方を検証する。異なるコードへ解決されたり
+`PROGRESSION_NO_PATH` になったら成功扱いしない。v2 の狭い音域、
+voice-leading、polyphony、stock catalog の範囲も全 pass に適用する。
+
+### 12.3 比較実験と受入の判断
+
+同じ seed／form／tempo／格子／catalog／mix で、v2 を基準に
+`motif のみ既存`、`motif＋cycle 反復`、`motif＋cycle＋cell 反復`、
+`motif＋cycle＋cell＋2 回目の小変形` の 4 条件を paired 比較する。
+v2 未実装の段階でも v1 seed を固定して候補 plan を作れるが、
+音域改善と反復の効果を一つの差分として評価しない。
+
+診断は section 別に (a) 計画した再利用率と**実音の root／和音変更列一致率**、
+(b) 8 分グリッドに量子化した低音・内声の onset 一致率、
+(c) 旋律 motif の保持／変形、(d) cycle 間と section 間の contrast、
+(e) chord-change と再打鍵の別々の回数、(f) 2 回目の最終 cadence が
+次 section に正しく接続する率を記録する。rolled chord の tick jitter は
+量子化時に丸めるが、実音の ratio と和音の onset／占有区間は保存する。
+目標値は探索の初期候補として、verse の反復 2 回で和音変更列 100%、
+拍グリッドの骨格一致 ≥80%、変形箇所は 1～2 小節以内とする。
+それ以外の section は一律 80% を要求せず、逸脱の理由を記録する。
+これらは**ポップスらしさの点数ではない**。
+
+symbolic G0 と PCM 状態は §11 に従い区別する。反復率を G0 に追加せず、
+G1 の motif 値や既存 Pareto のみで好みを決めない。8～16 seed の
+同条件 WAV で順序を伏せ、verse の安定感、build の期待、drop の帰着、
+4 bar 後の退屈さ、歌える旋律を A/B で記録する。
+目標は「どの section を聴いているか分かりやすくなるが飽きない」こと。
+4 条件の成功数・生成失敗理由も含めて報告し、反復が verse では効くが
+build には逆効果なら section ごとに採否を分ける。
+
+受入試験には 2/4 bar の長さ整合、verse の意図した 2 回の一致、
+build の未解決→drop の一回だけの帰着、同じ chord の再打鍵を
+進行変更と誤算しないこと、旋律束縛／声部音域、同 seed の再現性、
+loop 不成立時の型付き失敗を含める。既存 v1/v2 の hash と再生結果は
+新しい plan／lowering version から隔離する。
