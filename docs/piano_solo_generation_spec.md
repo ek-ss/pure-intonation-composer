@@ -2,6 +2,9 @@
 
 Status: **§1–§10 は実装済み v1 の記録、§11 は未実装の v2、§12 は未実装の v3 仕様案**。CompositionPlan 2.0、SongProgram 0.2、Project、
 既存 G0 と exact-ratio authority の上に追加するピアノ専用探索契約。
+次期実装は [5D和音辞書・カデンツ計画](development_plan_5d_chord_cadence_dictionary.md)
+により新規 profile での **2D 採用を廃止し最低3D** とする。以下の
+v1 2D 記述は既存 seed の再現に必要な履歴であり、新規採用方針ではない。
 §3–§5 の設計は実装に反映済み（`reduce_anchor_mod_equave` による
 `PROGRESSION_NO_PATH` 解消、compiler 内 figuration、hash seed ヒューマナイゼーション）。
 

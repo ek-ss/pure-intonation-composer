@@ -72,6 +72,7 @@ as implemented.
 | [composition_seed_finetuning_spec.md](composition_seed_finetuning_spec.md) | Seed-derived local harmony variation, actual-impact audit, paired evaluation, and shortlist contract |
 | [piano_solo_generation_spec.md](piano_solo_generation_spec.md) | Implemented two-part piano generation v1; proposed v2 pop-oriented playing and v3 section-aware harmonic/rhythmic repetition |
 | [lattice_harmony_cadence_listening_review.md](lattice_harmony_cadence_listening_review.md) | Piano lattice harmonic-function/cadence mapping, symbolic evidence, and listening comparison design |
+| [development_plan_5d_chord_cadence_dictionary.md](development_plan_5d_chord_cadence_dictionary.md) | Next implementation: 5D octave/tritave chord dictionary, scalar stability, cadence experiments, and Web UI |
 | [composition_g1_exploration.md](composition_g1_exploration.md) | Local G0/G1-only generated-song exploration loop, Pareto feedback, and resume workflow |
 | [generated_song_g1_g2_evaluation.md](generated_song_g1_g2_evaluation.md) | Optional blind G2 listening preparation and response aggregation for generated cohorts |
 | [song_program_gen0_cohort_gate_contract.md](song_program_gen0_cohort_gate_contract.md) | Normative 1,000-seed GEN0 viability/diversity cohort measurement contract |
