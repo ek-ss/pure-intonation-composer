@@ -1,6 +1,6 @@
-# ピアノ独奏（2部構成）楽曲生成仕様 v1
+# ピアノ独奏（2部構成）楽曲生成仕様 v1 ＋ポップス寄り v2 再検討
 
-Status: **実装済み**。CompositionPlan 2.0、SongProgram 0.2、Project、
+Status: **§1–§10 は実装済み v1 の記録、§11 以降は未実装の v2 仕様案**。CompositionPlan 2.0、SongProgram 0.2、Project、
 既存 G0 と exact-ratio authority の上に追加するピアノ専用探索契約。
 §3–§5 の設計は実装に反映済み（`reduce_anchor_mod_equave` による
 `PROGRESSION_NO_PATH` 解消、compiler 内 figuration、hash seed ヒューマナイゼーション）。
@@ -257,5 +257,167 @@ relation を割り当て、各 relation を格子比に解決する（SP0 schema
 - **代表抽出の WAV 化**: 1000seed は WAV skip だが、代表（少数）は WAV 化して
   試聴する。stock catalog の周波数 envelope に収まらない曲は preview と明記。
 
+## 11. v2 再検討: 軽快なポップス・ピアノソロ
 
+### 観測と優先順位
+
+保存済み `local_authority/piano_solo_symbolic_1000/seed-0000`〜`seed-0099`
+の Project を読み、note の exact ratio を基準周波数 220 Hz（MIDI 57）から
+換算した**参考診断**（音高は浮動小数の近似、評価の権威ではない）:
+
+| 指標（100 seed） | v1 の観測 | v2 の解釈 |
+| --- | --- | --- |
+| テンポ | 128／140／150／160 BPM | 一律高速化よりリズムの設計を優先 |
+| harmony 14,330 note の MIDI 換算 | 最小 23.2、5%点 35.2、中央値 64.0、95%点 95.0、最大 105.9 | 両端に過度な音域の音がある |
+| melody 3,250 note の MIDI 換算 | 最小 22.8、5%点 43.2、中央値 59.0、95%点 77.8、最大 101.1 | 前音 anchor があっても初音／section 境界に逸脱あり |
+| harmony note の長さ | 中央値 2 拍、90%点 4 拍 | 発音し直しが少ない小節を別途数える |
+| melody 隣接 onset の跳躍 | ≥7 半音が約 1% | 主旋律は中央値 2 半音だが外れ値を抑える |
+
+和声の単純な「小節ごとの最低音」差では ≥7 半音が約 48% だが、
+複数 onset／転回形を混ぜた代理指標であって**同一声部の跳躍率ではない**。
+ここを声部対応つきで再測定する。上表は先頭 100 seed の診断であり、
+1,000 曲全体の分布や聴感評価とは区別する。
+
+優先度は **(1) 音域と声部配置、(2) 和声機能ごとの伴奏リズム、
+(3) 旋律／和声の跳躍とフレーズ、(4) 声部バランス・音色、(5) テンポの比較**。
+v1 は「rolled chord の数 tick のずれ」や稀な voice drop を人間味としたが、
+これは拍のグルーヴやポップスらしい伴奏パターンの代わりにはならない。
+v1 `rest_count_rule` も総無音が 1 拍以下かを判定するだけで、長い和音の間に
+リズムが動くかは判定しない。
+
+### v2-A: 音域、配置、和声の声部進行
+
+- **実音高を制限**する。候補の主音域を和声 **C3–G4**（MIDI 48–67）、
+  旋律 **G3–E5**（55–76）とし、フレーズ頂点は旋律 G5（79）まで許す。
+  例外は曲内の accent として旋律全 note の 5% 以下、通常の生成では
+  harmony C3–C5（48–72）、melody G3–G5（55–79）を硬い上限とする。
+  値は**仮設定**で、試聴で基準を調整する。基準音 220 Hz の ratio から
+  millicents に厳密比較する（MIDI 丸め値で判定しない）。
+- 音域制約は Program track register、resolve 時の候補フィルタ、最終 Project
+  の全 note 検査に適用する。lattice の `coordinate_bounds`／
+  `register_bounds`（現在 `[-8,8]`）を縮めるだけでは、generator 座標、
+  equave exponent、re-octave の合成結果を拘束できない。
+  初音・section 境界・chord-member・fallback にも同一上限を課す。
+  範囲内に解が無ければ無断で範囲外を採用せず、型付き失敗として残す。
+- コードの低音が安定した伴奏の基礎となるよう、各発音の最下声を
+  C3–C4 に置く。和声最上声が旋律の上に頻繁に被らないよう、同時に鳴る
+  melody の下方に置く／内声を省く／転回形を変更する。重複は許すが、
+  旋律が前景となる比率（旋律が和声最上声より ≥3 半音上の時間割合）を診断する。
+- 和声の root motion と voice leading を分ける。進行の root 自体は
+  必要なら 5 度動かせるが、共通音の保持、転回形、最小距離の声部対応を
+  使って各声を滑らかにし、経過低音・隣接音で大跳躍を橋渡しする。
+  目安は同一声の移動を通常 ≤5 半音、≥7 半音の移動を発音連結の
+  10% 以下、≥12 半音は cadence／section 境界の明示例外に限定。
+  正確な判定は解決済み exact ratio の cents 差と、声部割当を使う。
+
+### v2-B: 和声機能で変わる伴奏パターン
+
+Plan の `harmonic_trajectory` にある `home`／`departure`／`preparation`／
+`arrival`／`return` はそのまま T／S／D ラベルではない。
+phrase ごとに `harmonic_role`（`tonic_stable`, `predominant`,
+`dominant_tension`, `resolution`, `transitional`）を別途導出・記録する。
+初期対応は home→tonic_stable、departure→predominant、
+preparation→dominant_tension、arrival／return→resolution。
+ただし実際の chord/root と**次 phrase の cadence**に矛盾する場合は
+`transitional` として扱い、ドミナントなどの機能を断定しない。
+section function でなく phrase で決め、境界 bar は次の着地点も参照する。
+
+| 役割 | 和音発音（4/4、一小節の候補） | phrase の扱い |
+| --- | --- | --- |
+| `tonic_stable` | 1 拍目の低音＋2–3 拍程度の中音域和音、3 拍目に軽い再発音または休み | 全小節 4 拍の伸ばしっぱなしにせず、隔小節に動きを作る |
+| `predominant` | 1・2&・3& 拍で短めの分散／和音、拍間に明確な隙間 | 音高だけでなく発音位置で展開を感じさせる |
+| `dominant_tension` | 1・2&・4 拍の短い音、着地前の anticipatory hit | 解決直前は密度を上げ、melody の強拍と衝突させない |
+| `resolution` | 強拍で和音を着地、後半に控えめな分散か短い反復 | 帰着を聞かせつつ groove を止めない |
+| `transitional` | 安全な 1・3 拍中心の中密度 | 誤判定時に不自然な緊張を強要しない |
+
+表の拍位置は**テンプレート候補**であり固定パターンを全曲に貼らない。
+4/4 の 1・2& は beat 1 と beat 2 の裏（8 分グリッド）を意味する。
+伴奏を `lower bass + middle chord` の 2 層として扱い、独立した 2 track
+構造のまま同一 harmony track に時間をずらして置く。短音はコードを
+「進行させる」ものではない: root／chord の**変更頻度**も別に制御し、
+通常は 1 bar に 1–2 harmony state、cadence 近辺のみ必要に応じて速める。
+冒頭／outro と歌うような頂点には長音を意図して残す。
+
+現行 lowering は section seed の `rhythm_mode` で 1 又は 2 onset/bar を選び、
+melody note を harmony occurrence の境界で切り詰める。
+**harmony occurrence（旋律の和声束縛・和音変更点）と実際の打鍵／gate を分離**し、
+同じ chord の再発音は新しい harmony change と数えない設計が必要。
+そうしなければ 8 分裏拍の追加が `MELODY_HARMONY_CONFLICT` や旋律の不自然な
+短縮を生む。境界では前音の release を抑え、和声としての占有区間は途切れず、
+旋律 event は引き続きちょうど 1 つの occurrence に束縛されるようにする。
+`_humanize_chord_onsets` の roll は装飾として残しても、voice drop を
+コード構成音の恒常的な消失として扱わない。テンプレート内で意図した
+休み／軽い打鍵を定義する。
+
+### v2-C: 旋律、グルーヴ、ダイナミクス
+
+- melody は既存 motif の核と反復を保持し、フレーズ内の小ステップ、
+  少数の跳躍と**反対方向の段階的解決**、休符・短い pickup を組み合わせる。
+  seed ごとの relation ランダム選択のみでは `neighbor` が戻らず、
+  `passing` が次の chord tone に解決する保証もないので、2–4 note の
+  時系列単位で選ぶ。フレーズ末は cadence の和音音へ導く。
+- 旋律の隣接跳躍は通常 ≤5 半音、≥7 半音は全遷移の 5% 以下、
+  ≥12 半音は例外として報告する。section 境界を含めて計測し、
+  長休符後の次音や同時 2 音（double stop）は別の分母で扱う。
+  毎音を狭くすると単調なので phrase climax の一度の 6 度などは許す。
+- 伴奏は 8 分の裏・シンコペーション・低音の先取りを用いるが、毎小節
+  2& を鳴らすような硬直は避ける。verse／break は空間を残し、
+  build／final で密度を増す。旋律 onset の多い beat では伴奏の内声を
+  減らし、二者のリズムの**掛け合い**と 2–4 bar の反復／変形を作る。
+- 独立 2 track の gain／velocity は旋律が前に出る基準にし、
+  強拍 bass、中域和音、旋律頂点の velocity と gate を設計する。
+  同時発音数と低音の濁り、短い note の release が重なる状態を
+  stock piano 音色で試聴する。音色や残響の変更は別の比較軸とし、
+  作曲パターンの A/B では固定する。
+
+### v2-D: テンポ、比較と採否
+
+最初は**v1 と同じ seed・テンポ・音色・mix**で音域・伴奏・旋律を順に比較し、
+gain／velocity 設計の効果は別段階で比較する。
+BPM だけを上げる操作は短音化や onset 数増加と別要因なので、
+最後に各 seed の元 BPM と +8 BPM を対照して、忙しすぎないか確認する。
+密度を上げるほど BPM は必ずしも上げない。全曲の target_duration と
+bar 数が変わらない比較を先に行う。テンポ変更試験では秒単位の曲長が
+変わるため、拍単位の指標と PCM 単位の聴感を区別する。
+
+評価 report（親 v1 と同 seed v2 の **paired**、さらに v2 の候補間比較）:
+
+| 検査 | 出力・採否 |
+| --- | --- |
+| 音域 | role 別 min／5%／median／95%／max、実音域違反 count。硬い上限違反は候補棄却 |
+| 跳躍 | melody 隣接遷移、harmony 同一声・低音連結の cents 分布、≥7／≥12 半音割合と section 境界別の値。仮目標を超えたら修正候補 |
+| 和声とリズム | harmonic role 別 chord-change/bar、打鍵 onset/bar、長短音比、onbeat/offbeat、2–4 bar 反復／変形、旋律との onset 衝突、和声連続被覆。機能対応と単調反復を診断 |
+| 主旋律 | motif recall、phrase climax、経過音／刺繍音の解決率、休符と pickup、終止への導き。継承された G1 値と併記 |
+| 音量・密度 | 旋律前景時間比、bass と内声の同時発音数、role 別 velocity／音域重複、PCM での聴感 |
+| 完成度 | exact ratio・MIDI 範囲・track polyphony・旋律束縛・既存 piano G0、レンダリング後の PCM continuity。失敗の理由と母数を保存 |
+
+`assess_piano_solo` は現状 WAV が無くても `archive_eligible=true` を返し得る
+（§6 の記述とは実装が不一致）。v2 では**symbolic は `incomplete`／
+`archive_eligible=false`** とし、stock catalog で同じ Project を WAV 化して
+PCM を確認したものだけ completed 扱いにする。単に rest-count rule の合格で
+グルーヴや完成曲の聴感を保証しない。G1 は参考値で、格子音高露出量は
+原則参照値のままにする（探索目標にするなら明示した外部 target のみ）。
+
+評価順は (1) 保存済み v1 から同 seed を固定した小規模対照群を抽出、
+(2) 音域のみ、(3) 伴奏のみ、(4) 跳躍／旋律、(5) 組合せ、
+(6) 最後にテンポ比較。各段階で成功率と失敗理由も比較し、
+成功曲だけの平均で「改善」と結論しない。8〜16 曲程度を、
+intro/outro・和声音型・テンポが偏らないよう選んで WAV の A/B を行い、
+「歌える旋律」「軽快さ」「緊張と解決」「低音の濁り」「疲れにくさ」
+の項目で短く記録する。G2 大規模人手評価は探索の前提にしない。
+
+### 実装境界と受入条件
+
+- v2 の profile／compiler 挙動を新 version／新 digest に分離し、既存 v1
+  seed の receipt と WAV を再現できるようにする。固定 seed／structural seed、
+  form、piano catalog で比較し、変更点を実際の Project event で監査する。
+- `build_piano_solo_profiles.py`: register と phrase function の候補、
+  `composition_lowering.py`: 同一 chord 内の発音パターンと melody coverage、
+  `compiler.py`: 実音域フィルタ、連続声部と melody phrase contour、
+  `song_validity.py`: staged G0、`generate_piano_solo.py`: receipt／比較向け診断。
+- 必須の境界試験: 高低両端、初音／section 跨ぎ、転回形と共通音、
+  tonic の長音と dominant の短音、2& の再発音を跨ぐ melody、
+  voice drop と同時発音上限、失敗時の型付き理由、WAV skip の未評価、
+  同 seed の v1/v2 の再現性。短音／休符だけ増やして和声機能が消える
+  変更、単なる一律 160 BPM 化、極端に狭い音域への収束は受け入れない。
 
