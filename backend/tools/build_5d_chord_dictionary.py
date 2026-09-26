@@ -34,7 +34,7 @@ from app.harmony_dictionary.authority import (  # noqa: E402
     AXES_BY_EQUAVE,
     DECIMAL_PRECISION,
     LOOP_LIMIT,
-    LOOP_TOLERANCE_MC,
+    LOOP_TOLERANCE_DC,
     OCTAVE,
     TRITAVE,
     axis_payload,
@@ -92,7 +92,7 @@ def build_equave_file(equave_text: str, equave: Fraction) -> dict[str, object]:
         "axes": list(axes),
         "loop_policy": {
             "limit": LOOP_LIMIT,
-            "tolerance_mc": int(LOOP_TOLERANCE_MC),
+            "tolerance_dc": int(LOOP_TOLERANCE_DC),
             "decimal_precision": DECIMAL_PRECISION,
         },
         "templates_version": TEMPLATES_VERSION,

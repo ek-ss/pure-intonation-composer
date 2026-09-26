@@ -43,7 +43,7 @@ def test_reference_loop_table(equave_text: str, generator: int) -> None:
     assert result.code == "OK"
     assert result.n == expected_n
     assert result.k == expected_k
-    assert 0 <= result.distance_mc <= 100  # 10 cents = 100 millicents
+    assert 0 <= result.distance_dc <= 100  # 10 cents = 100 decicents
 
 
 @pytest.mark.parametrize("equave_text,generator", sorted(REFERENCE_LOOPS))
@@ -52,13 +52,13 @@ def test_no_earlier_n_satisfies_the_tolerance(equave_text: str, generator: int) 
     result = loop_steps(equave_ratio(equave_text), generator, limit=expected_n - 1)
     assert result.found is False
     assert result.code == "LOOP_NOT_FOUND_WITHIN_LIMIT"
-    assert result.n is None and result.k is None and result.distance_mc is None
+    assert result.n is None and result.k is None and result.distance_dc is None
 
 
 def test_trivial_loop_when_generator_is_the_equave() -> None:
     result = loop_steps(TRITAVE, 3)
     assert result.found is True
-    assert (result.n, result.k, result.distance_mc) == (1, 1, 0)
+    assert (result.n, result.k, result.distance_dc) == (1, 1, 0)
 
 
 def test_n_zero_is_excluded_as_trivial() -> None:

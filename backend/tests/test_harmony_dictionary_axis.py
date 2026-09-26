@@ -10,6 +10,7 @@ from app.harmony_dictionary.authority import OCTAVE, TRITAVE, equave_ratio
 from app.harmony_dictionary.dictionary import (
     DEFAULT_POLICY,
     DictionaryPolicy,
+    _interval_vector,
     build_axis_dictionary,
     match_template,
 )
@@ -75,6 +76,22 @@ def test_match_template_unmatched_is_other() -> None:
 def test_match_template_is_deterministic() -> None:
     positions = [0.0, 203.90975, 407.81950]
     assert match_template(positions, 3) == match_template(list(positions), 3)
+
+
+# -------------------------------------------------------- interval vector
+
+
+def test_interval_vector_folds_on_the_equave_circle() -> None:
+    # A major third is 701.955c; on the 1200c octave circle the arc folds to
+    # 498.045c -> class 5 (the old 1200*num/den width of 2400c left it
+    # unfolded and misclassified it as class 6).
+    vector = _interval_vector([0.0, 701.955], OCTAVE)
+    assert sum(vector) == 1
+    assert vector[4] == 1
+    # On the tritave (~1902c) the same arc does not fold (702 < 951) -> class 7.
+    vector = _interval_vector([0.0, 701.955], TRITAVE)
+    assert sum(vector) == 1
+    assert vector[6] == 1
 
 
 # ----------------------------------------------------------------- storage

@@ -15,7 +15,10 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-SCHEMA_VERSION = "1.0.0"
+# 1.1.0: sealed files now carry decicent fields (tolerance_dc / distance_dc /
+# approximation_dc) and the folded interval vectors of dictionary 1.1.0.
+# Files sealed under 1.0.0 must not be mixed with these.
+SCHEMA_VERSION = "1.1.0"
 
 
 class StorageError(ValueError):

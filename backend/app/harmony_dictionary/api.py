@@ -27,7 +27,7 @@ from app.harmony_dictionary.authority import (
     AXES_BY_EQUAVE,
     DECIMAL_PRECISION,
     LOOP_LIMIT,
-    LOOP_TOLERANCE_MC,
+    LOOP_TOLERANCE_DC,
     AxisPoint,
     equave_ratio,
 )
@@ -137,7 +137,7 @@ class EvaluateRequest(BaseModel):
 class CadencesRequest(BaseModel):
     equave: str = Field(min_length=3, max_length=16)
     tonic: str = Field(default="1/1", min_length=1, max_length=32)
-    kind: Literal["authentic", "plagal", "open", "lattice"] = "authentic"
+    kind: Literal["authentic", "predominant_chain", "open", "lattice"] = "authentic"
     seed: int = Field(default=0, ge=0, le=2**31)
     count: int = Field(default=1, ge=1, le=MAX_CADENCES)
     max_chords: int = Field(default=4, ge=2, le=4)
@@ -167,7 +167,7 @@ def config() -> dict[str, object]:
         "axes": {text: list(axes) for text, axes in AXES_BY_EQUAVE.items()},
         "loop_policy": {
             "limit": LOOP_LIMIT,
-            "tolerance_mc": int(LOOP_TOLERANCE_MC),
+            "tolerance_dc": int(LOOP_TOLERANCE_DC),
             "decimal_precision": DECIMAL_PRECISION,
         },
         "templates_version": TEMPLATES_VERSION,

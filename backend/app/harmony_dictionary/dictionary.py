@@ -24,6 +24,7 @@ from app.harmony_dictionary.authority import (
     DECIMAL_PRECISION,
     AuthorityError,
     AxisPoint,
+    _log2_decimal,
     axis_index,
     loop_payload,
     reduce_on_equave,
@@ -31,7 +32,10 @@ from app.harmony_dictionary.authority import (
 from app.harmony_dictionary.templates import OTHER, TEMPLATES_VERSION, templates_for_voice_count
 from app.tuning.ratios import ratio_text
 
-DICT_VERSION = "1.0.0"
+# 1.1.0: _interval_vector now folds on the true equave circle width
+# (1200*log2(equave)); the previous 1200*num/den never folded arcs, so e.g.
+# a major third was class 7 instead of class 5 on the octave circle.
+DICT_VERSION = "1.1.0"
 
 NOT_ENOUGH_AXIS_POINTS = "NOT_ENOUGH_AXIS_POINTS"
 LOOP_NOT_FOUND_WITHIN_LIMIT = "LOOP_NOT_FOUND_WITHIN_LIMIT"
@@ -180,8 +184,13 @@ def match_template(
 
 
 def _interval_vector(positions_cents: list[float], equave: Fraction) -> list[int]:
-    """Interval vector on the equave circle (6 classes for 2/1, 10 for 3/1)."""
-    equave_cents = Decimal(1200) * equave.numerator / equave.denominator
+    """Interval vector on the equave circle (6 classes for 2/1, 10 for 3/1).
+
+    The circle width is ``1200 * log2(equave)`` (1200 cents for 2/1,
+    ~1901.955 cents for 3/1); arcs longer than half the circle are folded
+    back, so a 702-cent major third counts as class 5 (498 cents), not 7.
+    """
+    equave_cents = Decimal(1200) * _log2_decimal(equave.numerator, equave.denominator)
     class_count = 6 if equave == Fraction(2, 1) else 10
     positions_dec = [Decimal(repr(position)) for position in positions_cents]
     vector = [0] * class_count

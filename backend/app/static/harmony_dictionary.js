@@ -94,7 +94,7 @@ function renderConfig() {
   let html = `<dl class="hd-config-list">`;
   html += `<dt>Dictionary</dt><dd>${config.dictionary_version}</dd>`;
   html += `<dt>Templates</dt><dd>${config.templates_version} (${config.templates.length})</dd>`;
-  html += `<dt>Loop policy</dt><dd>${config.loop_policy.limit} steps / ${config.loop_policy.tolerance_mc} mc</dd>`;
+  html += `<dt>Loop policy</dt><dd>${config.loop_policy.limit} steps / ${config.loop_policy.tolerance_dc} dc</dd>`;
   html += `<dt>File ${state.equave}</dt><dd>${file.available ? "sealed ✓" : `unavailable (${file.code})`}</dd>`;
   if (file.available) {
     html += `<dt>File hash</dt><dd class="hd-hash">${file.hash.slice(0, 26)}…</dd>`;
@@ -115,7 +115,9 @@ function renderConfig() {
 
 function equaveCents() {
   const [num, den] = state.equave.split("/").map(Number);
-  return (1200 * num) / den;
+  // True equave width: 1200*log2(E).  (1200*num/den gave 2400/3600 and
+  // stretched the axis scale; the octave is exactly 1200 cents.)
+  return 1200 * Math.log2(num / den);
 }
 
 async function loadAxes() {
@@ -149,7 +151,7 @@ function renderAxes() {
     const card = document.createElement("div");
     card.className = "hd-axis-card" + (state.selectedAxis === Number(generator) ? " active" : "");
     const loop = detail.loop;
-    const loopText = loop.found ? `loop ${loop.n} ≈ ${loop.k}×E (${loop.distance_mc} mc)` : loop.code;
+    const loopText = loop.found ? `loop ${loop.n} ≈ ${loop.k}×E (${loop.distance_dc} dc)` : loop.code;
     card.innerHTML = `<div class="hd-axis-head"><strong>g=${generator}</strong><span>${loopText} · ${detail.point_count} points</span></div>`;
     const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     svg.setAttribute("viewBox", "0 0 340 64");

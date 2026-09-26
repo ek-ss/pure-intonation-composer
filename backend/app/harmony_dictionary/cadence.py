@@ -4,9 +4,10 @@ A cadence is generated from the axis dictionaries: the tonic root, equave,
 and cadence kind are specified, and 2-4 chords (3/4-voice mix allowed) are
 assembled.  Kinds:
 
-- ``authentic``: T -> D -> T
-- ``plagal``:    T -> S -> D -> T
-- ``open``:      ... -> D (2-3 chords, ending on the dominant)
+- ``authentic``:        T -> D -> T
+- ``predominant_chain``: T -> S -> D -> T  (renamed from "plagal"; a true
+  plagal cadence is IV -> I, which this four-chord chain is not)
+- ``open``:             ... -> D (2-3 chords, ending on the dominant)
 - ``lattice``:   2-4 dictionary chords with a stability contour
 
 Lattice-native candidates are *not* excluded by 12-EDO match degree alone:
@@ -37,7 +38,10 @@ from app.harmony_dictionary.stability import (
 )
 from app.tuning.ratios import ratio_text
 
-CADENCE_VERSION = "1.0.0"
+# 1.1.0: voice leading / common tones / tendency resolution now compare
+# actual pitches (root * ratio) instead of root-relative ratios, and the
+# "plagal" kind is renamed "predominant_chain".  Diagnostic values change.
+CADENCE_VERSION = "1.1.0"
 
 PROGRESSION_NO_PATH = "PROGRESSION_NO_PATH"
 
@@ -51,7 +55,7 @@ FUNCTION_ROOTS = {
 # Versioned progression templates per kind.
 CADENCE_TEMPLATES: dict[str, tuple[str, ...]] = {
     "authentic": ("T", "D", "T"),
-    "plagal": ("T", "S", "D", "T"),
+    "predominant_chain": ("T", "S", "D", "T"),
     "open": ("S", "D"),
     "lattice": (),  # length is seeded, 2..max_chords
 }
@@ -96,24 +100,51 @@ def _place(candidate: dict[str, object], function: str, tonic: Fraction, equave:
     return root, candidate["ratios"]
 
 
+def _actual_voice_cents(root: Fraction, ratios: list[Fraction]) -> list[Decimal]:
+    """Actual pitch of each voice (``root * ratio``) in cents.
+
+    The ratios are root-relative; the root must be applied, otherwise two
+    chords with identical relative ratios on different roots would report
+    zero movement.
+    """
+    root_cents = Decimal(repr(float(_cents_decimal(root))))
+    return [root_cents + Decimal(repr(float(_cents_decimal(ratio)))) for ratio in ratios]
+
+
+def _voice_leading(
+    first: tuple[Fraction, list[Fraction]], second: tuple[Fraction, list[Fraction]], equave: Fraction
+) -> tuple[Decimal, list[int]]:
+    """Minimum total voice movement (cents, with equave lifts) + the mapping.
+
+    Each source voice moves independently to its nearest copy (with equave
+    lifts) of any target voice; doublings are allowed so mixed 3/4-voice
+    chords stay defined.  The returned mapping records, per source voice,
+    the index of the target voice it chose (one-to-one-ness is inspectable).
+    """
+    from app.harmony_dictionary.stability import _equave_cents
+
+    equave_cents = _equave_cents(equave)
+    source = _actual_voice_cents(first[0], first[1])
+    target = _actual_voice_cents(second[0], second[1])
+    total = Decimal(0)
+    mapping: list[int] = []
+    for value in source:
+        best_index, best_distance = 0, Decimal("Infinity")
+        for index, other in enumerate(target):
+            for steps in (-1, 0, 1):
+                distance = abs(value - (other + equave_cents * steps))
+                if distance < best_distance:
+                    best_index, best_distance = index, distance
+        mapping.append(best_index)
+        total += best_distance
+    return total, mapping
+
+
 def _voice_leading_cents(
     first: tuple[Fraction, list[Fraction]], second: tuple[Fraction, list[Fraction]], equave: Fraction
 ) -> float:
     """Minimum total voice movement (cents, with equave lifts) between two chords."""
-    from app.harmony_dictionary.stability import _equave_cents
-
-    equave_cents = _equave_cents(equave)
-    source = [Decimal(repr(float(_cents_decimal(ratio)))) for ratio in first[1]]
-    target = [Decimal(repr(float(_cents_decimal(ratio)))) for ratio in second[1]]
-    total = Decimal(0)
-    for value in source:
-        best = min(
-            abs(value - (other + equave_cents * steps))
-            for other in target
-            for steps in (-1, 0, 1)
-        )
-        total += best
-    return float(total)
+    return float(_voice_leading(first, second, equave)[0])
 
 
 def _select_chord(
@@ -246,12 +277,21 @@ def diagnose_voice_leading(
     for first, second in zip(chords, chords[1:]):
         first_root, first_ratios = _chord_ratios(first)
         second_root, second_ratios = _chord_ratios(second)
-        movement = _voice_leading_cents((first_root, first_ratios), (second_root, second_ratios), equave)
-        common = sum(1 for ratio in first_ratios if any(_is_same_pitch(ratio, other, equave) for other in second_ratios))
+        total, mapping = _voice_leading((first_root, first_ratios), (second_root, second_ratios), equave)
+        movement = float(total)
+        # Common tones compare *actual* pitches (root * ratio), not the
+        # root-relative ratios: a shared relative ratio on different roots
+        # is not a shared pitch.
+        common = sum(
+            1
+            for ratio in first_ratios
+            if any(_is_same_pitch(first_root * ratio, second_root * other, equave) for other in second_ratios)
+        )
         transitions.append(
             {
                 "total_movement_cents": round(movement, 5),
                 "common_tones": common,
+                "voice_mapping": mapping,
                 "within_cap": movement <= VOICE_LEADING_CAP_CENTS,
             }
         )
@@ -277,20 +317,20 @@ def diagnose_tendency_resolution(
     equave_cents = _equave_cents(equave)
     transitions = []
     for first, second in zip(chords, chords[1:]):
-        _, first_ratios = _chord_ratios(first)
-        _, second_ratios = _chord_ratios(second)
+        first_root, first_ratios = _chord_ratios(first)
+        second_root, second_ratios = _chord_ratios(second)
+        source = _actual_voice_cents(first_root, first_ratios)
+        target = _actual_voice_cents(second_root, second_ratios)
         unresolved = 0
-        for ratio in first_ratios:
-            source = Decimal(repr(float(_cents_decimal(ratio))))
+        for value in source:
             resolved = any(
-                abs(source - (Decimal(repr(float(_cents_decimal(other)))) + equave_cents * steps))
-                <= Decimal(str(tolerance_cents))
-                for other in second_ratios
+                abs(value - (other + equave_cents * steps)) <= Decimal(str(tolerance_cents))
+                for other in target
                 for steps in (-1, 0, 1)
             )
             if not resolved:
                 unresolved += 1
-        transitions.append({"unresolved_voices": unresolved, "voice_count": len(first_ratios)})
+        transitions.append({"unresolved_voices": unresolved, "voice_count": len(source)})
     final_unresolved = transitions[-1]["unresolved_voices"] if transitions else 0
     return {
         "transitions": transitions,
@@ -347,7 +387,7 @@ def generate_cadence(
         chords.append(chord)
         previous = _chord_ratios(chord)
 
-    closed = kind in ("authentic", "plagal") or (kind == "lattice" and template[-1] == "T")
+    closed = kind in ("authentic", "predominant_chain") or (kind == "lattice" and template[-1] == "T")
     code = "OK" if failure_reason is None else PROGRESSION_NO_PATH
     result: dict[str, object] = {
         "version": CADENCE_VERSION,
@@ -391,6 +431,11 @@ def build_classification_report(
     contextual final label, the confusion matrix against the known slot
     functions, coverage (the share of non-ambiguous chords), and the I/IV
     (tonic/subdominant) misclassification examples.
+
+    The "truth" is the function slot assigned *at generation time*; it is
+    not an independent musical ground truth.  The matrix therefore measures
+    the classifier's self-consistency, not its accuracy against annotated
+    music, and ``ambiguous`` is a first-class outcome, not an error.
     """
     rows = ("tonic", "dominant", "subdominant")
     columns = ("tonic", "dominant", "subdominant", "ambiguous")
@@ -431,6 +476,12 @@ def build_classification_report(
                 )
 
     return {
+        "version": CADENCE_VERSION,
+        "truth_source": "self_assigned_slot",
+        "note": (
+            "confusion_matrix rows are the function slots assigned at generation time, "
+            "not an independent ground truth; it measures classifier self-consistency"
+        ),
         "chord_count": total,
         "coverage": round(1 - ambiguous / total, 5) if total else 0.0,
         "confusion_matrix": matrix,

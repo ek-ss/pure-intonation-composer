@@ -16,6 +16,7 @@ from app.harmony_dictionary.dictionary import DictionaryPolicy, build_axis_dicti
 from app.harmony_dictionary.stability import (
     DEFAULT_PROFILE,
     DEFAULT_THRESHOLDS,
+    STABILITY_VERSION,
     ClassificationThresholds,
     classify_threshold,
     classify_with_context,
@@ -94,7 +95,7 @@ def test_context_aware_classification_confirms_the_tonic() -> None:
 
 def test_profile_is_versioned_and_sealable() -> None:
     payload = DEFAULT_PROFILE.as_dict()
-    assert payload["version"] == "1.0.0"
+    assert payload["version"] == STABILITY_VERSION
     assert sum(payload["weights"]) == pytest.approx(1.0)
     assert DEFAULT_THRESHOLDS.as_dict()["D_low"] < DEFAULT_THRESHOLDS.as_dict()["T_high"]
 
@@ -102,6 +103,76 @@ def test_profile_is_versioned_and_sealable() -> None:
 def test_tritave_equave_stability() -> None:
     value = stability_q(Fraction(1), I_CHORD, Fraction(1), equave=TRITAVE)
     assert 0 <= value <= 10000
+
+
+# ------------------------------------------- equave circle reference values
+
+
+def test_circular_distance_reference_values() -> None:
+    from app.harmony_dictionary.stability import _circular_distance_cents
+
+    # 3/2 is 701.955c from 1/1; on the 1200c octave circle the short way
+    # around is 498.045c (the old 1200*num/den width of 2400c never folded).
+    assert float(_circular_distance_cents(Fraction(1), Fraction(3, 2), OCTAVE)) == pytest.approx(498.045, abs=1e-3)
+    # 15/8 is 1088.269c from 1/1; the short way is 111.731c in both argument
+    # orders (symmetry).
+    assert float(_circular_distance_cents(Fraction(1), Fraction(15, 8), OCTAVE)) == pytest.approx(111.731, abs=1e-3)
+    assert float(_circular_distance_cents(Fraction(15, 8), Fraction(1), OCTAVE)) == pytest.approx(111.731, abs=1e-3)
+    # On the tritave (~1901.955c) a fifth is 701.955c the short way (the old
+    # 3600c width would have reported 1200c).
+    assert float(_circular_distance_cents(Fraction(1), Fraction(3, 2), TRITAVE)) == pytest.approx(701.955, abs=1e-3)
+
+
+def test_circular_distance_is_transpose_and_lift_invariant() -> None:
+    from app.harmony_dictionary.stability import _circular_distance_cents
+
+    for equave in (OCTAVE, TRITAVE):
+        base = float(_circular_distance_cents(Fraction(1), Fraction(3, 2), equave))
+        for factor in (Fraction(5, 4), Fraction(7, 5), Fraction(11, 8)):
+            transposed = float(_circular_distance_cents(Fraction(3, 2) * factor, Fraction(9, 4) * factor, equave))
+            assert transposed == pytest.approx(base, abs=1e-3)
+        lifted = float(_circular_distance_cents(Fraction(3, 2) * equave, Fraction(9, 4) * equave, equave))
+        assert lifted == pytest.approx(base, abs=1e-3)
+
+
+def test_voice_leading_applies_the_root() -> None:
+    from app.harmony_dictionary.cadence import _voice_leading_cents
+
+    first = (Fraction(1), [Fraction(1), Fraction(5, 4), Fraction(3, 2)])
+    assert _voice_leading_cents(first, first, OCTAVE) == 0.0
+    # The same relative chord on a fifth higher: each voice moves to its
+    # nearest copy (111.731 + 182.400 + 0); the old code ignored the root
+    # and reported zero movement.
+    second = (Fraction(3, 2), [Fraction(1), Fraction(5, 4), Fraction(3, 2)])
+    assert _voice_leading_cents(first, second, OCTAVE) == pytest.approx(294.131, abs=0.01)
+
+
+def test_common_tones_compare_actual_pitches() -> None:
+    from app.harmony_dictionary.cadence import diagnose_voice_leading
+
+    chords = [
+        {"root_ratio": "1/1", "ratios": ["1/1", "5/4", "3/2"]},
+        {"root_ratio": "3/2", "ratios": ["1/1", "5/4", "3/2"]},
+    ]
+    transition = diagnose_voice_leading(chords, equave=OCTAVE)[0]
+    # I -> V shares exactly one actual pitch (the fifth becomes the root);
+    # the old relative-ratio comparison reported all three as common.
+    assert transition["common_tones"] == 1
+    assert transition["voice_mapping"] == [1, 2, 0]
+
+
+def test_tendency_resolution_uses_actual_pitches() -> None:
+    from app.harmony_dictionary.cadence import diagnose_tendency_resolution
+
+    chords = [
+        {"root_ratio": "1/1", "ratios": ["1/1", "5/4", "3/2"]},
+        {"root_ratio": "3/2", "ratios": ["1/1", "5/4", "3/2"]},
+    ]
+    # Same relative shape, root a fifth apart: two voices move more than the
+    # 100c tolerance (the old relative-ratio comparison saw zero movement).
+    result = diagnose_tendency_resolution(chords, equave=OCTAVE, tolerance_cents=100.0)
+    assert result["transitions"][0]["unresolved_voices"] == 2
+    assert result["all_resolved"] is False
 
 
 # ----------------------------------------------------------------- cadence
@@ -137,9 +208,9 @@ def test_authentic_cadence_lands_on_the_tonic(octave_dictionaries) -> None:
     assert contour[2] > contour[1]
 
 
-def test_plagal_cadence_has_four_chords(octave_dictionaries) -> None:
+def test_predominant_chain_cadence_has_four_chords(octave_dictionaries) -> None:
     result = generate_cadence(
-        Fraction(1), equave=OCTAVE, kind="plagal", dictionaries=octave_dictionaries, seed=1
+        Fraction(1), equave=OCTAVE, kind="predominant_chain", dictionaries=octave_dictionaries, seed=1
     )
     assert result["code"] == "OK"
     functions = [chord["function"] for chord in result["chords"]]
@@ -194,7 +265,7 @@ def test_classification_report_shape(octave_dictionaries) -> None:
         generate_cadence(
             Fraction(1), equave=OCTAVE, kind=kind, dictionaries=octave_dictionaries, seed=seed
         )
-        for kind in ("authentic", "plagal", "open")
+        for kind in ("authentic", "predominant_chain", "open")
         for seed in (0, 1)
     ]
     report = build_classification_report(cadences)

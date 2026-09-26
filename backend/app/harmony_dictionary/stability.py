@@ -28,10 +28,13 @@ from dataclasses import dataclass
 from decimal import Decimal, ROUND_HALF_EVEN
 from fractions import Fraction
 
-from app.harmony_dictionary.authority import reduce_on_equave
+from app.harmony_dictionary.authority import _log2_decimal, reduce_on_equave
 from app.harmony_dictionary.dictionary import _PURE_INTERVAL_CENTS, _cents_decimal, match_template
 
-STABILITY_VERSION = "1.0.0"
+# 1.1.0: _equave_cents now uses 1200*log2(equave) (was 1200*num/den, which
+# returned 2400/3600 cents and broke circular folding, voice lifts, and the
+# V component at octave boundaries).  stability_q values change.
+STABILITY_VERSION = "1.1.0"
 
 
 @dataclass(frozen=True)
@@ -97,7 +100,13 @@ ROUGHNESS_DEFAULT = 0.25
 
 
 def _equave_cents(equave: Fraction) -> Decimal:
-    return Decimal(1200) * equave.numerator / equave.denominator
+    """Width of the equave in cents: ``1200 * log2(equave)``.
+
+    2/1 -> exactly 1200 cents; 3/1 -> ~1901.955 cents (never folded to
+    1200).  The previous ``1200 * num/den`` returned 2400/3600 and broke
+    circular folding, voice lifts, and boundary projection.
+    """
+    return Decimal(1200) * _log2_decimal(equave.numerator, equave.denominator)
 
 
 def _circular_distance_cents(first: Fraction, second: Fraction, equave: Fraction) -> Decimal:

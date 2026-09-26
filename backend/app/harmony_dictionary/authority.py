@@ -7,9 +7,10 @@ of some power of ``E``:
     d_E(n, g) = min_{k in Z} |1200 * log2(g**n / E**k)|  cents
 
 The loop is an approximation, not the identity ``g**n == E**k``.  The
-boundary decision is made in integer millicents under a fixed-precision
-Decimal context so that results are reproducible across platforms and sealed
-by version.  ``n = 0`` is the trivial solution and is excluded.
+boundary decision is made in integer *decicents* (1 dc = 0.1 cent; one
+octave is 12,000 dc) under a fixed-precision Decimal context so that results
+are reproducible across platforms and sealed by version.  ``n = 0`` is the
+trivial solution and is excluded.
 
 The two equaves ``2/1`` (octave; the same equivalence class as its inverse
 ``1/2``) and ``3/1`` (tritave; the same class as ``1/3``) are separate
@@ -25,11 +26,15 @@ from fractions import Fraction
 
 from app.tuning.ratios import ratio_text
 
-SCHEMA_VERSION = "1.0.0"
+# 1.1.0: the loop distance/tolerance fields are renamed *_mc -> *_dc.  The
+# unit is a decicent (1 dc = 0.1 cent; 1 octave = 12,000 dc), not a
+# millicent.  The numeric values are unchanged (100 dc = 10 cents), so the
+# loop n/k decisions are identical; only the unit label and version change.
+SCHEMA_VERSION = "1.1.0"
 
 # Versioned loop policy.
 LOOP_LIMIT = 256
-LOOP_TOLERANCE_MC = Decimal("100")  # 10 cents, in millicents (1 cent = 10 millicents)
+LOOP_TOLERANCE_DC = Decimal("100")  # 10 cents, in decicents (1 dc = 0.1 cent)
 DECIMAL_PRECISION = 60
 
 OCTAVE = Fraction(2, 1)
@@ -97,13 +102,13 @@ class LoopResult:
     found: bool
     n: int | None
     k: int | None
-    distance_mc: int | None
+    distance_dc: int | None
     code: str
 
     def __post_init__(self) -> None:
-        if self.found and (self.n is None or self.k is None or self.distance_mc is None):
-            raise AuthorityError("a found loop must carry n, k, and distance_mc")
-        if not self.found and (self.n is not None or self.k is not None or self.distance_mc is not None):
+        if self.found and (self.n is None or self.k is None or self.distance_dc is None):
+            raise AuthorityError("a found loop must carry n, k, and distance_dc")
+        if not self.found and (self.n is not None or self.k is not None or self.distance_dc is not None):
             raise AuthorityError("an unfound loop must carry no coordinates")
 
 
@@ -138,9 +143,9 @@ def loop_steps(
     generator: int,
     *,
     limit: int = LOOP_LIMIT,
-    tolerance_mc: Decimal = LOOP_TOLERANCE_MC,
+    tolerance_dc: Decimal = LOOP_TOLERANCE_DC,
 ) -> LoopResult:
-    """Find the first ``n >= 1`` with ``d_E(n, g) <= tolerance_mc/100`` cents.
+    """Find the first ``n >= 1`` with ``d_E(n, g) <= tolerance_dc/10`` cents.
 
     The search is bounded by ``limit`` (versioned policy).  When no ``n``
     within the limit satisfies the tolerance, the result carries
@@ -162,10 +167,10 @@ def loop_steps(
             quotient = log_generator * n / log_equave
             k = int(quotient.to_integral_value(rounding=ROUND_HALF_EVEN))
             best = min(abs(log_generator * n - Decimal(candidate) * log_equave) for candidate in (k - 1, k, k + 1))
-            # ``best`` is in octaves; one octave is 1200 cents = 12,000 millicents.
-            distance_mc = int((best * Decimal(12000)).to_integral_value(rounding=ROUND_HALF_EVEN))
-            if distance_mc <= int(tolerance_mc):
-                return LoopResult(equave, generator, True, n, k, distance_mc, "OK")
+            # ``best`` is in octaves; one octave is 1200 cents = 12,000 decicents.
+            distance_dc = int((best * Decimal(12000)).to_integral_value(rounding=ROUND_HALF_EVEN))
+            if distance_dc <= int(tolerance_dc):
+                return LoopResult(equave, generator, True, n, k, distance_dc, "OK")
     return LoopResult(equave, generator, False, None, None, None, LOOP_NOT_FOUND_WITHIN_LIMIT)
 
 
@@ -219,13 +224,13 @@ def resolve_axis_point(
     non-negative index, and the loop approximation that relates them.
     """
     loop, points = axis_index(equave, generator, limit=limit)
-    assert loop.n is not None and loop.distance_mc is not None
+    assert loop.n is not None and loop.distance_dc is not None
     index_n = n % loop.n
     provenance: dict[str, object] = {
         "requested_n": n,
         "index_n": index_n,
         "loop_period": loop.n,
-        "loop_approximation_mc": loop.distance_mc * abs(n - index_n) // max(loop.n, 1),
+        "loop_approximation_dc": loop.distance_dc * abs(n - index_n) // max(loop.n, 1),
     }
     return points[index_n], provenance
 
@@ -237,7 +242,7 @@ def loop_payload(result: LoopResult) -> dict[str, object]:
         "found": result.found,
         "n": result.n,
         "k": result.k,
-        "distance_mc": result.distance_mc,
+        "distance_dc": result.distance_dc,
         "code": result.code,
     }
 
@@ -258,14 +263,14 @@ def axis_point_payload(point: AxisPoint) -> dict[str, object]:
 def axis_payload(equave: Fraction, generator: int, *, limit: int = LOOP_LIMIT) -> dict[str, object]:
     """The sealed 1D axis: loop, points, and negative-direction provenance."""
     loop, points = axis_index(equave, generator, limit=limit)
-    assert loop.n is not None and loop.distance_mc is not None
+    assert loop.n is not None and loop.distance_dc is not None
     return {
         "equave": ratio_text(equave),
         "generator": generator,
         "loop": loop_payload(loop),
         "negative_direction": {
             "offset": -loop.n,
-            "approximation_mc": loop.distance_mc,
+            "approximation_dc": loop.distance_dc,
         },
         "points": [axis_point_payload(point) for point in points],
     }

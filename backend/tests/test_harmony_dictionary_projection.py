@@ -193,3 +193,54 @@ def test_measure_recall_against_the_full_product() -> None:
     assert 0.0 <= result["recall"] <= 1.0
     assert 0.0 <= result["misclassification_rate"] <= 1.0
     assert result["projectable"] == int(result["recall"] * 8)
+
+
+# ------------------------------------------- equave-lift boundary (1.1.0)
+
+
+def test_project_tone_uses_equave_lift_at_the_octave_boundary() -> None:
+    from fractions import Fraction
+
+    from app.harmony_dictionary.authority import AxisPoint
+    from app.harmony_dictionary.projection import _equave_cents, _project_tone
+
+    point = AxisPoint(
+        n=1,
+        original_ratio=Fraction(3, 2),
+        reduced_ratio=Fraction(3, 2),
+        equave_exponent=0,
+        absolute_cents=701.955,
+        nearest_12edo_semitone=7,
+        signed_12edo_error_cents=1.955,
+        reduced_cents=1198.0,
+    )
+    # A tone 5 cents from 0 reaches the point's octave-down copy (7c away);
+    # with the old 2400c equave width that lift was 1207c away and unused.
+    index, projected, error = _project_tone(5.0, [point], _equave_cents(OCTAVE), 1)
+    assert index == 0
+    assert projected == pytest.approx(-2.0, abs=1e-9)
+    assert error == pytest.approx(7.0, abs=1e-9)
+
+
+def test_project_tone_uses_equave_lift_at_the_tritave_boundary() -> None:
+    from fractions import Fraction
+
+    from app.harmony_dictionary.authority import AxisPoint
+    from app.harmony_dictionary.projection import _equave_cents, _project_tone
+
+    point = AxisPoint(
+        n=1,
+        original_ratio=Fraction(2, 1),
+        reduced_ratio=Fraction(2, 1),
+        equave_exponent=0,
+        absolute_cents=1200.0,
+        nearest_12edo_semitone=12,
+        signed_12edo_error_cents=0.0,
+        reduced_cents=5.0,
+    )
+    # Near the top of the ~1902c tritave circle, lift +1 is the nearest copy
+    # (the old 3600c width would have kept the tone 1890c from the base).
+    index, projected, error = _project_tone(1895.0, [point], _equave_cents(TRITAVE), 1)
+    assert index == 0
+    assert projected == pytest.approx(5.0 + 1901.955, abs=1e-3)
+    assert error == pytest.approx(1895.0 - (5.0 + 1901.955), abs=1e-3)

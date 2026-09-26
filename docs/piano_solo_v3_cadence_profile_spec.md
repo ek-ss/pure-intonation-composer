@@ -1,10 +1,20 @@
 # 5D辞書の実装確認とカデンツ駆動ピアノプロファイル v3 仕様案
 
-Status: **実装監査（2026-09-27）＋未実装の v3 策定**。
+Status: **実装監査（2026-09-27）→ 数値ブロッカー修正済み（2026-09-27）＋未実装の v3 策定**。
 監査対象は commit `1738ad22` の 5D Harmony Dictionary。
 作業ツリーにある piano v2 の compiler／lowering／profile 試作は
 進行中の作業として扱い、本仕様の完成済み依存物には数えない。
 既存 v1 の 2D seed と hash は履歴として再現可能に保つ。
+
+> **修正記録（2026-09-27）**: 下記のブロッカー 1–4 を修正し、
+> `authority`／`storage`／`dictionary`／`stability`／`projection`／`cadence`
+> を **1.1.0** に version-up、両 equave の sealed file を再生成・`--check`
+> byte parity 再照合済み。`_equave_cents` は `1200*log2(E)`（2/1=1200、
+> 3/1≈1901.955）、`_interval_vector` は真の equave 円周で折返し、
+> 声部移動・common tone・傾向音は実音 `root×ratio` で比較、単位は
+> decicent（`*_dc`、1 dc=0.1 cent）、`plagal`→`predominant_chain`。
+> 折返し境界・不変性・root 移動の基準値試験を追加（後述 §5-1）。
+> 関連テスト 858 件通過。v3 の §2–§4 は未実装のまま。
 
 ## 1. [5D辞書計画](development_plan_5d_chord_cadence_dictionary.md)との照合
 
@@ -24,6 +34,9 @@ API の試験呼び出しで `authentic` は両 equave とも3和音を返した
 これは後述の数値修正前の動作例である。
 
 ### ブロッカー（実装を修正し、辞書／指標の version を更新する）
+
+> 2026-09-27 に 1–4 すべて修正済み（上記の修正記録を参照）。
+> 以下は監査時点の記録として残す。
 
 1. `stability.py::_equave_cents` と `projection.py::_equave_cents` は
    `1200 * (equave.numerator/equave.denominator)` を返す。
