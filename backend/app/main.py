@@ -174,9 +174,11 @@ from app.rhythm.mixed_meter import (
     validate_pattern as validate_mixed_meter_pattern,
 )
 from app.blind_evaluation import router as blind_evaluation_router
+from app.harmony_dictionary.api import router as harmony_dictionary_router
 
 app = FastAPI(title="Pure Intonation Workbench API", version="0.1.0")
 app.include_router(blind_evaluation_router)
+app.include_router(harmony_dictionary_router)
 STATIC_DIR = Path(__file__).parent / "static"
 render_jobs = RenderJobs()
 app.add_middleware(
@@ -206,6 +208,11 @@ def harmonic_pitch_circle() -> FileResponse:
 @app.get("/prime-limit-explorer", include_in_schema=False)
 def prime_limit_explorer() -> FileResponse:
     return FileResponse(STATIC_DIR / "prime_limit_explorer.html")
+
+
+@app.get("/harmony-dictionary", include_in_schema=False)
+def harmony_dictionary() -> FileResponse:
+    return FileResponse(STATIC_DIR / "harmony_dictionary.html")
 
 
 @app.get("/minimal-functional-composer", include_in_schema=False)

@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>5D Harmony Dictionary | Pure Intonation Workbench</title>
+    <link rel="stylesheet" href="/static/style.css?v=20260926-harmony-dict-1">
+  </head>
+  <body class="harmony-dictionary-page">
+    <header class="topbar">
+      <div><p class="eyebrow">5D · HARMONY DICTIONARY &amp; CADENCE</p><h1>5D Harmony Dictionary</h1><p class="page-subtitle">Five-axis lattice chords, single-axis projection, stability, and cadences over sealed dictionaries</p></div>
+      <span class="topbar-links"><a href="/">Workbench</a><a href="/lattice">Lattice Lab</a><a href="/prime-limit-explorer">Prime-Limit Explorer</a><a href="/harmonic-pitch-circle">Harmonic Pitch Circle</a><a href="/minimal-functional-composer">Minimal Composer</a><a href="/motif-development">Motif Development</a><a href="/vital-pack-composer">Vital Pack</a><a href="/fractional-pop-composer">Fractional Pop</a><a href="/jpop-composer">J-Pop</a><a href="/kawaii-future-pop">Kawaii Future Pop</a><a href="/composition-explorer">Explorer</a><a href="/compose/bohlen-pierce">Bohlen-Pierce</a><a href="/compose/mixed-meter-drums">Mixed Meter</a><a href="/midi-toolkit">MIDI Toolkit</a><a href="/docs" target="_blank" rel="noreferrer">API docs ↗</a></span>
+    </header>
+    <main class="harmony-dict-main">
+      <section class="panel hd-controls">
+        <div class="section-heading"><h2>Equave &amp; Config</h2><span id="hd-status" role="status">Ready</span></div>
+        <label>Equave<select id="hd-equave"><option value="2/1">2/1 (octave)</option><option value="3/1">3/1 (tritave)</option></select></label>
+        <div id="hd-config" class="hd-config"></div>
+        <hr>
+        <label>Reference frequency <output id="hd-base-value">220 Hz</output><input id="hd-base-frequency" type="range" min="110" max="440" value="220"></label>
+        <label>Waveform<select id="hd-waveform"><option value="sine">Sine</option><option value="triangle">Triangle</option><option value="sawtooth">Sawtooth</option></select></label>
+        <div class="button-row"><button id="hd-save" class="quiet">Save JSON</button><button id="hd-load" class="quiet">Load JSON</button></div>
+        <p class="hint">Save/load keeps coordinates, results, and the profile hash for reproducibility.</p>
+      </section>
+      <section class="panel hd-axes-panel">
+        <div class="section-heading"><h2>Five Axes</h2><span id="hd-axes-summary"></span></div>
+        <div id="hd-axes" class="hd-axes"></div>
+      </section>
+      <section class="panel hd-chords-panel">
+        <div class="section-heading"><h2>Chord Dictionary</h2><span id="hd-chords-summary"></span></div>
+        <div class="hd-chord-controls">
+          <label>Axis<select id="hd-chord-axis"></select></label>
+          <label>Voices<select id="hd-voice-count"><option value="3">Triads</option><option value="4">Tetrads</option></select></label>
+          <label>Template<input id="hd-template" placeholder="any" list="hd-templates"></label>
+          <datalist id="hd-templates"></datalist>
+          <label>Key<input id="hd-key" placeholder="0,4,7"></label>
+          <label>Tonic<input id="hd-chord-tonic" value="1/1"></label>
+        </div>
+        <div class="hd-pager"><button id="hd-page-prev" class="quiet">← Prev</button><span id="hd-page-info"></span><button id="hd-page-next" class="quiet">Next →</button></div>
+        <div id="hd-entries" class="hd-entries"></div>
+      </section>
+      <section class="panel hd-evaluate-panel">
+        <div class="section-heading"><h2>5D Chord Evaluation</h2><span id="hd-eval-status"></span></div>
+        <div class="hd-eval-controls">
+          <label>Tonic<input id="hd-eval-tonic" value="1/1"></label>
+          <label>Voices<select id="hd-eval-voices"><option value="3">3</option><option value="4">4</option></select></label>
+          <button id="hd-evaluate" class="primary">Evaluate</button>
+        </div>
+        <div id="hd-eval-vectors" class="hd-eval-vectors"></div>
+        <p class="hint">Vectors are exponents on the five axes (basis shown per equave); registers are equave powers. Enter evaluates.</p>
+        <div id="hd-eval-result" class="hd-eval-result"></div>
+      </section>
+      <section class="panel hd-cadence-panel">
+        <div class="section-heading"><h2>Cadences</h2><span id="hd-cadence-status"></span></div>
+        <div class="hd-cadence-controls">
+          <label>Tonic<input id="hd-cadence-tonic" value="1/1"></label>
+          <label>Kind<select id="hd-cadence-kind"><option value="authentic">Authentic (T→D→T)</option><option value="plagal">Plagal (T→S→D→T)</option><option value="open">Open (…→D)</option><option value="lattice">Lattice (free→T)</option></select></label>
+          <label>Seed<input id="hd-cadence-seed" type="number" min="0" value="7"></label>
+          <label>Count<input id="hd-cadence-count" type="number" min="1" max="8" value="1"></label>
+          <button id="hd-generate-cadence" class="primary">Generate</button>
+        </div>
+        <div id="hd-cadences" class="hd-cadences"></div>
+        <div id="hd-cadence-report" class="hd-cadence-report"></div>
+      </section>
+    </main>
+    <script src="/static/harmony_dictionary.js?v=20260926-harmony-dict-1"></script>
+  </body>
+</html>
