@@ -2,6 +2,8 @@
 
 Status: **§1–§10 は実装済み v1 の記録、§11 は未実装の v2、§12 は未実装の v3 仕様案**。CompositionPlan 2.0、SongProgram 0.2、Project、
 既存 G0 と exact-ratio authority の上に追加するピアノ専用探索契約。
+5D 辞書の実装監査と cadence を組み込む v3 の具体的な境界は
+[カデンツ駆動 v3 プロファイル仕様](piano_solo_v3_cadence_profile_spec.md)を参照。
 次期実装は [5D和音辞書・カデンツ計画](development_plan_5d_chord_cadence_dictionary.md)
 により新規 profile での **2D 採用を廃止し最低3D** とする。以下の
 v1 2D 記述は既存 seed の再現に必要な履歴であり、新規採用方針ではない。

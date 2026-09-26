@@ -1,6 +1,9 @@
 # 5D格子和音辞書・安定度・カデンツ試験 Dev Plan
 
-Status: **次期実装の仕様／未実装**。本計画では新規の独立プロジェクトとして
+Status: **計画文書**。辞書・API・workbench の初期実装は `1738ad22`。
+数値検証とピアノへの接続は
+[実装監査と v3 プロファイル仕様](piano_solo_v3_cadence_profile_spec.md)を参照。
+本計画では新規の独立プロジェクトとして
 「5D Harmony Dictionary」を作る。既存の 5D コンパイラ権威、
 Prime-Limit Explorer と SongProgram は参照するが、既存 golden／seed の
 意味を上書きしない。最終成果は API・永続辞書・カデンツ試験・Web UI。
