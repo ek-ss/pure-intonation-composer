@@ -23,6 +23,19 @@ lowering／impact reportのslot barはsection-relativeに統一した。slot rep
 
 よって両equaveのv3 profileは**unsealed**のまま。tritave navigation policy/domainの版付き解決、実生成での必要step／resource gate再検証が必要。
 
+## Follow-up P0: fail-closed 照合と staged failure（2026-09-30）
+
+`piano_v3_followup_work_instructions_2026-09-30.md` の P0 を実装した。
+
+- `cadence_impact_report`（schema `cps.piano-cadence-impact-report` **1.1.0**）は slot ごとに position → binding → provenance → sounding の全チェーンを照合し、`mismatches` に型付きコードを記録する。`matched` は program と project の両方が与えられ全チェック通過時のみ。
+  - position: `V3_RECON_NO_REALIZATION`／`V3_RECON_EXTRA_REALIZATION`／`V3_RECON_MATERIAL_KIND`／`V3_RECON_INTENT_MISSING`（program 側）、`V3_RECON_NO_OCCURRENCE`／`V3_RECON_EXTRA_OCCURRENCE`／`V3_RECON_CHORD_MISSING`（project 側）。bar は section-relative、section start は program form から導出。
+  - binding: `V3_RECON_BINDING_SOURCE_KEY`／`DICTIONARY_HASH`／`VARIANT_HASH`／`VARIANT`（dictionary 供給時は sealed variant 全体比較）、`V3_RECON_VARIANT_LATTICE`／`VARIANT_RATIO`（置かれた声部が lattice・slot plan を実現するか）。
+  - provenance: `V3_RECON_PROVENANCE_INTENT_HASH`。chord の `intent_hash` は program 内の intent（compiler は同一 variant の bar で chord を再利用するため位置外でも可）に解決し、その variant が slot の authority に binding-equivalent であること。
+  - sounding: `V3_RECON_VOICE_COUNT`／`RATIO_MISMATCH`（絶対 exact ratio）／`ROOT_VECTOR_MISMATCH`（anchor＝root voice vector＋section tonal center）／`VOICE_VECTOR_MISMATCH`／`VOICE_LIFT_MISMATCH`（各声部の vector・equave lift）。
+- `lower_cadence_plan` は form にない section を持つ slot で `LOWER_SECTION_MISSING`（黙って落とさない）。
+- cohort CLI（`generate_piano_v3_cadence_trial.py`）は `V3TrialFailure`（stage＋code＋部分成果物）で失敗を段階記録する。stage: setup／plan／cadence／lowering／program_schema／compile／project_schema／reconciliation／midi／render／pcm。部分成果物は書き出すが cohort success にしない。`--skip-wav` は PCM `not_evaluated`。
+- 検証: 対象4ファイル28 tests＋Ruff 通過、全スイート `940 passed, 1 skipped`。octave seed 4（28/28 matched）と tritave seed 0（32/32 matched）で Program／Project／WAV hash を再現（上記表と一致）。負case（occurrence移動、section境界、前section同一chord、intent ID swap、rootのみlift、単一声部lift）は各々型付き mismatch を返す。octave seeds 0–3 は stage=compile／`PROGRESSION_NO_PATH`、部分成果物4件を保持したまま cohort 分母に残る。
+
 ## 未完了・ブロック
 
 - **正式GEN0-B sparse opcode／receipt**: 未実装。`sparse_charge_receipt` は矩形領域と宣言声部数のbounds-only判定のまま。production独立fixture、opcode再計算oracle、負数／cap／authority／register等のnegative casesを完了するまで、試行reportも `experimental_not_gen0b_opcode_receipt`。

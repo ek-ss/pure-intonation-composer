@@ -30,7 +30,11 @@ BACKEND = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(BACKEND))
 
 from app.harmony_dictionary.storage import read_sealed  # noqa: E402
-from app.songprogram.compiler import CompilerIdentity, compile_sp0  # noqa: E402
+from app.songprogram.compiler import (  # noqa: E402
+    CompileError,
+    CompilerIdentity,
+    compile_sp0,
+)
 from app.songprogram.composition_generation import generate_composition_plan  # noqa: E402
 from app.songprogram.midi_export import export_evaluation_midi  # noqa: E402
 from app.songprogram.mutation import program_hash  # noqa: E402
@@ -163,72 +167,120 @@ def _navigation_report(equave: str) -> dict[str, Any]:
     return comparison
 
 
+class V3TrialFailure(PianoV3Error):
+    """A staged trial failure: failing stage, typed code, partial artifacts."""
+
+    def __init__(
+        self, code: str, stage: str, detail: str = "",
+        artifacts: dict[str, bytes] | None = None,
+    ) -> None:
+        super().__init__(code, detail)
+        self.stage = stage
+        self.artifacts = artifacts if artifacts is not None else {}
+
+
+def _failure_code(error: BaseException) -> str:
+    return getattr(error, "code", None) or type(error).__name__
+
+
 def generate_one(equave: str, seed: int, *, skip_wav: bool) -> tuple[dict[str, bytes], dict[str, Any]]:
-    dictionary = _dictionary(equave)
-    generation = _object(GENERATION_PROFILE)
-    catalog, catalog_bytes, catalog_digest, assets = _piano_catalog(generation)
-    # Widen the piano sample window for both equaves; this digest is included
-    # in Program/Project identity and therefore remains part of the receipt.
-    for entry in catalog["entries"]:
-        if entry.get("instrument_id") in ("piano_solo_harmony", "piano_solo_melody"):
-            entry["instrument_id"] = f"piano_v3_{entry['role']}"
-        if entry.get("kind") == "pitched":
-            entry["allowed_frequency_millihz"] = [55_000, 1_760_000]
-    catalog_bytes = canonical_bytes(catalog)
-    catalog_digest = "sha256:" + hashlib.sha256(
-        b"cps.instrument-catalog/v1\0" + catalog_bytes
-    ).hexdigest()
+    """Run one seed through the full v3 path, staging every failure.
 
-    plan = generate_composition_plan(_object(COMPOSITION_PROFILE), seed)
-    policy = build_cadence_policy(
-        equave, dictionary["hash"], dictionary["stability_profile_hash"],
-        dictionary["thresholds"]["version"],
-    )
-    cadence = generate_cadence_plan(plan, dictionary, policy)
-    validate_cadence_plan(cadence)
-    base = _base_program(plan, equave, catalog_digest)
-    program = lower_cadence_plan(base, cadence, dictionary)
+    Each stage records its artifacts as it completes; a failure raises
+    ``V3TrialFailure`` carrying the failing stage, its typed code, and the
+    partial artifacts produced so far.  A seed is a cohort success only when
+    every stage completes: partial artifacts never count as success, and a
+    skipped WAV leaves PCM ``not_evaluated`` rather than a PCM success.
+    """
+    artifacts: dict[str, bytes] = {}
+    stage = "setup"
+    try:
+        dictionary = _dictionary(equave)
+        generation = _object(GENERATION_PROFILE)
+        catalog, catalog_bytes, catalog_digest, assets = _piano_catalog(generation)
+        # Widen the piano sample window for both equaves; this digest is included
+        # in Program/Project identity and therefore remains part of the receipt.
+        for entry in catalog["entries"]:
+            if entry.get("instrument_id") in ("piano_solo_harmony", "piano_solo_melody"):
+                entry["instrument_id"] = f"piano_v3_{entry['role']}"
+            if entry.get("kind") == "pitched":
+                entry["allowed_frequency_millihz"] = [55_000, 1_760_000]
+        catalog_bytes = canonical_bytes(catalog)
+        catalog_digest = "sha256:" + hashlib.sha256(
+            b"cps.instrument-catalog/v1\0" + catalog_bytes
+        ).hexdigest()
 
-    program_schema = _object(SCHEMAS / "song_program_0_3.schema.json")
-    jsonschema.Draft202012Validator(program_schema).validate(program)
-    identity = CompilerIdentity(
-        f"piano-v3-cadence-{equave.replace('/', '-')}/v1", "sparse-exact/v1",
-        "sha256:" + "10" * 32, "sha256:" + "11" * 32, catalog_digest,
-    )
-    project = compile_sp0(
-        program, identity, stochastic_realization=False,
-        dictionary_authorities={dictionary["hash"]: dictionary},
-    )
-    project_schema = _object(SCHEMAS / "arrangement_project_1_3_sparse.schema.json")
-    jsonschema.Draft202012Validator(project_schema).validate(project)
-    impact = cadence_impact_report(cadence, program, project)
-    if not impact["slots"] or any(not row.get("program_bound") or row["status"] != "matched" for row in impact["slots"]):
-        raise PianoV3Error("V3_CADENCE_PROJECT_RECONCILIATION_FAILED")
+        stage = "plan"
+        plan = generate_composition_plan(_object(COMPOSITION_PROFILE), seed)
+        artifacts["composition_plan.json"] = canonical_bytes(plan)
 
-    midi, midi_manifest = export_evaluation_midi(
-        project, program_by_track={"harmony": 0, "melody": 0}
-    )
-    artifacts = {
-        "composition_plan.json": canonical_bytes(plan),
-        "cadence_policy.json": _json_bytes(policy),
-        "cadence_plan.json": canonical_bytes(cadence),
-        "program.json": canonical_bytes(program),
-        "project.json": canonical_bytes(project),
-        "cadence_impact_report.json": canonical_bytes(impact),
-        "evaluation_reference.mid": midi,
-        "evaluation_reference_midi.json": canonical_bytes(midi_manifest),
-    }
-    if skip_wav:
-        pcm: dict[str, Any] = {"status": "not_evaluated"}
-    else:
-        render_manifest = _object(RENDER_FIXTURE / "render_manifest.json")
-        rendered = render_reference(
-            project, catalog_bytes, assets.__getitem__,
-            render_manifest_digest=render_manifest["render_manifest_digest"],
-            project_artifact_hash=project_hash(project),
+        stage = "cadence"
+        policy = build_cadence_policy(
+            equave, dictionary["hash"], dictionary["stability_profile_hash"],
+            dictionary["thresholds"]["version"],
         )
-        artifacts["reference.wav"] = rendered.wav
-        pcm = _pcm_check(rendered.wav)
+        artifacts["cadence_policy.json"] = _json_bytes(policy)
+        cadence = generate_cadence_plan(plan, dictionary, policy)
+        validate_cadence_plan(cadence)
+        artifacts["cadence_plan.json"] = canonical_bytes(cadence)
+
+        stage = "lowering"
+        base = _base_program(plan, equave, catalog_digest)
+        program = lower_cadence_plan(base, cadence, dictionary)
+        artifacts["program.json"] = canonical_bytes(program)
+
+        stage = "program_schema"
+        program_schema = _object(SCHEMAS / "song_program_0_3.schema.json")
+        jsonschema.Draft202012Validator(program_schema).validate(program)
+
+        stage = "compile"
+        identity = CompilerIdentity(
+            f"piano-v3-cadence-{equave.replace('/', '-')}/v1", "sparse-exact/v1",
+            "sha256:" + "10" * 32, "sha256:" + "11" * 32, catalog_digest,
+        )
+        project = compile_sp0(
+            program, identity, stochastic_realization=False,
+            dictionary_authorities={dictionary["hash"]: dictionary},
+        )
+        artifacts["project.json"] = canonical_bytes(project)
+
+        stage = "project_schema"
+        project_schema = _object(SCHEMAS / "arrangement_project_1_3_sparse.schema.json")
+        jsonschema.Draft202012Validator(project_schema).validate(project)
+
+        stage = "reconciliation"
+        impact = cadence_impact_report(cadence, program, project, dictionary_file=dictionary)
+        bad = [
+            f"{row['section_id']}/{row['bar']}:{'+'.join(row['mismatches']) or 'NOT_MATCHED'}"
+            for row in impact["slots"] if row["status"] != "matched"
+        ]
+        if not impact["slots"] or bad:
+            raise PianoV3Error("V3_CADENCE_PROJECT_RECONCILIATION_FAILED", "; ".join(bad[:8]))
+        artifacts["cadence_impact_report.json"] = canonical_bytes(impact)
+
+        stage = "midi"
+        midi, midi_manifest = export_evaluation_midi(
+            project, program_by_track={"harmony": 0, "melody": 0}
+        )
+        artifacts["evaluation_reference.mid"] = midi
+        artifacts["evaluation_reference_midi.json"] = canonical_bytes(midi_manifest)
+
+        if skip_wav:
+            pcm: dict[str, Any] = {"status": "not_evaluated"}
+        else:
+            stage = "render"
+            render_manifest = _object(RENDER_FIXTURE / "render_manifest.json")
+            rendered = render_reference(
+                project, catalog_bytes, assets.__getitem__,
+                render_manifest_digest=render_manifest["render_manifest_digest"],
+                project_artifact_hash=project_hash(project),
+            )
+            artifacts["reference.wav"] = rendered.wav
+            stage = "pcm"
+            pcm = _pcm_check(rendered.wav)
+    except (PianoV3Error, CompileError, ValueError, KeyError, OSError, jsonschema.ValidationError) as error:
+        raise V3TrialFailure(_failure_code(error), stage, str(error), artifacts) from error
+
     report = {
         "schema": "cps.piano-v3-cadence-trial-report",
         "schema_version": "1.0.0",
@@ -259,6 +311,7 @@ def generate_one(equave: str, seed: int, *, skip_wav: bool) -> tuple[dict[str, b
                 "program_variant_hashes": row.get("program_variant_hashes", []),
                 "absolute_exact_ratios": row["planned_absolute_ratios"],
                 "project_chords": row.get("project_chords", []),
+                "mismatches": row["mismatches"],
                 "status": row["status"],
             }
             for row in impact["slots"]
@@ -300,21 +353,33 @@ def main() -> None:
                 "report": str(directory / "report.json"),
                 "pcm_status": report["pcm"]["status"],
             })
-        except (PianoV3Error, ValueError, KeyError, OSError, jsonschema.ValidationError) as error:
+        except (V3TrialFailure, ValueError, KeyError, OSError, jsonschema.ValidationError) as error:
+            # Staged failures carry their stage and partial artifacts; any
+            # other failure type is recorded with stage "unknown".  Partial
+            # artifacts are written for inspection but never count the seed
+            # as a cohort success.
+            staged = isinstance(error, V3TrialFailure)
+            stage = error.stage if staged else "unknown"
+            partial = sorted(error.artifacts) if staged else []
             failure = {
                 "schema": "cps.piano-v3-cadence-trial-failure",
                 "schema_version": "1.0.0",
                 "seed": seed,
                 "equave": args.equave,
                 "status": "failed",
-                "failure_code": getattr(error, "code", None) or type(error).__name__,
+                "stage": stage,
+                "failure_code": _failure_code(error),
                 "detail": str(error),
+                "partial_artifacts": partial,
                 "candidate_failures_counted": True,
                 "navigation_comparison": _navigation_report(args.equave),
                 "classification_threshold_calibrated": False,
                 "profile_status": "unsealed",
             }
             directory.mkdir()
+            if staged:
+                for name, payload in error.artifacts.items():
+                    (directory / name).write_bytes(payload)
             (directory / "failure.json").write_bytes(canonical_bytes(failure))
             outcomes.append(failure)
     cohort = {

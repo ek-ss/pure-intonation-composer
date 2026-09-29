@@ -45,7 +45,7 @@ from ..harmony_dictionary.stability import (
     stability_q,
 )
 from ..tuning.ratios import ratio_text
-from .compiler import _mc
+from .compiler import _mc, _sha
 from .composition_generation import composition_plan_hash
 
 SCHEMA_VERSION = "1.0.0"
@@ -840,24 +840,128 @@ def _binding_key(source_chord_key: Any) -> tuple[int, int, tuple[int, ...]] | No
     return generator, count, index_tuple
 
 
+def _variant_body(variant: Mapping[str, Any]) -> dict[str, Any]:
+    """The variant as stored on a 0.3 chord intent (without the anchor helper)."""
+    return {key: value for key, value in variant.items() if key != "anchor_vector"}
+
+
+def _binding_mismatches(
+    variant: Any,
+    slot: Mapping[str, Any],
+    cadence_plan: Mapping[str, Any],
+    expected_variant: Mapping[str, Any] | None,
+    generators: list[Fraction] | None,
+    equave: Fraction,
+) -> list[str]:
+    """Typed binding mismatches of one intent variant against one slot.
+
+    With a dictionary the full sealed variant (source key including entry
+    key, authority hash, variant hash, placed voices) must equal the variant
+    the slot's plan derives; without one the binding identity (generator,
+    voice count, index tuple), authority hash, and recomputed variant hash
+    must agree.  The placed voices must reproduce their ratios in the lattice
+    and realize the slot's root-relative plan, voice for voice.
+    """
+    from .sparse_variant import variant_hash
+
+    if not isinstance(variant, dict):
+        return ["V3_RECON_BINDING_VARIANT"]
+    codes: list[str] = []
+    if expected_variant is not None:
+        if _variant_body(variant) != _variant_body(expected_variant):
+            codes.append("V3_RECON_BINDING_VARIANT")
+    else:
+        slot_key = (slot["generator"], slot["voice_count"], tuple(slot["index_tuple"]))
+        if _binding_key(variant.get("source_chord_key")) != slot_key:
+            codes.append("V3_RECON_BINDING_SOURCE_KEY")
+        if variant.get("dictionary_hash") != cadence_plan["dictionary_hash"]:
+            codes.append("V3_RECON_BINDING_DICTIONARY_HASH")
+        if variant.get("variant_hash") != variant_hash(variant):
+            codes.append("V3_RECON_BINDING_VARIANT_HASH")
+    voices = variant.get("voices")
+    if not isinstance(voices, list) or len(voices) != slot["voice_count"]:
+        codes.append("V3_RECON_VOICE_COUNT")
+        return sorted(set(codes))
+    root = Fraction(slot["root_ratio"])
+    for index, voice in enumerate(voices):
+        vector = voice.get("vector") if isinstance(voice, dict) else None
+        exponent = voice.get("equave_exponent") if isinstance(voice, dict) else None
+        text = voice.get("exact_ratio") if isinstance(voice, dict) else None
+        if not isinstance(vector, list) or type(exponent) is not int or not isinstance(text, str):
+            codes.append("V3_RECON_VARIANT_LATTICE")
+            continue
+        try:
+            ratio = Fraction(text)
+        except (ValueError, ZeroDivisionError):
+            codes.append("V3_RECON_VARIANT_LATTICE")
+            continue
+        if generators is not None:
+            computed = equave**exponent
+            for generator, power in zip(generators, vector):
+                computed *= generator**power
+            if ratio != computed:
+                codes.append("V3_RECON_VARIANT_LATTICE")
+        if ratio != root * Fraction(slot["ratios"][index]):
+            codes.append("V3_RECON_VARIANT_RATIO")
+    return sorted(set(codes))
+
+
+def _binding_equivalent(
+    variant: Any,
+    slot: Mapping[str, Any],
+    cadence_plan: Mapping[str, Any],
+    expected_variant: Mapping[str, Any] | None,
+) -> bool:
+    """Whether a resolved intent's variant binds the slot's planned authority."""
+    from .sparse_variant import variant_hash
+
+    if not isinstance(variant, dict):
+        return False
+    if expected_variant is not None:
+        return _variant_body(variant) == _variant_body(expected_variant)
+    slot_key = (slot["generator"], slot["voice_count"], tuple(slot["index_tuple"]))
+    return (
+        _binding_key(variant.get("source_chord_key")) == slot_key
+        and variant.get("dictionary_hash") == cadence_plan["dictionary_hash"]
+        and variant.get("variant_hash") == variant_hash(variant)
+    )
+
+
 def cadence_impact_report(
     cadence_plan: Mapping[str, Any],
     program: Mapping[str, Any] | None = None,
     project: Mapping[str, Any] | None = None,
     *,
     ticks_per_bar: int | None = None,
+    dictionary_file: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Report planned and compiled cadence evidence without inferring success.
+    """Reconcile cadence slots against the program and project, fail-closed.
 
-    When a project is supplied each slot is reconciled *positionally*: the
-    slot's ``(section_id, bar)`` maps to a tick range and the harmony
-    occurrences that begin in that bar are compared against the slot's
-    planned sounding ratios (the function root times the variant's
-    root-relative ratios, preserving absolute equave lifts).  A slot matches only when a
-    resolved chord in its bar carries exactly those ratios; a global ratio
-    match elsewhere in the piece is not evidence for this slot.
+    Each slot is reconciled along the full provenance chain:
+
+    * position — the slot's ``(section_id, bar)`` (bars are section-relative;
+      section starts come from the program form) must carry exactly one
+      harmony realization in the program and exactly one harmony occurrence
+      in the project;
+    * binding — the chord intent(s) referenced by that position's material
+      must bind the slot's dictionary authority (source key, dictionary
+      hash, variant hash; the full sealed variant when a dictionary is
+      supplied) and realize the slot's root-relative plan;
+    * provenance — a resolved chord's ``intent_hash`` must resolve to a
+      program intent whose variant is binding-equivalent to the slot's plan
+      (the compiler reuses one chord across bars that share a variant);
+    * sounding — the chord's absolute exact ratios, root (anchor) vector,
+      and every voice's lattice vector and equave lift must equal the
+      binding's placed voices.
+
+    A slot is ``matched`` only when both the program and the project are
+    supplied and every check passes; any failure records its typed code in
+    ``mismatches`` instead of a boolean guess.  A chord that merely carries
+    the same ratios in another bar, at another equave lift, or from another
+    dictionary entry is not evidence for this slot.
     """
     validate_cadence_plan(cadence_plan)
+    equave = Fraction(cadence_plan["equave"])
     if ticks_per_bar is None and project is not None:
         clock = project.get("clock", {})
         beats, ticks = clock.get("beats_per_bar"), clock.get("ticks_per_beat")
@@ -867,13 +971,37 @@ def cadence_impact_report(
         {chord["id"]: chord for chord in project.get("resolved_chords", [])}
         if project is not None else {}
     )
-    occurrences_by_slot: dict[tuple[str, int], list[dict[str, Any]]] = {}
+    # Section starts (bars and tonal centers) from the program form.  Bars in
+    # both the cadence plan and the project are section-relative, so every
+    # position lookup goes through these starts.
     section_start_bars: dict[str, int] = {}
+    section_tonal_centers: dict[str, list[int]] = {}
+    realizations_by_slot: dict[tuple[str, int], list[dict[str, Any]]] = {}
+    materials_by_id: dict[str, dict[str, Any]] = {}
+    intents_by_id: dict[str, dict[str, Any]] = {}
     if program is not None:
         cursor = 0
         for section in program.get("form", []):
             section_start_bars[section["id"]] = cursor
+            center = section.get("tonal_center")
+            section_tonal_centers[section["id"]] = (
+                [int(value) for value in center] if isinstance(center, list) else []
+            )
             cursor += section["bars"]
+        materials_by_id = {material["id"]: material for material in program.get("materials", [])}
+        intents_by_id = {intent["id"]: intent for intent in program.get("chord_intents", [])}
+        if ticks_per_bar:
+            for realization in program.get("realizations", []):
+                if realization.get("track_id") != "harmony":
+                    continue
+                section_id = realization.get("section_id")
+                if section_id not in section_start_bars:
+                    continue
+                # Realization at_tick is section-relative (the compiler adds
+                # the section start), so the bar is direct.
+                bar = realization["at_tick"] // ticks_per_bar
+                realizations_by_slot.setdefault((section_id, bar), []).append(realization)
+    occurrences_by_slot: dict[tuple[str, int], list[dict[str, Any]]] = {}
     if project is not None and ticks_per_bar:
         for occurrence in project.get("harmony_occurrences", []):
             absolute_bar = occurrence["start_tick"] // ticks_per_bar
@@ -881,6 +1009,28 @@ def cadence_impact_report(
             occurrences_by_slot.setdefault(
                 (occurrence["section_id"], bar), []
             ).append(occurrence)
+    # Lattice for re-deriving the slot's expected variant (dictionary path).
+    generators: list[Fraction] | None = None
+    if dictionary_file is not None:
+        if program is not None:
+            generators = [Fraction(text) for text in program["lattice"]["generators"]]
+        else:
+            domain = PIANO_V3_DOMAINS.get(cadence_plan["equave"])
+            if domain is None:
+                raise PianoV3Error("V3_RECON_DOMAIN_UNKNOWN", cadence_plan["equave"])
+            generators = [Fraction(text) for text in domain["generators"]]
+    # intent_hash -> intent, for the chord provenance lookup.  The compiler
+    # reuses one resolved chord across bars that share a variant, so the
+    # chord's intent may sit in another bar; binding-equivalence decides.
+    intents_by_hash: dict[str, dict[str, Any]] = {}
+    if program is not None:
+        for intent in program.get("chord_intents", []):
+            intents_by_hash.setdefault(_sha(b"cps.chord-intent/v1\0", intent), intent)
+    _program_side_codes = (
+        "V3_RECON_NO_REALIZATION", "V3_RECON_EXTRA_REALIZATION",
+        "V3_RECON_MATERIAL_KIND", "V3_RECON_INTENT_MISSING",
+        "V3_RECON_BINDING", "V3_RECON_VARIANT",
+    )
     rows = []
     for slot in cadence_plan["slots"]:
         row: dict[str, Any] = {"section_id": slot["section_id"], "bar": slot["bar"],
@@ -894,48 +1044,154 @@ def cadence_impact_report(
                                   for value in slot["ratios"]
                               ],
                               "status": "planned"}
-        slot_key = (slot["generator"], slot["voice_count"], tuple(slot["index_tuple"]))
-        bound_intents = []
+        mismatches: list[str] = []
+        slot_position = (slot["section_id"], slot["bar"])
+        root = Fraction(slot["root_ratio"])
+        expected_ratios = sorted(root * Fraction(text) for text in slot["ratios"])
+
+        # --- program side: position, then binding --------------------------
+        bound_intents: list[dict[str, Any]] = []
+        expected_variant: Mapping[str, Any] | None = None
         if program is not None:
-            # A 0.3 program binds the variant by its source key (the slot's
-            # short key omits the entry key, so compare by binding identity);
-            # a legacy program may only carry an EDO reference.
-            bound_intents = [
-                intent for intent in program.get("chord_intents", [])
-                if _binding_key(intent.get("dictionary_variant", {}).get("source_chord_key")) == slot_key
-                and intent.get("dictionary_variant", {}).get("dictionary_hash") == cadence_plan["dictionary_hash"]
-            ]
-            row["program_bound"] = bool(bound_intents)
-            row["program_variant_hashes"] = sorted(
-                intent["dictionary_variant"]["variant_hash"] for intent in bound_intents
-            )
-        if project is not None:
-            occurrences = occurrences_by_slot.get((slot["section_id"], slot["bar"]), [])
-            chord_ids = sorted({occurrence["resolved_chord_id"] for occurrence in occurrences})
-            row["resolved_chord_ids"] = chord_ids
-            root = Fraction(slot["root_ratio"])
-            expected = sorted(root * Fraction(ratio) for ratio in slot["ratios"])
-            matched = False
-            for chord_id in chord_ids:
-                chord = chords_by_id.get(chord_id)
-                if chord is None:
+            realizations = realizations_by_slot.get(slot_position, [])
+            if not realizations:
+                mismatches.append("V3_RECON_NO_REALIZATION")
+            elif len(realizations) > 1:
+                mismatches.append("V3_RECON_EXTRA_REALIZATION")
+            for realization in realizations:
+                material = materials_by_id.get(realization.get("material_id"))
+                if material is None or material.get("kind") != "harmony_intent_cell":
+                    mismatches.append("V3_RECON_MATERIAL_KIND")
                     continue
-                actual = sorted(Fraction(ratio) for ratio in chord["exact_ratios"])
-                if actual == expected:
-                    matched = True
-                row.setdefault("project_chords", []).append({
-                    "resolved_chord_id": chord_id,
-                    "exact_ratios": chord["exact_ratios"],
-                    "anchor_vector": chord.get("anchor_vector"),
-                    "ratio_match": actual == expected,
-                    "root_vector_match": any(
-                        chord.get("anchor_vector") == intent.get("dictionary_variant", {}).get("voices", [{}])[0].get("vector")
-                        for intent in bound_intents
-                    ) if program is not None else None,
-                })
-            row["status"] = "matched" if matched else "unmatched"
+                for intent_id in material.get("chord_intent_ids", []):
+                    intent = intents_by_id.get(intent_id)
+                    if intent is None:
+                        mismatches.append("V3_RECON_INTENT_MISSING")
+                        continue
+                    bound_intents.append(intent)
+            if dictionary_file is not None:
+                try:
+                    expected_variant = _variant_from_slot(slot, dictionary_file, generators, equave)
+                except PianoV3Error as error:
+                    mismatches.append(error.code)
+            for intent in bound_intents:
+                mismatches.extend(
+                    _binding_mismatches(
+                        intent.get("dictionary_variant"), slot, cadence_plan,
+                        expected_variant, generators, equave,
+                    )
+                )
+            row["program_bound"] = (
+                len(realizations) == 1 and bool(bound_intents)
+                and not any(code.startswith(_program_side_codes) for code in mismatches)
+            )
+            row["program_variant_hashes"] = sorted({
+                intent["dictionary_variant"]["variant_hash"]
+                for intent in bound_intents
+                if isinstance(intent.get("dictionary_variant"), dict)
+                and "variant_hash" in intent["dictionary_variant"]
+            })
+
+        # --- project side: position, provenance, sounding ------------------
+        if project is not None:
+            occurrences = occurrences_by_slot.get(slot_position, [])
+            if not occurrences:
+                mismatches.append("V3_RECON_NO_OCCURRENCE")
+            elif len(occurrences) > 1:
+                mismatches.append("V3_RECON_EXTRA_OCCURRENCE")
+            row["resolved_chord_ids"] = sorted(
+                {occurrence.get("resolved_chord_id") for occurrence in occurrences}
+            )
+            # The binding declared at this position, for the sounding checks.
+            position_variants = (
+                [intent.get("dictionary_variant") for intent in bound_intents]
+                if program is not None else []
+            )
+            for occurrence in occurrences:
+                chord = chords_by_id.get(occurrence.get("resolved_chord_id"))
+                entry: dict[str, Any] = {
+                    "resolved_chord_id": occurrence.get("resolved_chord_id"),
+                }
+                if chord is None:
+                    mismatches.append("V3_RECON_CHORD_MISSING")
+                    entry.update({"ratio_match": False, "root_vector_match": None,
+                                  "voice_vector_match": None, "voice_lift_match": None,
+                                  "intent_hash_match": None})
+                    row.setdefault("project_chords", []).append(entry)
+                    continue
+                entry["exact_ratios"] = chord.get("exact_ratios")
+                entry["anchor_vector"] = chord.get("anchor_vector")
+                entry["voice_count"] = len(chord.get("exact_ratios", []))
+                # Provenance: the chord's intent_hash must resolve to a program
+                # intent whose variant binds the slot's planned authority.
+                resolved = (
+                    intents_by_hash.get(chord.get("intent_hash"))
+                    if program is not None else None
+                )
+                resolved_variant = (
+                    resolved.get("dictionary_variant") if isinstance(resolved, dict) else None
+                )
+                entry["intent_hash_match"] = (
+                    None if program is None
+                    else _binding_equivalent(resolved_variant, slot, cadence_plan, expected_variant)
+                )
+                if program is not None and entry["intent_hash_match"] is False:
+                    mismatches.append("V3_RECON_PROVENANCE_INTENT_HASH")
+                # Sounding: absolute exact ratios against the slot's plan.
+                actual = sorted(Fraction(text) for text in chord.get("exact_ratios", []))
+                entry["ratio_match"] = actual == expected_ratios
+                if not entry["ratio_match"]:
+                    mismatches.append("V3_RECON_RATIO_MISMATCH")
+                # Sounding: root vector and per-voice vector/lift against the
+                # binding declared at this position.
+                variant = position_variants[0] if len(position_variants) == 1 else None
+                voices = variant.get("voices") if isinstance(variant, dict) else None
+                if not isinstance(voices, list) or not voices:
+                    entry.update({"root_vector_match": None, "voice_vector_match": None,
+                                  "voice_lift_match": None})
+                else:
+                    anchor = chord.get("anchor_vector") or []
+                    offsets = chord.get("voice_offsets") or []
+                    exponents = chord.get("equave_exponents") or []
+                    if entry["voice_count"] != len(voices):
+                        mismatches.append("V3_RECON_VOICE_COUNT")
+                    vector_ok = entry["voice_count"] == len(voices)
+                    lift_ok = entry["voice_count"] == len(voices)
+                    for index, voice in enumerate(voices):
+                        if index >= len(offsets) or index >= len(exponents):
+                            vector_ok = lift_ok = False
+                            continue
+                        absolute = [a + o for a, o in zip(anchor, offsets[index])]
+                        if absolute != voice.get("vector"):
+                            vector_ok = False
+                        if exponents[index] != voice.get("equave_exponent"):
+                            lift_ok = False
+                    entry["voice_vector_match"] = vector_ok
+                    entry["voice_lift_match"] = lift_ok
+                    if not vector_ok:
+                        mismatches.append("V3_RECON_VOICE_VECTOR_MISMATCH")
+                    if not lift_ok:
+                        mismatches.append("V3_RECON_VOICE_LIFT_MISMATCH")
+                    center = section_tonal_centers.get(
+                        slot["section_id"], [0] * len(voices[0].get("vector", []))
+                    )
+                    expected_anchor = [
+                        a + t for a, t in zip(voices[0].get("vector", []), center)
+                    ]
+                    entry["root_vector_match"] = anchor == expected_anchor
+                    if not entry["root_vector_match"]:
+                        mismatches.append("V3_RECON_ROOT_VECTOR_MISMATCH")
+                row.setdefault("project_chords", []).append(entry)
+
+        if mismatches:
+            row["status"] = "unmatched"
+        elif program is not None and project is not None:
+            row["status"] = "matched"
+        else:
+            row["status"] = "planned"
+        row["mismatches"] = sorted(set(mismatches))
         rows.append(row)
-    return {"schema": "cps.piano-cadence-impact-report", "schema_version": "1.0.0",
+    return {"schema": "cps.piano-cadence-impact-report", "schema_version": "1.1.0",
             "cadence_plan_hash": cadence_plan["cadence_plan_hash"],
             "program_checked": program is not None, "project_checked": project is not None,
             "ticks_per_bar": ticks_per_bar,
@@ -1073,6 +1329,13 @@ def lower_cadence_plan(
     slots_by_section: dict[str, list[dict[str, Any]]] = {}
     for slot in cadence_plan["slots"]:
         slots_by_section.setdefault(slot["section_id"], []).append(slot)
+    # A slot whose section is absent from the form would be silently dropped;
+    # fail closed instead (section-relative bars are only well-defined per
+    # section that the program actually realizes).
+    form_section_ids = {section["id"] for section in program["form"]}
+    orphaned = sorted(set(slots_by_section) - form_section_ids)
+    if orphaned:
+        raise PianoV3Error("LOWER_SECTION_MISSING", ",".join(orphaned))
     for section in program["form"]:
         section_id = section["id"]
         slots = sorted(slots_by_section.get(section_id, []), key=lambda item: item["bar"])
