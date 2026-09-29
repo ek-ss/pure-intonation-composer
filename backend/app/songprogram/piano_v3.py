@@ -763,14 +763,6 @@ def validate_cadence_plan(plan: Mapping[str, Any]) -> None:
         seen.add((slot["section_id"], slot["bar"]))
 
 
-def _reduced_sorted(values: list[Fraction], equave: Fraction) -> list[Fraction]:
-    """Equave-reduced ratios sorted by (numerator, denominator) for comparison."""
-    return sorted(
-        (reduce_on_equave(value, equave)[0] for value in values),
-        key=lambda value: (value.numerator, value.denominator),
-    )
-
-
 def _binding_key(source_chord_key: Any) -> tuple[int, int, tuple[int, ...]] | None:
     """(generator, count, index_tuple) from a full sparse source key, or None."""
     if not isinstance(source_chord_key, str):
@@ -799,12 +791,11 @@ def cadence_impact_report(
     slot's ``(section_id, bar)`` maps to a tick range and the harmony
     occurrences that begin in that bar are compared against the slot's
     planned sounding ratios (the function root times the variant's
-    root-relative ratios, reduced on the equave).  A slot matches only when a
+    root-relative ratios, preserving absolute equave lifts).  A slot matches only when a
     resolved chord in its bar carries exactly those ratios; a global ratio
     match elsewhere in the piece is not evidence for this slot.
     """
     validate_cadence_plan(cadence_plan)
-    equave = Fraction(cadence_plan["equave"])
     if ticks_per_bar is None and project is not None:
         clock = project.get("clock", {})
         beats, ticks = clock.get("beats_per_bar"), clock.get("ticks_per_beat")
@@ -843,17 +834,13 @@ def cadence_impact_report(
             chord_ids = sorted({occurrence["resolved_chord_id"] for occurrence in occurrences})
             row["resolved_chord_ids"] = chord_ids
             root = Fraction(slot["root_ratio"])
-            expected = _reduced_sorted(
-                [root * Fraction(ratio) for ratio in slot["ratios"]], equave
-            )
+            expected = sorted(root * Fraction(ratio) for ratio in slot["ratios"])
             matched = False
             for chord_id in chord_ids:
                 chord = chords_by_id.get(chord_id)
                 if chord is None:
                     continue
-                actual = _reduced_sorted(
-                    [Fraction(ratio) for ratio in chord["exact_ratios"]], equave
-                )
+                actual = sorted(Fraction(ratio) for ratio in chord["exact_ratios"])
                 if actual == expected:
                     matched = True
                     break
@@ -1020,6 +1007,7 @@ def lower_cadence_plan(
             program["materials"].append({
                 "id": cell_id, "kind": "harmony_intent_cell", "rhythm_id": rhythm_id,
                 "root_anchors": [variant["anchor_vector"]],
+                "anchor_equave_exponent": variant["voices"][0]["equave_exponent"],
                 "chord_intent_ids": [intent_id], "mapping": "zip",
             })
             program["realizations"].append({
@@ -1046,20 +1034,27 @@ def sparse_charge_receipt(
     coordinate_budget: int = GEN0B_COORDINATE_BUDGET,
     placed_budget: int = GEN0B_PLACED_BUDGET,
 ) -> dict[str, Any]:
-    """Formal GEN0-B sparse charge receipt.
+    """Sparse candidate cardinality budget assessment for experimental trials.
 
     The rectangular domain is a legacy navigation/charging domain; the sparse
     path charges declared voices, never the Cartesian product of axis ranges.
-    GEN0-B acceptance therefore requires the rectangular domain to sit within
-    its contract budgets (1024 coordinate / 4096 placed) and the declared
-    voices to stay within the sparse voice cap.  The receipt is deterministic
-    and self-hashing so a trial report can carry it as evidence.
+    This checks the rectangular limits (1024 coordinate / 4096 placed) and
+    declared voice cap. It does not run the GEN0-B logical opcode emitter or
+    establish a conformance charge receipt for the sparse resolver.
     """
+    quantities = (declared_voices, rectangular_coordinate_points,
+                  rectangular_placed_points, maximum_declared_voices,
+                  coordinate_budget, placed_budget)
+    if any(type(value) is not int or value < 0 for value in quantities):
+        raise PianoV3Error("SPARSE_CHARGE_INVALID")
+    if not all(value > 0 for value in quantities[3:]):
+        raise PianoV3Error("SPARSE_CHARGE_INVALID")
     within_coordinate = rectangular_coordinate_points <= coordinate_budget
     within_placed = rectangular_placed_points <= placed_budget
     within_voices = declared_voices <= maximum_declared_voices
     body = {
-        "contract": "gen0b-sparse-charge/v1",
+        "contract": "trial-sparse-bounds/v1",
+        "scope": "bounds_only_not_gen0b_opcode_receipt",
         "declared_voices": declared_voices,
         "maximum_declared_voices": maximum_declared_voices,
         "rectangular_coordinate_points": rectangular_coordinate_points,
@@ -1073,6 +1068,6 @@ def sparse_charge_receipt(
     }
     receipt = dict(body)
     receipt["receipt_hash"] = "sha256:" + hashlib.sha256(
-        b"cps.gen0b-sparse-receipt/v1\0" + _canonical(body)
+        b"cps.trial-sparse-bounds/v1\0" + _canonical(body)
     ).hexdigest()
     return receipt

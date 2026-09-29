@@ -278,6 +278,11 @@
     "harmony": {
       "additionalProperties": false,
       "properties": {
+        "anchor_equave_exponent": {
+          "maximum": 32,
+          "minimum": -32,
+          "type": "integer"
+        },
         "chord_intent_ids": {
           "items": {
             "$ref": "#/$defs/id"

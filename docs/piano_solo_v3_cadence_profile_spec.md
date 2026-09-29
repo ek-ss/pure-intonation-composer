@@ -1,6 +1,6 @@
 # 5D辞書の実装確認とカデンツ駆動ピアノプロファイル v3 仕様案
 
-Status: **実装監査（2026-09-27）→ 数値ブロッカー修正済み（2026-09-27）→ v3 lowering／Project 照合／GEN0-B sparse receipt 実装済み（2026-09-29）**。
+Status: **実装監査（2026-09-27）→ 数値ブロッカー修正済み（2026-09-27）→ v3 lowering／Project 照合／sparse 予算評価を実装（2026-09-29）**。
 監査対象は commit `1738ad22` の 5D Harmony Dictionary。
 作業ツリーにある piano v2 の compiler／lowering／profile 試作は
 進行中の作業として扱い、本仕様の完成済み依存物には数えない。
@@ -21,8 +21,8 @@ Status: **実装監査（2026-09-27）→ 数値ブロッカー修正済み（20
 > **追記（2026-09-29）**: `lower_cadence_plan`（cadence plan を SongProgram
 > 0.3 の clone-on-write harmony cell／chord intent に結合）、`cadence_impact_report`
 > の位置付き Project 照合（slot の section/bar を tick 窓に写像し、function
-> root×variant ratio を equave で約化した exact ratio と比較）、`sparse_charge_receipt`
-> （GEN0-B 1024 coordinate／4096 placed と sparse voice cap の受入判定＋hash）を
+> root×variant ratio を register を保つ絶対 exact ratio と比較）、`sparse_charge_receipt`
+> （矩形 1024 coordinate／4096 placed と sparse voice cap の範囲判定＋hash）を
 > 実装した。octave fixture 派生 Program の end-to-end（lower→compile→照合）は
 > `backend/tests/test_piano_v3_lowering.py` で全 slot matched を確認する。
 > centered navigation の全12音被覆（tritave）と独立試聴ラベルによる threshold
@@ -209,7 +209,8 @@ GEN0-B の 1024 coordinate／4096 placed は、現行 compiler が
 root を基準に1軸だけ変化させて辞書を引き、3/4音の採用 variant と
 必要な register/lift のみを compiler に渡す設計へ進める。
 SongProgram 0.3 の `dictionary_variant`（後述）で非矩形な sparse 候補入力と
-GEN0-B 予算・receipt・exact Project の検証を実装済み。`[-1,2]^5` は現行の
+矩形予算と sparse 声部数の範囲判定・exact Project の検証を実装済み。
+GEN0-B 論理 opcode 計量に接続した sparse receipt は未実装。`[-1,2]^5` は現行の
 矩形経路用の仮 domain であり、軸別探索上限の仕様ではない。
 tritave の24音絶対参照窓とその未確定の軸別被覆条件は
 [5D辞書計画の拡張方針](development_plan_5d_chord_cadence_dictionary.md#軸別探索と-tritave-参照の拡張方針2026-09-28未実装)を参照。
@@ -286,9 +287,9 @@ variant を使う。seed 0／1 の Program、Project、MIDI、WAV、PCM検収は
 `local_authority/piano_tritave_dictionary_axis_seed{0,1}` に保存。
 全4 section の Project exact ratios が Program に一致（3 section は
 封印済み辞書 variant、1 section は軸候補）、192 note events、
-48 kHz stereo 非無音 PCM。`sparse_charge_receipt`（GEN0-B 1024
-coordinate／4096 placed と sparse voice cap の受入判定＋hash）を実装し、
-report の `sparse_charge.gen0b_receipt` に格納する（seed 0/1 は accepted）。
+48 kHz stereo 非無音 PCM。`sparse_charge_receipt` は Program から計算した
+矩形点数と sparse 声部数の範囲判定を `sparse_charge` に記録する（seed 0/1
+は範囲内）。GEN0-B 論理 opcode の計量・conformance receipt は未評価。
 CadencePlan slot と実 Project の位置付き照合も `cadence_impact_report` で
 実装済み。ただし centered navigation の全12音被覆（tritave）と独立試聴
 ラベルによる threshold 較正が未完了のため、生成品質の seal は意味しない。

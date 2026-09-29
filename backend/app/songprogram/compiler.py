@@ -1127,7 +1127,7 @@ def compile_sp0(
                         anchor_exponent=(
                             _v2_bass_anchor_exponent(lattice, anchor)
                             if v2_active
-                            else None
+                            else material.get("anchor_equave_exponent")
                         ),
                     )
                     query_key = _canonical((query, intent.get("dictionary_variant"))) if program["schema_version"] == "0.3.0" else _canonical(query)

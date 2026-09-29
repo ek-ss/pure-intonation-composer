@@ -9,6 +9,7 @@ import argparse
 import hashlib
 import sys
 from fractions import Fraction
+from math import prod
 from pathlib import Path
 
 BACKEND = Path(__file__).resolve().parents[1]
@@ -138,6 +139,14 @@ def generate(seed: int) -> tuple[dict, dict, bytes, dict]:
     declared_voices = sum(
         len(intent["dictionary_variant"]["voices"]) for intent in program["chord_intents"]
     )
+    rectangular_coordinate_points = prod(
+        high - low + 1 for low, high in program["lattice"]["coordinate_bounds"]
+    )
+    low, high = program["lattice"]["register_bounds"]
+    rectangular_placed_points = rectangular_coordinate_points * (high - low + 1)
+    bounds_receipt = sparse_charge_receipt(
+        declared_voices, rectangular_coordinate_points, rectangular_placed_points
+    )
     report = {"schema": "cps.piano-tritave-trial-report", "schema_version": "1.0.0",
               "seed": seed, "equave": "3/1", "reference": "12-edo-absolute-24/v1",
               "dictionary_hash": dictionary["hash"],
@@ -147,11 +156,7 @@ def generate(seed: int) -> tuple[dict, dict, bytes, dict]:
                                    "reason": "candidate_unavailable_under_resource_limits"},
               "sections": sections, "program_hash": program_hash(program),
               "project_hash": project_hash(project), "pcm": _pcm_check(rendered.wav),
-              "sparse_charge": {"contract": "trial-declared-voices/v1",
-                  "declared_voices": declared_voices,
-                  "maximum_declared_voices": 64, "rectangular_coordinate_points": 675,
-                  "rectangular_placed_points": 3375,
-                  "gen0b_receipt": sparse_charge_receipt(declared_voices, 675, 3375)},
+              "sparse_charge": bounds_receipt,
               "event_count": len(project["events"]), "classification_threshold_calibrated": False,
               "production_status": "experimental_sparse_trial"}
     return program, project, rendered.wav, report
