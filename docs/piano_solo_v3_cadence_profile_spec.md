@@ -234,16 +234,17 @@ tritave の24音絶対参照窓とその未確定の軸別被覆条件は
   anchor に固定）。`_variant_pool` は sparse 契約（root 先頭・sorted・distinct・
   window 内）を満たさない variant を除外する。impact report の compiled 側は
   slot の `(section_id, bar)` を tick 窓に写像し、その bar で解決した chord の
-  exact ratio（equave 約化）と計画 ratio を比較する位置付き照合に変更した。
+  絶対 exact ratio（register を保持）と計画 ratio を比較する位置付き照合に変更した。
   end-to-end（lower→compile→照合、全 slot matched）は
   `backend/tests/test_piano_v3_lowering.py` で確認する。
-- したがって §5 の profile seal／lowering／paired listening／PCM 検収を
+- したがって §5 の profile seal／paired listening／cadence 経路の PCM 検収を
   完了扱いにしない。安定度の threshold は仮値のままとし、分類を確定判断
   として生成へ適用しない。
 - 別系統の `harmony_dictionary/axis_search.py` は root＋単軸の有界探索で
   octave 12音／tritave 24音の絶対参照窓を調べ、3/4音の sparse chord
-  候補を exact ratio 付きで返す。これは Program compiler を通った
-  和音ではなく、v3 planner／lowering との接続も未完了。
+  候補を exact ratio 付きで返す。API の検索結果だけでは Program compiler
+  の成功とはならない。tritave trial で採用した一候補は Program 0.3 で
+  コンパイル済みだが、v3 CadencePlan の sealed variant とは区別する。
 - `backend/tools/generate_piano_v3_trial.py` は5D conformance Program
   から独立した**実験用**16小節ピアノ曲を組み立てる。root anchor の
   section ごとの clone-on-write、Program 0.2／Project 1.3-5D の
