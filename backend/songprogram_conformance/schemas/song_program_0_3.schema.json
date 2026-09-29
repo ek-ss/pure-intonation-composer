@@ -1,0 +1,1032 @@
+{
+  "$defs": {
+    "bounds": {
+      "items": false,
+      "maxItems": 2,
+      "minItems": 2,
+      "prefixItems": [
+        {
+          "maximum": 32,
+          "minimum": -32,
+          "type": "integer"
+        },
+        {
+          "maximum": 32,
+          "minimum": -32,
+          "type": "integer"
+        }
+      ],
+      "type": "array"
+    },
+    "chordIntent": {
+      "additionalProperties": false,
+      "properties": {
+        "complexity_budget": {
+          "maximum": 65535,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "dictionary_variant": {
+          "additionalProperties": false,
+          "allOf": [
+            {
+              "else": {
+                "not": {
+                  "required": [
+                    "dictionary_hash"
+                  ]
+                }
+              },
+              "if": {
+                "additionalProperties": {},
+                "properties": {
+                  "source_kind": {
+                    "const": "sealed_dictionary"
+                  }
+                }
+              },
+              "then": {
+                "required": [
+                  "dictionary_hash"
+                ]
+              }
+            }
+          ],
+          "properties": {
+            "dictionary_hash": {
+              "$ref": "#/$defs/sha256"
+            },
+            "source_chord_key": {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            "source_kind": {
+              "enum": [
+                "axis_search_candidate",
+                "sealed_dictionary"
+              ]
+            },
+            "variant_hash": {
+              "$ref": "#/$defs/sha256"
+            },
+            "voices": {
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "equave_exponent": {
+                    "maximum": 32,
+                    "minimum": -32,
+                    "type": "integer"
+                  },
+                  "exact_ratio": {
+                    "$ref": "#/$defs/ratio"
+                  },
+                  "vector": {
+                    "$ref": "#/$defs/vector"
+                  }
+                },
+                "required": [
+                  "vector",
+                  "equave_exponent",
+                  "exact_ratio"
+                ],
+                "type": "object"
+              },
+              "maxItems": 4,
+              "minItems": 3,
+              "type": "array"
+            }
+          },
+          "required": [
+            "source_chord_key",
+            "voices",
+            "variant_hash",
+            "source_kind"
+          ],
+          "type": "object"
+        },
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "recognition": {
+          "additionalProperties": false,
+          "properties": {
+            "maximum_pair_error_millicents": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "maximum_pair_rms_millicents": {
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "maximum_pair_error_millicents",
+            "maximum_pair_rms_millicents"
+          ],
+          "type": "object"
+        },
+        "reference": {
+          "additionalProperties": false,
+          "properties": {
+            "divisions": {
+              "maximum": 96,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "equave": {
+              "$ref": "#/$defs/ratio"
+            },
+            "steps": {
+              "items": {
+                "maximum": 95,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "maxItems": 8,
+              "minItems": 2,
+              "type": "array",
+              "uniqueItems": true
+            },
+            "temperament": {
+              "const": "edo"
+            }
+          },
+          "required": [
+            "temperament",
+            "equave",
+            "divisions",
+            "steps"
+          ],
+          "type": "object"
+        },
+        "voicing": {
+          "additionalProperties": false,
+          "properties": {
+            "bass_policy": {
+              "enum": [
+                "any",
+                "preserve_target"
+              ]
+            },
+            "bass_target_ordinal": {
+              "maximum": 7,
+              "minimum": 0,
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "maximum_span_millicents": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "minimum_spacing_millicents": {
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "bass_policy",
+            "bass_target_ordinal",
+            "minimum_spacing_millicents",
+            "maximum_span_millicents"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "id",
+        "reference",
+        "voicing",
+        "recognition",
+        "complexity_budget",
+        "dictionary_variant"
+      ],
+      "type": "object"
+    },
+    "clock": {
+      "additionalProperties": false,
+      "properties": {
+        "beats_per_bar": {
+          "enum": [
+            2,
+            3,
+            4,
+            6
+          ]
+        },
+        "tempo_milli_bpm": {
+          "maximum": 300000,
+          "minimum": 30000,
+          "type": "integer"
+        },
+        "ticks_per_beat": {
+          "const": 480
+        }
+      },
+      "required": [
+        "tempo_milli_bpm",
+        "beats_per_bar",
+        "ticks_per_beat"
+      ],
+      "type": "object"
+    },
+    "directPitchMaterial": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "kind": {
+          "const": "direct_vector_cell"
+        },
+        "mapping": {
+          "enum": [
+            "zip",
+            "cycle"
+          ]
+        },
+        "register_delta": {
+          "maximum": 32,
+          "minimum": -32,
+          "type": "integer"
+        },
+        "rhythm_id": {
+          "$ref": "#/$defs/id"
+        },
+        "vectors": {
+          "items": {
+            "$ref": "#/$defs/vector"
+          },
+          "maxItems": 64,
+          "minItems": 1,
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "rhythm_id",
+        "vectors",
+        "mapping",
+        "register_delta"
+      ],
+      "type": "object"
+    },
+    "harmony": {
+      "additionalProperties": false,
+      "properties": {
+        "chord_intent_ids": {
+          "items": {
+            "$ref": "#/$defs/id"
+          },
+          "maxItems": 64,
+          "minItems": 1,
+          "type": "array"
+        },
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "kind": {
+          "const": "harmony_intent_cell"
+        },
+        "mapping": {
+          "enum": [
+            "zip",
+            "cycle"
+          ]
+        },
+        "rhythm_id": {
+          "$ref": "#/$defs/id"
+        },
+        "root_anchors": {
+          "items": {
+            "$ref": "#/$defs/vector"
+          },
+          "maxItems": 64,
+          "minItems": 1,
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "rhythm_id",
+        "root_anchors",
+        "chord_intent_ids",
+        "mapping"
+      ],
+      "type": "object"
+    },
+    "id": {
+      "pattern": "^[a-z][a-z0-9_-]{0,39}$",
+      "type": "string"
+    },
+    "lattice": {
+      "additionalProperties": false,
+      "properties": {
+        "base_frequency_millihz": {
+          "maximum": 2000000,
+          "minimum": 20000,
+          "type": "integer"
+        },
+        "coordinate_bounds": {
+          "items": {
+            "$ref": "#/$defs/bounds"
+          },
+          "maxItems": 5,
+          "minItems": 1,
+          "type": "array"
+        },
+        "equave": {
+          "$ref": "#/$defs/ratio"
+        },
+        "generators": {
+          "items": {
+            "$ref": "#/$defs/ratio"
+          },
+          "maxItems": 5,
+          "minItems": 1,
+          "type": "array"
+        },
+        "maximum_odd_limit": {
+          "maximum": 65535,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "pitch_exploration": {
+          "$ref": "#/$defs/pitchPolicy"
+        },
+        "register_bounds": {
+          "$ref": "#/$defs/bounds"
+        }
+      },
+      "required": [
+        "base_frequency_millihz",
+        "equave",
+        "generators",
+        "coordinate_bounds",
+        "register_bounds",
+        "maximum_odd_limit",
+        "pitch_exploration"
+      ],
+      "type": "object"
+    },
+    "limits": {
+      "additionalProperties": false,
+      "properties": {
+        "max_bars": {
+          "maximum": 128,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "max_events": {
+          "maximum": 8192,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "max_materials": {
+          "maximum": 64,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "max_realizations": {
+          "maximum": 512,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "max_sections": {
+          "maximum": 16,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "max_tracks": {
+          "maximum": 8,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "max_transforms_per_realization": {
+          "maximum": 8,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "max_sections",
+        "max_bars",
+        "max_tracks",
+        "max_materials",
+        "max_realizations",
+        "max_transforms_per_realization",
+        "max_events"
+      ],
+      "type": "object"
+    },
+    "melody": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "kind": {
+          "const": "melody_intent"
+        },
+        "mapping": {
+          "enum": [
+            "zip",
+            "cycle"
+          ]
+        },
+        "points": {
+          "items": {
+            "$ref": "#/$defs/melodyPoint"
+          },
+          "maxItems": 64,
+          "minItems": 1,
+          "type": "array"
+        },
+        "rhythm_id": {
+          "$ref": "#/$defs/id"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "rhythm_id",
+        "points",
+        "mapping"
+      ],
+      "type": "object"
+    },
+    "melodyPoint": {
+      "additionalProperties": false,
+      "properties": {
+        "contour": {
+          "const": "hold"
+        },
+        "member": {
+          "maximum": 7,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "relation": {
+          "const": "chord_member"
+        }
+      },
+      "required": [
+        "relation",
+        "member",
+        "contour"
+      ],
+      "type": "object"
+    },
+    "pitchPolicy": {
+      "additionalProperties": false,
+      "properties": {
+        "audible_offset_band_millicents": {
+          "items": false,
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "minimum": 0,
+              "type": "integer"
+            }
+          ],
+          "type": "array"
+        },
+        "maximum_domain_points": {
+          "maximum": 100000,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "maximum_melodic_jump_millicents": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "maximum_reduced_complexity_bits": {
+          "maximum": 4096,
+          "minimum": 2,
+          "type": "integer"
+        },
+        "minimum_exposed_sections": {
+          "maximum": 16,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "minimum_recurrent_color_relations": {
+          "maximum": 64,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "near_class_merge_millicents": {
+          "maximum": 200000,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "reference_divisions": {
+          "maximum": 96,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "target_audible_event_share_q": {
+          "items": false,
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "maximum": 10000,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "maximum": 10000,
+              "minimum": 0,
+              "type": "integer"
+            }
+          ],
+          "type": "array"
+        }
+      },
+      "required": [
+        "maximum_domain_points",
+        "near_class_merge_millicents",
+        "maximum_reduced_complexity_bits",
+        "reference_divisions",
+        "audible_offset_band_millicents",
+        "target_audible_event_share_q",
+        "minimum_exposed_sections",
+        "minimum_recurrent_color_relations",
+        "maximum_melodic_jump_millicents"
+      ],
+      "type": "object"
+    },
+    "production": {
+      "additionalProperties": false,
+      "properties": {
+        "catalog_digest": {
+          "$ref": "#/$defs/sha256"
+        },
+        "envelopes": {
+          "maxItems": 0,
+          "type": "array"
+        },
+        "profile_id": {
+          "maxLength": 80,
+          "minLength": 1,
+          "type": "string"
+        },
+        "tracks": {
+          "additionalProperties": {
+            "additionalProperties": false,
+            "properties": {
+              "gain_q": {
+                "maximum": 10000,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "pan_q": {
+                "maximum": 10000,
+                "minimum": -10000,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "gain_q",
+              "pan_q"
+            ],
+            "type": "object"
+          },
+          "propertyNames": {
+            "$ref": "#/$defs/id"
+          },
+          "type": "object"
+        }
+      },
+      "required": [
+        "profile_id",
+        "catalog_digest",
+        "tracks",
+        "envelopes"
+      ],
+      "type": "object"
+    },
+    "qPair": {
+      "items": false,
+      "maxItems": 2,
+      "minItems": 2,
+      "prefixItems": [
+        {
+          "maximum": 10000,
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "maximum": 10000,
+          "minimum": 0,
+          "type": "integer"
+        }
+      ],
+      "type": "array"
+    },
+    "ratio": {
+      "pattern": "^[1-9][0-9]*/[1-9][0-9]*$",
+      "type": "string"
+    },
+    "realization": {
+      "additionalProperties": false,
+      "properties": {
+        "at_tick": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "every_ticks": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "gate_scale_q": {
+          "maximum": 10000,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "material_id": {
+          "$ref": "#/$defs/id"
+        },
+        "pitch_transforms": {
+          "maxItems": 0,
+          "type": "array"
+        },
+        "repeat": {
+          "maximum": 32,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "rhythm_transforms": {
+          "items": {
+            "$ref": "#/$defs/rotate"
+          },
+          "maxItems": 8,
+          "type": "array"
+        },
+        "section_id": {
+          "$ref": "#/$defs/id"
+        },
+        "track_id": {
+          "$ref": "#/$defs/id"
+        },
+        "velocity_scale_q": {
+          "maximum": 10000,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "section_id",
+        "track_id",
+        "material_id",
+        "at_tick",
+        "repeat",
+        "every_ticks",
+        "rhythm_transforms",
+        "pitch_transforms",
+        "velocity_scale_q",
+        "gate_scale_q"
+      ],
+      "type": "object"
+    },
+    "rhythm": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "kind": {
+          "const": "rhythm_cell"
+        },
+        "length_ticks": {
+          "maximum": 61440,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "steps": {
+          "items": {
+            "$ref": "#/$defs/rhythmStep"
+          },
+          "maxItems": 64,
+          "minItems": 1,
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "length_ticks",
+        "steps"
+      ],
+      "type": "object"
+    },
+    "rhythmStep": {
+      "additionalProperties": false,
+      "properties": {
+        "accent_q": {
+          "maximum": 10000,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "at_tick": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "duration_ticks": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "lane_id": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "at_tick",
+        "duration_ticks",
+        "accent_q",
+        "lane_id"
+      ],
+      "type": "object"
+    },
+    "rotate": {
+      "additionalProperties": false,
+      "properties": {
+        "op": {
+          "const": "rotate"
+        },
+        "ticks": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "op",
+        "ticks"
+      ],
+      "type": "object"
+    },
+    "section": {
+      "additionalProperties": false,
+      "properties": {
+        "bars": {
+          "maximum": 32,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "density_q": {
+          "$ref": "#/$defs/qPair"
+        },
+        "development_stage": {
+          "enum": [
+            "introduce",
+            "repeat",
+            "develop",
+            "contrast",
+            "recall",
+            "close"
+          ]
+        },
+        "energy_q": {
+          "$ref": "#/$defs/qPair"
+        },
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "role": {
+          "maxLength": 40,
+          "minLength": 1,
+          "type": "string"
+        },
+        "tonal_center": {
+          "$ref": "#/$defs/vector"
+        }
+      },
+      "required": [
+        "id",
+        "role",
+        "bars",
+        "energy_q",
+        "density_q",
+        "tonal_center",
+        "development_stage"
+      ],
+      "type": "object"
+    },
+    "sha256": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "track": {
+      "additionalProperties": false,
+      "properties": {
+        "drum_map": {
+          "additionalProperties": {
+            "maximum": 127,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "maxProperties": 128,
+          "propertyNames": {
+            "$ref": "#/$defs/id"
+          },
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "instrument_id": {
+          "maxLength": 80,
+          "minLength": 1,
+          "type": "string"
+        },
+        "maximum_polyphony": {
+          "maximum": 64,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "register_millicents": {
+          "items": false,
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "integer"
+            }
+          ],
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "role": {
+          "enum": [
+            "drums",
+            "bass",
+            "harmony",
+            "melody",
+            "texture"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "role",
+        "instrument_id",
+        "register_millicents",
+        "maximum_polyphony",
+        "drum_map"
+      ],
+      "type": "object"
+    },
+    "vector": {
+      "items": {
+        "maximum": 32,
+        "minimum": -32,
+        "type": "integer"
+      },
+      "maxItems": 5,
+      "minItems": 1,
+      "type": "array"
+    }
+  },
+  "$id": "https://cps.local/schemas/song_program_0_3.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "chord_intents": {
+      "items": {
+        "$ref": "#/$defs/chordIntent"
+      },
+      "maxItems": 64,
+      "type": "array"
+    },
+    "clock": {
+      "$ref": "#/$defs/clock"
+    },
+    "compile_policy": {
+      "additionalProperties": false,
+      "properties": {
+        "repair": {
+          "const": "reject"
+        }
+      },
+      "required": [
+        "repair"
+      ],
+      "type": "object"
+    },
+    "form": {
+      "items": {
+        "$ref": "#/$defs/section"
+      },
+      "maxItems": 16,
+      "minItems": 1,
+      "type": "array"
+    },
+    "lattice": {
+      "$ref": "#/$defs/lattice"
+    },
+    "limits": {
+      "$ref": "#/$defs/limits"
+    },
+    "materials": {
+      "items": {
+        "oneOf": [
+          {
+            "$ref": "#/$defs/rhythm"
+          },
+          {
+            "$ref": "#/$defs/directPitchMaterial"
+          },
+          {
+            "$ref": "#/$defs/melody"
+          },
+          {
+            "$ref": "#/$defs/harmony"
+          }
+        ]
+      },
+      "maxItems": 64,
+      "minItems": 1,
+      "type": "array"
+    },
+    "production": {
+      "$ref": "#/$defs/production"
+    },
+    "program_id": {
+      "$ref": "#/$defs/id"
+    },
+    "realizations": {
+      "items": {
+        "$ref": "#/$defs/realization"
+      },
+      "maxItems": 512,
+      "minItems": 1,
+      "type": "array"
+    },
+    "schema": {
+      "const": "cps.song-program"
+    },
+    "schema_version": {
+      "const": "0.3.0"
+    },
+    "seed": {
+      "maximum": 18446744073709551615,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "tracks": {
+      "items": {
+        "$ref": "#/$defs/track"
+      },
+      "maxItems": 8,
+      "minItems": 1,
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema",
+    "schema_version",
+    "program_id",
+    "seed",
+    "clock",
+    "lattice",
+    "form",
+    "tracks",
+    "materials",
+    "chord_intents",
+    "realizations",
+    "production",
+    "compile_policy",
+    "limits"
+  ],
+  "title": "CPS SongProgram 0.3 SP0",
+  "type": "object"
+}

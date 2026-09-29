@@ -7,6 +7,7 @@ Five endpoints over the sealed per-equave dictionary files (read-only):
 - ``POST /api/harmony-dictionary/chords``   equave/axis/voices/filter -> paged entries
 - ``POST /api/harmony-dictionary/evaluate`` 5D vectors -> projection + exact re-evaluation
 - ``POST /api/harmony-dictionary/cadences`` tonic/kind/seed -> progressions + report
+- ``POST /api/harmony-dictionary/axis-search`` bounded 1D absolute-EDO coverage / chord
 
 The heavy builder never runs inside a request: the sealed files are read and
 verified (fail-closed) on first use, then cached.  Input caps are enforced
@@ -30,6 +31,13 @@ from app.harmony_dictionary.authority import (
     LOOP_TOLERANCE_DC,
     AxisPoint,
     equave_ratio,
+)
+from app.harmony_dictionary.axis_search import (
+    AXIS_SEARCH_VERSION,
+    MAX_RADIUS,
+    AxisSearchError,
+    axis_reference_coverage,
+    build_sparse_axis_chord,
 )
 from app.harmony_dictionary.cadence import (
     CADENCE_TEMPLATES,
@@ -142,6 +150,34 @@ class CadencesRequest(BaseModel):
     count: int = Field(default=1, ge=1, le=MAX_CADENCES)
     max_chords: int = Field(default=4, ge=2, le=4)
     beats: list[int] | None = Field(default=None, min_length=1, max_length=64)
+
+
+class AxisSearchRequest(BaseModel):
+    equave: Literal["2/1", "3/1"]
+    generator: int = Field(ge=2, le=13)
+    root_vector: list[int] = Field(default_factory=lambda: [0] * 5, min_length=5, max_length=5)
+    radius_limit: int = Field(default=MAX_RADIUS, ge=0, le=MAX_RADIUS)
+    reference_steps: list[int] | None = Field(default=None, min_length=3, max_length=4)
+
+
+@router.post("/axis-search")
+def axis_search(request: AxisSearchRequest) -> dict[str, object]:
+    if any(abs(value) > MAX_VECTOR_COORDINATE for value in request.root_vector):
+        raise HTTPException(status_code=422, detail="root vector exceeds coordinate cap")
+    try:
+        coverage = axis_reference_coverage(
+            request.equave, request.generator, radius_limit=request.radius_limit
+        )
+        chord = (
+            build_sparse_axis_chord(
+                request.equave, request.root_vector, request.generator,
+                request.reference_steps, radius_limit=request.radius_limit,
+            )
+            if request.reference_steps is not None else None
+        )
+    except AxisSearchError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    return {"version": AXIS_SEARCH_VERSION, "coverage": coverage, "chord": chord}
 
 
 @router.get("/config")

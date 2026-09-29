@@ -22,7 +22,7 @@ class CompileError(ValueError):
         self.pointer = pointer
 
 
-_PROGRAM_PROJECT_VERSIONS = {"0.1.0": "1.2.0", "0.2.0": "1.3.0"}
+_PROGRAM_PROJECT_VERSIONS = {"0.1.0": "1.2.0", "0.2.0": "1.3.0", "0.3.0": "1.3.0"}
 _MAX_LATTICE_DIMENSIONS = 5
 
 
@@ -864,6 +864,7 @@ def compile_sp0(
     program: dict[str, Any],
     identity: CompilerIdentity,
     stochastic_realization: bool = True,
+    dictionary_authorities: dict[str, dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Compile SP 0.1/0.2 to its matching Project 1.2/1.3 envelope.
 
@@ -881,6 +882,14 @@ def compile_sp0(
     ):
         raise CompileError("SCHEMA_VERSION_UNSUPPORTED")
     _validate_lattice_dimensions(program)
+    if program["schema_version"] == "0.3.0" and any(
+        "dictionary_variant" not in intent for intent in program["chord_intents"]
+    ):
+        raise CompileError("SPARSE_VARIANT_REQUIRED")
+    if program["schema_version"] != "0.3.0" and any(
+        "dictionary_variant" in intent for intent in program["chord_intents"]
+    ):
+        raise CompileError("SPARSE_VARIANT_VERSION_UNSUPPORTED")
     if any(
         material.get("kind")
         not in {"rhythm_cell", "direct_vector_cell", "harmony_intent_cell", "melody_intent"}
@@ -1121,9 +1130,13 @@ def compile_sp0(
                             else None
                         ),
                     )
-                    query_key = _canonical(query)
+                    query_key = _canonical((query, intent.get("dictionary_variant"))) if program["schema_version"] == "0.3.0" else _canonical(query)
                     if query_key not in harmony_cache:
-                        cores = resolve_joint_bnb(query, 24)
+                        if program["schema_version"] == "0.3.0" and "dictionary_variant" in intent:
+                            from .sparse_variant import exact_sparse_core
+                            cores = [exact_sparse_core(lattice, intent, anchor, query["anchor"]["equave_exponent"], dictionary_authorities)]
+                        else:
+                            cores = resolve_joint_bnb(query, 24)
                         if not cores:
                             raise CompileError("NO_JOINT_CHORD_SOLUTION")
                         chords = [
@@ -1400,7 +1413,7 @@ def compile_sp0(
         query = {
             "schema": "cps.progression-query",
             "schema_version": (
-                "2.0.0" if program["schema_version"] == "0.2.0" else "1.2.0"
+                "2.0.0" if program["schema_version"] in ("0.2.0", "0.3.0") else "1.2.0"
             ),
             "algorithm": "gen0-progression-exact/v1",
             "numeric_contract": identity.numeric_contract,

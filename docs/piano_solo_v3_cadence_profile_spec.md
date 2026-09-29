@@ -1,6 +1,6 @@
 # 5D辞書の実装確認とカデンツ駆動ピアノプロファイル v3 仕様案
 
-Status: **実装監査（2026-09-27）→ 数値ブロッカー修正済み（2026-09-27）＋未実装の v3 策定**。
+Status: **実装監査（2026-09-27）→ 数値ブロッカー修正済み（2026-09-27）＋ v3 planner 基盤実装中**。
 監査対象は commit `1738ad22` の 5D Harmony Dictionary。
 作業ツリーにある piano v2 の compiler／lowering／profile 試作は
 進行中の作業として扱い、本仕様の完成済み依存物には数えない。
@@ -14,7 +14,9 @@ Status: **実装監査（2026-09-27）→ 数値ブロッカー修正済み（20
 > 声部移動・common tone・傾向音は実音 `root×ratio` で比較、単位は
 > decicent（`*_dc`、1 dc=0.1 cent）、`plagal`→`predominant_chain`。
 > 折返し境界・不変性・root 移動の基準値試験を追加（後述 §5-1）。
-> 関連テスト 858 件通過。v3 の §2–§4 は未実装のまま。
+> 関連テスト 858 件通過。v3 は cadence policy／plan の実装を開始したが、
+> centered navigation の全12音被覆が現行 domain で不成立。profile seal、
+> Program lowering、Project reconciliation／PCM 検収は未完了。
 
 ## 1. [5D辞書計画](development_plan_5d_chord_cadence_dictionary.md)との照合
 
@@ -187,6 +189,96 @@ home／arrival という旧 state 名や高い `stability_q` だけでは
 PCM G0 を経ない archive admission を認めない。
 
 ## 5. 実装順と検収
+
+### 軸別1D探索と domain 予算の区別（2026-09-28、設計更新）
+
+GEN0-B の 1024 coordinate／4096 placed は、現行 compiler が
+**矩形 domain の全点を列挙する**ための契約上限であり、1曲で発音できる
+音高の種類数や1軸の辞書長そのものの上限ではない。5軸の各単軸探索幅を
+同時に `coordinate_bounds` に設定して直積を作る必要はない。
+root を基準に1軸だけ変化させて辞書を引き、3/4音の採用 variant と
+必要な register/lift のみを compiler に渡す設計へ進める。
+ただし現行 compiler に非矩形な sparse 候補入力はなく、この接続と
+予算・receipt・exact Project の検証は未実装。`[-1,2]^5` は現行の
+矩形経路用の仮 domain であり、軸別探索上限の仕様ではない。
+tritave の24音絶対参照窓とその未確定の軸別被覆条件は
+[5D辞書計画の拡張方針](development_plan_5d_chord_cadence_dictionary.md#軸別探索と-tritave-参照の拡張方針2026-09-28未実装)を参照。
+
+### 実装途中の確認（2026-09-28）
+
+- `backend/app/songprogram/piano_v3.py` に equave 別5D domain の予算検査、
+  cadence policy の hash 検証、辞書 variant を各 bar に割り当てる
+  `generate_cadence_plan`、plan hash 検証、Plan/Program/Project 用の
+  impact-report 基盤を追加した。`CompositionPlan` の schema は変更しない。
+- domain は `[-1,2]^5` とし、coordinate 1024／placed 4096 を満たす。
+  `measure_navigation_coverage` の候補 gate 修正後、octave 側は
+  12音すべてを50 cent以内で覆う。tritave 側は現行の矩形 domain では
+  一部を覆えず、profile を seal できる段階ではない。
+  したがってこの domain は探索・試験用であり、受入済み profile ではない。
+- `generate_cadence_plan` の octave／tritave 小 fixture と再現性・改変検出は
+  `backend/tests/test_piano_v3_cadence.py` で確認する。cadence-plan の
+  variant を SongProgram の `chord_intent.reference`／root anchor へ接続する
+  clone-on-write lowering は未実装であり、impact report の compiled 側も
+  実プロジェクトとの照合を完了していない。
+- したがって §5 の profile seal／lowering／paired listening／PCM 検収を
+  完了扱いにしない。安定度の threshold は仮値のままとし、分類を確定判断
+  として生成へ適用しない。
+- 別系統の `harmony_dictionary/axis_search.py` は root＋単軸の有界探索で
+  octave 12音／tritave 24音の絶対参照窓を調べ、3/4音の sparse chord
+  候補を exact ratio 付きで返す。これは Program compiler を通った
+  和音ではなく、v3 planner／lowering との接続も未完了。
+- `backend/tools/generate_piano_v3_trial.py` は5D conformance Program
+  から独立した**実験用**16小節ピアノ曲を組み立てる。root anchor の
+  section ごとの clone-on-write、Program 0.2／Project 1.3-5D の
+  schema 検証、11軸と13軸の非ゼロ root、WAV／MIDI／PCM を seed 0/1
+  で実測。成果物は `local_authority/piano_v3_5d_trial_schema_seed{0,1}`。
+  ただし EDO chord reference は辞書の exact variant と同じではない。
+  report の `dictionary_variant_bound=false` と
+  `cadence_plan_project_match=not_evaluated` を消さず、v3 profile の
+  seal または cadence 受入例には数えない。
+  実行例: `backend/.venv/bin/python backend/tools/generate_piano_v3_trial.py
+  --seed 0 --output local_authority/piano_v3_5d_trial_schema_seed0`。
+  seed 0 は Program／Project schema に適合し、192 note events、
+  48 kHz stereo PCM 1,536,260 frames（非ゼロサンプル3,071,910）、
+  `reference.wav` の SHA-256 は
+  `e7aef486b3acb9f7b31c01bdddcc6b1f881b7997625c20c6ec52800299f77772`。
+  seed 1 も Program／Project／PCM まで生成し、WAV hash は
+  `a1e485873ed83aac255e2f7d4d2ac78cde2dbd686d0223b35b0acb772bbe20bd`。
+  どちらも octave equave の fixture 派生であり、tritave 24音や
+  音楽的な閉／開 cadence の受入証拠にはならない。
+
+### SongProgram 0.3 sparse 和音／tritave 実験（未seal）
+
+`backend/songprogram_conformance/schemas/song_program_0_3.schema.json` は
+各 chord intent に `dictionary_variant` を必須化する。声部には5軸 vector、
+equave exponent、**exact ratio** を併記し、`variant_hash` で本文を束縛する。
+compiler は全声部の有理数一致・odd limit・complexity・根音一致・
+絶対半音ステップ・voicing 制約を検証し、その一つの候補だけを既存の
+progression resolver に渡す。旧0.2からはこの経路に入れない。
+`source_kind=sealed_dictionary` では、外部から渡された辞書 authority
+を seal hash と辞書 entry／index tuple／**root-relative exact ratio** に
+照合する。`source_kind=axis_search_candidate` は検索候補のままで、
+封印済み辞書 entry と混同しない。Project 1.3 sparse schema は
+SongProgram 0.3 を source に持つ envelope の検証に用いる。
+
+`backend/tools/generate_piano_tritave_trial.py` は sealed 3/1 辞書の
+7、11、13軸の3和音と、3/1境界を越える2軸の[0,7,19]絶対半音候補を
+16小節へ配置する。5軸全ての0～23参照窓を50 centで被覆する測定は
+report に含むが、**24音全てを曲中で鳴らした証拠ではない**。
+13軸の[0,7,19]候補は odd limit 超過で除外し、別の封印済み13軸
+variant を使う。seed 0／1 の Program、Project、MIDI、WAV、PCM検収は
+`local_authority/piano_tritave_dictionary_axis_seed{0,1}` に保存。
+全4 section の Project exact ratios が Program に一致（3 section は
+封印済み辞書 variant、1 section は軸候補）、192 note events、
+48 kHz stereo 非無音 PCM。GEN0-B の sparse receipt と CadencePlan
+slot 照合は未実装で、生成品質の seal を意味しない。
+
+threshold 較正器 `backend/tools/calibrate_harmony_thresholds.py` は
+独立試聴による train／held_out の各T/D/Sラベルを要求し、train だけで
+threshold を選択して held-out confusion を報告する。生成器のPlan
+function を正解ラベルとして流用しない。独立試聴ラベルの実データは
+まだ無いため、現在の threshold は**未較正**で、試験曲の
+`classification_threshold_calibrated=false` を維持する。
 
 1. **数値ブロッカーを修正**: equave の log2、root を含む声部移動、
    単位名、cadence 名を修正して新 version／seal を作る。

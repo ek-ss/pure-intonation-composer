@@ -65,6 +65,51 @@ loop 長は axis sampling の上限に使い、複数軸の同時変化は
 
 ## 3. 12-EDO 参照、軸別辞書、5D 和音の射影
 
+### 軸別探索と tritave 参照の拡張方針（2026-09-28、1D index 実装済み）
+
+「各軸**単独**で12-EDO参照音を探索できること」と、5軸すべての指数幅を
+一つの矩形 SongProgram domain に宣言することは別条件。根音 vector
+`(a,b,c,d,e)` に対し、選んだ軸 `j` のみを動かす候補
+`root + n·unit(j)`（必要な equave lift と register を付記）を索引し、
+5軸の指数範囲の直積は作らない。候補は exact ratio／元 vector／axis ID／
+root／lift を保持し、使用する3・4音のみを発音候補にする。辞書の軸別
+`n=0..loop_steps[g]-1` は既存 authority であり、そこからさらに外へ
+探索する場合は `loop_steps` の意味・版・停止条件を別途改訂する。
+特に octave の13軸と tritave の13軸は、現行の初回近似ループまででは
+12音を50 cent以内で単独被覆できない。この要求を満たすために5D
+直積を拡大しない。既存 compiler は矩形 domain の全配置点を列挙・課金
+するので、軸別の広い範囲を和音として使うには sparse placed-pitch
+候補／分割された局所 domain の compiler・receipt 契約を新設し、
+同一曲内の root、声部、register、Project の exact ratio を検証する。
+
+tritave の12-EDO比較は root を起点とする **24半音分の絶対参照窓**
+（`0..23` semitone、0..2300 cents）を用意する方針とする。
+`3/1≈1901.955 cents` は約19半音なので、24音窓は tritave 境界を
+またぐ。19番以降を modulo 12 で同一視したり、3/1 を2/1として
+扱ったりしない。参照音ごとに absolute cents、tritave 相対位置、
+equave lift、cent 誤差を記録し、root と実音の照合は元の exact ratio。
+現行の12-semitone modulo template と一部の navigation 判定はこの
+24音窓用に別 version のアルゴリズム／fixture が必要である。
+「24音すべてを**各軸**で50 cent以内に覆う」か、24音はコード比較の
+参照窓で単軸被覆の目標はその部分集合かを受入条件として明記し、
+未確定のまま被覆成功と報告しない。
+
+初期の軸別 pitch 実装は `backend/app/harmony_dictionary/axis_search.py`。
+`axis_reference_coverage` は 2/1 で12音、3/1 で24音の**全**参照窓を
+50 cent以内に覆う最初の対称半径を、1軸につき最大256まで検索する。
+5軸直積を列挙せず、`equave_lift`・signed error・exact ratio と
+初回10 cent近似ループを越えたかを記録。`build_sparse_axis_chord` は
+root vector を基準に採用した3/4音のみの 5D vector／exact ratio を出す。
+`POST /api/harmony-dictionary/axis-search` からも検証できる。
+ただし出力は `sparse_candidate_not_compiled` であり、sealed 1D 和音辞書や
+SongProgram／GEN0-B の既存 authority と同一視しない。
+各候補の `current_lattice_filter` は現行 v3 の odd limit 4096／
+reduced complexity bit 上限への適合を別に報告する。特に tritave
+13軸の24音被覆半径96は、到達可能であってもそのまま compiler で
+利用可能とは限らない。
+root ごとの sparse 候補を compiler へ渡す契約、3/4音の声部選択の較正、
+Project／PCM 検収は次段の実装事項。
+
 各軸 `g_j` の 1D point に `(n, original_ratio, reduced_ratio,
 equave_exponent, absolute_cents, nearest_12edo_semitone,
 signed_12edo_error_cents)` を保存する。12-EDO の丸めは

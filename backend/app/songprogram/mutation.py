@@ -33,7 +33,7 @@ def artifact_hash(domain: str, value: Any) -> str:
 
 def program_hash(program: dict[str, Any]) -> str:
     version = program.get("schema_version")
-    if version not in {"0.1.0", "0.2.0"}:
+    if version not in {"0.1.0", "0.2.0", "0.3.0"}:
         raise MutationError("MUTATION_PROGRAM_SCHEMA_UNSUPPORTED")
     hash_version = version.rsplit(".", 1)[0]
     return "sha256:" + hashlib.sha256(
