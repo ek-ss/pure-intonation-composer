@@ -12,6 +12,7 @@ from app.songprogram.piano_v3 import (
     PianoV3Error,
     build_cadence_policy,
     cadence_impact_report,
+    compare_navigation_coverage,
     generate_cadence_plan,
     measure_navigation_coverage,
     validate_cadence_plan,
@@ -98,3 +99,20 @@ def test_navigation_measurement_matches_actual_generation_gate() -> None:
     assert octave["tonal_centers"][:12] == [measured["steps"][i]["vector"] for i in range(12)]
     with pytest.raises(ExplorationGenerationManifestError, match="GENERATION_12TET_COVERAGE_INSUFFICIENT"):
         derive_lattice_navigation(PIANO_V3_DOMAINS["3/1"], policy)
+
+
+@pytest.mark.parametrize(("equave", "actual_status", "expected_uncovered"), [
+    ("2/1", "covered", set()),
+    ("3/1", "GENERATION_12TET_COVERAGE_INSUFFICIENT", {1, 5, 11}),
+])
+def test_navigation_comparison_records_actual_gate_and_uncovered_steps(
+    equave: str, actual_status: str, expected_uncovered: set[int]
+) -> None:
+    comparison = compare_navigation_coverage(PIANO_V3_DOMAINS[equave])
+    assert comparison["actual_status"] == actual_status
+    uncovered = {
+        step for step, result in comparison["measurement"]["steps"].items()
+        if not result["covered"]
+    }
+    assert uncovered == expected_uncovered
+    assert comparison["seal_eligible"] is (equave == "2/1")

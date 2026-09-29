@@ -37,6 +37,7 @@ from itertools import product
 from typing import Any, Mapping
 
 from ..harmony_dictionary.authority import reduce_on_equave
+from ..harmony_dictionary.storage import seal
 from ..harmony_dictionary.stability import (
     ClassificationThresholds,
     StabilityProfile,
@@ -211,6 +212,53 @@ def measure_navigation_coverage(domain: Mapping[str, Any]) -> dict[str, Any]:
         "maximum_error_millicents_measured": maximum,
         "covered": all(row["covered"] for row in steps.values()),
     }
+
+
+def compare_navigation_coverage(domain: Mapping[str, Any]) -> dict[str, Any]:
+    """Compare local coverage measurement with the production navigation API.
+
+    A coverage measurement is retained even if the production policy rejects
+    the domain, so a failed step is diagnosable and cannot be sealed by
+    confusing modulo-12 navigation with an absolute 24-step search.
+    """
+    from .exploration_generation import (
+        ExplorationGenerationManifestError,
+        derive_lattice_navigation,
+    )
+
+    measured = measure_navigation_coverage(domain)
+    policy = {
+        "algorithm": "nearest-12tet-vector/v1",
+        "target_divisions": 12,
+        "maximum_error_millicents": 50_000,
+        "maximum_navigation_points": 16_384,
+        "required_prime_factors": [2, 3, 5, 7, 11, 13],
+        "tonal_center_steps": list(range(12)),
+        "harmony_root_steps": list(range(12)),
+        "walk_step_patterns": [[0, 2, 4, 6], [0, 10, 6, 2]],
+    }
+    result: dict[str, Any] = {
+        "policy": policy,
+        "measurement": measured,
+        "actual_status": "not_evaluated",
+        "actual_vectors": None,
+        "vectors_match": None,
+        "seal_eligible": False,
+    }
+    try:
+        actual = derive_lattice_navigation(domain, policy)
+    except ExplorationGenerationManifestError as error:
+        result["actual_status"] = str(error)
+        return result
+    vectors = actual["tonal_centers"][:12]
+    measured_vectors = [measured["steps"][step]["vector"] for step in range(12)]
+    result.update({
+        "actual_status": "covered",
+        "actual_vectors": vectors,
+        "vectors_match": vectors == measured_vectors,
+        "seal_eligible": measured["covered"] and vectors == measured_vectors,
+    })
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -644,10 +692,15 @@ def generate_cadence_plan(
     callers must pass it through the v3 lowering path rather than mutating the
     historical plan schema.
     """
+    if (plan.get("schema") == "cps.composition-plan"
+            and composition_plan_hash(plan) != plan.get("plan_hash")):
+        raise PianoV3Error("CADENCE_COMPOSITION_PLAN_HASH_MISMATCH")
     validate_cadence_policy(policy)
     equave = Fraction(policy["equave"])
     if dictionary_file.get("equave") != policy["equave"]:
         raise PianoV3Error("CADENCE_EQUAVE_MISMATCH")
+    if seal(dict(dictionary_file), f"harmony-dictionary/{policy['equave']}").get("hash") != dictionary_file.get("hash"):
+        raise PianoV3Error("CADENCE_DICTIONARY_SEAL_INVALID")
     dictionary_hash = dictionary_file.get("hash")
     if dictionary_hash != policy["dictionary_hash"]:
         raise PianoV3Error("CADENCE_DICTIONARY_HASH_MISMATCH")
@@ -698,7 +751,16 @@ def generate_cadence_plan(
                 "bar_in_phrase": local_bar,
                 "expectation": expectation,
                 "function": function,
-                "classification": classification,
+                # The canonical SongProgram artifact encoding forbids floats.
+                # Preserve the numerical evidence as integer millicents.
+                "classification": {
+                    "candidate": classification["candidate"],
+                    "final": classification["final"],
+                    "root_distance_millicents": round(
+                        float(classification["root_distance_cents"]) * 1000
+                    ),
+                    "reasons": list(classification["reasons"]),
+                },
                 "stability_q": score,
                 "source_chord_key": variant["source_chord_key"],
                 "generator": variant["generator"],
@@ -806,9 +868,16 @@ def cadence_impact_report(
         if project is not None else {}
     )
     occurrences_by_slot: dict[tuple[str, int], list[dict[str, Any]]] = {}
+    section_start_bars: dict[str, int] = {}
+    if program is not None:
+        cursor = 0
+        for section in program.get("form", []):
+            section_start_bars[section["id"]] = cursor
+            cursor += section["bars"]
     if project is not None and ticks_per_bar:
         for occurrence in project.get("harmony_occurrences", []):
-            bar = occurrence["start_tick"] // ticks_per_bar
+            absolute_bar = occurrence["start_tick"] // ticks_per_bar
+            bar = absolute_bar - section_start_bars.get(occurrence["section_id"], 0)
             occurrences_by_slot.setdefault(
                 (occurrence["section_id"], bar), []
             ).append(occurrence)
@@ -817,17 +886,28 @@ def cadence_impact_report(
         row: dict[str, Any] = {"section_id": slot["section_id"], "bar": slot["bar"],
                               "expectation": slot["expectation"], "function": slot["function"],
                               "planned_variant": slot["source_chord_key"],
+                              "source_dictionary_hash": cadence_plan["dictionary_hash"],
                               "planned_root_ratio": slot["root_ratio"],
-                              "planned_ratios": slot["ratios"], "status": "planned"}
+                              "planned_ratios": slot["ratios"],
+                              "planned_absolute_ratios": [
+                                  ratio_text(Fraction(slot["root_ratio"]) * Fraction(value))
+                                  for value in slot["ratios"]
+                              ],
+                              "status": "planned"}
+        slot_key = (slot["generator"], slot["voice_count"], tuple(slot["index_tuple"]))
+        bound_intents = []
         if program is not None:
             # A 0.3 program binds the variant by its source key (the slot's
             # short key omits the entry key, so compare by binding identity);
             # a legacy program may only carry an EDO reference.
-            slot_key = (slot["generator"], slot["voice_count"], tuple(slot["index_tuple"]))
-            row["program_bound"] = any(
-                _binding_key(intent.get("dictionary_variant", {}).get("source_chord_key")) == slot_key
-                or intent.get("reference", {}).get("ratios") == slot["ratios"]
-                for intent in program.get("chord_intents", [])
+            bound_intents = [
+                intent for intent in program.get("chord_intents", [])
+                if _binding_key(intent.get("dictionary_variant", {}).get("source_chord_key")) == slot_key
+                and intent.get("dictionary_variant", {}).get("dictionary_hash") == cadence_plan["dictionary_hash"]
+            ]
+            row["program_bound"] = bool(bound_intents)
+            row["program_variant_hashes"] = sorted(
+                intent["dictionary_variant"]["variant_hash"] for intent in bound_intents
             )
         if project is not None:
             occurrences = occurrences_by_slot.get((slot["section_id"], slot["bar"]), [])
@@ -843,7 +923,16 @@ def cadence_impact_report(
                 actual = sorted(Fraction(ratio) for ratio in chord["exact_ratios"])
                 if actual == expected:
                     matched = True
-                    break
+                row.setdefault("project_chords", []).append({
+                    "resolved_chord_id": chord_id,
+                    "exact_ratios": chord["exact_ratios"],
+                    "anchor_vector": chord.get("anchor_vector"),
+                    "ratio_match": actual == expected,
+                    "root_vector_match": any(
+                        chord.get("anchor_vector") == intent.get("dictionary_variant", {}).get("voices", [{}])[0].get("vector")
+                        for intent in bound_intents
+                    ) if program is not None else None,
+                })
             row["status"] = "matched" if matched else "unmatched"
         rows.append(row)
     return {"schema": "cps.piano-cadence-impact-report", "schema_version": "1.0.0",
@@ -981,20 +1070,16 @@ def lower_cadence_plan(
         "steps": [{"at_tick": 0, "duration_ticks": ticks_per_bar,
                    "accent_q": 10_000, "lane_id": None}],
     })
-    section_start: dict[str, int] = {}
-    cursor = 0
-    for section in program["form"]:
-        section_start[section["id"]] = cursor
-        cursor += section["bars"]
     slots_by_section: dict[str, list[dict[str, Any]]] = {}
     for slot in cadence_plan["slots"]:
         slots_by_section.setdefault(slot["section_id"], []).append(slot)
     for section in program["form"]:
         section_id = section["id"]
-        start = section_start[section_id]
         slots = sorted(slots_by_section.get(section_id, []), key=lambda item: item["bar"])
         for slot in slots:
-            local_bar = slot["bar"] - start
+            # CadencePlan bars are section-relative.  Keeping that convention
+            # makes the slot identity stable when earlier sections change size.
+            local_bar = slot["bar"]
             if not 0 <= local_bar < section["bars"]:
                 raise PianoV3Error("LOWER_SLOT_OUT_OF_RANGE", f"{section_id}/{slot['bar']}")
             variant = _variant_from_slot(slot, dictionary_file, generators, equave)
