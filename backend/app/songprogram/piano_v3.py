@@ -28,6 +28,7 @@ receipts, and artifacts.
 
 from __future__ import annotations
 
+import copy
 import hashlib
 import json
 import math
@@ -317,6 +318,72 @@ def _vector_ratio(generators: list[Fraction], vector: list[int], equave: Fractio
     return value * equave**exponent
 
 
+def _prime_factors(value: int) -> dict[int, int]:
+    """Prime factorization of a positive integer (trial division)."""
+    if value < 1:
+        raise PianoV3Error("V3_FACTORIZATION_INVALID", str(value))
+    factors: dict[int, int] = {}
+    divisor = 2
+    while divisor * divisor <= value:
+        while value % divisor == 0:
+            factors[divisor] = factors.get(divisor, 0) + 1
+            value //= divisor
+        divisor += 1 if divisor == 2 else 2
+    if value > 1:
+        factors[value] = factors.get(value, 0) + 1
+    return factors
+
+
+def _place_voice(
+    ratio: Fraction, generators: list[Fraction], equave: Fraction
+) -> tuple[list[int], int] | None:
+    """Express ``ratio`` as ``equave**exponent * product(generator**v)``.
+
+    Returns the lattice ``(vector, exponent)`` or ``None`` when the ratio has
+    a prime that is neither the equave nor a generator (i.e. it is not a point
+    of this lattice).  The equave's prime is folded into the exponent so that
+    ``product(generator**vector)`` carries no equave factor; this is exactly the
+    convention ``_reduced_anchor_exponent`` inverts, so a voice placed here at
+    the anchor reproduces the compiler's anchor exponent.
+    """
+    if ratio <= 0:
+        return None
+    numerator = _prime_factors(ratio.numerator)
+    denominator = _prime_factors(ratio.denominator)
+    primes = sorted(set(numerator) | set(denominator))
+    equave_prime = _prime_factors(equave.numerator)
+    for prime, power in _prime_factors(equave.denominator).items():
+        equave_prime[prime] = equave_prime.get(prime, 0) - power
+    generator_primes: list[dict[int, int]] = []
+    for generator in generators:
+        table = _prime_factors(generator.numerator)
+        for prime, power in _prime_factors(generator.denominator).items():
+            table[prime] = table.get(prime, 0) - power
+        generator_primes.append(table)
+    vector = [0] * len(generators)
+    exponent = 0
+    for prime in primes:
+        power = numerator.get(prime, 0) - denominator.get(prime, 0)
+        equave_power = equave_prime.get(prime, 0)
+        if equave_power:
+            if power % equave_power != 0:
+                return None
+            exponent += power // equave_power
+            continue
+        matched = False
+        for index, table in enumerate(generator_primes):
+            generator_power = table.get(prime, 0)
+            if generator_power:
+                if power % generator_power != 0:
+                    return None
+                vector[index] += power // generator_power
+                matched = True
+                break
+        if not matched:
+            return None
+    return vector, exponent
+
+
 def _odd_part(value: int) -> int:
     while value % 2 == 0:
         value //= 2
@@ -356,12 +423,28 @@ def domain_point_set(
     return points
 
 
+def _steps_valid(ratios: list[Fraction], window: int) -> bool:
+    """The sparse contract: sorted, distinct steps inside the window (root-relative)."""
+    if not ratios or window <= 0:
+        return False
+    base = _mc(ratios[0])
+    steps = [round((_mc(ratio) - base) / 100_000) for ratio in ratios]
+    return (sorted(steps) == steps and len(set(steps)) == len(steps)
+            and all(0 <= step < window for step in steps))
+
+
 def _variant_pool(
     dictionary_file: Mapping[str, Any],
     voice_counts: list[int],
     equave: Fraction,
 ) -> list[dict[str, Any]]:
-    """Flatten the sealed dictionary into candidate chords with provenance."""
+    """Flatten the sealed dictionary into candidate chords with provenance.
+
+    Variants whose root-relative steps are not sorted / distinct / in-window
+    are dropped: the exact sparse path requires that step order, so a cadence
+    slot bound to such a variant could never compile.
+    """
+    window = 12 if equave == Fraction(2) else 24 if equave == Fraction(3) else 0
     pool: list[dict[str, Any]] = []
     for key in sorted(dictionary_file["dictionaries"]):
         generator_text, count_text = key.split("/")
@@ -375,6 +458,8 @@ def _variant_pool(
             for variant in entry["variants"]:
                 ratios = [Fraction(text) for text in variant["ratios"]]
                 reduced = [reduce_on_equave(ratio, equave)[0] for ratio in ratios]
+                if not _steps_valid(reduced, window):
+                    continue
                 pool.append(
                     {
                         "source_chord_key": f"{key}/{','.join(str(i) for i in variant['index_tuple'])}",
@@ -678,13 +763,64 @@ def validate_cadence_plan(plan: Mapping[str, Any]) -> None:
         seen.add((slot["section_id"], slot["bar"]))
 
 
+def _reduced_sorted(values: list[Fraction], equave: Fraction) -> list[Fraction]:
+    """Equave-reduced ratios sorted by (numerator, denominator) for comparison."""
+    return sorted(
+        (reduce_on_equave(value, equave)[0] for value in values),
+        key=lambda value: (value.numerator, value.denominator),
+    )
+
+
+def _binding_key(source_chord_key: Any) -> tuple[int, int, tuple[int, ...]] | None:
+    """(generator, count, index_tuple) from a full sparse source key, or None."""
+    if not isinstance(source_chord_key, str):
+        return None
+    parts = source_chord_key.split("/", 3)
+    if len(parts) != 4:
+        return None
+    try:
+        generator, count = int(parts[0]), int(parts[1])
+        index_tuple = tuple(int(value) for value in parts[3].split(","))
+    except ValueError:
+        return None
+    return generator, count, index_tuple
+
+
 def cadence_impact_report(
     cadence_plan: Mapping[str, Any],
     program: Mapping[str, Any] | None = None,
     project: Mapping[str, Any] | None = None,
+    *,
+    ticks_per_bar: int | None = None,
 ) -> dict[str, Any]:
-    """Report planned and compiled cadence evidence without inferring success."""
+    """Report planned and compiled cadence evidence without inferring success.
+
+    When a project is supplied each slot is reconciled *positionally*: the
+    slot's ``(section_id, bar)`` maps to a tick range and the harmony
+    occurrences that begin in that bar are compared against the slot's
+    planned sounding ratios (the function root times the variant's
+    root-relative ratios, reduced on the equave).  A slot matches only when a
+    resolved chord in its bar carries exactly those ratios; a global ratio
+    match elsewhere in the piece is not evidence for this slot.
+    """
     validate_cadence_plan(cadence_plan)
+    equave = Fraction(cadence_plan["equave"])
+    if ticks_per_bar is None and project is not None:
+        clock = project.get("clock", {})
+        beats, ticks = clock.get("beats_per_bar"), clock.get("ticks_per_beat")
+        if isinstance(beats, int) and isinstance(ticks, int):
+            ticks_per_bar = beats * ticks
+    chords_by_id = (
+        {chord["id"]: chord for chord in project.get("resolved_chords", [])}
+        if project is not None else {}
+    )
+    occurrences_by_slot: dict[tuple[str, int], list[dict[str, Any]]] = {}
+    if project is not None and ticks_per_bar:
+        for occurrence in project.get("harmony_occurrences", []):
+            bar = occurrence["start_tick"] // ticks_per_bar
+            occurrences_by_slot.setdefault(
+                (occurrence["section_id"], bar), []
+            ).append(occurrence)
     rows = []
     for slot in cadence_plan["slots"]:
         row: dict[str, Any] = {"section_id": slot["section_id"], "bar": slot["bar"],
@@ -693,17 +829,250 @@ def cadence_impact_report(
                               "planned_root_ratio": slot["root_ratio"],
                               "planned_ratios": slot["ratios"], "status": "planned"}
         if program is not None:
+            # A 0.3 program binds the variant by its source key (the slot's
+            # short key omits the entry key, so compare by binding identity);
+            # a legacy program may only carry an EDO reference.
+            slot_key = (slot["generator"], slot["voice_count"], tuple(slot["index_tuple"]))
             row["program_bound"] = any(
-                intent.get("reference", {}).get("ratios") == slot["ratios"]
+                _binding_key(intent.get("dictionary_variant", {}).get("source_chord_key")) == slot_key
+                or intent.get("reference", {}).get("ratios") == slot["ratios"]
                 for intent in program.get("chord_intents", [])
             )
         if project is not None:
-            actual = [chord for chord in project.get("resolved_chords", [])
-                      if chord.get("reference", {}).get("ratios") == slot["ratios"]]
-            row["resolved_chord_ids"] = [chord.get("id") for chord in actual]
-            row["status"] = "matched" if actual else "unmatched"
+            occurrences = occurrences_by_slot.get((slot["section_id"], slot["bar"]), [])
+            chord_ids = sorted({occurrence["resolved_chord_id"] for occurrence in occurrences})
+            row["resolved_chord_ids"] = chord_ids
+            root = Fraction(slot["root_ratio"])
+            expected = _reduced_sorted(
+                [root * Fraction(ratio) for ratio in slot["ratios"]], equave
+            )
+            matched = False
+            for chord_id in chord_ids:
+                chord = chords_by_id.get(chord_id)
+                if chord is None:
+                    continue
+                actual = _reduced_sorted(
+                    [Fraction(ratio) for ratio in chord["exact_ratios"]], equave
+                )
+                if actual == expected:
+                    matched = True
+                    break
+            row["status"] = "matched" if matched else "unmatched"
         rows.append(row)
     return {"schema": "cps.piano-cadence-impact-report", "schema_version": "1.0.0",
             "cadence_plan_hash": cadence_plan["cadence_plan_hash"],
             "program_checked": program is not None, "project_checked": project is not None,
+            "ticks_per_bar": ticks_per_bar,
             "slots": rows}
+
+
+# ---------------------------------------------------------------------------
+# V3 lowering: bind the cadence plan to a SongProgram 0.3
+
+
+def _variant_from_slot(
+    slot: Mapping[str, Any],
+    dictionary_file: Mapping[str, Any],
+    generators: list[Fraction],
+    equave: Fraction,
+) -> dict[str, Any]:
+    """Build a sealed-dictionary ``dictionary_variant`` for one cadence slot.
+
+    The slot's root-relative ratios are multiplied by the function root and
+    each voice is placed in the lattice.  Voice 0 is the root, so its placed
+    vector becomes the harmony cell's anchor and its exponent reproduces the
+    compiler's reduced anchor exponent.
+    """
+    from .sparse_variant import variant_hash
+
+    root = Fraction(slot["root_ratio"])
+    ratios = [root * Fraction(text) for text in slot["ratios"]]
+    voices: list[dict[str, Any]] = []
+    for ratio in ratios:
+        placed = _place_voice(ratio, generators, equave)
+        if placed is None:
+            raise PianoV3Error("LOWER_VOICE_UNPLACED", ratio_text(ratio))
+        vector, exponent = placed
+        voices.append({
+            "vector": vector, "equave_exponent": exponent,
+            "exact_ratio": f"{ratio.numerator}/{ratio.denominator}",
+        })
+    # The slot's key omits the entry key; exact_sparse_core requires the full
+    # generator/count/entry_key/index_tuple form, so recover it from the seal.
+    index_tuple = [int(value) for value in slot["index_tuple"]]
+    entries = dictionary_file["dictionaries"][
+        f"{slot['generator']}/{slot['voice_count']}"
+    ]["entries"]
+    entry_key = next(
+        (entry["key"] for entry in entries
+         if any(list(variant["index_tuple"]) == index_tuple
+                for variant in entry["variants"])),
+        None,
+    )
+    if entry_key is None:
+        raise PianoV3Error("LOWER_VARIANT_NOT_FOUND", slot["source_chord_key"])
+    source_chord_key = (
+        f"{slot['generator']}/{slot['voice_count']}/{entry_key}/"
+        + ",".join(str(value) for value in index_tuple)
+    )
+    variant = {
+        "source_kind": "sealed_dictionary",
+        "dictionary_hash": dictionary_file["hash"],
+        "source_chord_key": source_chord_key,
+        "voices": voices,
+    }
+    variant["variant_hash"] = variant_hash(variant)
+    return {**variant, "anchor_vector": voices[0]["vector"]}
+
+
+def _chord_intent_from_variant(
+    intent_id: str, variant: Mapping[str, Any], lattice: Mapping[str, Any]
+) -> dict[str, Any]:
+    """A SongProgram 0.3 chord intent bound to a placed sparse variant."""
+    equave = lattice["equave"]
+    window = 12 if equave == "2/1" else 24 if equave == "3/1" else 0
+    ratios = [Fraction(voice["exact_ratio"]) for voice in variant["voices"]]
+    base = _mc(ratios[0])
+    steps = [round((_mc(ratio) - base) / 100_000) for ratio in ratios]
+    if (sorted(steps) != steps or steps[0] != 0
+            or len(set(steps)) != len(steps)
+            or any(not 0 <= step < window for step in steps)):
+        raise PianoV3Error("LOWER_STEPS_INVALID", str(steps))
+    return {
+        "id": intent_id,
+        "reference": {"temperament": "edo", "equave": equave,
+                      "divisions": window, "steps": steps},
+        "dictionary_variant": {key: value for key, value in variant.items()
+                               if key != "anchor_vector"},
+        "recognition": {"maximum_pair_error_millicents": 120_000,
+                        "maximum_pair_rms_millicents": 120_000},
+        "voicing": {"maximum_span_millicents": 2_500_000,
+                    "minimum_spacing_millicents": 1,
+                    "bass_policy": "preserve_target", "bass_target_ordinal": 0},
+        "complexity_budget": 256,
+    }
+
+
+def lower_cadence_plan(
+    base_program: Mapping[str, Any],
+    cadence_plan: Mapping[str, Any],
+    dictionary_file: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Bind the cadence plan's dictionary variants to a SongProgram 0.3.
+
+    The committed v1 lowering supplies the clock, lattice, tracks, melody, and
+    form.  This rewrites only the harmony: one clone-on-write cell per bar whose
+    single chord intent is bound to the slot's sealed-dictionary variant, plus a
+    per-bar downbeat rhythm cell.  The result compiles through the exact sparse
+    path and reconciles against ``cadence_impact_report``.
+    """
+    validate_cadence_plan(cadence_plan)
+    program = copy.deepcopy(dict(base_program))
+    program["schema_version"] = "0.3.0"
+    lattice = program["lattice"]
+    if lattice.get("equave") != cadence_plan["equave"]:
+        raise PianoV3Error(
+            "LOWER_EQUAVE_MISMATCH", f"{lattice.get('equave')} != {cadence_plan['equave']}"
+        )
+    generators = [Fraction(text) for text in lattice["generators"]]
+    equave = Fraction(cadence_plan["equave"])
+    clock = program["clock"]
+    ticks_per_bar = clock["beats_per_bar"] * clock["ticks_per_beat"]
+    # Drop the base's harmony cells/realizations; keep melody, rhythm, tracks.
+    program["materials"] = [
+        material for material in program["materials"]
+        if material.get("kind") != "harmony_intent_cell"
+    ]
+    program["realizations"] = [
+        realization for realization in program["realizations"]
+        if realization.get("track_id") != "harmony"
+    ]
+    program["chord_intents"] = []
+    rhythm_id = "rhy_v3_bar"
+    program["materials"].append({
+        "id": rhythm_id, "kind": "rhythm_cell", "length_ticks": ticks_per_bar,
+        "steps": [{"at_tick": 0, "duration_ticks": ticks_per_bar,
+                   "accent_q": 10_000, "lane_id": None}],
+    })
+    section_start: dict[str, int] = {}
+    cursor = 0
+    for section in program["form"]:
+        section_start[section["id"]] = cursor
+        cursor += section["bars"]
+    slots_by_section: dict[str, list[dict[str, Any]]] = {}
+    for slot in cadence_plan["slots"]:
+        slots_by_section.setdefault(slot["section_id"], []).append(slot)
+    for section in program["form"]:
+        section_id = section["id"]
+        start = section_start[section_id]
+        slots = sorted(slots_by_section.get(section_id, []), key=lambda item: item["bar"])
+        for slot in slots:
+            local_bar = slot["bar"] - start
+            if not 0 <= local_bar < section["bars"]:
+                raise PianoV3Error("LOWER_SLOT_OUT_OF_RANGE", f"{section_id}/{slot['bar']}")
+            variant = _variant_from_slot(slot, dictionary_file, generators, equave)
+            suffix = f"{section_id}_{local_bar:02d}"
+            intent_id = f"ci_v3_{suffix}"
+            program["chord_intents"].append(
+                _chord_intent_from_variant(intent_id, variant, lattice)
+            )
+            cell_id = f"mat_v3_{suffix}"
+            program["materials"].append({
+                "id": cell_id, "kind": "harmony_intent_cell", "rhythm_id": rhythm_id,
+                "root_anchors": [variant["anchor_vector"]],
+                "chord_intent_ids": [intent_id], "mapping": "zip",
+            })
+            program["realizations"].append({
+                "id": f"real_v3_{suffix}", "section_id": section_id,
+                "track_id": "harmony", "material_id": cell_id,
+                "at_tick": local_bar * ticks_per_bar, "repeat": 1,
+                "every_ticks": ticks_per_bar, "rhythm_transforms": [],
+                "pitch_transforms": [], "velocity_scale_q": 10_000,
+                "gate_scale_q": 10_000,
+            })
+    return program
+
+
+# ---------------------------------------------------------------------------
+# GEN0-B sparse charge receipt
+
+
+def sparse_charge_receipt(
+    declared_voices: int,
+    rectangular_coordinate_points: int,
+    rectangular_placed_points: int,
+    *,
+    maximum_declared_voices: int = 64,
+    coordinate_budget: int = GEN0B_COORDINATE_BUDGET,
+    placed_budget: int = GEN0B_PLACED_BUDGET,
+) -> dict[str, Any]:
+    """Formal GEN0-B sparse charge receipt.
+
+    The rectangular domain is a legacy navigation/charging domain; the sparse
+    path charges declared voices, never the Cartesian product of axis ranges.
+    GEN0-B acceptance therefore requires the rectangular domain to sit within
+    its contract budgets (1024 coordinate / 4096 placed) and the declared
+    voices to stay within the sparse voice cap.  The receipt is deterministic
+    and self-hashing so a trial report can carry it as evidence.
+    """
+    within_coordinate = rectangular_coordinate_points <= coordinate_budget
+    within_placed = rectangular_placed_points <= placed_budget
+    within_voices = declared_voices <= maximum_declared_voices
+    body = {
+        "contract": "gen0b-sparse-charge/v1",
+        "declared_voices": declared_voices,
+        "maximum_declared_voices": maximum_declared_voices,
+        "rectangular_coordinate_points": rectangular_coordinate_points,
+        "rectangular_placed_points": rectangular_placed_points,
+        "coordinate_budget": coordinate_budget,
+        "placed_budget": placed_budget,
+        "within_coordinate_budget": within_coordinate,
+        "within_placed_budget": within_placed,
+        "within_voice_budget": within_voices,
+        "accepted": within_coordinate and within_placed and within_voices,
+    }
+    receipt = dict(body)
+    receipt["receipt_hash"] = "sha256:" + hashlib.sha256(
+        b"cps.gen0b-sparse-receipt/v1\0" + _canonical(body)
+    ).hexdigest()
+    return receipt

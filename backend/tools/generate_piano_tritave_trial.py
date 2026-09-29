@@ -23,6 +23,7 @@ from app.songprogram.perceptual import project_hash  # noqa: E402
 from app.songprogram.renderer import render_reference  # noqa: E402
 from app.songprogram.search import canonical_bytes  # noqa: E402
 from app.songprogram.sparse_variant import variant_hash  # noqa: E402
+from app.songprogram.piano_v3 import sparse_charge_receipt  # noqa: E402
 from app.songprogram.compiler import _mc  # noqa: E402
 from tools.generate_piano_v3_trial import (  # noqa: E402
     GENERATION, RENDER_FIXTURE, SCHEMAS, _object, _pcm_check, _piano_catalog,
@@ -134,6 +135,9 @@ def generate(seed: int) -> tuple[dict, dict, bytes, dict]:
     rendered = render_reference(project, catalog_bytes, assets.__getitem__,
                                 render_manifest_digest=manifest["render_manifest_digest"],
                                 project_artifact_hash=project_hash(project))
+    declared_voices = sum(
+        len(intent["dictionary_variant"]["voices"]) for intent in program["chord_intents"]
+    )
     report = {"schema": "cps.piano-tritave-trial-report", "schema_version": "1.0.0",
               "seed": seed, "equave": "3/1", "reference": "12-edo-absolute-24/v1",
               "dictionary_hash": dictionary["hash"],
@@ -143,10 +147,11 @@ def generate(seed: int) -> tuple[dict, dict, bytes, dict]:
                                    "reason": "candidate_unavailable_under_resource_limits"},
               "sections": sections, "program_hash": program_hash(program),
               "project_hash": project_hash(project), "pcm": _pcm_check(rendered.wav),
-              "sparse_charge": {"contract": "trial-declared-voices/v1", "gen0b_receipt": "not_evaluated", "declared_voices": sum(
-                  len(intent["dictionary_variant"]["voices"]) for intent in program["chord_intents"]),
+              "sparse_charge": {"contract": "trial-declared-voices/v1",
+                  "declared_voices": declared_voices,
                   "maximum_declared_voices": 64, "rectangular_coordinate_points": 675,
-                  "rectangular_placed_points": 3375},
+                  "rectangular_placed_points": 3375,
+                  "gen0b_receipt": sparse_charge_receipt(declared_voices, 675, 3375)},
               "event_count": len(project["events"]), "classification_threshold_calibrated": False,
               "production_status": "experimental_sparse_trial"}
     return program, project, rendered.wav, report

@@ -1,6 +1,6 @@
 # 5D辞書の実装確認とカデンツ駆動ピアノプロファイル v3 仕様案
 
-Status: **実装監査（2026-09-27）→ 数値ブロッカー修正済み（2026-09-27）＋ v3 planner 基盤実装中**。
+Status: **実装監査（2026-09-27）→ 数値ブロッカー修正済み（2026-09-27）→ v3 lowering／Project 照合／GEN0-B sparse receipt 実装済み（2026-09-29）**。
 監査対象は commit `1738ad22` の 5D Harmony Dictionary。
 作業ツリーにある piano v2 の compiler／lowering／profile 試作は
 進行中の作業として扱い、本仕様の完成済み依存物には数えない。
@@ -17,6 +17,16 @@ Status: **実装監査（2026-09-27）→ 数値ブロッカー修正済み（20
 > 関連テスト 858 件通過。v3 は cadence policy／plan の実装を開始したが、
 > centered navigation の全12音被覆が現行 domain で不成立。profile seal、
 > Program lowering、Project reconciliation／PCM 検収は未完了。
+>
+> **追記（2026-09-29）**: `lower_cadence_plan`（cadence plan を SongProgram
+> 0.3 の clone-on-write harmony cell／chord intent に結合）、`cadence_impact_report`
+> の位置付き Project 照合（slot の section/bar を tick 窓に写像し、function
+> root×variant ratio を equave で約化した exact ratio と比較）、`sparse_charge_receipt`
+> （GEN0-B 1024 coordinate／4096 placed と sparse voice cap の受入判定＋hash）を
+> 実装した。octave fixture 派生 Program の end-to-end（lower→compile→照合）は
+> `backend/tests/test_piano_v3_lowering.py` で全 slot matched を確認する。
+> centered navigation の全12音被覆（tritave）と独立試聴ラベルによる threshold
+> 較正は未完了のため、v3 profile の seal は引き続き保留。
 
 ## 1. [5D辞書計画](development_plan_5d_chord_cadence_dictionary.md)との照合
 
@@ -198,8 +208,8 @@ GEN0-B の 1024 coordinate／4096 placed は、現行 compiler が
 同時に `coordinate_bounds` に設定して直積を作る必要はない。
 root を基準に1軸だけ変化させて辞書を引き、3/4音の採用 variant と
 必要な register/lift のみを compiler に渡す設計へ進める。
-ただし現行 compiler に非矩形な sparse 候補入力はなく、この接続と
-予算・receipt・exact Project の検証は未実装。`[-1,2]^5` は現行の
+SongProgram 0.3 の `dictionary_variant`（後述）で非矩形な sparse 候補入力と
+GEN0-B 予算・receipt・exact Project の検証を実装済み。`[-1,2]^5` は現行の
 矩形経路用の仮 domain であり、軸別探索上限の仕様ではない。
 tritave の24音絶対参照窓とその未確定の軸別被覆条件は
 [5D辞書計画の拡張方針](development_plan_5d_chord_cadence_dictionary.md#軸別探索と-tritave-参照の拡張方針2026-09-28未実装)を参照。
@@ -217,9 +227,15 @@ tritave の24音絶対参照窓とその未確定の軸別被覆条件は
   したがってこの domain は探索・試験用であり、受入済み profile ではない。
 - `generate_cadence_plan` の octave／tritave 小 fixture と再現性・改変検出は
   `backend/tests/test_piano_v3_cadence.py` で確認する。cadence-plan の
-  variant を SongProgram の `chord_intent.reference`／root anchor へ接続する
-  clone-on-write lowering は未実装であり、impact report の compiled 側も
-  実プロジェクトとの照合を完了していない。
+  variant を SongProgram 0.3 の `dictionary_variant`／root anchor へ接続する
+  clone-on-write lowering（`lower_cadence_plan`）を実装した。各 bar に1つの
+  harmony cell＋chord intent を出し、声部を lattice に配置（root を voice 0／
+  anchor に固定）。`_variant_pool` は sparse 契約（root 先頭・sorted・distinct・
+  window 内）を満たさない variant を除外する。impact report の compiled 側は
+  slot の `(section_id, bar)` を tick 窓に写像し、その bar で解決した chord の
+  exact ratio（equave 約化）と計画 ratio を比較する位置付き照合に変更した。
+  end-to-end（lower→compile→照合、全 slot matched）は
+  `backend/tests/test_piano_v3_lowering.py` で確認する。
 - したがって §5 の profile seal／lowering／paired listening／PCM 検収を
   完了扱いにしない。安定度の threshold は仮値のままとし、分類を確定判断
   として生成へ適用しない。
@@ -270,8 +286,12 @@ variant を使う。seed 0／1 の Program、Project、MIDI、WAV、PCM検収は
 `local_authority/piano_tritave_dictionary_axis_seed{0,1}` に保存。
 全4 section の Project exact ratios が Program に一致（3 section は
 封印済み辞書 variant、1 section は軸候補）、192 note events、
-48 kHz stereo 非無音 PCM。GEN0-B の sparse receipt と CadencePlan
-slot 照合は未実装で、生成品質の seal を意味しない。
+48 kHz stereo 非無音 PCM。`sparse_charge_receipt`（GEN0-B 1024
+coordinate／4096 placed と sparse voice cap の受入判定＋hash）を実装し、
+report の `sparse_charge.gen0b_receipt` に格納する（seed 0/1 は accepted）。
+CadencePlan slot と実 Project の位置付き照合も `cadence_impact_report` で
+実装済み。ただし centered navigation の全12音被覆（tritave）と独立試聴
+ラベルによる threshold 較正が未完了のため、生成品質の seal は意味しない。
 
 threshold 較正器 `backend/tools/calibrate_harmony_thresholds.py` は
 独立試聴による train／held_out の各T/D/Sラベルを要求し、train だけで
