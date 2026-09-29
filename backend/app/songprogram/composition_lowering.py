@@ -72,6 +72,103 @@ def _audible_velocity_q(energy_q: int) -> int:
     return 8500 + round(energy_q * 1500 / 10000)
 
 
+# --- v2 (spec §11): harmonic role and functional comping -------------------
+# The plan's harmonic_function is a provisional label; the mapping below is the
+# initial correspondence.  dominant_tension is only forced when the next phrase
+# actually lands (arrival/return); otherwise the bar falls back to the safe
+# transitional pattern so a mislabeled preparation does not create tension.
+_HARMONIC_ROLE_V2 = {
+    "home": "tonic_stable",
+    "departure": "predominant",
+    "preparation": "dominant_tension",
+    "arrival": "resolution",
+    "return": "resolution",
+}
+
+
+def _harmonic_role_v2(function: str, next_function: str | None) -> str:
+    role = _HARMONIC_ROLE_V2.get(function, "transitional")
+    if role == "dominant_tension" and next_function not in {"arrival", "return"}:
+        return "transitional"
+    return role
+
+
+# Role-specific per-bar comping templates (4/4).  Each step is
+# ``(onset_q, duration_q, accent_q, occurrence, voices)`` where ``occurrence``
+# is "new" (a chord change: melody binding point) or "rearticulation" (a key
+# strike of the current chord: not a harmony change), and ``voices`` selects
+# the emitted layer ("bass" = lowest voice, "upper" = all but the lowest).
+# Beat positions are template candidates; the lowering varies them per bar and
+# section so no fixed pattern is pasted across the piece.  Every template keeps
+# the harmonic occupancy unbroken (the bass sustains) so the rest-count rule
+# holds while the upper layer carries the rhythmic figure.
+_COMPING_V2 = {
+    "tonic_stable": (
+        # Bass + middle chord for two beats, light re-articulation on beat 3.
+        (
+            (0, 5000, 10000, "new", "bass"),
+            (0, 5000, 8000, "rearticulation", "upper"),
+            (5000, 5000, 7000, "rearticulation", "bass"),
+            (5000, 5000, 6000, "rearticulation", "upper"),
+        ),
+        # Alternating bar: bass for two beats, the middle chord enters on 3.
+        (
+            (0, 5000, 10000, "new", "bass"),
+            (5000, 5000, 7500, "rearticulation", "upper"),
+        ),
+    ),
+    "predominant": (
+        # Sustained bass; short broken middle-voice hits on 1, 2&, 3& with
+        # clear gaps between the strikes.
+        (
+            (0, 10000, 9000, "new", "bass"),
+            (0, 1250, 8000, "rearticulation", "upper"),
+            (3750, 1250, 7500, "rearticulation", "upper"),
+            (5625, 1250, 7000, "rearticulation", "upper"),
+        ),
+    ),
+    "dominant_tension": (
+        # Sustained bass; short hits on 1, 2&, 4 plus an anticipatory hit at
+        # 4& before the landing.
+        (
+            (0, 10000, 10000, "new", "bass"),
+            (0, 1250, 9000, "rearticulation", "upper"),
+            (3750, 1250, 8500, "rearticulation", "upper"),
+            (7500, 1250, 9000, "rearticulation", "upper"),
+            (8750, 1000, 9500, "rearticulation", "upper"),
+        ),
+    ),
+    "resolution": (
+        # Land the chord on the strong beat for two beats, then restrained
+        # short repetitions in the latter half.
+        (
+            (0, 10000, 10000, "new", "bass"),
+            (0, 5000, 9000, "rearticulation", "upper"),
+            (5000, 1250, 6000, "rearticulation", "upper"),
+            (7500, 1250, 5500, "rearticulation", "upper"),
+        ),
+        # Quieter landing: one restrained re-articulation after the chord.
+        (
+            (0, 10000, 10000, "new", "bass"),
+            (0, 5000, 8500, "rearticulation", "upper"),
+            (6250, 1250, 5500, "rearticulation", "upper"),
+        ),
+    ),
+    "transitional": (
+        # Safe mid-density centered on beats 1 and 3.
+        (
+            (0, 5000, 9000, "new", "bass"),
+            (0, 2500, 7500, "rearticulation", "upper"),
+            (5000, 5000, 8000, "rearticulation", "bass"),
+            (5000, 2500, 7000, "rearticulation", "upper"),
+        ),
+    ),
+}
+# Section functions that call for a sparser comping variant (verse/break leave
+# space; build/final increase density).
+_SPARSE_FUNCTIONS_V2 = {"statement", "contrast"}
+
+
 def _validate_plan(plan: Mapping[str, Any]) -> None:
     if (
         not isinstance(plan, Mapping)
@@ -99,8 +196,15 @@ def lower_composition_plan(
     structural_program: Mapping[str, Any],
     plan: Mapping[str, Any],
     realization_profile: Mapping[str, Any] | None = None,
+    v2: bool = False,
 ) -> dict[str, Any]:
-    """Replace random form/placement while preserving sealed lattice/material authority."""
+    """Replace random form/placement while preserving sealed lattice/material authority.
+
+    ``v2`` (spec §11) selects the pop-oriented piano behavior: role-based
+    functional comping with occurrence/key-strike separation, cadence-aware
+    chord-change rate, and melody cadence marking.  v1 keeps the legacy
+    per-bar rhythm-mode patterns so sealed receipts still reproduce.
+    """
     _validate_plan(plan)
     if realization_profile is not None:
         validate_realization_profile(realization_profile)
@@ -134,6 +238,11 @@ def lower_composition_plan(
 
     trajectory = {row["phrase_id"]: row for row in plan["harmonic_trajectory"]}
     occurrences = {row["phrase_id"]: row for row in plan["motif_plan"]["occurrences"]}
+    # Global phrase order (section by section) so a cadence bar can reference
+    # the next landing point even across a section boundary.
+    phrase_order = [
+        row["phrase_id"] for section in plan["sections"] for row in section["phrases"]
+    ]
     ticks_per_bar = result["clock"]["beats_per_bar"] * result["clock"]["ticks_per_beat"]
     bounds = result["lattice"]["coordinate_bounds"]
     coordination = plan["part_coordination"]
@@ -196,6 +305,102 @@ def lower_composition_plan(
                     "root_anchors": [copy.deepcopy(anchor) for _ in positions],
                 }
                 varied_harmony[pattern, index] = material_id
+    # v2 comping library: one rhythm cell per (role, variant) and one material
+    # per (role, variant, anchor).  Materials are appended on first use so the
+    # sealed limit is only spent on patterns the piece actually plays.
+    comping_rhythms: dict[tuple[str, int], dict[str, Any]] = {}
+    comping_materials: dict[tuple[str, int, int], str] = {}
+    emitted_comping_rhythms: set[tuple[str, int]] = set()
+    emitted_comping_materials: set[tuple[str, int, int]] = set()
+    change_materials: dict[int, str] = {}
+    emitted_change_materials: set[int] = set()
+    v2_anchors: list[list[int]] = []
+    if v2 and realization_profile is not None:
+        source_anchors = harmony_primary["root_anchors"]
+        if len(source_anchors) < 3:
+            raise CompositionLoweringError("COMPOSITION_HARMONY_ROOTS_UNAVAILABLE")
+        alternatives = sorted(
+            range(1, len(source_anchors)),
+            key=lambda index: (_section_draw(composition_seed, "song", f"root/{index}"), index),
+        )
+        v2_anchors = [source_anchors[0], *(source_anchors[index] for index in alternatives[:2])]
+        for role, variants in _COMPING_V2.items():
+            for variant, steps in enumerate(variants):
+                rhythm_id = f"rhy_cmp_comp_{role}_{variant}"
+                comping_rhythms[role, variant] = {
+                    "id": rhythm_id,
+                    "kind": "rhythm_cell",
+                    "length_ticks": ticks_per_bar,
+                    "steps": [
+                        {
+                            "at_tick": onset_q * ticks_per_bar // 10000,
+                            "duration_ticks": max(1, duration_q * ticks_per_bar // 10000),
+                            "accent_q": accent_q,
+                            "lane_id": None,
+                            "occurrence": occurrence,
+                            "voices": voices,
+                        }
+                        for onset_q, duration_q, accent_q, occurrence, voices in steps
+                    ],
+                }
+                for index, anchor in enumerate(v2_anchors):
+                    comping_materials[role, variant, index] = (
+                        f"mat_cmp_comp_{role}_{variant}_{index}"
+                    )
+        # The cadence bar's second chord change: one full-chord strike on beat
+        # 3.  It is a separate realization so the main pattern's re-
+        # articulations after beat 3 pick up the new chord automatically.
+        result["materials"].append(
+            {
+                "id": "rhy_cmp_comp_change",
+                "kind": "rhythm_cell",
+                "length_ticks": ticks_per_bar,
+                "steps": [
+                    {
+                        "at_tick": 5000 * ticks_per_bar // 10000,
+                        "duration_ticks": 4800 * ticks_per_bar // 10000,
+                        "accent_q": 10000,
+                        "lane_id": None,
+                        "occurrence": "new",
+                        "voices": "all",
+                    }
+                ],
+            }
+        )
+        for index, anchor in enumerate(v2_anchors):
+            change_materials[index] = f"mat_cmp_comp_change_{index}"
+
+    def _emit_comping(role: str, variant: int, index: int) -> None:
+        key = (role, variant)
+        if key not in emitted_comping_rhythms:
+            result["materials"].append(copy.deepcopy(comping_rhythms[key]))
+            emitted_comping_rhythms.add(key)
+        if (role, variant, index) not in emitted_comping_materials:
+            result["materials"].append(
+                {
+                    **copy.deepcopy(harmony_primary),
+                    "id": comping_materials[role, variant, index],
+                    "rhythm_id": comping_rhythms[key]["id"],
+                    "root_anchors": [
+                        copy.deepcopy(v2_anchors[index])
+                        for _ in comping_rhythms[key]["steps"]
+                    ],
+                }
+            )
+            emitted_comping_materials.add((role, variant, index))
+
+    def _emit_change(index: int) -> None:
+        if index not in emitted_change_materials:
+            result["materials"].append(
+                {
+                    **copy.deepcopy(harmony_primary),
+                    "id": change_materials[index],
+                    "rhythm_id": "rhy_cmp_comp_change",
+                    "root_anchors": [copy.deepcopy(v2_anchors[index])],
+                }
+            )
+            emitted_change_materials.add(index)
+
     for section in plan["sections"]:
         first_phrase = section["phrases"][0]["phrase_id"]
         harmonic = trajectory[first_phrase]
@@ -358,7 +563,84 @@ def lower_composition_plan(
         result["materials"].extend(section_materials)
         harmony_material_id = harmony_primary["id"]
         harmony_positions_by_bar = [[0] for _ in range(section["bars"])]
-        if varied_harmony and "harmony" in active_roles:
+        if v2 and realization_profile is not None and "harmony" in active_roles:
+            mode = _section_draw(composition_seed, section["section_id"], "root-mode") % 4
+            first_base = trajectory[first_phrase]["root_degree_ordinal"] % 3
+            for bar in range(section["bars"]):
+                phrase = next(row for row in reversed(section["phrases"])
+                              if row["start_bar"] <= bar)
+                phrase_base = trajectory[phrase["phrase_id"]]["root_degree_ordinal"] % 3
+                index = (
+                    first_base if mode == 0 else
+                    (first_base + bar % 2) % 3 if mode == 1 else
+                    (first_base + (0, 1, 2, 1)[bar % 4]) % 3 if mode == 2 else
+                    (phrase_base + bar % 2) % 3
+                )
+                next_phrase_id = (
+                    phrase_order[phrase_order.index(phrase["phrase_id"]) + 1]
+                    if phrase["phrase_id"] in phrase_order
+                    and phrase_order.index(phrase["phrase_id"]) + 1 < len(phrase_order)
+                    else None
+                )
+                role = _harmonic_role_v2(
+                    trajectory[phrase["phrase_id"]]["harmonic_function"],
+                    (
+                        trajectory[next_phrase_id]["harmonic_function"]
+                        if next_phrase_id is not None else None
+                    ),
+                )
+                variants = _COMPING_V2[role]
+                draw = _section_draw(
+                    composition_seed, section["section_id"], f"comping/{bar}"
+                )
+                if len(variants) > 1:
+                    # Sparse sections (verse/break) leave space; build/final
+                    # increase density.  The draw keeps the choice seeded.
+                    sparse = section["function"] in _SPARSE_FUNCTIONS_V2
+                    variant = (1 if draw % 4 < 3 else 0) if sparse else (
+                        0 if draw % 4 < 3 else 1
+                    )
+                else:
+                    variant = 0
+                is_cadence_bar = (
+                    bar == phrase["start_bar"] + phrase["length_bars"] - 1
+                    and phrase["cadence_target"] in {"arrival", "home"}
+                )
+                harmony_positions_by_bar[bar] = (
+                    [0, 5000] if is_cadence_bar else [0]
+                )
+                _emit_comping(role, variant, index)
+                realizations.append({
+                    "id": f"rea_cmp_{realization_ordinal:03d}",
+                    "section_id": section["section_id"], "role": "harmony",
+                    "material_id": comping_materials[role, variant, index],
+                    "at_tick": bar * ticks_per_bar, "repeat": 1,
+                    "every_ticks": ticks_per_bar,
+                    "rhythm_transforms": [],
+                    "pitch_transforms": [], "velocity_scale_q": audible_velocity_q,
+                    "gate_scale_q": 10000,
+                })
+                realization_ordinal += 1
+                if is_cadence_bar:
+                    # Second chord change on beat 3, referencing the next
+                    # landing point (spec v2-B: faster only near cadences).
+                    change_index = (
+                        trajectory[next_phrase_id]["root_degree_ordinal"] % 3
+                        if next_phrase_id is not None else index
+                    )
+                    _emit_change(change_index)
+                    realizations.append({
+                        "id": f"rea_cmp_{realization_ordinal:03d}",
+                        "section_id": section["section_id"], "role": "harmony",
+                        "material_id": change_materials[change_index],
+                        "at_tick": bar * ticks_per_bar, "repeat": 1,
+                        "every_ticks": ticks_per_bar,
+                        "rhythm_transforms": [],
+                        "pitch_transforms": [], "velocity_scale_q": audible_velocity_q,
+                        "gate_scale_q": 10000,
+                    })
+                    realization_ordinal += 1
+        elif varied_harmony and "harmony" in active_roles:
             mode = _section_draw(composition_seed, section["section_id"], "root-mode") % 4
             rhythm_mode = _section_draw(composition_seed, section["section_id"], "rhythm-mode") % 4
             first_base = trajectory[first_phrase]["root_degree_ordinal"] % 3
@@ -427,7 +709,9 @@ def lower_composition_plan(
             ),
         ]
         for role, material_id, at_tick, repeat, transforms in rows:
-            if role not in active_roles or (varied_harmony and role == "harmony"):
+            if role not in active_roles or (
+                (varied_harmony or v2) and role == "harmony"
+            ):
                 continue
             realizations.append(
                 {
@@ -495,16 +779,21 @@ def lower_composition_plan(
                         }
                     )
                     member_cycle = coordination["melody_chord_member_cycle"]
-                    points.append(
-                        {
-                            "relation": "chord_member",
-                            "member": member_cycle[
-                                (abs(event["degree_delta"]) + event_ordinal_in_phrase)
-                                % len(member_cycle)
-                            ],
-                            "contour": "hold",
-                        }
-                    )
+                    point = {
+                        "relation": "chord_member",
+                        "member": member_cycle[
+                            (abs(event["degree_delta"]) + event_ordinal_in_phrase)
+                            % len(member_cycle)
+                        ],
+                        "contour": "hold",
+                    }
+                    if v2 and phrase["cadence_target"] in {"arrival", "home"}:
+                        # The final note of a landing phrase is forced onto the
+                        # cadence chord tone (spec v2-C).
+                        point["cadence"] = (
+                            event_ordinal_in_phrase == len(phrase_events) - 1
+                        )
+                    points.append(point)
                 result["materials"].extend(
                     [
                         {

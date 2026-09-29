@@ -153,9 +153,16 @@ def resolve_single_harmony(
 
 
 def _harmony_query(
-    program: dict[str, Any], intent: dict[str, Any], anchor: list[int]
+    program: dict[str, Any],
+    intent: dict[str, Any],
+    anchor: list[int],
+    anchor_exponent: int | None = None,
 ) -> dict[str, Any]:
-    """Lower one SongProgram chord occurrence to the frozen GEN0-A query."""
+    """Lower one SongProgram chord occurrence to the frozen GEN0-A query.
+
+    ``anchor_exponent`` overrides the mod-equave reduction (v2 places the root
+    in the bass register instead of [1, 2) relative to the base).
+    """
     lattice = program["lattice"]
     return {
         "schema": "cps.sp0-oracle-query/v1",
@@ -185,7 +192,11 @@ def _harmony_query(
         },
         "anchor": {
             "vector": anchor,
-            "equave_exponent": _reduced_anchor_exponent(lattice, anchor),
+            "equave_exponent": (
+                _reduced_anchor_exponent(lattice, anchor)
+                if anchor_exponent is None
+                else anchor_exponent
+            ),
         },
     }
 
@@ -391,12 +402,16 @@ _HUMANIZE_DROP_NUMERATOR = 12
 _HUMANIZE_DROP_DENOMINATOR = 256
 
 
-def _humanize_chord_onsets(draft_id: str, voice_count: int) -> list[tuple[int, bool]]:
+def _humanize_chord_onsets(
+    draft_id: str, voice_count: int, drop: bool = True
+) -> list[tuple[int, bool]]:
     """Per-voice ``(onset_offset_ticks, dropped)`` for a humanized chord.
 
     Seeded by the draft identity so the humanization is deterministic per
     program but varies across chords.  Voices are rolled (lower voices start
     first) with a small jitter, and a rare voice is dropped to insert rests.
+    v2 (spec §11) passes ``drop=False``: the roll stays but no voice is
+    dropped, so every articulation keeps its full layer.
     """
     digest = hashlib.sha256(
         b"cps.piano-humanize/v1\0" + draft_id.encode("utf-8")
@@ -405,7 +420,7 @@ def _humanize_chord_onsets(draft_id: str, voice_count: int) -> list[tuple[int, b
     for index in range(voice_count):
         roll = index * _HUMANIZE_ROLL_STEP
         jitter = digest[(index * 7 + 1) % 32] % _HUMANIZE_JITTER_RANGE
-        dropped = digest[(index * 7 + 2) % 32] < _HUMANIZE_DROP_NUMERATOR
+        dropped = drop and digest[(index * 7 + 2) % 32] < _HUMANIZE_DROP_NUMERATOR
         result.append((roll + jitter, dropped))
     return result
 
@@ -429,6 +444,113 @@ _MELODY_TET_STEP_MC = 100_000
 # octave is wide enough that the sparse lattice always has a candidate inside,
 # yet the nearest-point search keeps consecutive notes close (a flowing line).
 _MELODY_WINDOW_MC = 1_200_000
+
+# --- v2 (spec §11): register, functional comping, and melody contour --------
+# Compiler build IDs that select the v2 piano behavior.  v1 keeps its wide
+# registers and per-note figuration so sealed receipts still reproduce.
+_PIANO_V2_BUILD_PREFIX = "piano-solo-generation-v2"
+# Hard registers in millicents relative to the lattice base (440 Hz = A4).
+# 12-TET boundaries; exact-ratio millicents are compared against them (never
+# MIDI-rounded values).  Nothing may cross the hard edge; phrase peaks and
+# accents may reach it.
+_PIANO_V2_HARD_REGISTER = {
+    "piano_solo_harmony": (-2_100_000, 300_000),    # C3–C5
+    "piano_solo_melody": (-1_400_000, 1_000_000),  # G3–G5
+}
+# The lowest voice of each harmony articulation stays in C3–C4 so the chord's
+# bass is stable (spec v2-A).
+_PIANO_V2_BASS_MILLICENTS = (-2_100_000, -900_000)
+# v2 melody contour: figuration is chosen in 2–4 note time-series units so a
+# neighbor returns and a passing tone resolves, instead of per-note random
+# relations.  Weights out of 256.
+_MELODY_V2_UNIT = (
+    ("stepwise", 96),
+    ("neighbor", 64),
+    ("passing", 48),
+    ("leap", 48),
+)
+# A leap is one note of 6–8 semitones followed by opposite-direction stepwise
+# resolution; the unit keeps consecutive notes close overall.
+_MELODY_V2_LEAP_MC = 700_000
+
+
+def _piano_v2_active(identity: CompilerIdentity, instrument_id: str | None) -> bool:
+    """True when the v2 piano register/comping/contour rules apply to a track."""
+    return (
+        identity.build_id.startswith(_PIANO_V2_BUILD_PREFIX)
+        and instrument_id in _PIANO_V2_HARD_REGISTER
+    )
+
+
+def _piano_v2_hard_register(instrument_id: str) -> tuple[int, int] | None:
+    return _PIANO_V2_HARD_REGISTER.get(instrument_id)
+
+
+def _v2_bass_anchor_exponent(
+    lattice: dict[str, Any], anchor: list[int]
+) -> int | None:
+    """Equave exponent placing the v2 root in the C3–C4 bass register.
+
+    The mod-equave reduction pins the anchor to [1, 2) relative to the A4
+    base (A4–A5), where a triad's fifth always exceeds the C5 hard edge.
+    Shifting the anchor down one or two octaves places the root in C3–C4;
+    with the 200-cent pair-error bound every voice then lands inside C3–C5
+    automatically.  Returns ``None`` when no integer-octave shift fits, in
+    which case the register filter produces a typed failure.
+    """
+    base = _reduced_anchor_exponent(lattice, anchor)
+    value = Fraction(1)
+    for generator, power in zip(lattice["generators"], anchor):
+        value *= Fraction(generator) ** power
+    reduced = value * Fraction(2) ** base  # in [1, 2)
+    low, high = _PIANO_V2_BASS_MILLICENTS
+    for shift in (1, 2):
+        if low <= _mc(reduced * Fraction(2) ** (-shift)) <= high:
+            return base - shift
+    return None
+
+
+def _piano_v2_chord_in_register(
+    lattice: dict[str, Any], chord: dict[str, Any]
+) -> bool:
+    """True when every voice is in the hard register and the bass is C3–C4.
+
+    The exact-ratio millicent of each voice (anchor + offset at its equave
+    exponent) is compared against the 12-TET boundaries; no MIDI rounding.
+    """
+    low, high = _PIANO_V2_HARD_REGISTER["piano_solo_harmony"]
+    bass_low, bass_high = _PIANO_V2_BASS_MILLICENTS
+    equave = _ratio(lattice["equave"])
+    generators = [_ratio(item) for item in lattice["generators"]]
+    millicents: list[int] = []
+    for offset, exponent in zip(chord["voice_offsets"], chord["equave_exponents"]):
+        vector = [a + o for a, o in zip(chord["anchor_vector"], offset)]
+        millicents.append(
+            _mc(_vector_ratio(generators, vector, equave, exponent))
+        )
+    if not all(low <= mc <= high for mc in millicents):
+        return False
+    return bass_low <= min(millicents) <= bass_high
+
+
+def _melody_onset_near(onsets: list[int], tick: int, window: int = 240) -> bool:
+    """True when a melody onset falls within an eighth note of ``tick``.
+
+    v2-B call-and-response: the accompaniment's inner voices yield on beats
+    where the melody speaks so the two parts trade phrases.
+    """
+    return any(abs(onset - tick) <= window for onset in onsets)
+
+
+def _melody_v2_unit_relation(seed: int, unit_ordinal: int) -> str:
+    """Weighted deterministic choice of a v2 unit contour (out of 256)."""
+    value = (seed >> (unit_ordinal * 4)) % 256
+    cumulative = 0
+    for relation, weight in _MELODY_V2_UNIT:
+        cumulative += weight
+        if value < cumulative:
+            return relation
+    return _MELODY_V2_UNIT[0][0]
 
 
 def _lattice_points(lattice: dict[str, Any]) -> list[tuple[list[int], int, str, int]]:
@@ -490,6 +612,45 @@ def _melody_figuration_relation(seed: int) -> str:
     return _MELODY_FIGURATION[0][0]
 
 
+def _reoctave_into_register(
+    lattice: dict[str, Any],
+    vector: list[int],
+    base_exponent: int,
+    base_mc: int,
+    anchor_mc: int,
+    register: list[int],
+) -> tuple[int, Fraction] | None:
+    """The octave of a chord voice nearest ``anchor_mc`` that fits ``register``.
+
+    Returns ``(equave_exponent, ratio)`` or ``None`` when no octave of the
+    voice lies inside the register window.  The exact-ratio millicent is what
+    is compared, never a MIDI-rounded value.
+    """
+    equave = _ratio(lattice["equave"])
+    generators = [_ratio(item) for item in lattice["generators"]]
+    equave_mc = _mc(equave)
+    low, high = lattice["register_bounds"]
+    if equave_mc <= 0:
+        candidates = [base_exponent]
+    else:
+        center = base_exponent + round((anchor_mc - base_mc) / equave_mc)
+        candidates = [center + delta for delta in range(-2, 3)]
+    best: tuple[int, Fraction] | None = None
+    best_error: int | None = None
+    for exponent in candidates:
+        if not low <= exponent <= high:
+            continue
+        ratio = _vector_ratio(generators, vector, equave, exponent)
+        mc = _mc(ratio)
+        if not register[0] <= mc <= register[1]:
+            continue
+        error = abs(mc - anchor_mc)
+        if best_error is None or error < best_error:
+            best = (exponent, ratio)
+            best_error = error
+    return best
+
+
 def _resolve_melody_pitch(
     lattice: dict[str, Any],
     points: list[tuple[list[int], int, str, int]],
@@ -498,6 +659,10 @@ def _resolve_melody_pitch(
     track: dict[str, Any],
     seed: int,
     anchor_mc: int | None = None,
+    register_millicents: list[int] | None = None,
+    target_mc: int | None = None,
+    strict: bool = False,
+    relation: str | None = None,
 ) -> dict[str, Any]:
     """Resolve one melody point to a pitch based on its figuration relation.
 
@@ -510,6 +675,12 @@ def _resolve_melody_pitch(
     ``anchor_mc`` the search is confined to a window around it so consecutive
     notes move by small intervals (a flowing melodic line).  The nearest
     in-register lattice point realizes each target as an exact ratio.
+
+    v2 (spec §11): ``register_millicents`` overrides the track register with
+    the hard register, ``target_mc`` supplies an explicit contour target
+    (unit-based figuration), ``relation`` overrides the weighted per-note
+    choice with the unit contour, and ``strict=True`` turns "no in-register
+    solution" into a typed failure instead of a silent chord-member fallback.
     """
     member = point["member"]
     try:
@@ -521,14 +692,31 @@ def _resolve_melody_pitch(
     ref_ratio = Fraction(chord["exact_ratios"][shape])
     ref_mc = _mc(ref_ratio)
     anchor = chord["anchor_vector"]
-    register = track["register_millicents"]
+    register = (
+        list(register_millicents)
+        if register_millicents is not None
+        else list(track["register_millicents"])
+    )
 
-    relation = _melody_figuration_relation(seed)
+    relation = (
+        _melody_figuration_relation(seed) if relation is None else relation
+    )
     if relation == "chord_member":
-        exponent = ref_exponent
-        ratio_text = chord["exact_ratios"][shape]
-        if anchor_mc is not None:
-            # Re-octave the chord voice to the octave nearest the anchor.
+        vector = [a + o for a, o in zip(anchor, ref_offset)]
+        if anchor_mc is None:
+            exponent, ratio = ref_exponent, ref_ratio
+        elif strict:
+            # v2: the re-octaved voice must land inside the hard register.
+            placed = _reoctave_into_register(
+                lattice, vector, ref_exponent, ref_mc, anchor_mc, register
+            )
+            if placed is None:
+                raise CompileError("PIANO_REGISTER_NO_SOLUTION")
+            exponent, ratio = placed
+        else:
+            # v1: re-octave to the octave nearest the anchor, clamped to the
+            # lattice register bounds (the track register is not enforced).
+            exponent = ref_exponent
             equave_mc = _mc(_ratio(lattice["equave"]))
             if equave_mc > 0:
                 exponent = ref_exponent + round((anchor_mc - ref_mc) / equave_mc)
@@ -536,35 +724,33 @@ def _resolve_melody_pitch(
                 exponent = max(low, min(high, exponent))
             ratio = _vector_ratio(
                 [_ratio(item) for item in lattice["generators"]],
-                [a + o for a, o in zip(anchor, ref_offset)],
+                vector,
                 _ratio(lattice["equave"]),
                 exponent,
             )
-            ratio_text = _ratio_text(ratio)
-        else:
-            ratio = ref_ratio
-        vector = [a + o for a, o in zip(anchor, ref_offset)]
         return {
             "source_vector": ref_offset,
             "final_vector": vector,
             "equave_exponent": exponent,
-            "final_ratio": ratio_text,
+            "final_ratio": _ratio_text(ratio),
             "relation": relation,
         }
 
     direction = 1 if (seed >> 8) % 2 else -1
-    if relation == "passing":
-        target_mc = ref_mc + direction * _MELODY_STEP_MC
-    elif relation == "neighbor":
-        target_mc = ref_mc - direction * _MELODY_STEP_MC
-    else:  # scale_degree
-        degree = 1 + (seed >> 4) % 4
-        target_mc = ref_mc + direction * degree * _MELODY_TET_STEP_MC
+    if target_mc is None:
+        if relation == "passing":
+            target_mc = ref_mc + direction * _MELODY_STEP_MC
+        elif relation == "neighbor":
+            target_mc = ref_mc - direction * _MELODY_STEP_MC
+        else:  # scale_degree
+            degree = 1 + (seed >> 4) % 4
+            target_mc = ref_mc + direction * degree * _MELODY_TET_STEP_MC
 
     if anchor_mc is not None:
         # Flowing line: search a window around the previous note, biased by
         # the figuration direction, instead of jumping to the reference voice.
-        target_mc = anchor_mc + direction * _MELODY_STEP_MC
+        if target_mc is None:
+            target_mc = anchor_mc + direction * _MELODY_STEP_MC
         window_lo = anchor_mc - _MELODY_WINDOW_MC
         window_hi = anchor_mc + _MELODY_WINDOW_MC
     else:
@@ -576,6 +762,8 @@ def _resolve_melody_pitch(
     if found is None:
         found = _nearest_lattice_point(points, target_mc, register)
     if found is None:
+        if strict:
+            raise CompileError("PIANO_REGISTER_NO_SOLUTION")
         return {
             "source_vector": ref_offset,
             "final_vector": [a + o for a, o in zip(anchor, ref_offset)],
@@ -922,7 +1110,17 @@ def compile_sp0(
                             strict=True,
                         )
                     ]
-                    query = _harmony_query(program, intent, anchor)
+                    v2_active = _piano_v2_active(identity, track["instrument_id"])
+                    query = _harmony_query(
+                        program,
+                        intent,
+                        anchor,
+                        anchor_exponent=(
+                            _v2_bass_anchor_exponent(lattice, anchor)
+                            if v2_active
+                            else None
+                        ),
+                    )
                     query_key = _canonical(query)
                     if query_key not in harmony_cache:
                         cores = resolve_joint_bnb(query, 24)
@@ -938,6 +1136,16 @@ def compile_sp0(
                             )
                             for core in cores
                         ]
+                        if v2_active:
+                            # v2-A: every voice inside the hard register and the
+                            # lowest voice in C3–C4 (a stable chord bass).
+                            chords = [
+                                chord
+                                for chord in chords
+                                if _piano_v2_chord_in_register(lattice, chord)
+                            ]
+                            if not chords:
+                                raise CompileError("PIANO_REGISTER_NO_SOLUTION")
                         harmony_cache[query_key] = chords
                     onset = instance_tick + (step["at_tick"] + rotations) % rhythm["length_ticks"]
                     duration = max(
@@ -981,6 +1189,12 @@ def compile_sp0(
                             "anchor": anchor,
                             "candidates": harmony_cache[query_key],
                             "query_key": query_key,
+                            # v2-B: a step is either a chord change ("new") or
+                            # a key re-strike of the current chord
+                            # ("rearticulation"); "voices" selects the emitted
+                            # layer (bass / upper / all).
+                            "occurrence": step.get("occurrence", "new"),
+                            "voices": step.get("voices", "all"),
                         }
                     )
             continue
@@ -1168,6 +1382,21 @@ def compile_sp0(
         drafts = sorted(
             drafts_by_track[track_id], key=lambda item: (item["onset"], item["id"].encode())
         )
+        v2_active = _piano_v2_active(identity, drafts[0]["track"]["instrument_id"])
+        if v2_active:
+            # A rearticulation before any chord change has no current chord to
+            # strike; promote the leading run so the bar still gets its harmony.
+            seen_new = False
+            for draft in drafts:
+                if draft["occurrence"] == "new":
+                    seen_new = True
+                elif not seen_new:
+                    draft["occurrence"] = "new"
+        v2_register = (
+            list(_piano_v2_hard_register(drafts[0]["track"]["instrument_id"]))
+            if v2_active
+            else None
+        )
         query = {
             "schema": "cps.progression-query",
             "schema_version": (
@@ -1183,13 +1412,19 @@ def compile_sp0(
             "occurrences": [],
         }
         for draft in drafts:
+            if v2_active and draft["occurrence"] != "new":
+                continue  # Rearticulations are key strikes, not chord changes.
             query["occurrences"].append(
                 {
                     "id": draft["id"],
                     "start_tick": draft["onset"],
                     "duration_ticks": draft["duration"],
                     "track_id": track_id,
-                    "register_millicents": draft["track"]["register_millicents"],
+                    "register_millicents": (
+                        v2_register
+                        if v2_register is not None
+                        else draft["track"]["register_millicents"]
+                    ),
                     "maximum_polyphony": draft["track"]["maximum_polyphony"],
                     "overlapping_nonprogression_pitched_events": 0,
                     "intent_hash": draft["candidates"][0]["intent_hash"],
@@ -1203,38 +1438,116 @@ def compile_sp0(
             path = resolve_progression(query)
         except ValueError as error:
             raise CompileError("PROGRESSION_NO_PATH") from error
-        for draft, core_hash in zip(drafts, path["selected_core_hashes"], strict=True):
+        new_drafts = [draft for draft in drafts if draft["occurrence"] == "new"]
+        selected_by_draft: dict[str, dict[str, Any]] = {}
+        for draft, core_hash in zip(new_drafts, path["selected_core_hashes"], strict=True):
             selected = next(
                 (chord for chord in draft["candidates"] if _core_hash(chord) == core_hash), None
             )
             if selected is None:  # Defensive: resolver output is always a candidate core.
                 raise CompileError("PROGRESSION_NO_PATH")
-            if stochastic_realization:
+            if stochastic_realization and len(draft["candidates"]) > 1:
                 # The resolver ran over the full candidate set for voice-leading
                 # validity; the emitted realization is then chosen stochastically
                 # between the pure (closest) and dissonant (second-closest) core.
                 selected = _select_realization(draft["query_key"], draft["candidates"])
+            selected_by_draft[draft["id"]] = selected
             selected_drafts.append((draft, selected))
+        if v2_active:
+            # Rearticulations strike the most recent chord change's resolved
+            # chord (a key re-strike, not a harmony change).
+            new_by_onset = sorted(
+                new_drafts, key=lambda item: (item["onset"], item["id"].encode())
+            )
+            for draft in drafts:
+                if draft["occurrence"] != "rearticulation":
+                    continue
+                previous = None
+                for candidate in new_by_onset:
+                    if candidate["onset"] <= draft["onset"]:
+                        previous = candidate
+                if previous is None:
+                    raise CompileError("PIANO_REARTICULATION_NO_CHORD")
+                draft["rearticulation_source"] = previous["id"]
+                selected_drafts.append((draft, selected_by_draft[previous["id"]]))
 
     selected_drafts.sort(
         key=lambda item: (item[0]["onset"], item[0]["track"]["id"].encode(), item[0]["id"].encode())
     )
+    # v2-B call-and-response reference: every melody onset (all tracks).
+    v2_melody_onsets = sorted(draft["onset"] for draft in melody_drafts)
+    # v2-B: extend each chord change's occupancy to the next change (or the
+    # section end) so the harmonic interval stays unbroken and melody notes
+    # bind to exactly one occurrence.
+    v2_occurrence_end: dict[str, int] = {}
+    any_v2_harmony = any(
+        _piano_v2_active(identity, draft["track"]["instrument_id"])
+        for draft, _ in selected_drafts
+    )
+    if any_v2_harmony:
+        new_by_track: dict[str, list[dict[str, Any]]] = {}
+        for draft, _ in selected_drafts:
+            if (
+                draft["occurrence"] == "new"
+                and _piano_v2_active(identity, draft["track"]["instrument_id"])
+            ):
+                new_by_track.setdefault(draft["track"]["id"], []).append(draft)
+        for track_id, entries in new_by_track.items():
+            entries.sort(key=lambda item: (item["onset"], item["id"].encode()))
+            for index, draft in enumerate(entries):
+                section_end = (
+                    section_starts[draft["section"]["id"]]
+                    + draft["section"]["bars"] * ticks_per_bar
+                )
+                next_onset = (
+                    entries[index + 1]["onset"] if index + 1 < len(entries) else None
+                )
+                end = (
+                    min(next_onset, section_end) if next_onset is not None else section_end
+                )
+                v2_occurrence_end[draft["id"]] = max(draft["onset"] + 1, end)
+    v2_occurrence_index: dict[str, int] = {}
+    occurrence_index = 0
     for chord_index, (draft, chord) in enumerate(selected_drafts):
         if all(existing["id"] != chord["id"] for existing in project["resolved_chords"]):
             project["resolved_chords"].append(chord)
-        project["harmony_occurrences"].append(
-            {
-                "chord_index": chord_index,
-                "section_id": draft["section"]["id"],
-                "start_tick": draft["onset"],
-                "duration_ticks": draft["duration"],
-                "resolved_chord_id": chord["id"],
-            }
-        )
+        v2_active = _piano_v2_active(identity, draft["track"]["instrument_id"])
+        if not (v2_active and draft["occurrence"] != "new"):
+            # Rearticulations create no new occurrence (they re-strike the
+            # current chord); everything else does.
+            duration = (
+                v2_occurrence_end.get(draft["id"], draft["duration"])
+                if v2_active
+                else draft["duration"]
+            )
+            if v2_active:
+                v2_occurrence_index[draft["id"]] = occurrence_index
+            project["harmony_occurrences"].append(
+                {
+                    "chord_index": occurrence_index if v2_active else chord_index,
+                    "section_id": draft["section"]["id"],
+                    "start_tick": draft["onset"],
+                    "duration_ticks": duration,
+                    "resolved_chord_id": chord["id"],
+                }
+            )
+            if v2_active:
+                occurrence_index += 1
         humanized = (
-            _humanize_chord_onsets(draft["id"], len(chord["voice_offsets"]))
+            _humanize_chord_onsets(
+                draft["id"], len(chord["voice_offsets"]), drop=not v2_active
+            )
             if draft["track"]["instrument_id"] == _PIANO_HARMONY_INSTRUMENT
             else None
+        )
+        # v2-B voice layer: "bass" = the lowest voice only, "upper" = all but
+        # the lowest, "all" = every voice.  The lowest voice is found by exact
+        # pitch (never assumed to be a fixed shape ordinal).
+        voice_millicents = [
+            _mc(_ratio(ratio)) for ratio in chord["exact_ratios"]
+        ]
+        lowest_shape = min(
+            range(len(voice_millicents)), key=lambda index: voice_millicents[index]
         )
         for shape, (offset, exponent, ratio, target) in enumerate(
             zip(
@@ -1245,6 +1558,20 @@ def compile_sp0(
                 strict=True,
             )
         ):
+            if v2_active:
+                is_upper = shape != lowest_shape
+                if draft["voices"] == "bass" and is_upper:
+                    continue
+                if draft["voices"] == "upper" and not is_upper:
+                    continue
+                # Call-and-response: inner voices yield on beats where the
+                # melody speaks (an eighth-note window around each onset).
+                if (
+                    is_upper
+                    and draft["voices"] in {"upper", "all"}
+                    and _melody_onset_near(v2_melody_onsets, draft["onset"])
+                ):
+                    continue
             onset_offset = 0
             duration = draft["duration"]
             if humanized is not None:
@@ -1275,7 +1602,15 @@ def compile_sp0(
                 "articulation": "normal",
                 "drum_note": None,
                 "ratio": ratio,
-                "chord_index": chord_index,
+                "chord_index": (
+                    v2_occurrence_index[
+                        draft["id"]
+                        if draft["occurrence"] == "new"
+                        else draft["rearticulation_source"]
+                    ]
+                    if v2_active
+                    else chord_index
+                ),
                 "pitch_provenance": {
                     "kind": "resolved_chord_voice",
                     "resolved_chord_id": chord["id"],
@@ -1306,11 +1641,53 @@ def compile_sp0(
         )
         else None
     )
+    # v2-C: group melody drafts into 2–4 note units per phrase instance and
+    # assign each unit a contour (stepwise / neighbor / passing / leap) so a
+    # neighbor returns and a passing tone resolves instead of per-note random
+    # relations.  Cadence points (phrase landings) are forced onto the chord.
+    v2_unit_info: dict[tuple[str, str, int], tuple[str, int, int, int]] = {}
+    if any(
+        _piano_v2_active(identity, draft["track"]["instrument_id"])
+        for draft in melody_drafts
+    ):
+        by_instance: dict[tuple[str, str], list[dict[str, Any]]] = {}
+        for draft in melody_drafts:
+            if not _piano_v2_active(identity, draft["track"]["instrument_id"]):
+                continue
+            key = (draft["track"]["id"], draft["instance_id"])
+            by_instance.setdefault(key, []).append(draft)
+        for key, unit_drafts in by_instance.items():
+            unit_drafts.sort(key=lambda item: (item["onset"], item["step_index"]))
+            seed_base = int.from_bytes(
+                hashlib.sha256(
+                    b"cps.piano-melody-unit/v1\0"
+                    + key[0].encode()
+                    + b"\0"
+                    + key[1].encode()
+                ).digest()[:8],
+                "big",
+            )
+            index = 0
+            unit_ordinal = 0
+            while index < len(unit_drafts):
+                size = min(
+                    2 + (seed_base >> (unit_ordinal * 3)) % 3,
+                    len(unit_drafts) - index,
+                )
+                relation = _melody_v2_unit_relation(seed_base, unit_ordinal)
+                direction = 1 if (seed_base >> (unit_ordinal * 5 + 1)) % 2 else -1
+                for position, draft in enumerate(unit_drafts[index:index + size]):
+                    v2_unit_info[(key[0], key[1], draft["step_index"])] = (
+                        relation, direction, position, size
+                    )
+                index += size
+                unit_ordinal += 1
     # Process in time order so the figuration can anchor on the previous note.
     melody_drafts.sort(
         key=lambda item: (item["onset"], item["track"]["id"].encode(), item["step_index"])
     )
     previous_note_mc: dict[str, int] = {}
+    v2_unit_start_mc: dict[str, int] = {}
     for draft in melody_drafts:
         end = draft["onset"] + draft["duration"]
         active = [
@@ -1340,16 +1717,74 @@ def compile_sp0(
                 ).digest()[:8],
                 "big",
             )
-            resolved = _resolve_melody_pitch(
-                lattice, melody_points, chord, draft["point"], draft["track"], seed,
-                anchor_mc=previous_note_mc.get(draft["track"]["id"]),
-            )
+            v2_active = _piano_v2_active(identity, draft["track"]["instrument_id"])
+            info: tuple[str, int, int, int] | None = None
+            if v2_active:
+                info = v2_unit_info.get(
+                    (draft["track"]["id"], draft["instance_id"], draft["step_index"])
+                )
+                if info is not None:
+                    relation, direction, position, size = info
+                else:
+                    relation, direction, position, size = None, 1, 0, 1
+                if draft["point"].get("cadence"):
+                    relation = "chord_member"
+                try:
+                    ref_shape = chord["target_voice_ordinals"].index(member)
+                except ValueError:
+                    ref_shape = 0
+                ref_mc = _mc(Fraction(chord["exact_ratios"][ref_shape]))
+                base_mc = previous_note_mc.get(draft["track"]["id"])
+                if base_mc is None:
+                    base_mc = ref_mc
+                target_mc: int | None = None
+                if relation == "chord_member":
+                    pass  # Re-octave the chord voice to the previous note.
+                elif relation == "stepwise":
+                    target_mc = base_mc + direction * _MELODY_TET_STEP_MC
+                elif relation == "neighbor":
+                    if position == 0:
+                        target_mc = base_mc + direction * _MELODY_TET_STEP_MC
+                    else:
+                        target_mc = v2_unit_start_mc.get(
+                            draft["track"]["id"], base_mc
+                        )
+                elif relation == "passing":
+                    if position == size - 1:
+                        target_mc = ref_mc  # Resolve to the chord tone.
+                    else:
+                        target_mc = base_mc + direction * _MELODY_TET_STEP_MC
+                else:  # leap
+                    if position == 0:
+                        target_mc = base_mc + direction * _MELODY_V2_LEAP_MC
+                    else:
+                        target_mc = base_mc - direction * _MELODY_TET_STEP_MC
+                resolved = _resolve_melody_pitch(
+                    lattice, melody_points, chord, draft["point"], draft["track"], seed,
+                    anchor_mc=previous_note_mc.get(draft["track"]["id"]),
+                    register_millicents=list(
+                        _piano_v2_hard_register(draft["track"]["instrument_id"])
+                    ),
+                    target_mc=target_mc,
+                    strict=True,
+                    relation=relation,
+                )
+            else:
+                resolved = _resolve_melody_pitch(
+                    lattice, melody_points, chord, draft["point"], draft["track"], seed,
+                    anchor_mc=previous_note_mc.get(draft["track"]["id"]),
+                )
             offset = resolved["source_vector"]
             vector = resolved["final_vector"]
             exponent = resolved["equave_exponent"]
             ratio = resolved["final_ratio"]
             relation = resolved["relation"]
             previous_note_mc[draft["track"]["id"]] = _mc(_ratio(ratio))
+            if v2_active and info is not None and info[2] == 0:
+                # Record the unit's starting pitch for neighbor returns.
+                v2_unit_start_mc[draft["track"]["id"]] = previous_note_mc[
+                    draft["track"]["id"]
+                ]
         else:
             try:
                 shape = chord["target_voice_ordinals"].index(member)
@@ -1406,6 +1841,27 @@ def compile_sp0(
         }
         event["id"] = _event_id(event)
         project["events"].append(event)
+
+    # v2-A final inspection: every emitted note of a v2 piano track must lie
+    # inside its hard register (exact-ratio millicents, never MIDI-rounded).
+    # The per-voice filter and strict melody resolution make this a safety
+    # net; a violation means a bug in the placement logic, not a near-miss.
+    if any(
+        _piano_v2_active(identity, track["instrument_id"])
+        for track in program["tracks"]
+    ):
+        tracks_by_id = {track["id"]: track for track in program["tracks"]}
+        for event in project["events"]:
+            if event["kind"] != "note":
+                continue
+            register = _piano_v2_hard_register(
+                tracks_by_id[event["track_id"]]["instrument_id"]
+            )
+            if register is None:
+                continue
+            millicents = _mc(_ratio(event["ratio"]))
+            if not register[0] <= millicents <= register[1]:
+                raise CompileError("PIANO_REGISTER_VIOLATION")
 
     if not project["events"] or len(project["events"]) > program["limits"]["max_events"]:
         raise CompileError("EVENT_LIMIT_EXCEEDED")

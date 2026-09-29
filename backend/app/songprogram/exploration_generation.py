@@ -249,7 +249,11 @@ def validate_exploration_generation_manifest(manifest: dict[str, Any]) -> None:
         derive_lattice_navigation(domain["value"], navigation)
 
     production = manifest["production_policy"]
-    if set(production) != {"maximum_polyphony", "pitched_frequency_millihz", "register_millicents"}:
+    if set(production) not in (
+        {"maximum_polyphony", "pitched_frequency_millihz", "register_millicents"},
+        {"maximum_polyphony", "pitched_frequency_millihz", "register_millicents",
+         "register_millicents_by_role"},
+    ):
         raise ExplorationGenerationManifestError("GENERATION_PRODUCTION_POLICY_INVALID")
     if not 1 <= production["maximum_polyphony"] <= 256:
         raise ExplorationGenerationManifestError("GENERATION_POLYPHONY_INVALID")
@@ -257,6 +261,15 @@ def validate_exploration_generation_manifest(manifest: dict[str, Any]) -> None:
         bounds = production[field]
         if not isinstance(bounds, list) or len(bounds) != 2 or bounds[0] >= bounds[1]:
             raise ExplorationGenerationManifestError(f"GENERATION_BOUNDS_INVALID:{field}")
+    if "register_millicents_by_role" in production:
+        by_role = production["register_millicents_by_role"]
+        if not isinstance(by_role, dict) or not by_role:
+            raise ExplorationGenerationManifestError("GENERATION_PRODUCTION_POLICY_INVALID")
+        for role, bounds in by_role.items():
+            if not isinstance(role, str) or not isinstance(bounds, list) or len(bounds) != 2 \
+                    or bounds[0] >= bounds[1]:
+                raise ExplorationGenerationManifestError(
+                    f"GENERATION_BOUNDS_INVALID:register_millicents_by_role/{role}")
 
     catalog = manifest["render_catalog_policy"]
     if catalog.get("algorithm") != "deterministic-harmonic-trial-catalog/v1":

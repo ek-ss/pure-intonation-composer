@@ -14,6 +14,7 @@ import hashlib
 import json
 import sys
 from pathlib import Path
+from typing import Any
 
 BACKEND = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(BACKEND))
@@ -80,8 +81,6 @@ def _piano_production_authorities(
     the piano-solo manifest / catalog and skips the drum map (a piano song has
     no drum track).
     """
-    from typing import Any
-
     manifest = _object(DEFAULT_PRODUCTION_MANIFEST)
     catalog = _object(DEFAULT_CATALOG)
     policy = generation_manifest["production_policy"]
@@ -96,8 +95,9 @@ def _piano_production_authorities(
     manifest["instrument_catalog_digest"] = catalog_digest
     manifest["sampler_manifest_hash"] = sampler_hash
     role_order = ["drums", "bass", "harmony", "melody", "texture"]
+    registers_by_role = policy.get("register_millicents_by_role", {})
     manifest["register_presets_by_role"] = {
-        role: [{"value": policy["register_millicents"], "weight": 1}]
+        role: [{"value": registers_by_role.get(role, policy["register_millicents"]), "weight": 1}]
         for role in role_order
         if role != "drums"
     }
@@ -143,8 +143,6 @@ def _piano_catalog(
     the two tracks sound like one instrument.  The drum kit entry is retained
     for catalog shape but no drum track is realized in a piano song.
     """
-    from typing import Any
-
     catalog = _object(DEFAULT_CATALOG)
     policy = generation_manifest["production_policy"]
     assets: dict[str, bytes] = {}
