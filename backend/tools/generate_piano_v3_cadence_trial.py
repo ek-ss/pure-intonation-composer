@@ -173,10 +173,12 @@ class V3TrialFailure(PianoV3Error):
     def __init__(
         self, code: str, stage: str, detail: str = "",
         artifacts: dict[str, bytes] | None = None,
+        progression_diagnostics: dict[str, Any] | None = None,
     ) -> None:
         super().__init__(code, detail)
         self.stage = stage
         self.artifacts = artifacts if artifacts is not None else {}
+        self.progression_diagnostics = progression_diagnostics
 
 
 def _failure_code(error: BaseException) -> str:
@@ -194,6 +196,7 @@ def generate_one(equave: str, seed: int, *, skip_wav: bool) -> tuple[dict[str, b
     """
     artifacts: dict[str, bytes] = {}
     stage = "setup"
+    progression_diagnostics: dict[str, Any] = {}
     try:
         dictionary = _dictionary(equave)
         generation = _object(GENERATION_PROFILE)
@@ -241,6 +244,7 @@ def generate_one(equave: str, seed: int, *, skip_wav: bool) -> tuple[dict[str, b
         project = compile_sp0(
             program, identity, stochastic_realization=False,
             dictionary_authorities={dictionary["hash"]: dictionary},
+            progression_diagnostics=progression_diagnostics,
         )
         artifacts["project.json"] = canonical_bytes(project)
 
@@ -279,7 +283,10 @@ def generate_one(equave: str, seed: int, *, skip_wav: bool) -> tuple[dict[str, b
             stage = "pcm"
             pcm = _pcm_check(rendered.wav)
     except (PianoV3Error, CompileError, ValueError, KeyError, OSError, jsonschema.ValidationError) as error:
-        raise V3TrialFailure(_failure_code(error), stage, str(error), artifacts) from error
+        raise V3TrialFailure(
+            _failure_code(error), stage, str(error), artifacts,
+            progression_diagnostics or None,
+        ) from error
 
     report = {
         "schema": "cps.piano-v3-cadence-trial-report",

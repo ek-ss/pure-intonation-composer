@@ -865,6 +865,7 @@ def compile_sp0(
     identity: CompilerIdentity,
     stochastic_realization: bool = True,
     dictionary_authorities: dict[str, dict[str, Any]] | None = None,
+    progression_diagnostics: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Compile SP 0.1/0.2 to its matching Project 1.2/1.3 envelope.
 
@@ -1448,7 +1449,7 @@ def compile_sp0(
                 }
             )
         try:
-            path = resolve_progression(query)
+            path = resolve_progression(query, progression_diagnostics)
         except ValueError as error:
             raise CompileError("PROGRESSION_NO_PATH") from error
         new_drafts = [draft for draft in drafts if draft["occurrence"] == "new"]

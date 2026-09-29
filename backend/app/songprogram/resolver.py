@@ -273,8 +273,13 @@ def _matching(left: list[dict[str, Any]], right: list[dict[str, Any]], equave_mc
     return best
 
 
-def resolve_progression(query: dict[str, Any]) -> dict[str, Any]:
-    """Exact layered Viterbi over self-contained GEN0-B candidate cores."""
+def resolve_progression(query: dict[str, Any], diagnostics: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Exact layered Viterbi over self-contained GEN0-B candidate cores.
+
+    When ``diagnostics`` is supplied it is populated with per-layer drop
+    counts (polyphony, register, voice motion, crossing, no-match) and the
+    layer where the path first breaks.  Recording never affects the result.
+    """
     if (
         query.get("schema_version") not in {"1.2.0", "2.0.0"}
         or query.get("numeric_contract") != NUMERIC_CONTRACT
@@ -283,21 +288,78 @@ def resolve_progression(query: dict[str, Any]) -> dict[str, Any]:
     equave_mc = _mc(_ratio(query["domain_equave"]))
     layers = [sorted(item["candidate_cores"], key=lambda core: (core["local_pair_rms_millicents"], core["local_pair_max_millicents"], core["local_complexity"], core["core_hash"])) for item in query["occurrences"]]
     paths: list[tuple[tuple[Any, ...], list[dict[str, Any]], list[list[int]]]] = []
+    layer_stats: list[dict[str, Any]] | None = (
+        [] if diagnostics is not None else None
+    )
+
+    def _ineligible(core: dict[str, Any], occurrence: dict[str, Any]) -> str | None:
+        if len(core["voices"]) > occurrence["maximum_polyphony"]:
+            return "polyphony"
+        if any(
+            not occurrence["register_millicents"][0]
+            <= voice["ratio_millicents"]
+            <= occurrence["register_millicents"][1]
+            for voice in core["voices"]
+        ):
+            return "register"
+        return None
+
+    def _layer_voices(layer_cores: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        if not layer_cores:
+            return []
+        return [
+            {
+                "target_ordinal": voice["target_ordinal"],
+                "ratio_millicents": voice["ratio_millicents"],
+                "equave_exponent": voice["equave_exponent"],
+                "exact_ratio": voice["exact_ratio"],
+            }
+            for voice in layer_cores[0]["voices"]
+        ]
+
+    def _record(layer_index: int, occurrence: dict[str, Any], total: int, drops: dict[str, int], reachable: int, voices: list[dict[str, Any]] | None = None) -> None:
+        if layer_stats is None:
+            return
+        layer_stats.append({
+            "layer_index": layer_index,
+            "occurrence_id": occurrence["id"],
+            "start_tick": occurrence["start_tick"],
+            "track_id": occurrence["track_id"],
+            "total_candidates": total,
+            "dropped": drops,
+            "reachable": reachable,
+            "voices": voices if voices is not None else _layer_voices(layers[layer_index]),
+        })
+
     first_occurrence = query["occurrences"][0]
+    drops: dict[str, int] = {}
     for core in layers[0]:
-        if len(core["voices"]) > first_occurrence["maximum_polyphony"] or any(not first_occurrence["register_millicents"][0] <= voice["ratio_millicents"] <= first_occurrence["register_millicents"][1] for voice in core["voices"]):
+        cause = _ineligible(core, first_occurrence)
+        if cause is not None:
+            drops[cause] = drops.get(cause, 0) + 1
             continue
         paths.append(((0, 0, 0, 0, 0, 0, 0, 0, core["local_pair_rms_millicents"], core["local_pair_max_millicents"], core["local_complexity"], ((query["occurrences"][0]["id"], core["core_hash"], None),)), [core], []))
+    _record(0, first_occurrence, len(layers[0]), drops, len(paths))
     for layer_index in range(1, len(layers)):
         next_paths: list[tuple[tuple[Any, ...], list[dict[str, Any]], list[list[int]]]] = []
+        occurrence = query["occurrences"][layer_index]
+        drops = {}
         for core in layers[layer_index]:
-            occurrence = query["occurrences"][layer_index]
-            if len(core["voices"]) > occurrence["maximum_polyphony"] or any(not occurrence["register_millicents"][0] <= voice["ratio_millicents"] <= occurrence["register_millicents"][1] for voice in core["voices"]):
+            cause = _ineligible(core, occurrence)
+            if cause is not None:
+                drops[cause] = drops.get(cause, 0) + 1
                 continue
             options = []
             for score, selected, keys in paths:
                 edge = _matching(selected[-1]["voices"], core["voices"], equave_mc)
-                if edge is None or edge[4] > query["maximum_voice_motion_millicents"] or (query["crossing_policy"] == "forbid" and edge[2] != 0):
+                if edge is None:
+                    drops["no_match"] = drops.get("no_match", 0) + 1
+                    continue
+                if edge[4] > query["maximum_voice_motion_millicents"]:
+                    drops["voice_motion"] = drops.get("voice_motion", 0) + 1
+                    continue
+                if query["crossing_policy"] == "forbid" and edge[2] != 0:
+                    drops["crossing"] = drops.get("crossing", 0) + 1
                     continue
                 values, key = edge[:8], list(edge[8])
                 combined = (
@@ -313,6 +375,12 @@ def resolve_progression(query: dict[str, Any]) -> dict[str, Any]:
             if options:
                 next_paths.append(min(options, key=lambda item: item[0]))
         paths = next_paths
+        _record(layer_index, occurrence, len(layers[layer_index]), drops, len(next_paths))
+    if diagnostics is not None:
+        diagnostics["layers"] = layer_stats
+        diagnostics["broken_at_layer"] = next(
+            (stat["layer_index"] for stat in layer_stats if stat["reachable"] == 0), None
+        )
     if not paths:
         raise ValueError("PROGRESSION_NO_PATH")
     score, selected, keys = min(paths, key=lambda item: item[0])
