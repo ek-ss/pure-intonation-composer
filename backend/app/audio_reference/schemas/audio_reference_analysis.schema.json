@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cps.local/schemas/audio_reference_analysis.schema.json",
+  "title": "CPS Audio Reference Analysis",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "schema_version", "model_id", "model_version", "input", "input_policy_hash", "observations"],
+  "properties": {
+    "schema": {"const": "cps.audio-reference-analysis"},
+    "schema_version": {"const": "0.1.0"},
+    "model_id": {"type": "string", "minLength": 1},
+    "model_version": {"type": "string", "minLength": 1},
+    "input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "source_hash", "decode", "time_reference"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "source_hash": {"$ref": "#/$defs/sha256"},
+        "decode": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["format", "decoder_id", "decoder_version", "source_bit_depth", "sample_rate_hz", "channels", "frame_count", "pcm_hash"],
+          "properties": {
+            "format": {"type": "string", "minLength": 1},
+            "decoder_id": {"type": "string", "minLength": 1},
+            "decoder_version": {"type": "string"},
+            "source_bit_depth": {"type": ["integer", "null"]},
+            "sample_rate_hz": {"type": "integer", "minimum": 1},
+            "channels": {"type": "integer", "minimum": 1},
+            "frame_count": {"type": "integer", "minimum": 0},
+            "pcm_hash": {"$ref": "#/$defs/sha256"}
+          }
+        },
+        "time_reference": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["origin", "sample_rate_hz", "frame_count"],
+          "properties": {
+            "origin": {"const": "first-sample"},
+            "sample_rate_hz": {"type": "integer", "minimum": 1},
+            "frame_count": {"type": "integer", "minimum": 0}
+          }
+        }
+      }
+    },
+    "input_policy_hash": {"$ref": "#/$defs/sha256"},
+    "observations": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/observation"}
+    }
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "observationType": {
+      "enum": ["silence", "clipping", "channel_difference", "phase_difference", "noise_floor", "onset", "tempo", "beat", "downbeat", "meter", "section", "repetition", "chord", "key", "energy", "onset_density", "register", "stereo_balance"]
+    },
+    "confidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value_q", "definition", "model_version", "calibration_set"],
+      "properties": {
+        "value_q": {"type": "integer", "minimum": 0, "maximum": 10000},
+        "definition": {"type": "string", "minLength": 1},
+        "model_version": {"type": "string", "minLength": 1},
+        "calibration_set": {"type": ["string", "null"]}
+      }
+    },
+    "observation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type", "start_sample", "end_sample", "value", "candidates", "confidence", "provenance", "unresolved_reason"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^obs_[a-z_]+_[0-9]{3}$"},
+        "type": {"$ref": "#/$defs/observationType"},
+        "start_sample": {"type": "integer", "minimum": 0},
+        "end_sample": {"type": "integer", "minimum": 0},
+        "value": {"type": ["object", "null"]},
+        "candidates": {"type": "array"},
+        "confidence": {"anyOf": [{"$ref": "#/$defs/confidence"}, {"type": "null"}]},
+        "provenance": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["method", "model_version"],
+          "properties": {
+            "method": {"type": "string", "minLength": 1},
+            "model_version": {"type": "string", "minLength": 1}
+          }
+        },
+        "unresolved_reason": {"type": ["string", "null"]}
+      }
+    }
+  }
+}

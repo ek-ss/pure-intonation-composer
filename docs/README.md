@@ -74,6 +74,7 @@ as implemented.
 | [lattice_harmony_cadence_listening_review.md](lattice_harmony_cadence_listening_review.md) | Piano lattice harmonic-function/cadence mapping, symbolic evidence, and listening comparison design |
 | [development_plan_5d_chord_cadence_dictionary.md](development_plan_5d_chord_cadence_dictionary.md) | Next implementation: 5D octave/tritave chord dictionary, scalar stability, cadence experiments, and Web UI |
 | [piano_solo_v3_cadence_profile_spec.md](piano_solo_v3_cadence_profile_spec.md) | Implementation audit of the 5D dictionary and proposed cadence-driven 5D piano v3 profile |
+| [audio_reference_to_generation_profile_spec.md](audio_reference_to_generation_profile_spec.md) | Proposed audio-to-CPS generation profile analyzer, capability-gap report, and MIR library survey |
 | [composition_g1_exploration.md](composition_g1_exploration.md) | Local G0/G1-only generated-song exploration loop, Pareto feedback, and resume workflow |
 | [generated_song_g1_g2_evaluation.md](generated_song_g1_g2_evaluation.md) | Optional blind G2 listening preparation and response aggregation for generated cohorts |
 | [song_program_gen0_cohort_gate_contract.md](song_program_gen0_cohort_gate_contract.md) | Normative 1,000-seed GEN0 viability/diversity cohort measurement contract |

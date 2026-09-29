@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cps.local/schemas/audio_reference_receipt.schema.json",
+  "title": "CPS Audio Reference Receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "schema_version", "tool_id", "tool_version", "model_id", "model_version", "model_weights_hash", "input", "decode", "preprocessing", "target_manifest_id", "reference_profile_hash", "generation_manifest_hash", "catalog_hash", "analysis_hash", "patch_hash", "report_hash", "seed", "candidate_rationale", "validation_status", "failure_history"],
+  "properties": {
+    "schema": {"const": "cps.audio-reference-receipt"},
+    "schema_version": {"const": "0.1.0"},
+    "tool_id": {"type": "string", "minLength": 1},
+    "tool_version": {"type": "string", "minLength": 1},
+    "model_id": {"type": "string", "minLength": 1},
+    "model_version": {"type": "string", "minLength": 1},
+    "model_weights_hash": {"$ref": "#/$defs/sha256OrNull"},
+    "input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "source_hash", "pcm_hash"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "source_hash": {"$ref": "#/$defs/sha256"},
+        "pcm_hash": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "decode": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["format", "decoder_id", "decoder_version", "source_bit_depth", "sample_rate_hz", "channels", "frame_count", "pcm_hash"],
+      "properties": {
+        "format": {"type": "string", "minLength": 1},
+        "decoder_id": {"type": "string", "minLength": 1},
+        "decoder_version": {"type": "string"},
+        "source_bit_depth": {"type": ["integer", "null"]},
+        "sample_rate_hz": {"type": "integer", "minimum": 1},
+        "channels": {"type": "integer", "minimum": 1},
+        "frame_count": {"type": "integer", "minimum": 0},
+        "pcm_hash": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "preprocessing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["frame_size", "hop", "model_id", "model_version"],
+      "properties": {
+        "frame_size": {"type": "integer", "minimum": 1},
+        "hop": {"type": "integer", "minimum": 1},
+        "model_id": {"type": "string", "minLength": 1},
+        "model_version": {"type": "string", "minLength": 1}
+      }
+    },
+    "target_manifest_id": {"type": "string", "minLength": 1},
+    "reference_profile_hash": {"$ref": "#/$defs/sha256OrNull"},
+    "generation_manifest_hash": {"$ref": "#/$defs/sha256OrNull"},
+    "catalog_hash": {"$ref": "#/$defs/sha256OrNull"},
+    "analysis_hash": {"$ref": "#/$defs/sha256"},
+    "patch_hash": {"$ref": "#/$defs/sha256"},
+    "report_hash": {"$ref": "#/$defs/sha256"},
+    "seed": {"type": "integer", "minimum": 0, "maximum": 18446744073709551615},
+    "candidate_rationale": {"type": ["string", "null"]},
+    "validation_status": {"enum": ["not_run", "passed", "failed"]},
+    "failure_history": {
+      "type": "array",
+      "items": {"type": "string"}
+    }
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "sha256OrNull": {"anyOf": [{"$ref": "#/$defs/sha256"}, {"type": "null"}]}
+  }
+}

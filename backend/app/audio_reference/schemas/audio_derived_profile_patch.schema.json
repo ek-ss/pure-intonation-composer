@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cps.local/schemas/audio_derived_profile_patch.schema.json",
+  "title": "CPS Audio-Derived Profile Patch",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "schema_version", "target", "settings", "proposed_only", "validation"],
+  "properties": {
+    "schema": {"const": "cps.audio-derived-profile-patch"},
+    "schema_version": {"const": "0.1.0-proposal"},
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["composition_profile_schema", "composition_profile_hash", "target_generator", "generation_manifest_hash"],
+      "properties": {
+        "composition_profile_schema": {"type": "string", "minLength": 1},
+        "composition_profile_hash": {"$ref": "#/$defs/sha256OrNull"},
+        "target_generator": {"type": "string", "minLength": 1},
+        "generation_manifest_hash": {"$ref": "#/$defs/sha256OrNull"}
+      }
+    },
+    "settings": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/setting"}
+    },
+    "proposed_only": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1}
+    },
+    "validation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "target_hash"],
+      "properties": {
+        "status": {"enum": ["not_run", "passed", "failed"]},
+        "target_hash": {"$ref": "#/$defs/sha256OrNull"}
+      }
+    }
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "sha256OrNull": {"anyOf": [{"$ref": "#/$defs/sha256"}, {"type": "null"}]},
+    "setting": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["document", "target_path", "value", "source_observation_ids", "translation", "mapping_policy", "status"],
+      "properties": {
+        "document": {"enum": ["composition_profile", "generation_manifest"]},
+        "target_path": {"type": "string", "pattern": "^/"},
+        "value": {},
+        "source_observation_ids": {
+          "type": "array",
+          "items": {"type": "string", "pattern": "^obs_[a-z_]+_[0-9]{3}$"}
+        },
+        "translation": {"type": "string", "minLength": 1},
+        "mapping_policy": {"enum": ["literal_constraints", "probabilistic_style", "unresolved"]},
+        "status": {"enum": ["candidate", "applied", "rejected"]}
+      }
+    }
+  }
+}

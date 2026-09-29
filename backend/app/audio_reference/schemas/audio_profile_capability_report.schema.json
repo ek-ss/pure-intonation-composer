@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cps.local/schemas/audio_profile_capability_report.schema.json",
+  "title": "CPS Audio Profile Capability Report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "schema_version", "target_schema", "target_generator", "registry_version", "validation_status", "items"],
+  "properties": {
+    "schema": {"const": "cps.audio-profile-capability-report"},
+    "schema_version": {"const": "0.1.0-proposal"},
+    "target_schema": {"type": "string", "minLength": 1},
+    "target_generator": {"type": "string", "minLength": 1},
+    "registry_version": {"type": "string", "minLength": 1},
+    "validation_status": {"enum": ["not_run", "passed", "failed"]},
+    "items": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/item"}
+    }
+  },
+  "$defs": {
+    "item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "capability", "target_schema", "observation_ids", "span_samples", "status", "observed", "attempted", "error", "reason", "severity", "suggested_update", "priority"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "capability": {"type": "string", "minLength": 1},
+        "target_schema": {"type": "string", "minLength": 1},
+        "observation_ids": {
+          "type": "array",
+          "items": {"type": "string", "pattern": "^obs_[a-z_]+_[0-9]{3}$"}
+        },
+        "span_samples": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": {"type": "integer", "minimum": 0}
+        },
+        "status": {"enum": ["exact", "approximated", "unsupported", "uncertain", "not_applicable"]},
+        "observed": {},
+        "attempted": {},
+        "error": {},
+        "reason": {"type": "string", "minLength": 1},
+        "severity": {"enum": ["none", "cosmetic", "structural"]},
+        "suggested_update": {"type": "string"},
+        "priority": {"type": "integer", "minimum": 1, "maximum": 5}
+      }
+    }
+  }
+}
