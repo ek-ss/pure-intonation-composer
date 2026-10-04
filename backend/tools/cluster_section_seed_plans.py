@@ -82,26 +82,55 @@ def cluster(rows: list[dict], count: int, *, metric: Callable[[dict, dict], floa
     while len(centers) < count:
         centers.append(max((index for index in range(len(rows)) if index not in centers),
                            key=lambda index: (min(gap(index, center) for center in centers), -rows[index]["seed"])))
+    # Centers with identical feature vectors shadow each other: every row,
+    # including a center's own, ties to the smaller-seed center, leaving the
+    # other with an empty cluster.  Keep only the smallest-seed center per
+    # feature identity so every remaining center owns its own row and no
+    # cluster has empty membership (the result may carry fewer than ``count``
+    # clusters when the cohort holds fewer distinct feature vectors).
+    seen: set[bytes] = set()
+    deduped: list[int] = []
+    for center in sorted(centers, key=lambda index: rows[index]["seed"]):
+        identity = canonical_bytes(rows[center]["features"])
+        if identity not in seen:
+            seen.add(identity)
+            deduped.append(center)
+    centers = deduped
     for _ in range(5):
         groups: dict[int, list[int]] = defaultdict(list)
         for index in range(len(rows)):
-            center = min(centers, key=lambda value: (gap(index, value), rows[value]["seed"]))
+            # A center always owns its own point: on a distance tie (including
+            # zero-distance nonidentical features under a custom metric) the
+            # row's own center wins, so no cluster ends up with empty membership.
+            center = min(centers, key=lambda value: (gap(index, value), value != index, rows[value]["seed"]))
             groups[center].append(index)
-        updated = [min(groups[center], key=lambda index: (
-            sum(gap(index, member) for member in groups[center]), rows[index]["seed"]
-        )) for center in centers]
+
+        def medoid(center: int) -> int:
+            # A center shadowed by an identical feature vector can end up with
+            # an empty group; the deterministic self-tie keeps its own center
+            # instead of crashing on ``min([])``.
+            pool = groups[center] or [center]
+            return min(pool, key=lambda index: (
+                sum(gap(index, member) for member in pool), rows[index]["seed"]
+            ))
+
+        updated = [medoid(center) for center in centers]
         if updated == centers:
             break
         centers = updated
     groups = defaultdict(list)
     for index in range(len(rows)):
-        center = min(centers, key=lambda value: (gap(index, value), rows[value]["seed"]))
+        # Same self-ownership tiebreaker as the medoid loop above.
+        center = min(centers, key=lambda value: (gap(index, value), value != index, rows[value]["seed"]))
         groups[center].append(index)
     return [{
         "representative_seed": rows[center]["seed"],
         "member_count": len(groups[center]),
         "member_seeds": [rows[index]["seed"] for index in groups[center]],
-        "mean_distance_milli": round(1000 * sum(gap(index, center) for index in groups[center]) / len(groups[center])),
+        "mean_distance_milli": (
+            round(1000 * sum(gap(index, center) for index in groups[center]) / len(groups[center]))
+            if groups[center] else 0
+        ),
         "opening": rows[center]["features"]["opening"],
         "closure": rows[center]["features"]["closure"],
         "form": rows[center]["features"]["form"],

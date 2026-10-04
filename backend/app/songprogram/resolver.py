@@ -240,7 +240,10 @@ def resolve_joint_bnb(query: dict[str, Any], requested_k: int = 24) -> list[dict
     return [core for _, core in results]
 
 
-def _matching(left: list[dict[str, Any]], right: list[dict[str, Any]], equave_mc: int) -> tuple[Any, ...] | None:
+def _matching(
+    left: list[dict[str, Any]], right: list[dict[str, Any]], equave_mc: int,
+    enforce_crossing: bool = False,
+) -> tuple[Any, ...] | None:
     smaller_left = len(left) <= len(right)
     pairs_by_small = permutations(range(len(right) if smaller_left else len(left)), min(len(left), len(right)))
     best: tuple[Any, ...] | None = None
@@ -256,6 +259,13 @@ def _matching(left: list[dict[str, Any]], right: list[dict[str, Any]], equave_mc
             != ((right[b]["ratio_millicents"], b) < (right[d]["ratio_millicents"], d))
             for (a, b), (c, d) in combinations(pairs, 2)
         )
+        # When the query's crossing_match policy is "non_crossing" (a 0.3-only
+        # versioned contract), rank only non-crossing pairings so the returned
+        # edge is usable under crossing_policy="forbid".  The historical
+        # "canonical" policy (0.1/0.2 and default 0.3) keeps the single
+        # lowest-cost pairing, crossing or not.
+        if enforce_crossing and crossing != 0:
+            continue
         drift = 0
         for a, b in pairs:
             if left[a]["exact_ratio"] == right[b]["exact_ratio"] or left[a]["target_ordinal"] != right[b]["target_ordinal"]:
@@ -273,18 +283,49 @@ def _matching(left: list[dict[str, Any]], right: list[dict[str, Any]], equave_mc
     return best
 
 
-def resolve_progression(query: dict[str, Any], diagnostics: dict[str, Any] | None = None) -> dict[str, Any]:
+def resolve_progression(
+    query: dict[str, Any], diagnostics: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     """Exact layered Viterbi over self-contained GEN0-B candidate cores.
 
     When ``diagnostics`` is supplied it is populated with per-layer drop
     counts (polyphony, register, voice motion, crossing, no-match) and the
     layer where the path first breaks.  Recording never affects the result.
+
+    The non-crossing edge-matching policy is a distinct, versioned query and
+    algorithm: ``schema_version`` 2.1.0 with ``algorithm``
+    ``gen0-progression-noncrossing/v1`` and ``crossing_match`` const
+    ``"non_crossing"`` makes ``_matching`` rank only non-crossing pairings (so
+    a usable edge survives ``crossing_policy="forbid"``).  The historical
+    1.2/2.0 queries (algorithm ``gen0-progression-exact/v1``) keep the single
+    lowest-cost pairing and **forbid** the ``crossing_match`` field entirely
+    (their schemas set ``additionalProperties: false``), so the resolver rejects
+    it there rather than silently accepting a field the independent oracle
+    would reject.  The policy is part of the query contract (never a resolver
+    parameter) and is only emitted for 0.3 programs that opt in, so 0.1/0.2
+    queries keep their exact historical edge semantics and hashes.
     """
+    schema_version = query.get("schema_version")
     if (
-        query.get("schema_version") not in {"1.2.0", "2.0.0"}
+        schema_version not in {"1.2.0", "2.0.0", "2.1.0"}
         or query.get("numeric_contract") != NUMERIC_CONTRACT
     ):
         raise ValueError("PROGRESSION_QUERY_CONTEXT_INVALID")
+    if schema_version == "2.1.0":
+        # 2.1 is the dedicated non-crossing query/algorithm: it requires the
+        # non-crossing algorithm and crossing_match const "non_crossing".
+        if (
+            query.get("algorithm") != "gen0-progression-noncrossing/v1"
+            or query.get("crossing_match") != "non_crossing"
+        ):
+            raise ValueError("PROGRESSION_QUERY_CONTEXT_INVALID")
+        enforce_crossing = True
+    else:
+        # 1.2/2.0 forbid crossing_match (additionalProperties: false in the
+        # schema) and require the historical exact algorithm.
+        if "crossing_match" in query or query.get("algorithm") != "gen0-progression-exact/v1":
+            raise ValueError("PROGRESSION_QUERY_CONTEXT_INVALID")
+        enforce_crossing = False
     equave_mc = _mc(_ratio(query["domain_equave"]))
     layers = [sorted(item["candidate_cores"], key=lambda core: (core["local_pair_rms_millicents"], core["local_pair_max_millicents"], core["local_complexity"], core["core_hash"])) for item in query["occurrences"]]
     paths: list[tuple[tuple[Any, ...], list[dict[str, Any]], list[list[int]]]] = []
@@ -351,7 +392,7 @@ def resolve_progression(query: dict[str, Any], diagnostics: dict[str, Any] | Non
                 continue
             options = []
             for score, selected, keys in paths:
-                edge = _matching(selected[-1]["voices"], core["voices"], equave_mc)
+                edge = _matching(selected[-1]["voices"], core["voices"], equave_mc, enforce_crossing)
                 if edge is None:
                     drops["no_match"] = drops.get("no_match", 0) + 1
                     continue

@@ -325,3 +325,66 @@ def test_reconciliation_rejects_single_voice_lift() -> None:
     for code in ("V3_RECON_BINDING_VARIANT_HASH", "V3_RECON_PROVENANCE_INTENT_HASH",
                  "V3_RECON_VOICE_LIFT_MISMATCH"):
         assert code in row["mismatches"]
+
+
+def _lift_chord_voice(project: dict, index: int) -> None:
+    """Lift one non-root voice of every resolved chord (consistent ratio/lift)."""
+    for chord in project["resolved_chords"]:
+        if index >= len(chord["equave_exponents"]):
+            continue
+        chord["equave_exponents"][index] += 1
+        ratio = Fraction(chord["exact_ratios"][index]) * 2
+        chord["exact_ratios"][index] = f"{ratio.numerator}/{ratio.denominator}"
+
+
+def test_reconciliation_lift_policy_never_matches_a_violating_chord() -> None:
+    from app.songprogram.sparse_variant import build_register_lift_policy
+
+    cadence, program, project = _pipeline()
+    dictionary = _dictionary()
+    lifted = copy.deepcopy(project)
+    _lift_chord_voice(lifted, 1)  # a single non-root voice, +1 equave
+    policy = build_register_lift_policy(allow_lifts=True, max_lift=1, max_variants=8)
+    # Without the policy the lifted chord is not the exact binding: it mismatches.
+    off = cadence_impact_report(cadence, program, lifted, dictionary_file=dictionary)
+    assert all(row["status"] == "unmatched" for row in off["slots"])
+    assert all("V3_RECON_VOICE_LIFT_MISMATCH" in row["mismatches"] for row in off["slots"])
+    # With the policy the lifted chord is still NOT matched: a +1 equave lift on
+    # this intent grows the absolute pair error far beyond the 120,000 mc budget
+    # (the exponents do not align with the coarse reference steps), so the lifted
+    # candidate is rejected by the absolute eligibility contract and the chord is
+    # never silently relabelled as a match.  This is the fail-closed behaviour:
+    # a violating chord is never matched, even with lifts enabled.
+    on = cadence_impact_report(cadence, program, lifted, dictionary_file=dictionary,
+                               register_lift_policy=policy)
+    assert on["register_lift_policy"] == policy
+    for row in on["slots"]:
+        assert row["status"] == "unmatched"
+        assert any("V3_RECON_VOICE_LIFT_MISMATCH" in m for m in row["mismatches"])
+    # The unmodified project still matches with the policy (the exact core is
+    # candidate 0), so enabling lifts never rejects a successful realization.
+    exact = cadence_impact_report(cadence, program, project, dictionary_file=dictionary,
+                                  register_lift_policy=policy)
+    assert all(row["status"] == "matched" for row in exact["slots"])
+    assert all(chord["register_lift_candidate"] == 0
+               for row in exact["slots"] for chord in row["project_chords"])
+
+
+def test_reconciliation_lift_policy_is_deterministic() -> None:
+    from app.songprogram.search import canonical_bytes
+    from app.songprogram.sparse_variant import build_register_lift_policy
+
+    cadence, program, project = _pipeline()
+    dictionary = _dictionary()
+    lifted = copy.deepcopy(project)
+    _lift_chord_voice(lifted, 1)
+    policy = build_register_lift_policy(allow_lifts=True, max_lift=1, max_variants=8)
+    first = canonical_bytes(
+        cadence_impact_report(cadence, program, lifted, dictionary_file=dictionary,
+                              register_lift_policy=policy)
+    )
+    second = canonical_bytes(
+        cadence_impact_report(cadence, program, lifted, dictionary_file=dictionary,
+                              register_lift_policy=policy)
+    )
+    assert first == second

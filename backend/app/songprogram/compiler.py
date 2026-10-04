@@ -866,6 +866,8 @@ def compile_sp0(
     stochastic_realization: bool = True,
     dictionary_authorities: dict[str, dict[str, Any]] | None = None,
     progression_diagnostics: dict[str, Any] | None = None,
+    register_lift_policy: dict[str, Any] | None = None,
+    crossing_match: str = "canonical",
 ) -> dict[str, Any]:
     """Compile SP 0.1/0.2 to its matching Project 1.2/1.3 envelope.
 
@@ -876,6 +878,18 @@ def compile_sp0(
     and the dissonant (second-closest) lattice core, so both cases appear in
     the output. The GEN0-B conformance path passes ``False`` to retain the
     exact top-K contract and emit the resolver's own selection.
+
+    ``crossing_match`` is a versioned, 0.3-only edge-matching policy.  When it
+    is ``"non_crossing"`` the compiler emits a distinct, versioned progression
+    query (``schema_version`` 2.1.0, ``algorithm``
+    ``gen0-progression-noncrossing/v1``, ``crossing_match`` const
+    ``"non_crossing"``) that makes the resolver rank only non-crossing pairings
+    (so a usable edge survives ``crossing_policy="forbid"``).  The default
+    ``"canonical"`` keeps the original 2.0 query **without** the field, so
+    0.1/0.2 and default-0.3 queries preserve their exact historical edge
+    semantics and hashes (the 1.2/2.0 schemas forbid ``crossing_match``).  It
+    is independent of the register-lift policy (which controls candidate
+    generation).
     """
     if (
         program.get("schema") != "cps.song-program"
@@ -891,6 +905,12 @@ def compile_sp0(
         "dictionary_variant" in intent for intent in program["chord_intents"]
     ):
         raise CompileError("SPARSE_VARIANT_VERSION_UNSUPPORTED")
+    if register_lift_policy is not None:
+        from .sparse_variant import validate_register_lift_policy
+
+        validate_register_lift_policy(register_lift_policy)
+    if crossing_match not in {"canonical", "non_crossing"}:
+        raise CompileError("CROSSING_MATCH_POLICY_INVALID")
     if any(
         material.get("kind")
         not in {"rhythm_cell", "direct_vector_cell", "harmony_intent_cell", "melody_intent"}
@@ -1134,8 +1154,8 @@ def compile_sp0(
                     query_key = _canonical((query, intent.get("dictionary_variant"))) if program["schema_version"] == "0.3.0" else _canonical(query)
                     if query_key not in harmony_cache:
                         if program["schema_version"] == "0.3.0" and "dictionary_variant" in intent:
-                            from .sparse_variant import exact_sparse_core
-                            cores = [exact_sparse_core(lattice, intent, anchor, query["anchor"]["equave_exponent"], dictionary_authorities)]
+                            from .sparse_variant import sparse_core_variants
+                            cores = sparse_core_variants(lattice, intent, anchor, query["anchor"]["equave_exponent"], dictionary_authorities, register_lift_policy)
                         else:
                             cores = resolve_joint_bnb(query, 24)
                         if not cores:
@@ -1425,6 +1445,16 @@ def compile_sp0(
             "crossing_policy": "forbid",
             "occurrences": [],
         }
+        # The non-crossing edge-matching policy is a distinct, versioned query
+        # and algorithm (2.1.0 / gen0-progression-noncrossing/v1).  It is
+        # emitted only for 0.3 programs that opt in; the default canonical
+        # keeps the original 2.0 query without the field, so 0.1/0.2 and
+        # default-0.3 queries preserve their exact historical edge semantics
+        # and hashes (the 1.2/2.0 schemas forbid crossing_match).
+        if program["schema_version"] == "0.3.0" and crossing_match == "non_crossing":
+            query["schema_version"] = "2.1.0"
+            query["algorithm"] = "gen0-progression-noncrossing/v1"
+            query["crossing_match"] = "non_crossing"
         for draft in drafts:
             if v2_active and draft["occurrence"] != "new":
                 continue  # Rearticulations are key strikes, not chord changes.

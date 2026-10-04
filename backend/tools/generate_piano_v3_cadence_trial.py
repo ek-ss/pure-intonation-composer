@@ -2,8 +2,12 @@
 
 This v3-only experimental CLI runs independently for each equave and seed. It
 records every candidate outcome (including typed failures) and never removes a
-failed seed from the cohort denominator. WAV rendering is optional; without
-it PCM is recorded as ``not_evaluated``.
+failed seed from the cohort denominator.  An artifact write failure after the
+seed directory was created is likewise recorded as a failure rather than
+aborting the run: each staged partial artifact is attempted independently,
+only artifacts actually persisted are listed, and the failure record is
+attempted regardless.  WAV rendering is optional; without it PCM is recorded
+as ``not_evaluated``.
 
 Example::
 
@@ -49,6 +53,19 @@ from app.songprogram.piano_v3 import (  # noqa: E402
     lower_cadence_plan,
     validate_cadence_plan,
 )
+from app.songprogram.sparse_variant import (  # noqa: E402
+    RegisterLiftPolicyError,
+    build_register_lift_policy,
+    validate_register_lift_policy,
+)
+from app.songprogram.style_profile import (  # noqa: E402
+    STYLE_PROFILES,
+    StyleProfileError,
+    apply_style_profile,
+    load_style_profile,
+    style_profile_hash,
+    validate_style_profile,
+)
 from app.songprogram.renderer import render_reference  # noqa: E402
 from app.songprogram.search import canonical_bytes  # noqa: E402
 from tools.generate_piano_solo import _object, _piano_catalog  # noqa: E402
@@ -65,6 +82,11 @@ TICKS_PER_BAR = 1920
 def _json_bytes(value: Any) -> bytes:
     """Stable artifact encoding for policy objects that intentionally use floats."""
     return (json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n").encode()
+
+
+def _write_artifact(path: Path, payload: bytes) -> None:
+    """Write one artifact file (isolated so tests can inject write failures)."""
+    path.write_bytes(payload)
 
 
 def _dictionary(equave: str) -> dict[str, Any]:
@@ -185,7 +207,12 @@ def _failure_code(error: BaseException) -> str:
     return getattr(error, "code", None) or type(error).__name__
 
 
-def generate_one(equave: str, seed: int, *, skip_wav: bool) -> tuple[dict[str, bytes], dict[str, Any]]:
+def generate_one(
+    equave: str, seed: int, *, skip_wav: bool,
+    register_lift_policy: dict[str, Any] | None = None,
+    crossing_match: str = "canonical",
+    style_profile: dict[str, Any] | None = None,
+) -> tuple[dict[str, bytes], dict[str, Any]]:
     """Run one seed through the full v3 path, staging every failure.
 
     Each stage records its artifacts as it completes; a failure raises
@@ -193,7 +220,38 @@ def generate_one(equave: str, seed: int, *, skip_wav: bool) -> tuple[dict[str, b
     partial artifacts produced so far.  A seed is a cohort success only when
     every stage completes: partial artifacts never count as success, and a
     skipped WAV leaves PCM ``not_evaluated`` rather than a PCM success.
+
+    ``register_lift_policy`` is the versioned bounded register-lift policy
+    (see ``sparse_variant.build_register_lift_policy``).  ``None`` normalizes
+    to the disabled policy (``allow_lifts=False``), which reproduces the exact
+    sparse path byte for byte; the resolved policy and its hash are recorded in
+    every report and failure as provenance.
+
+    ``crossing_match`` is the versioned, 0.3-only edge-matching policy
+    (``"canonical"`` or ``"non_crossing"``).  When ``"non_crossing"``, the
+    compiler emits a distinct, versioned progression query (2.1.0 /
+    ``gen0-progression-noncrossing/v1``) that makes the resolver rank only
+    non-crossing pairings; the default ``"canonical"`` keeps the original 2.0
+    query without the field.  It is independent of the register-lift policy and
+    is recorded in every report and failure as provenance.
+
+    ``style_profile`` is a versioned experimental style profile (see
+    ``style_profile``) that alters the *realized* sound — tempo, per-role
+    velocity / gate, per-role rhythm, and the cadence policy's voice-leading
+    cap / candidate budget (which sealed-dictionary variant is selected per
+    slot).  ``None`` applies no style and reproduces the baseline Program /
+    Project / WAV byte for byte.  The sealed dictionary and the cadence plan's
+    dictionary binding are untouched; the profile and its hash are recorded in
+    every report and failure as provenance.  It is an experimental, unsealed
+    control configuration (no auditory T/D/S claim).
     """
+    if register_lift_policy is None:
+        register_lift_policy = build_register_lift_policy()
+    validate_register_lift_policy(register_lift_policy)
+    if crossing_match not in {"canonical", "non_crossing"}:
+        raise ValueError("CROSSING_MATCH_POLICY_INVALID")
+    if style_profile is not None:
+        validate_style_profile(style_profile)
     artifacts: dict[str, bytes] = {}
     stage = "setup"
     progression_diagnostics: dict[str, Any] = {}
@@ -218,9 +276,23 @@ def generate_one(equave: str, seed: int, *, skip_wav: bool) -> tuple[dict[str, b
         artifacts["composition_plan.json"] = canonical_bytes(plan)
 
         stage = "cadence"
+        # A style profile may override the cadence policy's voice-leading cap
+        # and candidate budget (which sealed-dictionary variant is selected per
+        # slot — the harmony progression).  The defaults reproduce the baseline
+        # policy byte for byte, so a ``None`` style leaves it unchanged.
+        cadence_kwargs: dict[str, Any] = {}
+        if style_profile is not None:
+            # The profile stores the cap in integer millicents (float-free);
+            # the cadence policy carries it in cents, so convert here.
+            cadence_kwargs = {
+                "voice_leading_cap_cents": (
+                    style_profile["cadence"]["voice_leading_cap_millicents"] / 1000.0
+                ),
+                "candidate_budget": style_profile["cadence"]["candidate_budget"],
+            }
         policy = build_cadence_policy(
             equave, dictionary["hash"], dictionary["stability_profile_hash"],
-            dictionary["thresholds"]["version"],
+            dictionary["thresholds"]["version"], **cadence_kwargs,
         )
         artifacts["cadence_policy.json"] = _json_bytes(policy)
         cadence = generate_cadence_plan(plan, dictionary, policy)
@@ -230,6 +302,11 @@ def generate_one(equave: str, seed: int, *, skip_wav: bool) -> tuple[dict[str, b
         stage = "lowering"
         base = _base_program(plan, equave, catalog_digest)
         program = lower_cadence_plan(base, cadence, dictionary)
+        if style_profile is not None:
+            # Apply the profile's realized-sound alterations (tempo, per-role
+            # velocity / gate, per-role rhythm, harmony mapping).  The sealed
+            # dictionary binding and the cadence plan are untouched.
+            program = apply_style_profile(program, style_profile)
         artifacts["program.json"] = canonical_bytes(program)
 
         stage = "program_schema"
@@ -245,6 +322,8 @@ def generate_one(equave: str, seed: int, *, skip_wav: bool) -> tuple[dict[str, b
             program, identity, stochastic_realization=False,
             dictionary_authorities={dictionary["hash"]: dictionary},
             progression_diagnostics=progression_diagnostics,
+            register_lift_policy=register_lift_policy,
+            crossing_match=crossing_match,
         )
         artifacts["project.json"] = canonical_bytes(project)
 
@@ -253,7 +332,10 @@ def generate_one(equave: str, seed: int, *, skip_wav: bool) -> tuple[dict[str, b
         jsonschema.Draft202012Validator(project_schema).validate(project)
 
         stage = "reconciliation"
-        impact = cadence_impact_report(cadence, program, project, dictionary_file=dictionary)
+        impact = cadence_impact_report(
+            cadence, program, project, dictionary_file=dictionary,
+            register_lift_policy=register_lift_policy,
+        )
         bad = [
             f"{row['section_id']}/{row['bar']}:{'+'.join(row['mismatches']) or 'NOT_MATCHED'}"
             for row in impact["slots"] if row["status"] != "matched"
@@ -290,7 +372,7 @@ def generate_one(equave: str, seed: int, *, skip_wav: bool) -> tuple[dict[str, b
 
     report = {
         "schema": "cps.piano-v3-cadence-trial-report",
-        "schema_version": "1.0.0",
+        "schema_version": "1.2.0",
         "status": "success",
         "seed": seed,
         "equave": equave,
@@ -301,6 +383,16 @@ def generate_one(equave: str, seed: int, *, skip_wav: bool) -> tuple[dict[str, b
         "dictionary_hash": dictionary["hash"],
         "stability_profile_hash": dictionary["stability_profile_hash"],
         "cadence_policy_hash": policy["policy_hash"],
+        "register_lift_policy": register_lift_policy,
+        "register_lift_policy_hash": register_lift_policy["policy_hash"],
+        "crossing_match": crossing_match,
+        # Experimental, unsealed style provenance.  ``None`` (baseline) applies
+        # no style and reproduces the baseline Program / Project / WAV byte for
+        # byte; a profile records its full body and hash.  No auditory claim.
+        "style_profile": style_profile,
+        "style_profile_hash": (
+            style_profile_hash(style_profile) if style_profile is not None else None
+        ),
         "compiler_identity": identity.__dict__,
         "catalog_digest": catalog_digest,
         "section_bars": [
@@ -340,37 +432,98 @@ def main() -> None:
     parser.add_argument("--seeds", type=int, nargs="+", required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--skip-wav", action="store_true")
+    parser.add_argument(
+        "--register-lift", action="store_true",
+        help="Enable the versioned bounded register-lift candidate policy "
+             "(default: disabled, reproducing the exact sparse path).",
+    )
+    parser.add_argument("--max-lift", type=int, default=1,
+                        help="Maximum equave shift per non-root voice (0-8).")
+    parser.add_argument("--max-variants", type=int, default=8,
+                        help="Maximum candidate variants per chord (1-64).")
+    parser.add_argument(
+        "--crossing", action="store_true",
+        help="Enable the versioned 0.3-only non-crossing edge-matching policy "
+             "(crossing_match=non_crossing; default: canonical, historical).",
+    )
+    parser.add_argument(
+        "--style", choices=sorted(STYLE_PROFILES),
+        help="Apply a built-in experimental style profile by ID "
+             "(restrained / driving).  Mutually exclusive with --style-profile.",
+    )
+    parser.add_argument(
+        "--style-profile", type=Path,
+        help="Apply an experimental style profile from a JSON file "
+             "(mutually exclusive with --style).  Default: no style (baseline).",
+    )
     args = parser.parse_args()
     if args.output.exists() and any(args.output.iterdir()):
         parser.error("--output must be a new or empty directory")
     if len(set(args.seeds)) != len(args.seeds) or any(not 0 <= seed < 2**64 for seed in args.seeds):
         parser.error("--seeds must be unique uint64 values")
+    register_lift_policy = build_register_lift_policy(
+        allow_lifts=args.register_lift, max_lift=args.max_lift,
+        max_variants=args.max_variants,
+    )
+    try:
+        validate_register_lift_policy(register_lift_policy)
+    except RegisterLiftPolicyError as error:
+        parser.error(f"invalid register-lift policy: {error}")
+    crossing_match = "non_crossing" if args.crossing else "canonical"
+    # Resolve the experimental style profile (built-in ID or JSON file).  The
+    # two flags are mutually exclusive; neither selects a style (baseline).
+    if args.style is not None and args.style_profile is not None:
+        parser.error("--style and --style-profile are mutually exclusive")
+    style_profile: dict[str, Any] | None = None
+    if args.style is not None:
+        style_profile = STYLE_PROFILES[args.style]
+    elif args.style_profile is not None:
+        try:
+            style_profile = load_style_profile(args.style_profile)
+        except (StyleProfileError, ValueError, OSError) as error:
+            parser.error(f"invalid style profile: {error}")
     args.output.mkdir(parents=True, exist_ok=True)
     outcomes = []
     for seed in args.seeds:
         directory = args.output / f"seed-{seed}"
+        written: list[str] = []
         try:
-            artifacts, report = generate_one(args.equave, seed, skip_wav=args.skip_wav)
+            artifacts, report = generate_one(
+                args.equave, seed, skip_wav=args.skip_wav,
+                register_lift_policy=register_lift_policy,
+                crossing_match=crossing_match,
+                style_profile=style_profile,
+            )
             directory.mkdir()
             for name, payload in artifacts.items():
-                (directory / name).write_bytes(payload)
+                _write_artifact(directory / name, payload)
+                written.append(name)
             outcomes.append({
                 "seed": seed,
                 "status": "success",
+                # The cluster tool binds this path exactly (resolved): it is
+                # the output path as given on the command line (the documented
+                # convention is a relative local_authority/... path; absolute
+                # is equally valid) joined with seed-{seed}/report.json.
                 "report": str(directory / "report.json"),
                 "pcm_status": report["pcm"]["status"],
             })
         except (V3TrialFailure, ValueError, KeyError, OSError, jsonschema.ValidationError) as error:
             # Staged failures carry their stage and partial artifacts; any
-            # other failure type is recorded with stage "unknown".  Partial
-            # artifacts are written for inspection but never count the seed
-            # as a cohort success.
+            # other failure type (e.g. an artifact write error after the
+            # directory was created) is recorded with stage "unknown" and the
+            # artifacts that were actually written.  Partial artifacts are
+            # written for inspection but never count the seed as a cohort
+            # success.  Staged partials are persisted one attempt each below,
+            # so a write failure on one cannot prevent the others or the
+            # failure record, and only artifacts actually persisted are
+            # listed.
             staged = isinstance(error, V3TrialFailure)
             stage = error.stage if staged else "unknown"
-            partial = sorted(error.artifacts) if staged else []
+            partial = [] if staged else sorted(written)
             failure = {
                 "schema": "cps.piano-v3-cadence-trial-failure",
-                "schema_version": "1.0.0",
+                "schema_version": "1.2.0",
                 "seed": seed,
                 "equave": args.equave,
                 "status": "failed",
@@ -379,15 +532,50 @@ def main() -> None:
                 "detail": str(error),
                 "partial_artifacts": partial,
                 "candidate_failures_counted": True,
+                "register_lift_policy": register_lift_policy,
+                "register_lift_policy_hash": register_lift_policy["policy_hash"],
+                "crossing_match": crossing_match,
+                "style_profile": style_profile,
+                "style_profile_hash": (
+                    style_profile_hash(style_profile) if style_profile is not None else None
+                ),
                 "navigation_comparison": _navigation_report(args.equave),
                 "classification_threshold_calibrated": False,
                 "profile_status": "unsealed",
             }
-            directory.mkdir()
-            if staged:
-                for name, payload in error.artifacts.items():
-                    (directory / name).write_bytes(payload)
-            (directory / "failure.json").write_bytes(canonical_bytes(failure))
+            try:
+                # exist_ok: when an artifact write failed, the directory was
+                # already created on the success path; a second mkdir() would
+                # raise FileExistsError and abort the whole run before the
+                # failure could be recorded.
+                directory.mkdir(exist_ok=True)
+            except OSError as persist_error:
+                # Nothing could be persisted (the directory does not exist);
+                # keep the outcome in the cohort report so the denominator is
+                # maintained and the seed is never a false success.
+                failure["detail"] = (
+                    f"{failure['detail']}; record not persisted: {persist_error}"
+                )
+                failure["partial_artifacts"] = []
+            else:
+                if staged:
+                    persisted = []
+                    for name, payload in error.artifacts.items():
+                        try:
+                            _write_artifact(directory / name, payload)
+                        except OSError:
+                            continue
+                        persisted.append(name)
+                    failure["partial_artifacts"] = sorted(persisted)
+                try:
+                    _write_artifact(directory / "failure.json", canonical_bytes(failure))
+                except OSError as persist_error:
+                    # The per-seed record could not be persisted; keep the
+                    # outcome in the cohort report so the denominator is
+                    # maintained and the seed is never a false success.
+                    failure["detail"] = (
+                        f"{failure['detail']}; record not persisted: {persist_error}"
+                    )
             outcomes.append(failure)
     cohort = {
         "schema": "cps.piano-v3-cadence-cohort-report",

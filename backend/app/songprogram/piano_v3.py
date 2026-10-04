@@ -282,8 +282,19 @@ def build_cadence_policy(
     dictionary_hash: str,
     stability_profile_hash: str,
     thresholds_version: str,
+    *,
+    voice_leading_cap_cents: float = 400.0,
+    candidate_budget: int = 32,
 ) -> dict[str, Any]:
-    """Assemble the (unsealed) per-equave cadence policy body."""
+    """Assemble the (unsealed) per-equave cadence policy body.
+
+    ``voice_leading_cap_cents`` and ``candidate_budget`` default to the
+    historical values, so a call without them reproduces the baseline policy
+    byte for byte.  A style profile may supply different values (which change
+    *which* sealed-dictionary variant is selected per slot — the harmony
+    progression — while every slot still binds to a sealed variant); the
+    resulting ``policy_hash`` reflects the actual values.
+    """
     if equave not in PIANO_V3_DOMAINS:
         raise PianoV3Error("V3_EQUAVE_UNSUPPORTED", equave)
     policy = {
@@ -296,9 +307,9 @@ def build_cadence_policy(
         "stability_profile_hash": stability_profile_hash,
         "thresholds_version": thresholds_version,
         "voice_counts": [3, 4],
-        "candidate_budget": 32,
+        "candidate_budget": candidate_budget,
         "max_changes_per_bar": 2,
-        "voice_leading_cap_cents": 400.0,
+        "voice_leading_cap_cents": voice_leading_cap_cents,
         "section_placement": dict(SECTION_PLACEMENT),
         "cycle_repeat_bars": 2,
         "policy_hash": "",
@@ -927,6 +938,65 @@ def _binding_equivalent(
     )
 
 
+def _lift_candidate_index(
+    lattice: Mapping[str, Any],
+    intent: Mapping[str, Any],
+    anchor: list[int],
+    anchor_exponent: int | None,
+    dictionary_authorities: Mapping[str, Any] | None,
+    policy: Mapping[str, Any],
+    chord: Mapping[str, Any],
+) -> int | None:
+    """Index of the register-lift candidate that a resolved chord realizes.
+
+    Recomputes the bounded candidate set for the binding (the exact core
+    first, then the policy's register lifts) and matches the chord against it
+    position by position: absolute exact ratios, equave exponents, and lattice
+    vectors.  Returns ``None`` when the candidate set cannot be recomputed or
+    no candidate matches, so the caller falls back to the exact binding check.
+    """
+    from .compiler import CompileError
+    from .sparse_variant import RegisterLiftPolicyError, sparse_core_variants
+
+    if anchor_exponent is None:
+        return None
+    try:
+        candidates = sparse_core_variants(
+            dict(lattice), dict(intent), list(anchor), anchor_exponent,
+            dictionary_authorities, dict(policy),
+        )
+    except (CompileError, RegisterLiftPolicyError, ValueError, KeyError, TypeError):
+        return None
+    try:
+        ratios = [Fraction(text) for text in chord.get("exact_ratios", [])]
+    except (ValueError, TypeError):
+        return None
+    exponents = chord.get("equave_exponents") or []
+    anchor_vector = chord.get("anchor_vector") or []
+    offsets = chord.get("voice_offsets") or []
+    for index, candidate in enumerate(candidates):
+        if (
+            len(candidate["exact_ratios"]) != len(ratios)
+            or len(candidate["equave_exponents"]) != len(exponents)
+            or len(candidate["vectors"]) != len(offsets)
+        ):
+            continue
+        if any(
+            Fraction(text) != ratio
+            for text, ratio in zip(candidate["exact_ratios"], ratios)
+        ):
+            continue
+        if candidate["equave_exponents"] != exponents:
+            continue
+        if any(
+            [a + o for a, o in zip(anchor_vector, offset)] != vector
+            for offset, vector in zip(offsets, candidate["vectors"])
+        ):
+            continue
+        return index
+    return None
+
+
 def cadence_impact_report(
     cadence_plan: Mapping[str, Any],
     program: Mapping[str, Any] | None = None,
@@ -934,6 +1004,7 @@ def cadence_impact_report(
     *,
     ticks_per_bar: int | None = None,
     dictionary_file: Mapping[str, Any] | None = None,
+    register_lift_policy: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Reconcile cadence slots against the program and project, fail-closed.
 
@@ -941,8 +1012,10 @@ def cadence_impact_report(
 
     * position — the slot's ``(section_id, bar)`` (bars are section-relative;
       section starts come from the program form) must carry exactly one
-      harmony realization in the program and exactly one harmony occurrence
-      in the project;
+      harmony realization in the program and as many harmony occurrences in
+      the project as the program's harmony rhythm cell has steps per bar (one
+      for the baseline sustained chord; more when a style profile re-strikes
+      the chord several times per bar);
     * binding — the chord intent(s) referenced by that position's material
       must bind the slot's dictionary authority (source key, dictionary
       hash, variant hash; the full sealed variant when a dictionary is
@@ -952,7 +1025,13 @@ def cadence_impact_report(
       (the compiler reuses one chord across bars that share a variant);
     * sounding — the chord's absolute exact ratios, root (anchor) vector,
       and every voice's lattice vector and equave lift must equal the
-      binding's placed voices.
+      binding's placed voices.  When ``register_lift_policy`` allows lifts,
+      a chord may instead equal one of the binding's bounded register-lift
+      candidates (recomputed from the same intent, anchor, and dictionary
+      authorities); the selected candidate index and per-voice lift deltas
+      are recorded on the chord entry, so a lifted realization is matched by
+      evidence rather than silently accepted.  A lifted chord that is not one
+      of the binding's candidates still mismatches.
 
     A slot is ``matched`` only when both the program and the project are
     supplied and every check passes; any failure records its typed code in
@@ -961,6 +1040,13 @@ def cadence_impact_report(
     dictionary entry is not evidence for this slot.
     """
     validate_cadence_plan(cadence_plan)
+    if register_lift_policy is not None:
+        from .sparse_variant import validate_register_lift_policy
+
+        validate_register_lift_policy(register_lift_policy)
+    lifts_enabled = bool(
+        register_lift_policy is not None and register_lift_policy.get("allow_lifts")
+    )
     equave = Fraction(cadence_plan["equave"])
     if ticks_per_bar is None and project is not None:
         clock = project.get("clock", {})
@@ -1009,6 +1095,28 @@ def cadence_impact_report(
             occurrences_by_slot.setdefault(
                 (occurrence["section_id"], bar), []
             ).append(occurrence)
+    # Expected harmony occurrences per bar, derived from the program's own
+    # harmony rhythm cell(s).  The baseline v3 lowering uses one step per bar
+    # (one sustained chord), so the expectation is 1; a style profile may
+    # replace the harmony rhythm with several steps per bar (e.g. four staccato
+    # re-strikes), in which case the compiler emits one occurrence per step and
+    # the expectation rises accordingly.  Deriving it from the verified program
+    # keeps the check self-consistent for the cluster validator's recomputation.
+    expected_occurrences_per_bar = 1
+    if program is not None:
+        harmony_rhythm_ids = {
+            material.get("rhythm_id")
+            for material in program.get("materials", [])
+            if material.get("kind") == "harmony_intent_cell"
+        }
+        for material in program.get("materials", []):
+            if (material.get("kind") == "rhythm_cell"
+                    and material.get("id") in harmony_rhythm_ids):
+                steps = material.get("steps")
+                if isinstance(steps, list):
+                    expected_occurrences_per_bar = max(
+                        expected_occurrences_per_bar, len(steps)
+                    )
     # Lattice for re-deriving the slot's expected variant (dictionary path).
     generators: list[Fraction] | None = None
     if dictionary_file is not None:
@@ -1019,6 +1127,23 @@ def cadence_impact_report(
             if domain is None:
                 raise PianoV3Error("V3_RECON_DOMAIN_UNKNOWN", cadence_plan["equave"])
             generators = [Fraction(text) for text in domain["generators"]]
+    # Internal compiler lattice and dictionary authorities, for re-deriving
+    # the register-lift candidate set (lifts only).  The exact-only path never
+    # needs them, so they stay ``None`` unless lifts are actually enabled.
+    lattice: dict[str, Any] | None = None
+    dictionary_authorities: dict[str, Any] | None = None
+    if lifts_enabled and program is not None:
+        source = program["lattice"]
+        lattice = {
+            "equave": source["equave"],
+            "generators": list(source["generators"]),
+            "maximum_odd_limit": source["maximum_odd_limit"],
+            "maximum_reduced_complexity_bits": source["pitch_exploration"][
+                "maximum_reduced_complexity_bits"
+            ],
+        }
+    if lifts_enabled and dictionary_file is not None:
+        dictionary_authorities = {dictionary_file["hash"]: dictionary_file}
     # intent_hash -> intent, for the chord provenance lookup.  The compiler
     # reuses one resolved chord across bars that share a variant, so the
     # chord's intent may sit in another bar; binding-equivalence decides.
@@ -1097,7 +1222,7 @@ def cadence_impact_report(
             occurrences = occurrences_by_slot.get(slot_position, [])
             if not occurrences:
                 mismatches.append("V3_RECON_NO_OCCURRENCE")
-            elif len(occurrences) > 1:
+            elif len(occurrences) != expected_occurrences_per_bar:
                 mismatches.append("V3_RECON_EXTRA_OCCURRENCE")
             row["resolved_chord_ids"] = sorted(
                 {occurrence.get("resolved_chord_id") for occurrence in occurrences}
@@ -1137,11 +1262,6 @@ def cadence_impact_report(
                 )
                 if program is not None and entry["intent_hash_match"] is False:
                     mismatches.append("V3_RECON_PROVENANCE_INTENT_HASH")
-                # Sounding: absolute exact ratios against the slot's plan.
-                actual = sorted(Fraction(text) for text in chord.get("exact_ratios", []))
-                entry["ratio_match"] = actual == expected_ratios
-                if not entry["ratio_match"]:
-                    mismatches.append("V3_RECON_RATIO_MISMATCH")
                 # Sounding: root vector and per-voice vector/lift against the
                 # binding declared at this position.
                 variant = position_variants[0] if len(position_variants) == 1 else None
@@ -1149,10 +1269,51 @@ def cadence_impact_report(
                 if not isinstance(voices, list) or not voices:
                     entry.update({"root_vector_match": None, "voice_vector_match": None,
                                   "voice_lift_match": None})
+                    # Sounding: absolute exact ratios against the slot's plan.
+                    actual = sorted(Fraction(text) for text in chord.get("exact_ratios", []))
+                    entry["ratio_match"] = actual == expected_ratios
+                    if not entry["ratio_match"]:
+                        mismatches.append("V3_RECON_RATIO_MISMATCH")
                 else:
                     anchor = chord.get("anchor_vector") or []
                     offsets = chord.get("voice_offsets") or []
                     exponents = chord.get("equave_exponents") or []
+                    center = section_tonal_centers.get(
+                        slot["section_id"], [0] * len(voices[0].get("vector", []))
+                    )
+                    expected_anchor = [
+                        a + t for a, t in zip(voices[0].get("vector", []), center)
+                    ]
+                    # When the register-lift policy is active, a resolved chord
+                    # may be a lifted candidate of the binding rather than the
+                    # exact variant: recompute the bounded candidate set for
+                    # this position and match the chord against it position by
+                    # position.  The sealed binding itself is unchanged; a
+                    # lifted chord that is not one of the binding's candidates
+                    # still mismatches.
+                    candidate_index = None
+                    if lifts_enabled and lattice is not None and len(bound_intents) == 1:
+                        candidate_index = _lift_candidate_index(
+                            lattice, bound_intents[0], expected_anchor,
+                            voices[0].get("equave_exponent"), dictionary_authorities,
+                            register_lift_policy, chord,
+                        )
+                    if candidate_index is not None:
+                        entry["register_lift_candidate"] = candidate_index
+                        entry["register_lift_deltas"] = [
+                            (exponents[index] - voice.get("equave_exponent", 0))
+                            if index < len(exponents) else None
+                            for index, voice in enumerate(voices)
+                        ]
+                    # Sounding: absolute exact ratios against the slot's plan,
+                    # or against the selected register-lift candidate.
+                    if candidate_index is not None:
+                        entry["ratio_match"] = True
+                    else:
+                        actual = sorted(Fraction(text) for text in chord.get("exact_ratios", []))
+                        entry["ratio_match"] = actual == expected_ratios
+                    if not entry["ratio_match"]:
+                        mismatches.append("V3_RECON_RATIO_MISMATCH")
                     if entry["voice_count"] != len(voices):
                         mismatches.append("V3_RECON_VOICE_COUNT")
                     vector_ok = entry["voice_count"] == len(voices)
@@ -1167,17 +1328,16 @@ def cadence_impact_report(
                         if exponents[index] != voice.get("equave_exponent"):
                             lift_ok = False
                     entry["voice_vector_match"] = vector_ok
-                    entry["voice_lift_match"] = lift_ok
+                    if candidate_index is not None:
+                        # The exponents equal the selected candidate's by
+                        # construction of the position-by-position match.
+                        entry["voice_lift_match"] = True
+                    else:
+                        entry["voice_lift_match"] = lift_ok
                     if not vector_ok:
                         mismatches.append("V3_RECON_VOICE_VECTOR_MISMATCH")
-                    if not lift_ok:
+                    if not entry["voice_lift_match"]:
                         mismatches.append("V3_RECON_VOICE_LIFT_MISMATCH")
-                    center = section_tonal_centers.get(
-                        slot["section_id"], [0] * len(voices[0].get("vector", []))
-                    )
-                    expected_anchor = [
-                        a + t for a, t in zip(voices[0].get("vector", []), center)
-                    ]
                     entry["root_vector_match"] = anchor == expected_anchor
                     if not entry["root_vector_match"]:
                         mismatches.append("V3_RECON_ROOT_VECTOR_MISMATCH")
@@ -1191,11 +1351,16 @@ def cadence_impact_report(
             row["status"] = "planned"
         row["mismatches"] = sorted(set(mismatches))
         rows.append(row)
-    return {"schema": "cps.piano-cadence-impact-report", "schema_version": "1.1.0",
-            "cadence_plan_hash": cadence_plan["cadence_plan_hash"],
-            "program_checked": program is not None, "project_checked": project is not None,
-            "ticks_per_bar": ticks_per_bar,
-            "slots": rows}
+    report = {
+        "schema": "cps.piano-cadence-impact-report", "schema_version": "1.2.0",
+        "cadence_plan_hash": cadence_plan["cadence_plan_hash"],
+        "program_checked": program is not None, "project_checked": project is not None,
+        "ticks_per_bar": ticks_per_bar,
+    }
+    if register_lift_policy is not None:
+        report["register_lift_policy"] = dict(register_lift_policy)
+    report["slots"] = rows
+    return report
 
 
 # ---------------------------------------------------------------------------
